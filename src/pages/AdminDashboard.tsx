@@ -368,20 +368,13 @@ export default function AdminDashboard() {
       const found = KWARDA_QABILAH_JATENG.find(item => item.name === reg);
       const isPtma = found ? parseInt(found.code, 10) >= 36 : false;
       
-      let qab = '';
-      if (isPtma) {
-        qab = reg;
-      } else {
-        qab = app.qabilah || 'Tanpa Qabilah';
-      }
-      
-      if (qab) {
-        if (!counts[qab]) {
-          counts[qab] = { approved: 0, pending: 0, total: 0 };
+      if (isPtma && reg) {
+        if (!counts[reg]) {
+          counts[reg] = { approved: 0, pending: 0, total: 0 };
         }
-        if (app.status === 'approved') counts[qab].approved++;
-        else if (app.status === 'pending') counts[qab].pending++;
-        counts[qab].total++;
+        if (app.status === 'approved') counts[reg].approved++;
+        else if (app.status === 'pending') counts[reg].pending++;
+        counts[reg].total++;
       }
     });
     return Object.entries(counts)
@@ -3178,7 +3171,7 @@ export default function AdminDashboard() {
                                 )}
 
                                 {/* Header block */}
-                                <div className="flex items-center gap-2 z-10 border-b border-gray-100 pb-2">
+                                <div className={cn("flex items-center gap-2 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-gray-100")}>
                                   <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
                                   <div>
                                     <h5 className="text-[7.5px] font-black text-gray-800 uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h5>
@@ -3337,7 +3330,7 @@ export default function AdminDashboard() {
                                 )}
 
                                 {/* Top capsule logo */}
-                                <div className="flex justify-center z-10">
+                                <div className={cn("flex justify-center z-10", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-hw-green text-white rounded-full text-[7.5px] font-black uppercase tracking-wider shadow-sm border border-emerald-600/30">
                                     <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW" className="w-3.5 h-3.5 object-contain invert brightness-200" />
                                     <span>HW Jateng</span>
@@ -3345,7 +3338,7 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Rules and Pledge */}
-                                <div className="space-y-1 z-10 px-1 mt-1">
+                                <div className={cn("space-y-1 z-10 px-1 mt-1", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                                   <h5 className="text-[7.5px] font-black uppercase text-emerald-800 tracking-wider text-center border-b border-gray-150 pb-0.5">Undang-Undang Pandu Hizbul Wathan</h5>
                                   <ol className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[4.8px] text-gray-700 list-decimal pl-3 font-semibold leading-tight mt-1">
                                     <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -3362,8 +3355,8 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Validation QR & Stamp Block */}
-                                <div className="border-t border-gray-100 pt-1 z-10 flex items-center justify-between relative mt-1">
-                                  <div className="text-left leading-tight max-w-[130px]">
+                                <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-1", settings.ktaTemplateBack ? "border-transparent" : "border-gray-100")}>
+                                  <div className={cn("text-left leading-tight max-w-[130px]", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                                     <p className="text-[4px] text-gray-400 uppercase font-bold">Diterbitkan oleh :</p>
                                     <p className="text-[5.5px] font-black text-emerald-800 uppercase leading-none">Pimpinan Wilayah HW Jawa Tengah</p>
                                     <p className="text-[4px] text-gray-400">Jl. Singosari No.33, Semarang</p>
@@ -6329,7 +6322,7 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Top Branding / Logo */}
-                        <div className="flex items-center gap-1.5 z-10">
+                        <div className={cn("flex items-center gap-1.5 z-10", settings.ktaTemplateFront ? "opacity-0 pointer-events-none" : "")}>
                           <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="Logo HW" className="w-9 h-9 object-contain" />
                           <div className="leading-none text-left">
                             <h4 className={cn("text-[9px] font-black uppercase tracking-wide", settings.ktaTemplateFront ? "text-emerald-900" : "text-white")}>KARTU TANDA ANGGOTA</h4>
@@ -6440,7 +6433,7 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Rules and Pledge */}
-                        <div className="space-y-1 z-10 px-1 text-left leading-tight">
+                        <div className={cn("space-y-1 z-10 px-1 text-left leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                           <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", settings.ktaTemplateBack ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                           <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", settings.ktaTemplateBack ? "text-gray-750" : "text-slate-300")}>
                             <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -6457,8 +6450,8 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Validation QR & Stamp Block */}
-                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", settings.ktaTemplateBack ? "border-gray-100" : "border-white/10")}>
-                          <div className="space-y-0.5 max-w-[140px] leading-tight">
+                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
+                          <div className={cn("space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                             <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                             <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
                             <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>

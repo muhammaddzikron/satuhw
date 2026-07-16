@@ -589,7 +589,7 @@ export default function KTAPage() {
               )}
 
               {/* Card Header */}
-              <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-gray-100" : "border-white/10")}>
+              <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-white/10")}>
                 <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
                 <div className="min-w-0">
                   <h4 className="text-[7.5px] font-black uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h4>
@@ -640,6 +640,13 @@ export default function KTAPage() {
                         <td className="text-center py-0.1">:</td>
                         <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>Kwarda {myApplication.asalDaerah}</td>
                       </tr>
+                      {myApplication.qabilah && (
+                        <tr>
+                          <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Qabilah</td>
+                          <td className="text-center py-0.1">:</td>
+                          <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{myApplication.qabilah}</td>
+                        </tr>
+                      )}
                       <tr>
                         <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Tingkatan</td>
                         <td className="text-center py-0.1">:</td>
@@ -730,7 +737,7 @@ export default function KTAPage() {
               )}
 
               {/* Rules and Pledge */}
-              <div className="space-y-1 z-10 px-1">
+              <div className={cn("space-y-1 z-10 px-1", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                 <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", settings.ktaTemplateBack ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                 <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", settings.ktaTemplateBack ? "text-gray-750" : "text-slate-300")}>
                   <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -747,8 +754,8 @@ export default function KTAPage() {
               </div>
 
               {/* Validation QR & Stamp Block */}
-              <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-gray-100" : "border-white/10")}>
-                <div className="text-left space-y-0.5 max-w-[140px] leading-tight">
+              <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
+                <div className={cn("text-left space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                   <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                   <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
                   <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
@@ -832,7 +839,7 @@ export default function KTAPage() {
                   )}
 
                   {/* Card Header */}
-                  <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-gray-100" : "border-white/10")}>
+                  <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-white/10")}>
                     <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
                     <div className="min-w-0">
                       <h4 className="text-[7.5px] font-black uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h4>
@@ -883,6 +890,13 @@ export default function KTAPage() {
                             <td className="text-center py-0.1">:</td>
                             <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>Kwarda {myApplication.asalDaerah}</td>
                           </tr>
+                          {myApplication.qabilah && (
+                            <tr>
+                              <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Qabilah</td>
+                              <td className="text-center py-0.1">:</td>
+                              <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{myApplication.qabilah}</td>
+                            </tr>
+                          )}
                           <tr>
                             <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Tingkatan</td>
                             <td className="text-center py-0.1">:</td>
@@ -971,7 +985,7 @@ export default function KTAPage() {
                   )}
 
                   {/* Rules and Pledge */}
-                  <div className="space-y-1 z-10 px-1">
+                  <div className={cn("space-y-1 z-10 px-1", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                     <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", settings.ktaTemplateBack ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                     <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", settings.ktaTemplateBack ? "text-gray-750" : "text-slate-300")}>
                       <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -988,8 +1002,8 @@ export default function KTAPage() {
                   </div>
 
                   {/* Validation QR & Stamp Block */}
-                  <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-gray-100" : "border-white/10")}>
-                    <div className="text-left space-y-0.5 max-w-[140px] leading-tight">
+                  <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
+                    <div className={cn("text-left space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                       <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                       <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
                       <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
