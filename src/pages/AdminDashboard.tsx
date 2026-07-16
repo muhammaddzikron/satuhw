@@ -631,7 +631,7 @@ export default function AdminDashboard() {
       const frontCanvas = await html2canvas(frontEl, {
         scale: 3, // high quality
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null
       });
 
@@ -639,7 +639,7 @@ export default function AdminDashboard() {
       const backCanvas = await html2canvas(backEl, {
         scale: 3, // high quality
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null
       });
 
@@ -6305,13 +6305,17 @@ export default function AdminDashboard() {
                           "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
                           settings.ktaTemplateFront ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-950 border-emerald-950/20"
                         )}
-                        style={{
-                          boxSizing: 'border-box',
-                          backgroundImage: settings.ktaTemplateFront ? `url(${getDriveDirectLink(settings.ktaTemplateFront)})` : undefined,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        }}
+                        style={{ boxSizing: 'border-box' }}
                       >
+                        {/* Background Template Image */}
+                        {settings.ktaTemplateFront && (
+                          <img 
+                            src={getCorsSafeUrl(settings.ktaTemplateFront)} 
+                            alt="Template Front" 
+                            className="absolute inset-0 w-full h-full object-cover z-0" 
+                            crossOrigin="anonymous" 
+                          />
+                        )}
                         {/* Watermark if no template */}
                         {!settings.ktaTemplateFront && (
                           <>
@@ -6416,13 +6420,17 @@ export default function AdminDashboard() {
                           "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
                           settings.ktaTemplateBack ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
                         )}
-                        style={{
-                          boxSizing: 'border-box',
-                          backgroundImage: settings.ktaTemplateBack ? `url(${getDriveDirectLink(settings.ktaTemplateBack)})` : undefined,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        }}
+                        style={{ boxSizing: 'border-box' }}
                       >
+                        {/* Background Template Image */}
+                        {settings.ktaTemplateBack && (
+                          <img 
+                            src={getCorsSafeUrl(settings.ktaTemplateBack)} 
+                            alt="Template Back" 
+                            className="absolute inset-0 w-full h-full object-cover z-0" 
+                            crossOrigin="anonymous" 
+                          />
+                        )}
                         {/* Watermark if no template */}
                         {!settings.ktaTemplateBack && (
                           <>

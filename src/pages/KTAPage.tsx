@@ -26,7 +26,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
-import { cn, getDriveDirectLink } from '../lib/utils';
+import { cn, getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
 import LoadingPage from './LoadingPage';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -143,6 +143,7 @@ export default function KTAPage() {
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const [applications, setApplications] = useState<any[]>([]);
   const [myApplication, setMyApplication] = useState<any | null>(null);
+  const validationUrl = `${window.location.origin}/kta?id=${myApplication?.id || myApplication?.ktaNumber || ''}`;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
@@ -417,7 +418,7 @@ export default function KTAPage() {
       const frontCanvas = await html2canvas(frontEl, {
         scale: 3, // high quality
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null
       });
 
@@ -425,7 +426,7 @@ export default function KTAPage() {
       const backCanvas = await html2canvas(backEl, {
         scale: 3, // high quality
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null
       });
 
@@ -562,7 +563,7 @@ export default function KTAPage() {
           </div>
 
           {/* HIDDEN CAPTURE CONTAINER FOR PDF GENERATION */}
-          <div id="kta-print-capture" className="fixed top-[-9999px] left-[-9999px] pointer-events-none space-y-4" style={{ zIndex: -9999 }}>
+          <div id="kta-print-capture" className="absolute left-[-9999px] top-[-9999px] space-y-4" style={{ zIndex: -9999 }}>
             {/* FRONT CARD CAPTURE */}
             <div 
               id="kta-front-capture" 
@@ -570,13 +571,18 @@ export default function KTAPage() {
                 "w-[350px] h-[220px] rounded-3xl overflow-hidden border border-emerald-800/10 p-4 flex flex-col justify-between relative",
                 settings.ktaTemplateFront ? "text-gray-800 bg-white" : "text-white bg-gradient-to-br from-hw-green via-emerald-800 to-emerald-950"
               )}
-              style={{ 
-                boxSizing: 'border-box',
-                backgroundImage: settings.ktaTemplateFront ? `url(${getDriveDirectLink(settings.ktaTemplateFront)})` : undefined,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
+              style={{ boxSizing: 'border-box' }}
             >
+              {/* Background Template Image */}
+              {settings.ktaTemplateFront && (
+                <img 
+                  src={getCorsSafeUrl(settings.ktaTemplateFront)} 
+                  alt="Template Front" 
+                  className="absolute inset-0 w-full h-full object-cover z-0" 
+                  crossOrigin="anonymous" 
+                />
+              )}
+
               {/* Default background ornament curves if no template front is active */}
               {!settings.ktaTemplateFront && (
                 <>
@@ -590,7 +596,7 @@ export default function KTAPage() {
 
               {/* Card Header */}
               <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-white/10")}>
-                <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
+                <img src={getCorsSafeUrl("https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png")} alt="HW Logo" className="w-8 h-8 object-contain" crossOrigin="anonymous" />
                 <div className="min-w-0">
                   <h4 className="text-[7.5px] font-black uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h4>
                   <p className={cn("text-[6.5px] font-black uppercase tracking-widest leading-none", settings.ktaTemplateFront ? "text-hw-green" : "text-amber-300")}>KWARWIL JAWA TENGAH</p>
@@ -602,7 +608,7 @@ export default function KTAPage() {
                 {/* User photo */}
                 <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
                   {photoPreview ? (
-                    <img src={photoPreview} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={getCorsSafeUrl(photoPreview)} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-emerald-600">
                       <UserIcon size={14} />
@@ -675,7 +681,7 @@ export default function KTAPage() {
                     {/* Stamp overlaying center */}
                     <div className="absolute left-[35%] top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-85">
                       {settings.ktaStempelImage ? (
-                        <img src={settings.ktaStempelImage} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" />
+                        <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
                       ) : (
                         <DefaultStempel idSuffix="front-capture" />
                       )}
@@ -686,7 +692,7 @@ export default function KTAPage() {
                       <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Ketua</span>
                       <div className="h-6 flex items-center justify-center">
                         {settings.ktaTandaTanganKetua ? (
-                          <img src={settings.ktaTandaTanganKetua} alt="Tanda Tangan Ketua" className="h-6 object-contain" />
+                          <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-6 object-contain" crossOrigin="anonymous" />
                         ) : (
                           <DefaultSignatureKetua />
                         )}
@@ -700,7 +706,7 @@ export default function KTAPage() {
                       <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
                       <div className="h-6 flex items-center justify-center">
                         {settings.ktaTandaTanganSekretaris ? (
-                          <img src={settings.ktaTandaTanganSekretaris} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" />
+                          <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" crossOrigin="anonymous" />
                         ) : (
                           <DefaultSignatureSekretaris />
                         )}
@@ -720,13 +726,18 @@ export default function KTAPage() {
                 "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative",
                 settings.ktaTemplateBack ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
               )}
-              style={{ 
-                boxSizing: 'border-box',
-                backgroundImage: settings.ktaTemplateBack ? `url(${getDriveDirectLink(settings.ktaTemplateBack)})` : undefined,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
+              style={{ boxSizing: 'border-box' }}
             >
+              {/* Background Template Image */}
+              {settings.ktaTemplateBack && (
+                <img 
+                  src={getCorsSafeUrl(settings.ktaTemplateBack)} 
+                  alt="Template Back" 
+                  className="absolute inset-0 w-full h-full object-cover z-0" 
+                  crossOrigin="anonymous" 
+                />
+              )}
+
               {/* Watermark background if no template */}
               {!settings.ktaTemplateBack && (
                 <>
@@ -755,47 +766,60 @@ export default function KTAPage() {
 
               {/* Validation QR & Stamp Block */}
               <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
-                <div className={cn("text-left space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
+                <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                   <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                   <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
                   <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
                 </div>
 
-                {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                <div className="flex items-center gap-1 w-[130px] shrink-0 justify-end relative">
-                  {/* Small stamp overlay */}
-                  <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
-                    {settings.ktaStempelImage ? (
-                      <img src={settings.ktaStempelImage} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" />
-                    ) : (
-                      <DefaultStempel idSuffix="back-capture" />
-                    )}
+                <div className="flex items-center gap-2 z-10">
+                  {/* Validation QR Code */}
+                  <div className="flex flex-col items-center gap-0.5 shrink-0 bg-white p-0.5 rounded border border-gray-100 shadow-xs">
+                    <img 
+                      src={getCorsSafeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(validationUrl)}`)} 
+                      alt="QR Validasi" 
+                      className="w-8 h-8 object-contain" 
+                      crossOrigin="anonymous"
+                    />
+                    <span className="text-[2.5px] font-bold text-slate-800 uppercase tracking-widest text-center font-mono leading-none">VALIDASI KTA</span>
                   </div>
 
-                  {/* Ketua Sig */}
-                  <div className="flex flex-col items-center w-[55px] relative">
-                    <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Ketua</span>
-                    <div className="h-5 flex items-center justify-center scale-90">
-                      {settings.ktaTandaTanganKetua ? (
-                        <img src={settings.ktaTandaTanganKetua} alt="Tanda Tangan Ketua" className="h-5 object-contain" />
+                  {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
+                  <div className="flex items-center gap-1 w-[110px] shrink-0 justify-end relative">
+                    {/* Small stamp overlay */}
+                    <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
+                      {settings.ktaStempelImage ? (
+                        <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
                       ) : (
-                        <DefaultSignatureKetua />
+                        <DefaultStempel idSuffix="back-capture" />
                       )}
                     </div>
-                    <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
-                  </div>
 
-                  {/* Sekretaris Sig */}
-                  <div className="flex flex-col items-center w-[55px] relative">
-                    <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
-                    <div className="h-5 flex items-center justify-center scale-90">
-                      {settings.ktaTandaTanganSekretaris ? (
-                        <img src={settings.ktaTandaTanganSekretaris} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" />
-                      ) : (
-                        <DefaultSignatureSekretaris />
-                      )}
+                    {/* Ketua Sig */}
+                    <div className="flex flex-col items-center w-[50px] relative">
+                      <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Ketua</span>
+                      <div className="h-5 flex items-center justify-center scale-90">
+                        {settings.ktaTandaTanganKetua ? (
+                          <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-5 object-contain" crossOrigin="anonymous" />
+                        ) : (
+                          <DefaultSignatureKetua />
+                        )}
+                      </div>
+                      <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
                     </div>
-                    <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
+
+                    {/* Sekretaris Sig */}
+                    <div className="flex flex-col items-center w-[50px] relative">
+                      <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
+                      <div className="h-5 flex items-center justify-center scale-90">
+                        {settings.ktaTandaTanganSekretaris ? (
+                          <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" crossOrigin="anonymous" />
+                        ) : (
+                          <DefaultSignatureSekretaris />
+                        )}
+                      </div>
+                      <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -821,12 +845,18 @@ export default function KTAPage() {
                     "absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-3xl overflow-hidden shadow-xl border p-4 flex flex-col justify-between",
                     settings.ktaTemplateFront ? "text-gray-800 bg-white border-emerald-800/10" : "text-white bg-gradient-to-br from-hw-green via-emerald-800 to-emerald-950 border-emerald-800/10"
                   )}
-                  style={{
-                    backgroundImage: settings.ktaTemplateFront ? `url(${getDriveDirectLink(settings.ktaTemplateFront)})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                  }}
+                  style={{ boxSizing: 'border-box' }}
                 >
+                  {/* Background Template Image */}
+                  {settings.ktaTemplateFront && (
+                    <img 
+                      src={getCorsSafeUrl(settings.ktaTemplateFront)} 
+                      alt="Template Front" 
+                      className="absolute inset-0 w-full h-full object-cover z-0" 
+                      crossOrigin="anonymous" 
+                    />
+                  )}
+
                   {/* Default Background Ornaments if no template front */}
                   {!settings.ktaTemplateFront && (
                     <>
@@ -840,7 +870,7 @@ export default function KTAPage() {
 
                   {/* Card Header */}
                   <div className={cn("flex items-center gap-2.5 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-white/10")}>
-                    <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
+                    <img src={getCorsSafeUrl("https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png")} alt="HW Logo" className="w-8 h-8 object-contain" crossOrigin="anonymous" />
                     <div className="min-w-0">
                       <h4 className="text-[7.5px] font-black uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h4>
                       <p className={cn("text-[6.5px] font-black uppercase tracking-widest leading-none", settings.ktaTemplateFront ? "text-hw-green" : "text-amber-300")}>KWARWIL JAWA TENGAH</p>
@@ -852,7 +882,7 @@ export default function KTAPage() {
                     {/* User photo */}
                     <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
                       {photoPreview ? (
-                        <img src={photoPreview} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={getCorsSafeUrl(photoPreview)} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-emerald-600">
                           <UserIcon size={14} />
@@ -925,7 +955,7 @@ export default function KTAPage() {
                         {/* Stamp overlaying center */}
                         <div className="absolute left-[35%] top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-85">
                           {settings.ktaStempelImage ? (
-                            <img src={settings.ktaStempelImage} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" />
+                            <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
                           ) : (
                             <DefaultStempel idSuffix="front-view" />
                           )}
@@ -936,7 +966,7 @@ export default function KTAPage() {
                           <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Ketua</span>
                           <div className="h-6 flex items-center justify-center">
                             {settings.ktaTandaTanganKetua ? (
-                              <img src={settings.ktaTandaTanganKetua} alt="Tanda Tangan Ketua" className="h-6 object-contain" />
+                              <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-6 object-contain" crossOrigin="anonymous" />
                             ) : (
                               <DefaultSignatureKetua />
                             )}
@@ -950,7 +980,7 @@ export default function KTAPage() {
                           <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
                           <div className="h-6 flex items-center justify-center">
                             {settings.ktaTandaTanganSekretaris ? (
-                              <img src={settings.ktaTandaTanganSekretaris} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" />
+                              <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" crossOrigin="anonymous" />
                             ) : (
                               <DefaultSignatureSekretaris />
                             )}
@@ -969,12 +999,18 @@ export default function KTAPage() {
                     "absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl overflow-hidden shadow-xl border p-4 flex flex-col justify-between",
                     settings.ktaTemplateBack ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
                   )}
-                  style={{
-                    backgroundImage: settings.ktaTemplateBack ? `url(${getDriveDirectLink(settings.ktaTemplateBack)})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                  }}
+                  style={{ boxSizing: 'border-box' }}
                 >
+                  {/* Background Template Image */}
+                  {settings.ktaTemplateBack && (
+                    <img 
+                      src={getCorsSafeUrl(settings.ktaTemplateBack)} 
+                      alt="Template Back" 
+                      className="absolute inset-0 w-full h-full object-cover z-0" 
+                      crossOrigin="anonymous" 
+                    />
+                  )}
+
                   {/* Watermark background if no template */}
                   {!settings.ktaTemplateBack && (
                     <>
@@ -1003,47 +1039,60 @@ export default function KTAPage() {
 
                   {/* Validation QR & Stamp Block */}
                   <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
-                    <div className={cn("text-left space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
+                    <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                       <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                       <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
                       <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
                     </div>
 
-                    {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                    <div className="flex items-center gap-1 w-[130px] shrink-0 justify-end relative">
-                      {/* Small stamp overlay */}
-                      <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
-                        {settings.ktaStempelImage ? (
-                          <img src={settings.ktaStempelImage} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" />
-                        ) : (
-                          <DefaultStempel idSuffix="back-view" />
-                        )}
+                    <div className="flex items-center gap-2 z-10">
+                      {/* Validation QR Code */}
+                      <div className="flex flex-col items-center gap-0.5 shrink-0 bg-white p-0.5 rounded border border-gray-100 shadow-xs">
+                        <img 
+                          src={getCorsSafeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(validationUrl)}`)} 
+                          alt="QR Validasi" 
+                          className="w-8 h-8 object-contain" 
+                          crossOrigin="anonymous"
+                        />
+                        <span className="text-[2.5px] font-bold text-slate-800 uppercase tracking-widest text-center font-mono leading-none">VALIDASI KTA</span>
                       </div>
 
-                      {/* Ketua Sig */}
-                      <div className="flex flex-col items-center w-[55px] relative">
-                        <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Ketua</span>
-                        <div className="h-5 flex items-center justify-center scale-90">
-                          {settings.ktaTandaTanganKetua ? (
-                            <img src={settings.ktaTandaTanganKetua} alt="Tanda Tangan Ketua" className="h-5 object-contain" />
+                      {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
+                      <div className="flex items-center gap-1 w-[110px] shrink-0 justify-end relative">
+                        {/* Small stamp overlay */}
+                        <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
+                          {settings.ktaStempelImage ? (
+                            <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
                           ) : (
-                            <DefaultSignatureKetua />
+                            <DefaultStempel idSuffix="back-view" />
                           )}
                         </div>
-                        <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
-                      </div>
 
-                      {/* Sekretaris Sig */}
-                      <div className="flex flex-col items-center w-[55px] relative">
-                        <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
-                        <div className="h-5 flex items-center justify-center scale-90">
-                          {settings.ktaTandaTanganSekretaris ? (
-                            <img src={settings.ktaTandaTanganSekretaris} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" />
-                          ) : (
-                            <DefaultSignatureSekretaris />
-                          )}
+                        {/* Ketua Sig */}
+                        <div className="flex flex-col items-center w-[50px] relative">
+                          <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Ketua</span>
+                          <div className="h-5 flex items-center justify-center scale-90">
+                            {settings.ktaTandaTanganKetua ? (
+                              <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-5 object-contain" crossOrigin="anonymous" />
+                            ) : (
+                              <DefaultSignatureKetua />
+                            )}
+                          </div>
+                          <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
                         </div>
-                        <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
+
+                        {/* Sekretaris Sig */}
+                        <div className="flex flex-col items-center w-[50px] relative">
+                          <span className={cn("text-[3.5px] font-bold uppercase leading-none", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
+                          <div className="h-5 flex items-center justify-center scale-90">
+                            {settings.ktaTandaTanganSekretaris ? (
+                              <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" crossOrigin="anonymous" />
+                            ) : (
+                              <DefaultSignatureSekretaris />
+                            )}
+                          </div>
+                          <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
