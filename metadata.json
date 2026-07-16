@@ -1,0 +1,6 @@
+{
+  "name": "SatuHW",
+  "description": "Database Materi Hizbul Wathan - Aplikasi panduan dan materi kepanduan Hizbul Wathan.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
