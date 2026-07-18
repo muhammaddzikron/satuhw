@@ -150,8 +150,8 @@ export default function KTAPage() {
   const [flipped, setFlipped] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [settings, setSettings] = useState<any>({
-    ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-    ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+    ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+    ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
     ktaKetuaNama: 'TAUFIQ',
     ktaKetuaNbm: 'NBM 1015096',
     ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -603,6 +603,20 @@ export default function KTAPage() {
                 />
               )}
 
+              {/* Custom Date above pre-printed Sekretaris text on template background */}
+              {settings.ktaTemplateFront && (
+                <div className="absolute bottom-[66px] right-[40px] z-20 text-right pointer-events-none">
+                  <p className="text-[5.5px] font-bold text-gray-800 leading-none">
+                    {(() => {
+                      const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                      const d = new Date();
+                      const currentDateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                      return `${settings.ktaKotaPenerbit || 'Semarang'}, ${myApplication.verifiedAt || currentDateStr}`;
+                    })()}
+                  </p>
+                </div>
+              )}
+
               {/* Default background ornament curves if no template front is active */}
               {!settings.ktaTemplateFront && (
                 <>
@@ -624,7 +638,7 @@ export default function KTAPage() {
               </div>
 
               {/* Card Body */}
-              <div className="flex gap-3 my-1 z-10">
+              <div className={cn("flex gap-3 z-10", settings.ktaTemplateFront ? "-mt-1.5 mb-auto" : "my-1")}>
                 {/* User photo */}
                 <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
                   {photoPreview ? (
@@ -693,7 +707,7 @@ export default function KTAPage() {
                 <span className={cn("text-[5px] font-mono font-bold", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>SEUMUR HIDUP • JAWA TENGAH</span>
                 
                 {/* Right side signatures section */}
-                <div className="flex flex-col items-end text-right w-[150px] shrink-0 relative">
+                <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
                   <p className={cn("text-[5.5px] font-bold leading-none", settings.ktaTemplateFront ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {myApplication.verifiedAt || '13 Juli 2026'}</p>
                   
                   {/* Signatures & stamp overlapping row */}
@@ -805,7 +819,7 @@ export default function KTAPage() {
                   </div>
 
                   {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                  <div className="flex items-center gap-1 w-[110px] shrink-0 justify-end relative">
+                  <div className={cn("flex items-center gap-1 w-[110px] shrink-0 justify-end relative", settings.ktaTemplateBack ? "opacity-0 pointer-events-none hidden" : "")}>
                     {/* Small stamp overlay */}
                     <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
                       {settings.ktaStempelImage ? (
@@ -877,6 +891,20 @@ export default function KTAPage() {
                     />
                   )}
 
+                  {/* Custom Date above pre-printed Sekretaris text on template background */}
+                  {settings.ktaTemplateFront && (
+                    <div className="absolute bottom-[66px] right-[40px] z-20 text-right pointer-events-none">
+                      <p className="text-[5.5px] font-bold text-gray-800 leading-none">
+                        {(() => {
+                          const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                          const d = new Date();
+                          const currentDateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                          return `${settings.ktaKotaPenerbit || 'Semarang'}, ${myApplication.verifiedAt || currentDateStr}`;
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Default Background Ornaments if no template front */}
                   {!settings.ktaTemplateFront && (
                     <>
@@ -898,7 +926,7 @@ export default function KTAPage() {
                   </div>
 
                   {/* Card Body */}
-                  <div className="flex gap-3 my-1 z-10">
+                  <div className={cn("flex gap-3 z-10", settings.ktaTemplateFront ? "-mt-1.5 mb-auto" : "my-1")}>
                     {/* User photo */}
                     <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
                       {photoPreview ? (
@@ -967,7 +995,7 @@ export default function KTAPage() {
                     <span className={cn("text-[5px] font-mono font-bold", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>SEUMUR HIDUP • JAWA TENGAH</span>
                     
                     {/* Right side signatures section */}
-                    <div className="flex flex-col items-end text-right w-[150px] shrink-0 relative animate-fade-in">
+                    <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative animate-fade-in", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
                       <p className={cn("text-[5.5px] font-bold leading-none", settings.ktaTemplateFront ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {myApplication.verifiedAt || '13 Juli 2026'}</p>
                       
                       {/* Signatures & stamp overlapping row */}
@@ -1078,7 +1106,7 @@ export default function KTAPage() {
                       </div>
 
                       {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                      <div className="flex items-center gap-1 w-[110px] shrink-0 justify-end relative">
+                      <div className={cn("flex items-center gap-1 w-[110px] shrink-0 justify-end relative", settings.ktaTemplateBack ? "opacity-0 pointer-events-none hidden" : "")}>
                         {/* Small stamp overlay */}
                         <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
                           {settings.ktaStempelImage ? (

@@ -1418,6 +1418,20 @@ export const sheetsService = {
     if (localSettle) {
       try {
         localParsed = JSON.parse(localSettle);
+        if (localParsed) {
+          let updated = false;
+          if (localParsed.ktaTemplateFront && (localParsed.ktaTemplateFront.includes('1OsI7x7zw') || localParsed.ktaTemplateFront.includes('1yeEeoE') || localParsed.ktaTemplateFront.includes('1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U') || localParsed.ktaTemplateFront.includes('design_card-depan.jpg'))) {
+            localParsed.ktaTemplateFront = 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
+            updated = true;
+          }
+          if (localParsed.ktaTemplateBack && (localParsed.ktaTemplateBack.includes('1yeEeoE') || localParsed.ktaTemplateBack.includes('1OsI7x7zw') || localParsed.ktaTemplateBack.includes('1yeEeoE_SlV0npvu681GYKBxxKzuujiz1') || localParsed.ktaTemplateBack.includes('design_card-depan.jpg'))) {
+            localParsed.ktaTemplateBack = 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+            updated = true;
+          }
+          if (updated) {
+            localStorage.setItem('hw_settings', JSON.stringify(localParsed));
+          }
+        }
       } catch (e) {
         console.error('Failed to parse local settings', e);
       }
@@ -1484,8 +1498,8 @@ export const sheetsService = {
         orgName: apiSettings.orgName || 'HW Org',
         waConfirmation: apiSettings.waConfirmation || '628',
         lastBackup: apiSettings.lastBackup || '-',
-        ktaTemplateFront: apiSettings.ktaTemplateFront || 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-        ktaTemplateBack: apiSettings.ktaTemplateBack || 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+        ktaTemplateFront: apiSettings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+        ktaTemplateBack: apiSettings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
         ktaKetuaNama: apiSettings.ktaKetuaNama || 'TAUFIQ',
         ktaKetuaNbm: apiSettings.ktaKetuaNbm || 'NBM 1015096',
         ktaSekretarisNama: apiSettings.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
@@ -1512,8 +1526,8 @@ export const sheetsService = {
         appName: 'HW App', 
         orgName: 'HW Org', 
         lastBackup: '-',
-        ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-        ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+        ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+        ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -1534,8 +1548,8 @@ export const sheetsService = {
       };
       return {
         ...parsed,
-        ktaTemplateFront: parsed.ktaTemplateFront || 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-        ktaTemplateBack: parsed.ktaTemplateBack || 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+        ktaTemplateFront: parsed.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+        ktaTemplateBack: parsed.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
         ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
         ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
         ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
