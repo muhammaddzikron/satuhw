@@ -660,6 +660,57 @@ export const sheetsService = {
   },
 
   async getKTAApplications(): Promise<any[]> {
+    const normalizeKTAKeys = (app: any) => {
+      if (!app) return app;
+      const cleanApp: any = {};
+      for (const key in app) {
+        const lowerKey = key.toLowerCase().replace(/[\s_-]/g, '');
+        let clientKey = key;
+        if (lowerKey === 'id') clientKey = 'id';
+        else if (lowerKey === 'userid') clientKey = 'userId';
+        else if (lowerKey === 'nama' || lowerKey === 'namalengkap') clientKey = 'nama';
+        else if (lowerKey === 'nowa' || lowerKey === 'nohp' || lowerKey === 'nohandphone' || lowerKey === 'notelp') clientKey = 'noWa';
+        else if (lowerKey === 'email') clientKey = 'email';
+        else if (lowerKey === 'sosmed' || lowerKey === 'instagram' || lowerKey === 'socialmedia') clientKey = 'sosmed';
+        else if (lowerKey === 'photo' || lowerKey === 'foto') clientKey = 'photo';
+        else if (lowerKey === 'tingkatan') clientKey = 'tingkatan';
+        else if (lowerKey === 'asaldaerah' || lowerKey === 'asalkwarda') clientKey = 'asalDaerah';
+        else if (lowerKey === 'status') clientKey = 'status';
+        else if (lowerKey === 'tanggalajuan') clientKey = 'tanggalAjuan';
+        else if (lowerKey === 'ktanumber') clientKey = 'ktaNumber';
+        else if (lowerKey === 'remark') clientKey = 'remark';
+        else if (lowerKey === 'nik') clientKey = 'nik';
+        else if (lowerKey === 'tempatlahir') clientKey = 'tempatLahir';
+        else if (lowerKey === 'tanggallahir') clientKey = 'tanggalLahir';
+        else if (lowerKey === 'jeniskelamin') clientKey = 'jenisKelamin';
+        else if (lowerKey === 'qabilah') clientKey = 'qabilah';
+        else if (lowerKey === 'jeniskta') clientKey = 'jenisKta';
+        else if (lowerKey === 'verifiedat') clientKey = 'verifiedAt';
+        else if (lowerKey === 'alamat') clientKey = 'alamat';
+        
+        cleanApp[clientKey] = app[key];
+      }
+
+      // Normalize status
+      const finalStatus = (cleanApp.status || "").toString().trim().toLowerCase();
+      if (!finalStatus) {
+        if (cleanApp.ktaNumber) {
+          cleanApp.status = 'approved';
+        } else {
+          cleanApp.status = 'pending';
+        }
+      } else {
+        if (['approved', 'aktif', 'disetujui', 'sukses', 'terbit', 'selesai', 'active'].includes(finalStatus)) {
+          cleanApp.status = 'approved';
+        } else if (['rejected', 'ditolak'].includes(finalStatus)) {
+          cleanApp.status = 'rejected';
+        } else {
+          cleanApp.status = 'pending';
+        }
+      }
+      return cleanApp;
+    };
+
     if (!IS_API_VALID) {
       const stored = localStorage.getItem('kta_applications');
       let apps: any[] = [];
@@ -702,18 +753,24 @@ export const sheetsService = {
         localStorage.setItem('kta_applications', JSON.stringify(defaults));
         apps = defaults;
       }
-      return apps.map((k: any, idx: number) => ({
-        ...k,
-        id: k.id || `kta-fallback-${idx}`
-      }));
+      return apps.map((k: any, idx: number) => {
+        const normalized = normalizeKTAKeys(k);
+        return {
+          ...normalized,
+          id: normalized.id || `kta-fallback-${idx}`
+        };
+      });
     }
     try {
       const response = await axios.get(`${API_URL}?action=getKTAApplications`);
       if (Array.isArray(response.data)) {
-        return response.data.map((k: any, idx: number) => ({
-          ...k,
-          id: k.id || `kta-api-${idx}`
-        }));
+        return response.data.map((k: any, idx: number) => {
+          const normalized = normalizeKTAKeys(k);
+          return {
+            ...normalized,
+            id: normalized.id || `kta-api-${idx}`
+          };
+        });
       }
       return [];
     } catch (e) {
@@ -721,10 +778,13 @@ export const sheetsService = {
       const stored = localStorage.getItem('kta_applications') || '[]';
       try {
         const apps = JSON.parse(stored);
-        return apps.map((k: any, idx: number) => ({
-          ...k,
-          id: k.id || `kta-fallback-${idx}`
-        }));
+        return apps.map((k: any, idx: number) => {
+          const normalized = normalizeKTAKeys(k);
+          return {
+            ...normalized,
+            id: normalized.id || `kta-fallback-${idx}`
+          };
+        });
       } catch (err) {
         return [];
       }

@@ -853,23 +853,53 @@ function responseError(msg) {
 function handleGetKTAApplications() {
   var apps = getRowsAsObjects(getSheet('KTA_Applications'));
   
-  // Normalisasikan keys agar serasi dengan ekspektasi frontend React (CamelCase)
+  // Normalisasikan keys agar serasi dengan ekspektasi frontend React (CamelCase & lowercase)
   var normalizedApps = apps.map(function(app) {
     var cleanApp = {};
     for (var key in app) {
-      var lowerKey = key.toLowerCase();
+      var lowerKey = key.toLowerCase().replace(/[\s_-]/g, '');
       var clientKey = key;
-      if (lowerKey === 'userid') clientKey = 'userId';
-      else if (lowerKey === 'nowa') clientKey = 'noWa';
-      else if (lowerKey === 'asaldaerah') clientKey = 'asalDaerah';
+      if (lowerKey === 'id') clientKey = 'id';
+      else if (lowerKey === 'userid') clientKey = 'userId';
+      else if (lowerKey === 'nama' || lowerKey === 'namalengkap') clientKey = 'nama';
+      else if (lowerKey === 'nowa' || lowerKey === 'nohp' || lowerKey === 'nohandphone' || lowerKey === 'notelp') clientKey = 'noWa';
+      else if (lowerKey === 'email') clientKey = 'email';
+      else if (lowerKey === 'sosmed' || lowerKey === 'instagram' || lowerKey === 'socialmedia') clientKey = 'sosmed';
+      else if (lowerKey === 'photo' || lowerKey === 'foto') clientKey = 'photo';
+      else if (lowerKey === 'tingkatan') clientKey = 'tingkatan';
+      else if (lowerKey === 'asaldaerah' || lowerKey === 'asalkwarda') clientKey = 'asalDaerah';
+      else if (lowerKey === 'status') clientKey = 'status';
       else if (lowerKey === 'tanggalajuan') clientKey = 'tanggalAjuan';
       else if (lowerKey === 'ktanumber') clientKey = 'ktaNumber';
+      else if (lowerKey === 'remark') clientKey = 'remark';
+      else if (lowerKey === 'nik') clientKey = 'nik';
       else if (lowerKey === 'tempatlahir') clientKey = 'tempatLahir';
       else if (lowerKey === 'tanggallahir') clientKey = 'tanggalLahir';
       else if (lowerKey === 'jeniskelamin') clientKey = 'jenisKelamin';
+      else if (lowerKey === 'qabilah') clientKey = 'qabilah';
       else if (lowerKey === 'jeniskta') clientKey = 'jenisKta';
+      else if (lowerKey === 'verifiedat') clientKey = 'verifiedAt';
+      else if (lowerKey === 'alamat') clientKey = 'alamat';
       
       cleanApp[clientKey] = app[key];
+    }
+    
+    // Normalisasi status
+    var finalStatus = (cleanApp.status || "").toString().trim().toLowerCase();
+    if (!finalStatus) {
+      if (cleanApp.ktaNumber) {
+        cleanApp.status = "approved";
+      } else {
+        cleanApp.status = "pending";
+      }
+    } else {
+      if (finalStatus === 'approved' || finalStatus === 'aktif' || finalStatus === 'disetujui' || finalStatus === 'sukses' || finalStatus === 'terbit' || finalStatus === 'selesai' || finalStatus === 'active') {
+        cleanApp.status = 'approved';
+      } else if (finalStatus === 'rejected' || finalStatus === 'ditolak') {
+        cleanApp.status = 'rejected';
+      } else {
+        cleanApp.status = 'pending';
+      }
     }
     return cleanApp;
   });

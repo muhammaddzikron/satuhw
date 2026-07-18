@@ -241,10 +241,13 @@ export default function KTAPage() {
       
       // Determine my application
       if (isAuthenticated && user) {
-        const found = apps.find((app: any) => 
-          (app.userId === user.id) || 
-          (app.email && app.email.toLowerCase() === user.email.toLowerCase())
-        );
+        const found = apps.find((app: any) => {
+          const userIdMatch = app.userId && user.id && String(app.userId) === String(user.id);
+          const emailMatch = app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim();
+          const nikMatch = app.nik && (user as any).nik && String(app.nik).trim() === String((user as any).nik).trim();
+          const namaMatch = app.nama && user.namaLengkap && app.nama.toLowerCase().trim() === user.namaLengkap.toLowerCase().trim();
+          return userIdMatch || emailMatch || nikMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
+        });
         if (found) {
           setMyApplication(found);
           if (found.photo) {
@@ -566,7 +569,7 @@ export default function KTAPage() {
       )}
 
       {/* RENDER KTA CARD IF APPROVED */}
-      {myApplication && myApplication.status === 'approved' ? (
+      {myApplication && (myApplication.status === 'approved' || !!myApplication.ktaNumber) ? (
         <div className="space-y-6">
           {/* Instruction header */}
           <div className="bg-hw-green/5 border border-hw-green/10 p-4 rounded-3xl space-y-1 text-center">
