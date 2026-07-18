@@ -541,6 +541,28 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Member Dashboard Section */}
+      {isAuthenticated && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-bold text-gray-800">Dasbor Anggota</h3>
+          </div>
+          
+          <div className="grid grid-cols-4 gap-2.5">
+            <MenuCard to="/materi" state={{ filter: 'umum' }} icon={BookOpen} label="Umum" color="bg-hw-green" />
+            <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Sugli" color="bg-orange-500" />
+            <MenuCard to="/materi" state={{ filter: 'kwarda' }} icon={MapPin} label="Kwarda" color="bg-blue-500" />
+            <MenuCard to="/pelatihan" icon={GraduationCap} label="Pelatihan" color="bg-emerald-700" />
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <MenuCard to="/admin" icon={Shield} label="Admin" color="bg-hw-dark" />
+            )}
+            <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />
+            <MenuCard to="/profile" icon={Users} label="Profil" color="bg-rose-500" />
+            <MenuCard to="/kta" icon={CreditCard} label="KTA Digital" color="bg-emerald-600" />
+          </div>
+        </section>
+      )}
+
       {/* Elongated KTA Banner Button */}
       <section className="px-1">
         <Link 
@@ -606,28 +628,6 @@ export default function HomePage() {
         </div>
         <PlaylistPreview />
       </section>
-
-      {/* Member Dashboard Section */}
-      {isAuthenticated && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-gray-800">Dasbor Anggota</h3>
-          </div>
-          
-          <div className="grid grid-cols-4 gap-2.5">
-            <MenuCard to="/materi" state={{ filter: 'umum' }} icon={BookOpen} label="Umum" color="bg-hw-green" />
-            <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Sugli" color="bg-orange-500" />
-            <MenuCard to="/materi" state={{ filter: 'kwarda' }} icon={MapPin} label="Kwarda" color="bg-blue-500" />
-            <MenuCard to="/pelatihan" icon={GraduationCap} label="Pelatihan" color="bg-emerald-700" />
-            {(user?.role === 'admin' || user?.role === 'superadmin') && (
-              <MenuCard to="/admin" icon={Shield} label="Admin" color="bg-hw-dark" />
-            )}
-            <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />
-            <MenuCard to="/profile" icon={Users} label="Profil" color="bg-rose-500" />
-            <MenuCard to="/kta" icon={CreditCard} label="KTA Digital" color="bg-emerald-600" />
-          </div>
-        </section>
-      )}
 
       {/* Tools Section */}
       <section className="space-y-3">

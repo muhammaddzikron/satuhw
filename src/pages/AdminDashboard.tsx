@@ -92,7 +92,7 @@ import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
-import { cn, safeJsonParse, getDriveDirectLink } from '../lib/utils';
+import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
 import { codeGsText } from '../services/codeGsText';
 
 export const KWARDA_QABILAH_JATENG = [
@@ -220,6 +220,8 @@ export default function AdminDashboard() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [notifActiveTab, setNotifActiveTab] = useState<'pendaftaran' | 'upgrade' | 'kta'>('pendaftaran');
   const [editingMember, setEditingMember] = useState<any>(null);
   const [formData, setFormData] = useState({
     namaLengkap: '',
@@ -1464,6 +1466,7 @@ export default function AdminDashboard() {
     if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
     
     return matchesSearch && selectedFilters.some(filter => {
+      if (filter === 'Pending Verifikasi') return !m.isVerified;
       if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
       if (filter === 'Perempuan') return m.jenisKelamin === 'P';
       if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
@@ -1518,6 +1521,9 @@ export default function AdminDashboard() {
   };
 
   const membersWithUpgradeRequests = members.filter(m => m.upgradeRequests && m.upgradeRequests.length > 0);
+  const pendingMembers = members.filter(m => !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
+  const pendingKtaApps = ktaApps.filter(k => k.status === 'pending');
+  const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length;
 
   if (loading) return <LoadingPage />;
 
@@ -1543,14 +1549,24 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {membersWithUpgradeRequests.length > 0 && (
+          {totalNotifications > 0 && (
             <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="relative p-3 text-hw-blue bg-hw-blue/10 rounded-xl hover:bg-hw-blue/20 transition-all"
+              onClick={() => {
+                if (pendingMembers.length > 0) {
+                  setNotifActiveTab('pendaftaran');
+                } else if (membersWithUpgradeRequests.length > 0) {
+                  setNotifActiveTab('upgrade');
+                } else {
+                  setNotifActiveTab('kta');
+                }
+                setIsNotificationModalOpen(true);
+              }}
+              className="relative p-3 text-hw-blue bg-hw-blue/10 rounded-xl hover:bg-hw-blue/20 transition-all animate-pulse"
+              title="Notifikasi Pendaftaran Baru, Upgrade, & KTA"
             >
               <Bell size={20} />
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                {membersWithUpgradeRequests.length}
+                {totalNotifications}
               </span>
             </button>
           )}
@@ -1688,7 +1704,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 pb-2">
-                  {['Semua', 'Laki-laki', 'Perempuan', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewan Sugli', 'Kwarda', 'Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1'].map((f) => {
+                  {['Semua', 'Pending Verifikasi', 'Laki-laki', 'Perempuan', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewan Sugli', 'Kwarda', 'Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1'].map((f) => {
                     const isSelected = selectedFilters.includes(f);
                     return (
                       <button
@@ -4675,83 +4691,259 @@ export default function AdminDashboard() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Upgrade Requests Modal */}
+      {/* Notification & Approval Modal */}
       <AnimatePresence>
-        {isUpgradeModalOpen && (
+        {isNotificationModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsUpgradeModalOpen(false)}
+              onClick={() => setIsNotificationModalOpen(false)}
               className="absolute inset-0 bg-hw-dark/40 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
             >
+              {/* Header */}
               <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-hw-blue/5">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-hw-blue text-white rounded-2xl">
                     <Bell size={20} />
                   </div>
                   <div>
-                    <h3 className="font-display font-black text-gray-800">Ajuan Upgrade Role</h3>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Daftar Permohonan Anggota</p>
+                    <h3 className="font-display font-black text-gray-800">Pusat Notifikasi & Approval</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Pendaftaran, Upgrade, & Ajuan KTA</p>
                   </div>
                 </div>
-                <button onClick={() => setIsUpgradeModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button onClick={() => setIsNotificationModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <X size={20} className="text-gray-400" />
                 </button>
               </div>
 
-              <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">
-                {membersWithUpgradeRequests.length === 0 ? (
-                  <div className="text-center py-10 space-y-3">
-                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
-                      <Bell size={32} />
+              {/* Tabs */}
+              <div className="flex border-b border-gray-100 bg-gray-50/50 p-2 gap-2">
+                <button
+                  onClick={() => setNotifActiveTab('pendaftaran')}
+                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                    notifActiveTab === 'pendaftaran'
+                      ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Pendaftaran
+                  {pendingMembers.length > 0 && (
+                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                      {pendingMembers.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setNotifActiveTab('upgrade')}
+                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                    notifActiveTab === 'upgrade'
+                      ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Upgrade
+                  {membersWithUpgradeRequests.length > 0 && (
+                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                      {membersWithUpgradeRequests.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setNotifActiveTab('kta')}
+                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                    notifActiveTab === 'kta'
+                      ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Ajuan KTA
+                  {pendingKtaApps.length > 0 && (
+                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                      {pendingKtaApps.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 max-h-[50vh] overflow-y-auto space-y-4">
+                {notifActiveTab === 'pendaftaran' ? (
+                  pendingMembers.length === 0 ? (
+                    <div className="text-center py-10 space-y-3">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
+                        <Users size={32} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada pendaftaran baru</p>
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada ajuan baru</p>
-                  </div>
-                ) : (
-                  (Array.isArray(membersWithUpgradeRequests) ? membersWithUpgradeRequests : []).map((m) => (
-                    <div 
-                      key={`req-${m.id}`}
-                      className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-hw-blue text-white flex items-center justify-center font-black text-xs">
-                          {m.namaLengkap.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">{m.namaLengkap}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {(Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).map((roleId: string) => (
-                              <span key={roleId} className="px-1.5 py-0.5 bg-rose-50 text-rose-500 border border-rose-100 rounded text-[9px] font-black uppercase tracking-tighter">
-                                {ROLE_LABELS[roleId] || roleId}
-                              </span>
-                            ))}
+                  ) : (
+                    pendingMembers.map((m) => (
+                      <div 
+                        key={`pending-${m.id}`}
+                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-hw-green text-white flex items-center justify-center font-black text-xs shrink-0">
+                            {m.namaLengkap?.charAt(0) || 'U'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{m.namaLengkap}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {m.email} • {m.asalKwarda || 'Kwarda -'}
+                            </p>
+                            <span className="mt-1 inline-block px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[8px] font-black uppercase tracking-wider">
+                              Golongan: {m.golongan}
+                            </span>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                          <button 
+                            onClick={() => {
+                              setIsNotificationModalOpen(false);
+                              handleOpenModal(m);
+                            }}
+                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            title="Tinjau Data Anggota"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              await handleChangeVerify(m.id);
+                            }}
+                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all"
+                          >
+                            Setujui
+                          </button>
+                        </div>
                       </div>
-                      <button 
-                        onClick={() => {
-                          setIsUpgradeModalOpen(false);
-                          handleOpenModal(m);
-                        }}
-                        className="px-4 py-2 bg-white border border-gray-200 text-hw-blue rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-hw-blue hover:text-white hover:border-hw-blue transition-all"
-                      >
-                        Proses
-                      </button>
+                    ))
+                  )
+                ) : notifActiveTab === 'upgrade' ? (
+                  membersWithUpgradeRequests.length === 0 ? (
+                    <div className="text-center py-10 space-y-3">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
+                        <Bell size={32} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada ajuan baru</p>
                     </div>
-                  ))
+                  ) : (
+                    membersWithUpgradeRequests.map((m) => (
+                      <div 
+                        key={`req-${m.id}`}
+                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-hw-blue text-white flex items-center justify-center font-black text-xs">
+                            {m.namaLengkap?.charAt(0) || 'U'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{m.namaLengkap}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {(Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).map((roleId: string) => (
+                                <span key={roleId} className="px-1.5 py-0.5 bg-rose-50 text-rose-500 border border-rose-100 rounded text-[9px] font-black uppercase tracking-tighter">
+                                  {ROLE_LABELS[roleId] || roleId}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setIsNotificationModalOpen(false);
+                              handleOpenModal(m);
+                            }}
+                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            title="Tinjau Data Anggota"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setIsNotificationModalOpen(false);
+                              handleOpenModal(m);
+                            }}
+                            className="px-4 py-2 bg-white border border-gray-200 text-hw-blue rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-hw-blue hover:text-white hover:border-hw-blue transition-all"
+                          >
+                            Proses
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                ) : (
+                  pendingKtaApps.length === 0 ? (
+                    <div className="text-center py-10 space-y-3">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
+                        <CreditCard size={32} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada ajuan KTA baru</p>
+                    </div>
+                  ) : (
+                    pendingKtaApps.map((app) => (
+                      <div 
+                        key={`kta-notif-${app.id}`}
+                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0">
+                            KTA
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{app.namaLengkap}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {app.asalDaerah} • Qabilah: {app.qabilah || '-'}
+                            </p>
+                            <span className="mt-1 inline-block px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded text-[8px] font-black uppercase tracking-wider">
+                              Tingkatan: {app.tingkatan || '-'} ({app.jenisKta || 'Digital'})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                          <button 
+                            onClick={() => {
+                              setViewingKtaApp(app);
+                              setIsViewKtaModalOpen(true);
+                              setFlippedAdmin(false);
+                            }}
+                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            title="Tinjau Kartu KTA"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              await handleApproveKTA(app.id);
+                            }}
+                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all"
+                          >
+                            Setujui
+                          </button>
+                          <button 
+                            onClick={() => {
+                              handleOpenRejectKTA(app.id);
+                            }}
+                            className="px-3.5 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 hover:bg-rose-100 transition-all"
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
                 )}
               </div>
               
-              <div className="p-6 bg-gray-50 text-[10px] text-gray-400 font-bold text-center uppercase tracking-widest">
-                Klik 'Proses' untuk mengubah role anggota
+              <div className="p-6 bg-gray-50 text-[10px] text-gray-400 font-bold text-center uppercase tracking-widest border-t border-gray-100">
+                Pendaftaran baru & Ajuan KTA memerlukan verifikasi admin untuk aktif
               </div>
             </motion.div>
           </div>

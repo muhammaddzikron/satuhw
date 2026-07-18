@@ -250,6 +250,23 @@ export default function KTAPage() {
           if (found.photo) {
             setPhotoPreview(found.photo);
           }
+          // Pre-fill form fields with application data
+          setFormData(prev => ({
+            ...prev,
+            nama: found.nama || prev.nama,
+            alamat: found.alamat || prev.alamat,
+            tingkatan: found.tingkatan || prev.tingkatan,
+            asalDaerah: found.asalDaerah || prev.asalDaerah,
+            noWa: found.noWa || prev.noWa,
+            email: found.email || prev.email,
+            sosmed: found.sosmed || prev.sosmed,
+            nik: found.nik || prev.nik,
+            tempatLahir: found.tempatLahir || prev.tempatLahir,
+            tanggalLahir: found.tanggalLahir || prev.tanggalLahir,
+            jenisKelamin: found.jenisKelamin || prev.jenisKelamin,
+            qabilah: found.qabilah || prev.qabilah,
+            jenisKta: found.jenisKta || prev.jenisKta,
+          }));
         }
       }
     } catch (e) {
@@ -1147,155 +1164,99 @@ export default function KTAPage() {
             </p>
           </div>
         </div>
-      ) : myApplication && myApplication.status === 'pending' ? (
-        /* RENDER REVIEWING STATE if PENDING */
-        <div className="space-y-6 max-w-[380px] mx-auto">
-          {/* Tracker block */}
-          <div className="bg-white border border-gray-100 p-6 rounded-[2rem] text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto animate-pulse">
-              <CreditCard size={32} />
-            </div>
-            
-            <div className="space-y-1">
-              <span className="bg-amber-100 text-amber-800 text-[9px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full">
-                MENUNGGU VERIFIKASI
-              </span>
-              <h3 className="text-sm font-black text-gray-800 pt-2">Pengajuan KTA Anda Sedang Ditinjau</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-semibold">
-                Terima kasih telah mengajukan Kartu Tanda Anggota HW Jateng. Silahkan selesaikan pembayaran aktivasi agar admin dapat segera memverifikasi data Anda.
-              </p>
-            </div>
-
-            {/* PAYMENT NOTIFICATION CARD */}
-            <div className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-4 text-left space-y-3">
-              <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
-                <div className="p-1 px-1.5 bg-hw-green text-white rounded-lg text-[9px] font-black uppercase">
-                  INFO PEMBAYARAN
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 font-sans">KTA HW Jawa Tengah</span>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="bg-white p-3 rounded-2xl border border-emerald-100/50 space-y-1">
-                  <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Nominal Pembayaran</p>
-                  <p className="text-base font-black text-hw-green">
-                    {myApplication.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-'}
-                  </p>
-                  <p className="text-[9px] text-gray-500 font-medium">
-                    Jenis KTA: <strong className="text-gray-700">{myApplication.jenisKta || 'Digital'}</strong> 
-                    {myApplication.jenisKta === 'Fisik' ? ' (Sudah termasuk ongkos kirim)' : ''}
-                  </p>
-                </div>
-
-                <div className="bg-white p-3 rounded-2xl border border-emerald-100/50 space-y-1">
-                  <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Transfer ke Rekening</p>
-                  <p className="text-[11px] font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
-                  <p className="text-sm font-black text-gray-800 tracking-wide font-mono">7307427448</p>
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase">Atas Nama: Kwarwil HW Jateng</p>
-                </div>
-
-                <div className="text-[10px] text-emerald-800 leading-normal font-medium bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 border-dashed">
-                  <strong>Penting:</strong> Setelah transfer, wajib konfirmasi bukti transfer via WhatsApp ke <strong>Medkom HW Jateng</strong> di nomor <strong>089688754000</strong>.
-                </div>
-              </div>
-
-              <a 
-                href={`https://wa.me/6289688754000?text=${encodeURIComponent(`Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: ${myApplication.nama}\nNIK: ${myApplication.nik || '-'}\nJenis KTA: ${myApplication.jenisKta || 'Digital'}\nKabupaten/Kota: ${myApplication.asalDaerah || '-'}`)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-xs font-bold leading-none flex items-center justify-center gap-1.5 shadow-md shadow-emerald-750/10 transition-colors"
-                id="btn-confirm-wa"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M12.004 2c-5.518 0-9.996 4.477-9.996 9.996 0 1.764.46 3.42 1.258 4.878l-1.336 4.887 5.003-1.313c1.408.767 3.013 1.204 4.717 1.204 5.518 0 10.01-4.477 10.01-9.996C22.014 6.477 17.522 2 12.004 2zm5.72 13.906c-.244.686-1.22 1.258-1.683 1.306-.454.048-.992.083-2.915-.678-2.457-.978-4.04-3.484-4.163-3.65-.113-.156-.995-1.32-.995-2.52 0-1.2.622-1.78.847-2.023.216-.244.47-.301.63-.301.156 0 .315.005.452.012.146.007.34-.055.532.405.197.472.678 1.64.735 1.758.057.113.093.244.014.398-.074.156-.113.25-.226.38l-.34.39c-.113.123-.23.255-.098.48.132.227.59 1.127 1.265 1.73a4.966 4.966 0 001.83 1.13c.226.1.36.082.493-.075.132-.15.57-.659.72-.884.145-.226.292-.188.49-.113.197.075 1.253.593 1.47.7.216.108.362.16.414.25.052.09.052.522-.192 1.208z"/>
-                </svg>
-                Kirim Bukti Transfer WhatsApp
-              </a>
-            </div>
-
-            {/* Application Data Summary for review */}
-            <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 space-y-2.5 text-xs text-gray-600">
-              <h4 className="font-extrabold text-[10px] uppercase text-gray-400 tracking-wider border-b border-gray-100 pb-1.5">Ringkasan Data Pengajuan</h4>
-              
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Nama</span>
-                <span className="col-span-2 font-bold text-gray-800">{myApplication.nama}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">NIK</span>
-                <span className="col-span-2 font-mono font-medium text-gray-800">{myApplication.nik || '-'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Tingkatan</span>
-                <span className="col-span-2 font-bold text-gray-800">{myApplication.tingkatan}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Jenis KTA</span>
-                <span className="col-span-2 font-bold text-hw-green">{myApplication.jenisKta || 'Digital'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Asal Daerah</span>
-                <span className="col-span-2 font-bold text-gray-800">{myApplication.asalDaerah}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Asal Qabilah</span>
-                <span className="col-span-2 font-medium text-gray-800">{myApplication.qabilah || '-'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">Alamat</span>
-                <span className="col-span-2 font-medium leading-tight text-gray-700">{myApplication.alamat}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-0.5">
-                <span className="font-semibold text-gray-400">WhatsApp</span>
-                <span className="col-span-2 font-mono font-bold text-gray-800">{myApplication.noWa}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                onClick={fetchApplications}
-                className="w-full py-3 bg-gray-50 border border-gray-100 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-500 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <RefreshCw size={14} /> Refresh Status Verifikasi
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : myApplication && myApplication.status === 'rejected' ? (
-        /* RENDER REJECTED STATE */
-        <div className="space-y-6 max-w-[380px] mx-auto">
-          <div className="bg-white border border-rose-100 p-6 rounded-[2rem] text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mx-auto">
-              <ShieldAlert size={32} />
-            </div>
-            
-            <div className="space-y-1">
-              <span className="bg-rose-100 text-rose-850 text-[9px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full">
-                PENGAJUAN DITOLAK
-              </span>
-              <h3 className="text-sm font-black text-gray-800 pt-2">Verifikasi KTA Belum Berhasil</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-semibold">
-                Maaf, permohonan Kartu Tanda Anggota Anda ditolak oleh Admin dengan alasan pendukung di bawah ini :
-              </p>
-            </div>
-
-            {myApplication.remark && (
-              <div className="bg-rose-50/50 rounded-2xl p-4 text-xs font-serif text-rose-800 border border-rose-100 text-center italic">
-                "{myApplication.remark}"
-              </div>
-            )}
-
-            <button 
-              onClick={() => setMyApplication(null)} // lets them see form again to reapply
-              className="w-full py-3 bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold transition-all shadow-lg shadow-rose-600/10"
-            >
-              Ajukan Ulang dengan Data Sesuai
-            </button>
-          </div>
-        </div>
       ) : (
-        /* RENDER APPLICATION FORM if not applied or re-applying */
+        /* RENDER APPLICATION FORM if not applied or not approved yet */
         <div className="space-y-6">
+          {/* Status alerts/instructions if pending or rejected */}
+          {myApplication && myApplication.status === 'pending' && (
+            <div className="space-y-4 max-w-[380px] mx-auto bg-amber-50/40 border border-amber-200/50 p-5 rounded-[2rem] shadow-sm">
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto animate-pulse">
+                  <CreditCard size={24} />
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="bg-amber-100 text-amber-800 text-[8.5px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full">
+                    MENUNGGU VERIFIKASI
+                  </span>
+                  <h3 className="text-xs font-black text-gray-800 pt-1">Pengajuan KTA Sedang Ditinjau</h3>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-semibold">
+                    Silahkan selesaikan pembayaran aktivasi agar admin dapat memverifikasi data Anda. Anda juga dapat memperbarui data pengajuan di bawah ini.
+                  </p>
+                </div>
+              </div>
+
+              {/* PAYMENT NOTIFICATION CARD */}
+              <div className="bg-white border border-emerald-100 rounded-3xl p-4 text-left space-y-3">
+                <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
+                  <div className="p-1 px-1.5 bg-hw-green text-white rounded-lg text-[8px] font-black uppercase">
+                    INFO PEMBAYARAN
+                  </div>
+                  <span className="text-[9px] font-bold text-emerald-800 font-sans">KTA HW Jawa Tengah</span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="bg-gray-50 p-2.5 rounded-2xl border border-emerald-100/50 space-y-0.5">
+                    <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Nominal Pembayaran</p>
+                    <p className="text-sm font-black text-hw-green">
+                      {myApplication.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-'}
+                    </p>
+                    <p className="text-[8.5px] text-gray-500 font-medium">
+                      Jenis KTA: <strong className="text-gray-700">{myApplication.jenisKta || 'Digital'}</strong> 
+                      {myApplication.jenisKta === 'Fisik' ? ' (Sudah termasuk ongkos kirim)' : ''}
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 p-2.5 rounded-2xl border border-emerald-100/50 space-y-0.5">
+                    <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Transfer ke Rekening</p>
+                    <p className="text-[10px] font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
+                    <p className="text-xs font-black text-gray-800 tracking-wide font-mono font-bold">7307427448</p>
+                    <p className="text-[9px] text-gray-500 font-semibold uppercase">Atas Nama: Kwarwil HW Jateng</p>
+                  </div>
+
+                  <div className="text-[9px] text-emerald-800 leading-normal font-medium bg-emerald-50/50 p-2 rounded-xl border border-emerald-200 border-dashed">
+                    Setelah transfer, konfirmasi bukti transfer via WhatsApp ke <strong>089688754000</strong>.
+                  </div>
+                </div>
+
+                <a 
+                  href={`https://wa.me/6289688754000?text=${encodeURIComponent(`Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: ${myApplication.nama}\nNIK: ${myApplication.nik || '-'}\nJenis KTA: ${myApplication.jenisKta || 'Digital'}\nKabupaten/Kota: ${myApplication.asalDaerah || '-'}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                >
+                  Kirim Bukti Transfer WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
+
+          {myApplication && myApplication.status === 'rejected' && (
+            <div className="space-y-3 max-w-[380px] mx-auto bg-rose-50/50 border border-rose-200/50 p-5 rounded-[2rem] shadow-sm">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mx-auto">
+                  <ShieldAlert size={24} />
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="bg-rose-100 text-rose-850 text-[8.5px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full">
+                    PENGAJUAN DITOLAK
+                  </span>
+                  <h3 className="text-xs font-black text-gray-800 pt-1">Verifikasi KTA Belum Berhasil</h3>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-semibold">
+                    Maaf, permohonan Kartu Tanda Anggota Anda ditolak oleh Admin. Silahkan sesuaikan kembali data Anda pada formulir di bawah ini lalu kirim ulang.
+                  </p>
+                </div>
+              </div>
+
+              {myApplication.remark && (
+                <div className="bg-white rounded-2xl p-3 text-[10px] font-serif text-rose-800 border border-rose-100 text-center italic">
+                  Alasan penolakan: "{myApplication.remark}"
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1">
             <h3 className="text-base font-display font-bold text-gray-800">Pendaftaran KTA HW Jateng</h3>
             <p className="text-xs text-gray-400 leading-relaxed">

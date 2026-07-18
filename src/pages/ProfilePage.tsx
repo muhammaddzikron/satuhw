@@ -47,7 +47,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, logout, updateUser, setAuth } = useAuthStore();
+  const { user, isAuthenticated, logout, updateUser, setAuth, activeRole, setActiveRole } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -72,7 +72,7 @@ export default function ProfilePage() {
 
   // Update formData when user changes
   React.useEffect(() => {
-    if (user) {
+    if (user && !isEditing) {
       setFormData({
         namaLengkap: user.namaLengkap || '',
         golongan: user.golongan || '',
@@ -87,7 +87,7 @@ export default function ProfilePage() {
         password: '',
       });
     }
-  }, [user]);
+  }, [user, isEditing]);
 
   const fetchFreshProfile = async (showLoadingSpinner = false) => {
     if (!user) return;
@@ -130,7 +130,7 @@ export default function ProfilePage() {
   React.useEffect(() => {
     fetchFreshProfile();
     fetchKtaStatus();
-  }, [user]);
+  }, [user?.id]);
 
   if (!isAuthenticated) return <Navigate to="/login" />;
 
@@ -332,6 +332,22 @@ export default function ProfilePage() {
                       </span>
                     )}
                   </div>
+                  {user?.roles && user.roles.length > 1 && (
+                    <div className="mt-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Pilih Akses Aktif</label>
+                      <select 
+                        value={activeRole || 'umum'}
+                        onChange={(e) => setActiveRole(e.target.value as any)}
+                        className="bg-white border border-gray-200 text-hw-dark rounded-xl px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-hw-green outline-none"
+                      >
+                        {user.roles.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABELS[r] || r}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </>
               )}
             </div>

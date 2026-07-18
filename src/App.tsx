@@ -21,7 +21,8 @@ import {
   Layout,
   Shield,
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  CreditCard
 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
@@ -73,8 +74,8 @@ const Header = () => {
   
   return (
     <>
-      {/* Role Switcher - Sticky at top for users with multiple roles */}
-      {user && user.roles && user.roles.length > 1 && (
+      {/* Role Switcher - Sticky at top for users with multiple roles, but hidden if acting as 'umum' / member */}
+      {user && user.roles && user.roles.length > 1 && activeRole !== 'umum' && (
         <motion.div 
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -117,7 +118,7 @@ const Header = () => {
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
             className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3"
             style={{ 
-              top: user && user.roles && user.roles.length > 1 ? '56px' : '0' 
+              top: user && user.roles && user.roles.length > 1 && activeRole !== 'umum' ? '56px' : '0' 
             }}
           >
             <div className="max-w-md mx-auto flex items-center justify-between">
@@ -166,7 +167,7 @@ const NavigationLink = ({ to, icon: Icon, label, active }: { to: string, icon: a
 );
 
 const Navigation = () => {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout, activeRole } = useAuthStore();
   const location = useLocation();
   
   const canAccessAdmin = () => {
@@ -177,9 +178,7 @@ const Navigation = () => {
     return false;
   };
 
-  // Navigation should be shown on all pages as per user request
-  // const isNoNavPage = location.pathname === '/login' || location.pathname === '/register';
-  // if (isNoNavPage) return null;
+  const isMemberView = !canAccessAdmin() || activeRole === 'umum';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
@@ -191,58 +190,74 @@ const Navigation = () => {
           active={location.pathname === '/'} 
         />
 
-        {isAuthenticated && (
-          <NavigationLink 
-            to="/pelatihan" 
-            icon={GraduationCap} 
-            label="Pelatihan" 
-            active={location.pathname === '/pelatihan'} 
-          />
-        )}
-        
-        {isAuthenticated && canAccessAdmin() && (
-          <NavigationLink 
-            to="/admin?tab=anggota" 
-            icon={LayoutDashboard} 
-            label="Dasbor" 
-            active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
-          />
-        )}
-        
         {isAuthenticated ? (
-          <>
-            {canAccessAdmin() ? (
-              <>
-                <NavigationLink 
-                  to="/admin?tab=materi" 
-                  icon={BookOpen} 
-                  label="Materi" 
-                  active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
-                />
-                <NavigationLink 
-                  to="/admin?tab=konten" 
-                  icon={Layout} 
-                  label="Konten" 
-                  active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'konten'} 
-                />
-              </>
-            ) : (
+          isMemberView ? (
+            /* Member/Participant view */
+            <>
               <NavigationLink 
-                to="/profile" 
-                icon={UserIcon} 
-                label="Data Pribadi" 
-                active={location.pathname === '/profile'} 
+                to="/kta" 
+                icon={CreditCard} 
+                label="KTA" 
+                active={location.pathname === '/kta'} 
               />
-            )}
-            <button 
-              onClick={logout}
-              className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
-            >
-              <LogOut size={22} />
-              <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
-            </button>
-          </>
+              <NavigationLink 
+                to="/pelatihan" 
+                icon={GraduationCap} 
+                label="Pelatihan" 
+                active={location.pathname === '/pelatihan'} 
+              />
+              <NavigationLink 
+                to="/materi" 
+                icon={BookOpen} 
+                label="Materi" 
+                active={location.pathname === '/materi'} 
+              />
+              <button 
+                onClick={logout}
+                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
+              >
+                <LogOut size={22} />
+                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+              </button>
+            </>
+          ) : (
+            /* Admin/Staff view */
+            <>
+              <NavigationLink 
+                to="/pelatihan" 
+                icon={GraduationCap} 
+                label="Pelatihan" 
+                active={location.pathname === '/pelatihan'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=anggota" 
+                icon={LayoutDashboard} 
+                label="Dasbor" 
+                active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
+              />
+              <NavigationLink 
+                to="/admin?tab=materi" 
+                icon={BookOpen} 
+                label="Materi" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=konten" 
+                icon={Layout} 
+                label="Konten" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'konten'} 
+              />
+              <button 
+                onClick={logout}
+                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
+              >
+                <LogOut size={22} />
+                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+              </button>
+            </>
+          )
         ) : (
+          /* Guest/Unauthenticated view */
           <>
             <NavigationLink 
               to="/login" 

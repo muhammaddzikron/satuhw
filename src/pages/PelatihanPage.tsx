@@ -7,6 +7,7 @@ import {
   Calendar, 
   CheckCircle2, 
   ChevronRight, 
+  ChevronLeft,
   ClipboardList, 
   Clock, 
   Download, 
@@ -26,7 +27,8 @@ import {
   Check,
   AlertCircle,
   TrendingUp,
-  Info
+  Info,
+  Pencil
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -56,10 +58,42 @@ const TRAINING_PROGRAMS: TrainingProgram[] = [
       'Mengisi formulir pendaftaran resmi & melunasi biaya administrasi'
     ],
     sessions: [
-      { id: 'Sesi 1', title: 'Al-Islam & Kemuhammadiyahan', description: 'Penguatan aqidah Islam berkemajuan dan ideologi gerakan Muhammadiyah.' },
-      { id: 'Sesi 2', title: 'Sejarah & Jatidiri Hizbul Wathan', description: 'Memahami sejarah berdirinya HW, lambang, bendera, serta kode kehormatan.' },
-      { id: 'Sesi 3', title: 'Metode Pendidikan Kepanduan', description: 'Prinsip dasar metode pendidikan kepanduan Hizbul Wathan untuk anak didik.' },
-      { id: 'Sesi 4', title: 'Administrasi Qabilah & Satuan', description: 'Manajemen administrasi, struktur, pembukuan, serta pengelolaan satuan latihan.' }
+      { id: 'Sesi 1', title: 'Upacara Pembukaan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 2', title: 'Sasaran Pelatihan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 3', title: 'Dinamika Kelompok – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 4', title: 'Pengembangan Sasaran Pelatihan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 5', title: 'Kemuhammadiyahan – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 6', title: 'Sejarah Singkat Kepanduan Hizbul Wathan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 7', title: 'AD dan ART HW – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 8', title: 'Jati Diri Kepanduan Hizbul Wathan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 9', title: 'Prinsip Dasar Kepanduan dan Metode – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 10', title: 'Kode Kehormatan Pandu Hizbul Wathan – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 11', title: 'Lambang, Simbol, dan Motto HW – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 12', title: 'Organisasi Gerakan Kepanduan HW – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 13', title: 'Qaidah Organisasi Otonom Muhammadiyah – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 14', title: 'Organisasi Qabilah – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 15', title: 'Program Kegiatan Peserta Didik – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 16', title: 'Dewan Satuan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 17', title: 'Forum Silaturrahim Pandu – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 18', title: 'Memahami Peserta Didik dan Kebutuhannya – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 19', title: 'Kegiatan Bermutu, Menarik, Menyenangkan, Meningkat, dan Mengandung Pendidikan Islami – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 20', title: 'Cara Membina Peserta Didik – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 21', title: 'Uswatun Hasanah – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 22', title: 'Adab Bergaul – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 23', title: 'Mengelola Satuan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 24', title: 'Peran, Fungsi, dan Tanggung Jawab Pemimpin Satuan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 25', title: 'Syarat Kenaikan Tingkat, Tanda Kenaikan Tingkat, Syarat Kecakapan Pandu, dan Tanda Kecakapan Pandu (SKT, TKT, SKP, TKT) – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 26', title: 'Upacara sebagai Alat Pendidikan – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 27', title: 'Pelantikan sebagai Alat Pendidikan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 28', title: 'Tadabbur Alam – 270 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 29', title: 'Perkemahan sebagai Alat Pendidikan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 30', title: 'Pentas Seni dan Api Unggun sebagai Alat Pendidikan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 31', title: 'Seragam dan Atribut – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 32', title: 'Bina Karya Mandiri Kepanduan HW – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 33', title: 'Forum Terbuka – 90 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 34', title: 'Rencana Tindak Lanjut (RTL) – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 35', title: 'Evaluasi – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' },
+      { id: 'Sesi 36', title: 'Upacara Penutupan – 45 menit', description: 'Materi Jaya Melati 1 Sesuai Kurikulum' }
     ],
     assignments: [
       { id: 'tugas-1', title: 'Resume Jatidiri HW', description: 'Membuat resume tertulis tentang sejarah dan jatidiri Kepanduan HW minimal 2 halaman.' },
@@ -142,7 +176,90 @@ export default function PelatihanPage() {
   const [passingStatus, setPassingStatus] = useState('Lulus');
   const [actionLoading, setActionLoading] = useState(false);
   
+  // User interactive attendance states
+  const [activeEditSession, setActiveEditSession] = useState<string | null>(null);
+  const [savingAttendance, setSavingAttendance] = useState<Record<string, boolean>>({});
+
+  const getAttendanceStatus = (attendanceMap: any, sesId: string): string => {
+    const item = attendanceMap[sesId];
+    if (!item) return 'belum';
+    if (typeof item === 'object' && item !== null) {
+      return item.status || 'belum';
+    }
+    return item;
+  };
+
+  const getAttendanceTimestamp = (attendanceMap: any, sesId: string): string | null => {
+    const item = attendanceMap[sesId];
+    if (item && typeof item === 'object' && item !== null) {
+      return item.timestamp || null;
+    }
+    return null;
+  };
+
+  const handleUserSubmitAttendance = async (sessionId: string, status: string) => {
+    if (!userApp) return;
+    try {
+      setSavingAttendance(prev => ({ ...prev, [sessionId]: true }));
+      let attendanceMap: Record<string, any> = {};
+      try {
+        attendanceMap = userApp.kehadiran ? (typeof userApp.kehadiran === 'string' ? JSON.parse(userApp.kehadiran) : userApp.kehadiran) : {};
+        if (typeof attendanceMap !== 'object') attendanceMap = {};
+      } catch (err) {
+        attendanceMap = {};
+      }
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const timestamp = `${dateStr} pukul ${timeStr}`;
+
+      attendanceMap[sessionId] = {
+        status: status,
+        timestamp: timestamp
+      };
+
+      await sheetsService.updateAttendance(userApp.id, JSON.stringify(attendanceMap));
+      
+      // Update local state directly so we don't have to wait or see flash
+      const updatedUserApp = { ...userApp, kehadiran: JSON.stringify(attendanceMap) };
+      setUserApp(updatedUserApp);
+      
+      // Also update in the applications array
+      setApplications(prev => prev.map(app => app.id === userApp.id ? updatedUserApp : app));
+
+      setActiveEditSession(null);
+      alert(`Presensi ${status === 'hadir' ? 'Hadir' : status === 'izin' ? 'Izin' : 'Tidak Hadir'} berhasil disimpan!`);
+      loadData();
+    } catch (err: any) {
+      alert('Gagal menyimpan presensi: ' + err.message);
+    } finally {
+      setSavingAttendance(prev => ({ ...prev, [sessionId]: false }));
+    }
+  };
+
   const isAdminOrSimulated = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || perspective === 'admin';
+
+  const isLevelActiveOrApproved = (() => {
+    if (!isAuthenticated) return false;
+    if (isAdminOrSimulated) return true;
+
+    const levelRoleMap: Record<string, string> = {
+      'Jati 1': 'jati1',
+      'Jati 2': 'jati2',
+      'Jari 1': 'jari1'
+    };
+    const requiredRole = levelRoleMap[selectedLevel];
+    
+    const isMemberOfThisLevel = 
+      user?.role === requiredRole || 
+      user?.activeRole === requiredRole || 
+      user?.roles?.includes(requiredRole as any);
+
+    const isAttendingLevel = userApp && userApp.status === 'approved';
+
+    return isMemberOfThisLevel || isAttendingLevel;
+  })();
 
   const loadData = async () => {
     try {
@@ -299,7 +416,7 @@ export default function PelatihanPage() {
   // Admin updates attendance for a specific session
   const handleToggleAttendance = async (app: any, sessionId: string, status: string) => {
     try {
-      let attendanceMap: Record<string, string> = {};
+      let attendanceMap: Record<string, any> = {};
       try {
         attendanceMap = app.kehadiran ? (typeof app.kehadiran === 'string' ? JSON.parse(app.kehadiran) : app.kehadiran) : {};
         if (typeof attendanceMap !== 'object') attendanceMap = {};
@@ -307,7 +424,16 @@ export default function PelatihanPage() {
         attendanceMap = {};
       }
 
-      attendanceMap[sessionId] = status;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const timestamp = `${dateStr} pukul ${timeStr} (oleh Admin)`;
+
+      attendanceMap[sessionId] = {
+        status: status,
+        timestamp: timestamp
+      };
+
       await sheetsService.updateAttendance(app.id, JSON.stringify(attendanceMap));
       loadData();
     } catch (err: any) {
@@ -367,6 +493,17 @@ export default function PelatihanPage() {
 
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      <div className="flex justify-start">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-500 hover:text-hw-green transition-colors"
+        >
+          <ChevronLeft size={16} />
+          Kembali
+        </button>
+      </div>
+
       {/* Page Header */}
       <div className="flex flex-col gap-1.5 bg-gradient-to-br from-hw-green/10 to-emerald-600/5 p-6 rounded-[2.5rem] border border-hw-green/20">
         <div className="flex items-center gap-2">
@@ -399,40 +536,6 @@ export default function PelatihanPage() {
         ))}
       </div>
 
-      {/* Perspective / Role Switcher Header (Required by User request to see both admin and participant views) */}
-      <div className="flex items-center justify-between bg-hw-dark text-white px-5 py-4 rounded-[2rem] shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <Shield size={18} className="text-hw-green" />
-          <div className="text-left">
-            <h4 className="text-xs font-black uppercase tracking-wider">Perspektif Panel</h4>
-            <p className="text-[9px] text-gray-400 leading-none">
-              {perspective === 'admin' ? 'Menampilkan Fitur Pengelola (Admin/Instruktur)' : 'Menampilkan Fitur Anggota (Peserta Pelatihan)'}
-            </p>
-          </div>
-        </div>
-        <div className="flex bg-white/10 p-1 rounded-xl border border-white/10">
-          <button
-            onClick={() => setPerspective('peserta')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-              perspective === 'peserta' ? 'bg-hw-green text-white shadow-sm' : 'text-gray-300 hover:text-white'
-            }`}
-          >
-            Peserta
-          </button>
-          <button
-            onClick={() => setPerspective('admin')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
-              perspective === 'admin' ? 'bg-hw-green text-white shadow-sm' : 'text-gray-300 hover:text-white'
-            }`}
-          >
-            Admin 
-            {user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'sugli' && user?.role !== 'kwarda' && (
-              <span className="bg-red-500 text-[8px] text-white font-bold px-1.5 py-0.2 rounded-full scale-90">Sim</span>
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* MAIN VIEWPORT */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -456,7 +559,88 @@ export default function PelatihanPage() {
             exit={{ opacity: 0, y: -15 }}
             className="space-y-6"
           >
-            {/* Status Keikutsertaan Banner */}
+            {!isAuthenticated ? (
+              <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Status Kepesertaan</span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 uppercase">BELUM MASUK</span>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center space-y-3">
+                  <Lock size={20} className="mx-auto text-gray-400" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-gray-700">Akses Terkunci</h4>
+                    <p className="text-[10px] text-gray-500 leading-normal px-4">
+                      Silakan masuk atau daftar akun terlebih dahulu untuk melihat kemajuan dan mengumpulkan tugas pelatihan Anda.
+                    </p>
+                  </div>
+                  <Link to="/login" className="inline-block bg-hw-green text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl active:scale-95 transition-transform">
+                    Masuk Sekarang
+                  </Link>
+                </div>
+              </div>
+            ) : !isLevelActiveOrApproved ? (
+              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center space-y-6 max-w-[420px] mx-auto my-6 animate-fade-in">
+                <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto">
+                  <Lock size={32} />
+                </div>
+                
+                <div className="space-y-3">
+                  <span className="bg-amber-100 text-amber-800 text-[9px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full">
+                    AKUN BELUM AKTIF
+                  </span>
+                  <h3 className="text-sm font-black text-gray-800 leading-snug">
+                    Maaf akun anda belum aktif pada Jenjang Pelatihan ini.
+                  </h3>
+                  <p className="text-xs text-gray-400 font-semibold leading-relaxed">
+                    Untuk dapat mengakses kurikulum, materi penunjang, absensi sesi, dan mengunduh piagam kelulusan digital pada jenjang <strong className="text-gray-700">{selectedLevel}</strong>, silakan lakukan pendaftaran atau hubungi Admin Kwarda untuk aktivasi akun Anda.
+                  </p>
+                </div>
+
+                {userApp && (
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 text-left space-y-2">
+                    <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Status Pengajuan Pelatihan</p>
+                    {userApp.status === 'pending' ? (
+                      <div className="space-y-1">
+                        <span className="bg-orange-100 text-orange-850 text-[8px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md">
+                          MENUNGGU VERIFIKASI
+                        </span>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                          Pendaftaran Anda dikirim pada <strong>{new Date(userApp.tanggalAjuan).toLocaleDateString('id-ID', { dateStyle: 'long' })}</strong> dan sedang ditinjau oleh Admin.
+                        </p>
+                      </div>
+                    ) : userApp.status === 'rejected' ? (
+                      <div className="space-y-1">
+                        <span className="bg-rose-100 text-rose-850 text-[8px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md">
+                          DITOLAK
+                        </span>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                          Pendaftaran Anda ditolak dengan alasan: <strong className="text-rose-700 font-sans italic">"{userApp.remark || 'Tidak ada keterangan'}"</strong>. Silakan ajukan kembali dengan data yang benar.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                <div className="pt-2 flex flex-col gap-2">
+                  <Link 
+                    to="/daftar-pelatihan" 
+                    className="w-full py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-950/10"
+                    id="btn-register-training-unactive"
+                  >
+                    {userApp && userApp.status === 'rejected' ? 'Ajukan Kembali Pendaftaran' : 'Daftar Pelatihan Sekarang'}
+                  </Link>
+                  <Link 
+                    to="/kta" 
+                    className="w-full py-3 bg-gray-50 border border-gray-100 hover:bg-gray-100 rounded-xl text-xs font-black text-gray-500 uppercase tracking-wider transition-colors text-center"
+                    id="btn-check-kta-unactive"
+                  >
+                    Cek Pengajuan KTA Anda
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Status Keikutsertaan Banner */}
             <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Status Kepesertaan</span>
@@ -576,7 +760,7 @@ export default function PelatihanPage() {
             <div className="space-y-4">
               <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar gap-1.5 pb-1">
                 {[
-                  { id: 'info', label: 'Kurikulum', icon: Info },
+                  { id: 'info', label: 'Pelatihan ' + selectedLevel, icon: Info },
                   { id: 'materi', label: 'Materi Penunjang', icon: BookOpen },
                   { id: 'sesi', label: 'Sesi & Absen', icon: Calendar },
                   { id: 'tugas', label: 'Kirim Tugas', icon: ClipboardList },
@@ -612,10 +796,6 @@ export default function PelatihanPage() {
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
                       <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Tentang {selectedLevel}</h4>
                       <p className="text-[11px] text-gray-500 leading-relaxed">{program.description}</p>
-                      <div className="pt-2 border-t border-gray-50 flex justify-between items-center text-xs">
-                        <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Investasi Pelatihan</span>
-                        <span className="text-hw-green font-black">{program.fee}</span>
-                      </div>
                     </div>
 
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
@@ -721,46 +901,122 @@ export default function PelatihanPage() {
                   >
                     <div className="flex items-center justify-between px-1">
                       <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Daftar Sesi Materi</h4>
-                      <span className="text-[9px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md uppercase">4 Sesi Utama</span>
+                      <span className="text-[9px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md uppercase">{program.sessions.length} Sesi Utama</span>
                     </div>
 
                     <div className="space-y-3">
                       {program.sessions.map((ses, idx) => {
                         const attendanceMap = parseAttendance(userApp);
-                        const status = attendanceMap[ses.id] || 'belum';
+                        const status = getAttendanceStatus(attendanceMap, ses.id);
+                        const timestamp = getAttendanceTimestamp(attendanceMap, ses.id);
+                        const isEditing = activeEditSession === ses.id;
                         
                         return (
-                          <div key={ses.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-start justify-between gap-4">
-                            <div className="space-y-1">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-1.5 py-0.5 rounded-md">
-                                {ses.id}
-                              </span>
-                              <h5 className="text-xs font-black text-gray-800">{ses.title}</h5>
-                              <p className="text-[10px] text-gray-400 leading-normal">{ses.description}</p>
+                          <div key={ses.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-3 text-left">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-1">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-1.5 py-0.5 rounded-md">
+                                  {ses.id}
+                                </span>
+                                <h5 className="text-xs font-black text-gray-800">{ses.title}</h5>
+                                <p className="text-[10px] text-gray-400 leading-normal">{ses.description}</p>
+                              </div>
+                              
+                              {/* Attendance Pill Status */}
+                              <div className="shrink-0 pt-1 flex items-center gap-1.5">
+                                {!userApp ? (
+                                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-wider">Belum Daftar</span>
+                                ) : status === 'hadir' ? (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 uppercase">
+                                    Hadir ✓
+                                  </span>
+                                ) : status === 'izin' ? (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 uppercase">
+                                    Izin
+                                  </span>
+                                ) : status === 'absen' ? (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 uppercase">
+                                    Tidak Hadir
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 uppercase">
+                                    Belum Mulai
+                                  </span>
+                                )}
+
+                                {/* Edit Button for Approved Participant */}
+                                {userApp && userApp.status === 'approved' && !isEditing && (
+                                  <button
+                                    onClick={() => setActiveEditSession(ses.id)}
+                                    className="p-1 text-gray-400 hover:text-hw-green hover:bg-gray-50 rounded-lg transition-all"
+                                    title="Edit Presensi"
+                                  >
+                                    <Pencil size={11} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            
-                            {/* Attendance Pill Status */}
-                            <div className="shrink-0 pt-1">
-                              {!userApp ? (
-                                <span className="text-[8px] font-black text-gray-300 uppercase tracking-wider">Belum Daftar</span>
-                              ) : status === 'hadir' ? (
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 uppercase flex items-center gap-1">
-                                  Hadir ✓
-                                </span>
-                              ) : status === 'izin' ? (
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 uppercase">
-                                  Izin / Sakit
-                                </span>
-                              ) : status === 'absen' ? (
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 uppercase">
-                                  Absen ✕
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 uppercase">
-                                  Belum Mulai
-                                </span>
-                              )}
-                            </div>
+
+                            {/* Recorded Timestamp */}
+                            {timestamp && (
+                              <div className="flex items-center gap-1.5 text-[8.5px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg w-max font-bold font-sans">
+                                <Clock size={10} className="text-gray-400" />
+                                <span>Tercatat: {timestamp}</span>
+                              </div>
+                            )}
+
+                            {/* Attendance Controls inside Panel */}
+                            {isEditing && (
+                              <div className="mt-1 pt-3 border-t border-dashed border-gray-100 flex flex-col gap-2">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Kirim Presensi Baru:</span>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  <button
+                                    disabled={savingAttendance[ses.id]}
+                                    onClick={() => handleUserSubmitAttendance(ses.id, 'hadir')}
+                                    className={`py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                                      status === 'hadir' 
+                                        ? 'bg-emerald-500 text-white shadow-sm' 
+                                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {savingAttendance[ses.id] && activeEditSession === ses.id ? (
+                                      <Loader2 size={10} className="animate-spin" />
+                                    ) : 'Hadir'}
+                                  </button>
+
+                                  <button
+                                    disabled={savingAttendance[ses.id]}
+                                    onClick={() => handleUserSubmitAttendance(ses.id, 'absen')}
+                                    className={`py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                                      status === 'absen' 
+                                        ? 'bg-red-500 text-white shadow-sm' 
+                                        : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                    }`}
+                                  >
+                                    Tidak Hadir
+                                  </button>
+
+                                  <button
+                                    disabled={savingAttendance[ses.id]}
+                                    onClick={() => handleUserSubmitAttendance(ses.id, 'izin')}
+                                    className={`py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                                      status === 'izin' 
+                                        ? 'bg-blue-500 text-white shadow-sm' 
+                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                    }`}
+                                  >
+                                    Izin
+                                  </button>
+
+                                  <button
+                                    onClick={() => setActiveEditSession(null)}
+                                    className="py-1.5 rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 text-[9px] font-black uppercase tracking-wider transition-all"
+                                  >
+                                    Batal
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -963,6 +1219,8 @@ export default function PelatihanPage() {
                 )}
               </div>
             </div>
+              </>
+            )}
           </motion.div>
         ) : (
           /* ==================================================== */
@@ -1082,10 +1340,11 @@ export default function PelatihanPage() {
                               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Kehadiran Sesi</span>
                               <div className="grid grid-cols-4 gap-1.5">
                                 {['Sesi 1', 'Sesi 2', 'Sesi 3', 'Sesi 4'].map((sesId) => {
-                                  const attStatus = attendanceMap[sesId] || 'belum';
+                                  const attStatus = getAttendanceStatus(attendanceMap, sesId);
+                                  const attTime = getAttendanceTimestamp(attendanceMap, sesId);
                                   
                                   return (
-                                    <div key={sesId} className="bg-gray-50/50 p-2 rounded-xl border border-gray-100 flex flex-col gap-1 items-center justify-between">
+                                    <div key={sesId} className="bg-gray-50/50 p-2 rounded-xl border border-gray-100 flex flex-col gap-1 items-center justify-between min-h-[58px]">
                                       <span className="text-[8px] font-bold text-gray-500">{sesId}</span>
                                       
                                       <div className="flex gap-0.5">
@@ -1111,6 +1370,12 @@ export default function PelatihanPage() {
                                           A
                                         </button>
                                       </div>
+
+                                      {attTime && (
+                                        <span className="text-[7px] text-gray-400 text-center scale-90 leading-tight block mt-1" title={attTime}>
+                                          {attTime.split(' pukul ')[0]}
+                                        </span>
+                                      )}
                                     </div>
                                   );
                                 })}
