@@ -3110,7 +3110,7 @@ export default function AdminDashboard() {
                                     }}
                                     className="px-2 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg hover:bg-emerald-100 font-bold text-[10px] uppercase tracking-wider transition-all"
                                   >
-                                    Detail
+                                    Preview
                                   </button>
                                   <button
                                     onClick={async () => {
@@ -6491,7 +6491,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
                   <div className="flex items-center gap-2">
                     <Printer size={18} className="text-hw-green" />
-                    <h3 className="text-sm font-black uppercase tracking-wider font-display">Tinjau & Cetak KTA HW</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider font-display">Preview & Cetak KTA HW</h3>
                   </div>
                   <button 
                     onClick={() => { setIsViewKtaModalOpen(false); setViewingKtaApp(null); }}
