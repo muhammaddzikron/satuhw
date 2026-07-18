@@ -369,10 +369,27 @@ function handleSaveMember(data) {
   var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
   
   var users = getRowsAsObjects(sheet);
-  var dataId = (data.id || data.Id || '').toString();
+  var dataId = (data.id || data.Id || '').toString().trim();
+  var dataEmail = (data.email || data.Email || '').toString().trim().toLowerCase();
+  
   var rowIndex = users.findIndex(function(u) { 
-    var uId = (u.id || u.Id || '').toString();
-    return uId === dataId && uId !== '';
+    var uId = (u.id || u.Id || '').toString().trim();
+    var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+    
+    // First, try matching by ID if both are not empty
+    if (dataId !== '' && uId !== '') {
+      if (uId === dataId) return true;
+    }
+    // Also support matching by stable ID derived from email
+    if (uEmail !== '') {
+      var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      if (stableId === dataId) return true;
+    }
+    // Fallback to matching by Email if email is provided
+    if (dataEmail !== '' && uEmail === dataEmail) {
+      return true;
+    }
+    return false;
   });
   
   var existing = rowIndex > -1 ? users[rowIndex] : null;
@@ -380,7 +397,7 @@ function handleSaveMember(data) {
   // Map data fields to header positions
   var rowData = new Array(headers.length).fill("");
   headerLowers.forEach(function(hLower, i) {
-    if (hLower === 'id') rowData[i] = data.id || data.Id || (existing ? (existing.id || existing.Id) : new Date().getTime().toString());
+    if (hLower === 'id') rowData[i] = data.id || data.Id || (existing ? (existing.id || existing.Id) : (dataEmail ? 'user-' + dataEmail.replace(/[^a-zA-Z0-9]/g, '_') : new Date().getTime().toString()));
     else if (hLower === 'email') rowData[i] = data.email || data.Email || (existing ? (existing.email || existing.Email) : "");
     else if (hLower === 'password') rowData[i] = data.password || data.Password || (existing ? (existing.password || existing.Password) : '123456');
     else if (hLower === 'namalengkap') rowData[i] = data.namaLengkap || data.namalengkap || (existing ? (existing.namaLengkap || existing.namalengkap) : "");
@@ -420,7 +437,20 @@ function handleSaveMember(data) {
 function handleDeleteMember(id) {
   var sheet = getSheet('Users');
   var users = getRowsAsObjects(sheet);
-  var rowIndex = users.findIndex(function(u) { return u.id && u.id.toString() === (id ? id.toString() : ''); });
+  var rowIndex = users.findIndex(function(u) {
+    var uId = (u.id || u.Id || '').toString().trim();
+    var targetId = id ? id.toString().trim() : '';
+    
+    if (targetId !== '' && uId !== '' && uId === targetId) {
+      return true;
+    }
+    var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+    if (uEmail !== '') {
+      var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      if (stableId === targetId) return true;
+    }
+    return false;
+  });
   if (rowIndex > -1) {
     sheet.deleteRow(rowIndex + 2);
     return responseOk({ success: true, message: "Member deleted" });
@@ -431,7 +461,20 @@ function handleDeleteMember(id) {
 function handleRequestUpgrade(userId, category) {
   var sheet = getSheet('Users');
   var users = getRowsAsObjects(sheet);
-  var rowIndex = users.findIndex(function(u) { return u.id && u.id.toString() === userId.toString(); });
+  var rowIndex = users.findIndex(function(u) {
+    var uId = (u.id || u.Id || '').toString().trim();
+    var targetId = userId ? userId.toString().trim() : '';
+    
+    if (targetId !== '' && uId !== '' && uId === targetId) {
+      return true;
+    }
+    var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+    if (uEmail !== '') {
+      var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      if (stableId === targetId) return true;
+    }
+    return false;
+  });
   
   if (rowIndex > -1) {
     var user = users[rowIndex];

@@ -36,6 +36,28 @@ export const initMockData = () => {
         isVerified: u.isVerified === true || u.isVerified === "TRUE" || u.isVerified === 1 || u.isVerified === "true" || u.isVerified === "1"
       };
     });
+    
+    // Add Bayu Ghifari Javalino
+    parsedUsers.push({
+      id: "user-bayu-ghifari",
+      email: "bayughifari@gmail.com",
+      password: "12345hw",
+      namaLengkap: "Bayu Ghifari Javalino",
+      role: "umum",
+      roles: ["umum"],
+      jenisKelamin: "L",
+      golongan: "Dewasa",
+      pendidikan: "S1",
+      pelatihan: [],
+      asalKwarda: "Banyumas",
+      qabilah: "Sudirman",
+      alamat: "Purwokerto, Banyumas",
+      isVerified: false,
+      sosmed: "@bayughifari",
+      noHp: "081234567890",
+      upgradeRequests: []
+    });
+
     localStorage.setItem('mock_members', JSON.stringify(parsedUsers));
     localStorage.setItem('mock_members_initialized', 'true');
   } else {
@@ -44,13 +66,45 @@ export const initMockData = () => {
       if (stored) {
         const parsed = JSON.parse(stored);
         let changed = false;
+        
+        // Ensure Bayu Ghifari Javalino is present
+        const hasBayu = parsed.some((m: any) => 
+          (m.namaLengkap && m.namaLengkap.toLowerCase().includes('bayu ghifari')) ||
+          (m.namalengkap && m.namalengkap.toLowerCase().includes('bayu ghifari')) ||
+          (m.email && m.email.toLowerCase().includes('bayughifari'))
+        );
+        
+        if (!hasBayu) {
+          parsed.push({
+            id: "user-bayu-ghifari",
+            email: "bayughifari@gmail.com",
+            password: "12345hw",
+            namaLengkap: "Bayu Ghifari Javalino",
+            role: "umum",
+            roles: ["umum"],
+            jenisKelamin: "L",
+            golongan: "Dewasa",
+            pendidikan: "S1",
+            pelatihan: [],
+            asalKwarda: "Banyumas",
+            qabilah: "Sudirman",
+            alamat: "Purwokerto, Banyumas",
+            isVerified: false,
+            sosmed: "@bayughifari",
+            noHp: "081234567890",
+            upgradeRequests: []
+          });
+          changed = true;
+        }
+
         const repaired = parsed.map((m: any, idx: number) => {
           if (!m.id) {
             changed = true;
-            return { ...m, id: `user-repaired-${1000 + idx}` };
+            return { ...m, id: m.email ? `user-${m.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-repaired-${1000 + idx}` };
           }
           return m;
         });
+        
         if (changed) {
           localStorage.setItem('mock_members', JSON.stringify(repaired));
         }
@@ -228,9 +282,13 @@ export const sheetsService = {
     };
 
     // Map lowercase keys from backend to camelCase keys for frontend
+    const idValue = data.id || data.Id;
+    const emailValue = data.email || data.Email || '';
+    const stableId = idValue ? String(idValue) : (emailValue ? `user-${emailValue.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`);
+
     const user = {
-      id: data.id || '',
-      email: data.email || '',
+      id: stableId,
+      email: emailValue,
       namaLengkap: data.namaLengkap || data.namalengkap || '',
       jenisKelamin: data.jenisKelamin || data.jeniskelamin || 'L',
       golongan: data.golongan || '',
