@@ -167,6 +167,7 @@ export default function PelatihanPage() {
   const [taskTitle, setTaskTitle] = useState('');
   const [taskLink, setTaskLink] = useState('');
   const [submittingTask, setSubmittingTask] = useState(false);
+  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   
   // Admin interaction state
   const [searchQuery, setSearchQuery] = useState('');
@@ -288,6 +289,19 @@ export default function PelatihanPage() {
         console.error('Failed to load materials for level:', levelKey, err);
       } finally {
         setLoadingMateri(false);
+      }
+
+      // Fetch assigned tasks (from Settings)
+      try {
+        const settingsData = await sheetsService.getSettings();
+        if (settingsData && settingsData.assignedTasks) {
+          const parsed = Array.isArray(settingsData.assignedTasks) 
+            ? settingsData.assignedTasks 
+            : JSON.parse(settingsData.assignedTasks || '[]');
+          setAssignedTasks(parsed);
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings for assigned tasks:', err);
       }
     } catch (err) {
       console.error('Failed to load training applications:', err);
@@ -735,22 +749,52 @@ export default function PelatihanPage() {
                   </div>
                   
                   {userApp.statusKelulusan === 'Lulus' ? (
-                    <div className="bg-emerald-500 text-white p-3 rounded-xl flex items-center justify-between">
-                      <div className="text-left space-y-0.5">
+                    <div className="bg-emerald-500 text-white p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                      <div className="text-left space-y-1 flex-1">
                         <p className="text-[9px] font-black uppercase tracking-wider text-emerald-100">Evaluasi Akhir</p>
-                        <h5 className="text-xs font-black uppercase">LULUS DENGAN NILAI: {userApp.nilai || 'A'}</h5>
+                        <h5 className="text-xs font-black uppercase font-sans">LULUS DENGAN NILAI: {userApp.nilai || 'A'}</h5>
+                        {userApp.remark && (
+                          <p className="text-[10px] italic text-emerald-50 leading-relaxed">"{userApp.remark}"</p>
+                        )}
                       </div>
                       <button 
                         onClick={() => setActiveTab('piagam')}
-                        className="bg-white text-emerald-700 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-sm"
+                        className="bg-white text-emerald-700 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-sm shrink-0"
                       >
                         Lihat Piagam
                       </button>
                     </div>
                   ) : (
-                    <p className="text-[10px] text-emerald-800 leading-normal">
-                      Anda memiliki akses penuh untuk menyelesaikan seluruh sesi absensi, mengunggah tugas kepanduan, dan mendapatkan Piagam Kelulusan resmi di portal ini.
-                    </p>
+                    <div className="space-y-3">
+                      <p className="text-[10px] text-emerald-800 leading-normal">
+                        Anda memiliki akses penuh untuk menyelesaikan seluruh sesi absensi, mengunggah tugas kepanduan, dan mendapatkan Piagam Kelulusan resmi di portal ini.
+                      </p>
+                      {(userApp.nilai || userApp.statusKelulusan || userApp.remark) && (
+                        <div className="bg-white/80 p-3.5 rounded-xl border border-emerald-500/10 space-y-1.5 mt-2 text-xs">
+                          <p className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">Hasil Evaluasi Pelatih</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-gray-400 text-[10px] uppercase">Nilai Akhir:</span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-850 border border-amber-100 rounded text-[10px] font-black uppercase tracking-wider">
+                              {userApp.nilai || 'Belum Dinilai'}
+                            </span>
+                            {userApp.statusKelulusan && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                                userApp.statusKelulusan === 'Lulus Bersyarat'
+                                  ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                  : 'bg-red-50 border-red-100 text-red-600'
+                              }`}>
+                                {userApp.statusKelulusan}
+                              </span>
+                            )}
+                          </div>
+                          {userApp.remark && (
+                            <p className="text-[10px] text-gray-650 font-bold italic mt-1 bg-gray-50/50 p-2.5 rounded-xl border border-gray-150/40 leading-relaxed">
+                              "{userApp.remark}"
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -1025,111 +1069,170 @@ export default function PelatihanPage() {
                 )}
 
                 {/* 3. Tugas Tab */}
-                {activeTab === 'tugas' && (
-                  <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }} 
-                    className="space-y-4 text-left"
-                  >
-                    {/* List of Syllabus Assignments */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display px-1">Tugas Wajib Pelatihan</h4>
-                      {program.assignments.map((asg) => (
-                        <div key={asg.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-                          <h5 className="text-xs font-black text-gray-800 flex items-center gap-1.5">
-                            <FileText size={12} className="text-hw-green" /> {asg.title}
-                          </h5>
-                          <p className="text-[10px] text-gray-400 leading-normal">{asg.description}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Submit Task Form */}
-                    {userApp && userApp.status === 'approved' ? (
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Kirim Tugas Pelatihan</h4>
-                        <form onSubmit={handleUserSubmitTask} className="space-y-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-400 ml-1">Nama / Judul Tugas</label>
-                            <select 
-                              value={taskTitle}
-                              onChange={(e) => setTaskTitle(e.target.value)}
-                              className="w-full bg-gray-50 border-gray-100 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-700"
-                              required
-                            >
-                              <option value="">-- Pilih Tugas --</option>
-                              {program.assignments.map(asg => (
-                                <option key={asg.id} value={asg.title}>{asg.title}</option>
-                              ))}
-                              <option value="Tugas Tambahan / Projek Lapangan">Tugas Tambahan / Projek Lapangan</option>
-                            </select>
+                {activeTab === 'tugas' && (() => {
+                  const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
+                  return (
+                    <motion.div 
+                      initial={{ opacity: 0 }} 
+                      animate={{ opacity: 1 }} 
+                      className="space-y-4 text-left"
+                    >
+                      {/* List of Syllabus Assignments */}
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display px-1">Tugas Wajib Pelatihan</h4>
+                        {program.assignments.map((asg) => (
+                          <div key={asg.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+                            <h5 className="text-xs font-black text-gray-800 flex items-center gap-1.5">
+                              <FileText size={12} className="text-hw-green" /> {asg.title}
+                            </h5>
+                            <p className="text-[10px] text-gray-400 leading-normal">{asg.description}</p>
                           </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-400 ml-1">Tautan File (Google Drive / YouTube Link / PDF Link)</label>
-                            <input 
-                              type="url" 
-                              placeholder="https://drive.google.com/..."
-                              value={taskLink}
-                              onChange={(e) => setTaskLink(e.target.value)}
-                              className="w-full bg-gray-50 border-gray-100 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-700"
-                              required
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={submittingTask}
-                            className="w-full bg-hw-green hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider py-3 rounded-xl shadow-md shadow-emerald-900/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                          >
-                            {submittingTask ? (
-                              <>
-                                <Loader2 size={12} className="animate-spin" /> Mengirim...
-                              </>
-                            ) : (
-                              'Kumpulkan Tugas'
-                            )}
-                          </button>
-                        </form>
+                        ))}
                       </div>
-                    ) : (
-                      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 text-center text-gray-400 py-8">
-                        <Lock size={20} className="mx-auto text-gray-300 mb-2" />
-                        <p className="text-[10px] font-bold">Fitur pengumpulan tugas terkunci.</p>
-                        <p className="text-[9px] text-gray-400 mt-0.5">Hanya dapat digunakan setelah pendaftaran Anda disetujui oleh admin.</p>
-                      </div>
-                    )}
 
-                    {/* Submitted Tasks History */}
-                    {userApp && (
-                      <div className="space-y-2.5 text-left">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display px-1">Daftar Tugas Terkirim ({parseTasks(userApp).length})</h4>
-                        {parseTasks(userApp).length === 0 ? (
-                          <p className="text-[10px] text-gray-400 italic text-center py-4">Belum ada tugas yang dikumpulkan.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {parseTasks(userApp).map((t, idx) => (
-                              <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                  <h6 className="text-[11px] font-black text-gray-700">{t.title}</h6>
-                                  <p className="text-[9px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                      {/* List of Dynamic Curriculum Assignments from Coach */}
+                      {myTasks.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display px-1">Tugas Khusus Materi</h4>
+                          {myTasks.map((t) => {
+                            const tasksList = parseTasks(userApp);
+                            const isSubmitted = tasksList.some((sub: any) => String(sub.materiId) === String(t.materiId) || sub.title === `Tugas: ${t.materiJudul}`);
+
+                            return (
+                              <div key={t.materiId} className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/60 shadow-xs space-y-2 text-left">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">Tugas Khusus</span>
+                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${isSubmitted ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {isSubmitted ? 'SUDAH DIKIRIM ✓' : 'BELUM DIKIRIM'}
+                                  </span>
                                 </div>
-                                <a 
-                                  href={t.link} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="text-hw-green hover:text-emerald-700 p-2 hover:bg-gray-50 rounded-lg transition-all"
-                                >
-                                  <ExternalLink size={14} />
-                                </a>
+                                <h5 className="text-xs font-black text-gray-800 leading-tight">{t.materiJudul}</h5>
+                                <p className="text-[10px] text-gray-500 font-medium leading-relaxed bg-white/85 p-2.5 rounded-xl border border-gray-150/40">
+                                  📌 <span className="text-gray-750">{t.instruksi || 'Silakan kerjakan tugas untuk materi ini.'}</span>
+                                </p>
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-100/30 border-dashed mt-2">
+                                  <span className="text-[8.5px] text-gray-400 font-bold">
+                                    🕒 Batas: {t.deadline || 'Tidak ada batas waktu'}
+                                  </span>
+                                  {!isSubmitted && userApp && userApp.status === 'approved' && (
+                                    <button
+                                      onClick={() => {
+                                        setTaskTitle(`Tugas: ${t.materiJudul}`);
+                                        const formElement = document.getElementById('submit-task-form');
+                                        if (formElement) {
+                                          formElement.scrollIntoView({ behavior: 'smooth' });
+                                        }
+                                      }}
+                                      className="px-2.5 py-1 bg-hw-green hover:bg-emerald-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all shadow-xs"
+                                    >
+                                      Kerjakan
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Submit Task Form */}
+                      {userApp && userApp.status === 'approved' ? (
+                        <div id="submit-task-form" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 scroll-mt-6">
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Kirim Tugas Pelatihan</h4>
+                          <form onSubmit={handleUserSubmitTask} className="space-y-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-gray-400 ml-1">Nama / Judul Tugas</label>
+                              <select 
+                                value={taskTitle}
+                                onChange={(e) => setTaskTitle(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-100 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-750"
+                                required
+                              >
+                                <option value="">-- Pilih Tugas --</option>
+                                <optgroup label="Tugas Wajib">
+                                  {program.assignments.map(asg => (
+                                    <option key={asg.id} value={asg.title}>{asg.title}</option>
+                                  ))}
+                                </optgroup>
+                                {myTasks.length > 0 && (
+                                  <optgroup label="Tugas Materi dari Pelatih">
+                                    {myTasks.map(t => (
+                                      <option key={t.materiId} value={`Tugas: ${t.materiJudul}`}>[MATERI] {t.materiJudul}</option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                <optgroup label="Lainnya">
+                                  <option value="Tugas Tambahan / Projek Lapangan">Tugas Tambahan / Projek Lapangan</option>
+                                </optgroup>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-gray-400 ml-1">Tautan File (Google Drive / YouTube Link / PDF Link)</label>
+                              <input 
+                                type="url" 
+                                placeholder="https://drive.google.com/..."
+                                value={taskLink}
+                                onChange={(e) => setTaskLink(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-100 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-700"
+                                required
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={submittingTask}
+                              className="w-full bg-hw-green hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider py-3 rounded-xl shadow-md shadow-emerald-900/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                              {submittingTask ? (
+                                <>
+                                  <Loader2 size={12} className="animate-spin" /> Mengirim...
+                                </>
+                              ) : (
+                                'Kumpulkan Tugas'
+                              )}
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 text-center text-gray-400 py-8">
+                          <Lock size={20} className="mx-auto text-gray-300 mb-2" />
+                          <p className="text-[10px] font-bold">Fitur pengumpulan tugas terkunci.</p>
+                          <p className="text-[9px] text-gray-400 mt-0.5">Hanya dapat digunakan setelah pendaftaran Anda disetujui oleh admin.</p>
+                        </div>
+                      )}
+
+                      {/* Submitted Tasks History */}
+                      {userApp && (
+                        <div className="space-y-2.5 text-left">
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display px-1">Daftar Tugas Terkirim ({parseTasks(userApp).length})</h4>
+                          {parseTasks(userApp).length === 0 ? (
+                            <p className="text-[10px] text-gray-400 italic text-center py-4">Belum ada tugas yang dikumpulkan.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {parseTasks(userApp).map((t, idx) => (
+                                <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                  <div className="space-y-0.5">
+                                    <h6 className="text-[11px] font-black text-gray-700">{t.title}</h6>
+                                    <p className="text-[9px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                                  </div>
+                                  <a 
+                                    href={t.link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-hw-green hover:text-emerald-700 p-2 hover:bg-gray-50 rounded-lg transition-all"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })()}
 
                 {/* 4. Piagam Digital Tab */}
                 {activeTab === 'piagam' && (

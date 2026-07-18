@@ -207,7 +207,7 @@ export default function HomePage() {
           <div key={`skeleton-${i}`} className="min-w-[160px] h-28 bg-gray-100 rounded-3xl animate-pulse shrink-0" />
         ))
       ) : (
-        galleryItems.slice(0, 5).map((item, i) => {
+        galleryItems.map((item, i) => {
           const videoUrl = item.field1 || '';
           const videoTitle = item.field2 || 'Video HW';
           let videoId = '';

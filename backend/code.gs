@@ -351,9 +351,112 @@ function handleGetMateri(action, role) {
   return responseOk(materi);
 }
 
+function getRobustValue(obj, keyVariants) {
+  if (!obj) return "";
+  var objLowers = {};
+  for (var k in obj) {
+    if (obj.hasOwnProperty(k)) {
+      var cleanK = k.toString().toLowerCase().replace(/[\s_-]/g, '');
+      objLowers[cleanK] = obj[k];
+    }
+  }
+  for (var i = 0; i < keyVariants.length; i++) {
+    var cleanVar = keyVariants[i].toLowerCase().replace(/[\s_-]/g, '');
+    if (objLowers[cleanVar] !== undefined) {
+      return objLowers[cleanVar];
+    }
+  }
+  return "";
+}
+
 function handleGetMembers() {
-  var members = getRowsAsObjects(getSheet('Users'));
-  return responseOk(members.map(function(m) { 
+  var userSheet = getSheet('Users');
+  var users = getRowsAsObjects(userSheet);
+  
+  // Auto-sync missing members from Training_Applications and KTA_Applications
+  var trainSheet = getSheet('Training_Applications');
+  var trains = getRowsAsObjects(trainSheet);
+  
+  var ktaSheet = getSheet('KTA_Applications');
+  var ktas = getRowsAsObjects(ktaSheet);
+  
+  var existingEmails = {};
+  users.forEach(function(u) {
+    var email = (u.email || u.Email || "").toString().trim().toLowerCase();
+    if (email) existingEmails[email] = true;
+  });
+  
+  var addedAny = false;
+  
+  function addMissing(email, nama, noWa, sosmed, golongan, tingkatan, asalDaerah, qabilah, jenisKelamin) {
+    var cleanEmail = (email || "").toString().trim().toLowerCase();
+    if (!cleanEmail || existingEmails[cleanEmail]) return;
+    
+    var id = 'user-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    var headers = userSheet.getRange(1, 1, 1, userSheet.getLastColumn()).getValues()[0];
+    var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
+    
+    var rowData = new Array(headers.length).fill("");
+    headerLowers.forEach(function(hLower, i) {
+      if (hLower === 'id') rowData[i] = id;
+      else if (hLower === 'email') rowData[i] = cleanEmail;
+      else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
+      else if (hLower === 'namalengkap') rowData[i] = nama || "";
+      else if (hLower === 'role') rowData[i] = '[\"umum\"]';
+      else if (hLower === 'pendidikan') rowData[i] = "";
+      else if (hLower === 'pelatihan') rowData[i] = JSON.stringify(tingkatan ? [tingkatan] : []);
+      else if (hLower === 'jeniskelamin') rowData[i] = jenisKelamin || "L";
+      else if (hLower === 'golongan') rowData[i] = golongan || "Dewasa";
+      else if (hLower === 'asalkwarda') rowData[i] = asalDaerah || "Banyumas";
+      else if (hLower === 'qabilah') rowData[i] = qabilah || "";
+      else if (hLower === 'alamat') rowData[i] = "";
+      else if (hLower === 'isverified') rowData[i] = true; // Auto-verified
+      else if (hLower === 'sosmed') rowData[i] = sosmed || "";
+      else if (hLower === 'nohp') rowData[i] = noWa || "";
+      else if (hLower === 'token') rowData[i] = "";
+      else if (hLower === 'upgraderequests') rowData[i] = "[]";
+    });
+    
+    userSheet.appendRow(rowData);
+    existingEmails[cleanEmail] = true;
+    addedAny = true;
+  }
+  
+  trains.forEach(function(t) {
+    var email = t.email || t.Email || t.emailAddress || t.EmailAddress;
+    var nama = t.namaLengkap || t.nama || t.NamaLengkap || t.Nama || t.nama_lengkap;
+    var noWa = t.noHp || t.nohp || t.noWa || t.nowa || t.NoWa || t.noWhatsApp || t.NoWhatsApp;
+    var sosmed = t.sosmed || t.Sosmed || t.instagram || t.Instagram;
+    var tingkatan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.pelatihan || t.tingkatan;
+    var asalDaerah = t.asalKwarda || t.asalkwarda || t.asalDaerah || t.asaldaerah || t.AsalDaerah || t.asalCabang || t.AsalCabang;
+    var qabilah = t.qabilah || t.Qabilah;
+    var jenisKelamin = t.jenisKelamin || t.jeniskelamin || t.JenisKelamin || t.gender || t.Gender || "L";
+    
+    if (email && nama) {
+      addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
+    }
+  });
+  
+  ktas.forEach(function(k) {
+    var email = k.email || k.Email || k.emailAddress || k.EmailAddress;
+    var nama = k.namaLengkap || k.nama || k.NamaLengkap || k.Nama || k.nama_lengkap;
+    var noWa = k.noHp || k.nohp || k.noWa || k.nowa || k.NoWa;
+    var sosmed = k.sosmed || k.Sosmed;
+    var tingkatan = k.pelatihan || k.tingkatan;
+    var asalDaerah = k.asalKwarda || k.asalkwarda || k.asalDaerah || k.asaldaerah || k.AsalDaerah;
+    var qabilah = k.qabilah || k.Qabilah;
+    var jenisKelamin = k.jenisKelamin || k.jeniskelamin || k.JenisKelamin || "L";
+    
+    if (email && nama) {
+      addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
+    }
+  });
+  
+  if (addedAny) {
+    users = getRowsAsObjects(userSheet);
+  }
+  
+  return responseOk(users.map(function(m) { 
     delete m.password; 
     return m; 
   }));
@@ -365,23 +468,20 @@ function handleSaveMember(data) {
   var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
   
   var users = getRowsAsObjects(sheet);
-  var dataId = (data.id || data.Id || '').toString().trim();
-  var dataEmail = (data.email || data.Email || '').toString().trim().toLowerCase();
+  var dataId = (getRobustValue(data, ['id', 'Id']) || '').toString().trim();
+  var dataEmail = (getRobustValue(data, ['email', 'Email']) || '').toString().trim().toLowerCase();
   
   var rowIndex = users.findIndex(function(u) { 
     var uId = (u.id || u.Id || '').toString().trim();
     var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
     
-    // First, try matching by ID if both are not empty
     if (dataId !== '' && uId !== '') {
       if (uId === dataId) return true;
     }
-    // Also support matching by stable ID derived from email
     if (uEmail !== '') {
       var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
       if (stableId === dataId) return true;
     }
-    // Fallback to matching by Email if email is provided
     if (dataEmail !== '' && uEmail === dataEmail) {
       return true;
     }
@@ -390,33 +490,60 @@ function handleSaveMember(data) {
   
   var existing = rowIndex > -1 ? users[rowIndex] : null;
   
-  // Map data fields to header positions
   var rowData = new Array(headers.length).fill("");
   headerLowers.forEach(function(hLower, i) {
-    if (hLower === 'id') rowData[i] = data.id || data.Id || (existing ? (existing.id || existing.Id) : (dataEmail ? 'user-' + dataEmail.replace(/[^a-zA-Z0-9]/g, '_') : new Date().getTime().toString()));
-    else if (hLower === 'email') rowData[i] = data.email || data.Email || (existing ? (existing.email || existing.Email) : "");
-    else if (hLower === 'password') rowData[i] = data.password || data.Password || (existing ? (existing.password || existing.Password) : '123456');
-    else if (hLower === 'namalengkap') rowData[i] = data.namaLengkap || data.namalengkap || (existing ? (existing.namaLengkap || existing.namalengkap) : "");
-    else if (hLower === 'role') rowData[i] = data.role || data.Role || (existing ? (existing.role || existing.Role) : "umum");
-    else if (hLower === 'pendidikan') rowData[i] = data.pendidikan || data.Pendidikan || (existing ? (existing.pendidikan || existing.Pendidikan) : "");
+    if (hLower === 'id') {
+      rowData[i] = getRobustValue(data, ['id', 'Id']) || (existing ? (existing.id || existing.Id) : (dataEmail ? 'user-' + dataEmail.replace(/[^a-zA-Z0-9]/g, '_') : new Date().getTime().toString()));
+    }
+    else if (hLower === 'email') {
+      rowData[i] = getRobustValue(data, ['email', 'Email']) || (existing ? (existing.email || existing.Email) : "");
+    }
+    else if (hLower === 'password') {
+      rowData[i] = getRobustValue(data, ['password', 'Password']) || (existing ? (existing.password || existing.Password) : '123456');
+    }
+    else if (hLower === 'namalengkap') {
+      rowData[i] = getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'nama_lengkap', 'nama lengkap']) || (existing ? (existing.namaLengkap || existing.namalengkap || existing.nama || existing.nama_lengkap) : "");
+    }
+    else if (hLower === 'role') {
+      rowData[i] = getRobustValue(data, ['role', 'Role', 'roles', 'Roles']) || (existing ? (existing.role || existing.Role || existing.roles) : "[\"umum\"]");
+    }
+    else if (hLower === 'pendidikan') {
+      rowData[i] = getRobustValue(data, ['pendidikan', 'Pendidikan']) || (existing ? (existing.pendidikan || existing.Pendidikan) : "");
+    }
     else if (hLower === 'pelatihan') {
-      var p = data.pelatihan || data.Pelatihan || (existing ? (existing.pelatihan || existing.Pelatihan) : []);
+      var p = getRobustValue(data, ['pelatihan', 'Pelatihan']) || (existing ? (existing.pelatihan || existing.Pelatihan) : []);
       rowData[i] = typeof p === 'string' ? p : JSON.stringify(p);
     }
-    else if (hLower === 'jeniskelamin') rowData[i] = data.jenisKelamin || data.jeniskelamin || (existing ? (existing.jenisKelamin || existing.jeniskelamin) : "L");
-    else if (hLower === 'golongan') rowData[i] = data.golongan || data.Golongan || (existing ? (existing.golongan || existing.Golongan) : "");
-    else if (hLower === 'asalkwarda') rowData[i] = data.asalKwarda || data.asalkwarda || (existing ? (existing.asalKwarda || existing.asalkwarda) : "");
-    else if (hLower === 'qabilah') rowData[i] = data.qabilah || data.Qabilah || (existing ? (existing.qabilah || existing.Qabilah) : "");
-    else if (hLower === 'alamat') rowData[i] = data.alamat || data.Alamat || (existing ? (existing.alamat || existing.Alamat) : "");
+    else if (hLower === 'jeniskelamin') {
+      rowData[i] = getRobustValue(data, ['jenisKelamin', 'jeniskelamin', 'jk', 'sex', 'gender']) || (existing ? (existing.jenisKelamin || existing.jeniskelamin || existing.jk) : "L");
+    }
+    else if (hLower === 'golongan') {
+      rowData[i] = getRobustValue(data, ['golongan', 'Golongan']) || (existing ? (existing.golongan || existing.Golongan) : "");
+    }
+    else if (hLower === 'asalkwarda') {
+      rowData[i] = getRobustValue(data, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah']) || (existing ? (existing.asalKwarda || existing.asalkwarda || existing.kwarda) : "");
+    }
+    else if (hLower === 'qabilah') {
+      rowData[i] = getRobustValue(data, ['qabilah', 'Qabilah']) || (existing ? (existing.qabilah || existing.Qabilah) : "");
+    }
+    else if (hLower === 'alamat') {
+      rowData[i] = getRobustValue(data, ['alamat', 'Alamat']) || (existing ? (existing.alamat || existing.Alamat) : "");
+    }
     else if (hLower === 'isverified') {
-      var iv = data.isVerified !== undefined ? data.isVerified : (data.isverified !== undefined ? data.isverified : (existing ? (existing.isVerified !== undefined ? existing.isVerified : existing.isverified) : false));
+      var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified']) !== "" ? getRobustValue(data, ['isVerified', 'isverified', 'verified']) : (existing ? (existing.isVerified !== undefined ? existing.isVerified : existing.isverified) : false);
       rowData[i] = isTruthy(iv);
     }
-    else if (hLower === 'sosmed') rowData[i] = data.sosmed || data.Sosmed || (existing ? (existing.sosmed || existing.Sosmed) : "");
-    else if (hLower === 'nohp') rowData[i] = data.noHp || data.nohp || (existing ? (existing.noHp || existing.nohp) : "");
-    else if (hLower === 'token') rowData[i] = existing ? (existing.token || existing.Token) : "";
+    else if (hLower === 'sosmed') {
+      rowData[i] = getRobustValue(data, ['sosmed', 'Sosmed', 'socialmedia', 'sosialmedia', 'instagram']) || (existing ? (existing.sosmed || existing.Sosmed) : "");
+    }
+    else if (hLower === 'nohp') {
+      rowData[i] = getRobustValue(data, ['noHp', 'nohp', 'phone', 'telepon', 'no_hp', 'nohp', 'nowa', 'noWa']) || (existing ? (existing.noHp || existing.nohp || existing.phone || existing.no_hp) : "");
+    }
+    else if (hLower === 'token') {
+      rowData[i] = existing ? (existing.token || existing.Token) : "";
+    }
     else if (hLower === 'upgraderequests') {
-      var ur = data.upgradeRequests || data.upgraderequests || (existing ? (existing.upgradeRequests || existing.upgraderequests) : []);
+      var ur = getRobustValue(data, ['upgradeRequests', 'upgraderequests']) || (existing ? (existing.upgradeRequests || existing.upgraderequests) : []);
       rowData[i] = typeof ur === 'string' ? ur : JSON.stringify(ur);
     }
   });

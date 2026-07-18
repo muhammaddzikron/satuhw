@@ -175,6 +175,9 @@ export default function ProfilePage() {
       const { password, ...formDataWithoutPassword } = formData;
       updateUser(formDataWithoutPassword);
       
+      // Fetch fresh profile immediately from backend to ensure perfect sync
+      await fetchFreshProfile(false);
+      
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Profil berhasil diperbaharui! Data telah tersimpan di sistem.' });
       
