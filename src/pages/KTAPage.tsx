@@ -21,14 +21,14 @@ import {
   QrCode,
   CheckCircle,
   HelpCircle,
-  RefreshCw
+  RefreshCw,
+  Edit
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
-import { cn, getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
+import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
 import LoadingPage from './LoadingPage';
-import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 const TINGKATAN_LIST = [
@@ -189,6 +189,7 @@ export default function KTAPage() {
 
   const [isAgreed, setIsAgreed] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     const syncProfileAndApplications = async () => {
@@ -407,6 +408,7 @@ export default function KTAPage() {
         
         // Re-fetch to coordinate
         fetchApplications();
+        setShowEditForm(false);
       } else {
         throw new Error(res.message || 'Respons tidak valid dari server');
       }
@@ -437,7 +439,7 @@ export default function KTAPage() {
       }
 
       // Capture front card
-      const frontCanvas = await html2canvas(frontEl, {
+      const frontCanvas = await safeHtml2Canvas(frontEl, {
         scale: 3, // high quality
         useCORS: true,
         allowTaint: false,
@@ -445,7 +447,7 @@ export default function KTAPage() {
       });
 
       // Capture back card
-      const backCanvas = await html2canvas(backEl, {
+      const backCanvas = await safeHtml2Canvas(backEl, {
         scale: 3, // high quality
         useCORS: true,
         allowTaint: false,
@@ -571,19 +573,124 @@ export default function KTAPage() {
         </motion.div>
       )}
 
-      {/* RENDER KTA CARD IF APPROVED */}
-      {myApplication && (myApplication.status === 'approved' || !!myApplication.ktaNumber) ? (
+      {/* RENDER KTA CARD IF REGISTERED */}
+      {myApplication && !showEditForm ? (
         <div className="space-y-6">
-          {/* Instruction header */}
-          <div className="bg-hw-green/5 border border-hw-green/10 p-4 rounded-3xl space-y-1 text-center">
-            <span className="inline-flex items-center gap-1 bg-hw-green text-white text-[10px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full mb-1">
-              <ShieldCheck size={10} fill="currentColor" /> AKTIF / TERVERIFIKASI
-            </span>
-            <h3 className="text-xs font-bold text-gray-800">KTA Digital Anda Telah Terbit!</h3>
-            <p className="text-[10px] text-gray-500 leading-normal">
-              Selamat, data keanggotaan Anda telah diverifikasi oleh Kwarwil HW Jateng. Anda kini memiliki akses penuh ke seluruh konten member area aplikasi ini.
-            </p>
-          </div>
+          {/* Dynamic Instruction/Status header */}
+          {myApplication.status === 'approved' || !!myApplication.ktaNumber ? (
+            <div className="bg-hw-green/5 border border-hw-green/10 p-4 rounded-3xl space-y-1 text-center">
+              <span className="inline-flex items-center gap-1 bg-hw-green text-white text-[10px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full mb-1">
+                <ShieldCheck size={10} fill="currentColor" /> AKTIF / TERVERIFIKASI
+              </span>
+              <h3 className="text-xs font-bold text-gray-800">KTA Digital Anda Telah Terbit!</h3>
+              <p className="text-[10px] text-gray-500 leading-normal">
+                Selamat, data keanggotaan Anda telah diverifikasi oleh Kwarwil HW Jateng. Anda kini memiliki akses penuh ke seluruh konten member area aplikasi ini.
+              </p>
+            </div>
+          ) : myApplication.status === 'pending' ? (
+            <div className="space-y-4 max-w-[380px] mx-auto bg-amber-50/40 border border-amber-200/50 p-5 rounded-[2rem] shadow-sm">
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto animate-pulse">
+                  <CreditCard size={24} />
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="bg-amber-100 text-amber-800 text-[8.5px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full">
+                    MENUNGGU VERIFIKASI
+                  </span>
+                  <h3 className="text-xs font-black text-gray-800 pt-1">Pengajuan KTA Sedang Ditinjau</h3>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-semibold">
+                    Silahkan selesaikan pembayaran aktivasi agar admin dapat memverifikasi data Anda. Anda juga dapat memperbarui data pengajuan dengan menekan tombol ubah di bawah.
+                  </p>
+                </div>
+              </div>
+
+              {/* PAYMENT NOTIFICATION CARD */}
+              <div className="bg-white border border-emerald-100 rounded-3xl p-4 text-left space-y-3">
+                <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
+                  <div className="p-1 px-1.5 bg-hw-green text-white rounded-lg text-[8px] font-black uppercase">
+                    INFO PEMBAYARAN
+                  </div>
+                  <span className="text-[9px] font-bold text-emerald-800 font-sans">KTA HW Jawa Tengah</span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="bg-gray-50 p-2.5 rounded-2xl border border-emerald-100/50 space-y-0.5">
+                    <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Nominal Pembayaran</p>
+                    <p className="text-sm font-black text-hw-green">
+                      {myApplication.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-'}
+                    </p>
+                    <p className="text-[8.5px] text-gray-500 font-medium">
+                      Jenis KTA: <strong className="text-gray-700">{myApplication.jenisKta || 'Digital'}</strong> 
+                      {myApplication.jenisKta === 'Fisik' ? ' (Sudah termasuk ongkos kirim)' : ''}
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 p-2.5 rounded-2xl border border-emerald-100/50 space-y-0.5">
+                    <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Transfer ke Rekening</p>
+                    <p className="text-[10px] font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
+                    <p className="text-xs font-black text-gray-800 tracking-wide font-mono">7307427448</p>
+                    <p className="text-[9px] text-gray-500 font-semibold uppercase">Atas Nama: Kwarwil HW Jateng</p>
+                  </div>
+
+                  <div className="text-[9px] text-emerald-800 leading-normal font-medium bg-emerald-50/50 p-2 rounded-xl border border-emerald-200 border-dashed">
+                    Setelah transfer, konfirmasi bukti transfer via WhatsApp ke <strong>089688754000</strong>.
+                  </div>
+                </div>
+
+                <a 
+                  href={`https://wa.me/6289688754000?text=${encodeURIComponent("Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: " + myApplication.nama + "\nNIK: " + (myApplication.nik || "-") + "\nJenis KTA: " + (myApplication.jenisKta || "Digital") + "\nKabupaten/Kota: " + (myApplication.asalDaerah || "-"))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                >
+                  Kirim Bukti Transfer WhatsApp
+                </a>
+              </div>
+
+              <div className="text-center">
+                <button
+                  onClick={() => setShowEditForm(true)}
+                  className="inline-flex items-center gap-1 text-[11px] font-black text-hw-green hover:underline cursor-pointer"
+                >
+                  <Edit size={12} /> Ubah Data Pengajuan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-[380px] mx-auto bg-rose-50/50 border border-rose-200/50 p-5 rounded-[2rem] shadow-sm">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mx-auto">
+                  <ShieldAlert size={24} />
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="bg-rose-100 text-rose-850 text-[8.5px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full">
+                    PENGAJUAN DITOLAK
+                  </span>
+                  <h3 className="text-xs font-black text-gray-800 pt-1">Verifikasi KTA Belum Berhasil</h3>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-semibold">
+                    Maaf, permohonan Kartu Tanda Anggota Anda ditolak oleh Admin. Silahkan sesuaikan data Anda dengan menekan tombol ubah di bawah ini agar dapat mengirim ulang pengajuan.
+                  </p>
+                </div>
+              </div>
+
+              {myApplication.remark && (
+                <div className="bg-white rounded-2xl p-3 text-[10px] font-serif text-rose-800 border border-rose-100 text-center italic">
+                  Alasan penolakan: "{myApplication.remark}"
+                </div>
+              )}
+
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => setShowEditForm(true)}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                >
+                  <Edit size={12} /> Ubah Data & Kirim Ulang
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* HIDDEN CAPTURE CONTAINER FOR PDF GENERATION */}
           <div id="kta-print-capture" className="absolute left-[-9999px] top-[-9999px] space-y-4" style={{ zIndex: -9999 }}>
@@ -1292,9 +1399,24 @@ export default function KTAPage() {
           )}
 
           <div className="space-y-1">
-            <h3 className="text-base font-display font-bold text-gray-800">Pendaftaran KTA HW Jateng</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-display font-bold text-gray-800">
+                {showEditForm ? 'Ubah Data Pengajuan KTA' : 'Pendaftaran KTA HW Jateng'}
+              </h3>
+              {showEditForm && (
+                <button 
+                  type="button"
+                  onClick={() => setShowEditForm(false)}
+                  className="px-3 py-1 bg-gray-150 hover:bg-gray-200 text-gray-700 text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Batal Ubah
+                </button>
+              )}
+            </div>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Silahkan isi data diri Anda secara lengkap dan benar untuk memohon Kartu Tanda Anggota (KTA) resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah.
+              {showEditForm 
+                ? 'Perbarui data diri Anda secara lengkap dan benar untuk dikirimkan kembali ke admin.' 
+                : 'Silahkan isi data diri Anda secara lengkap dan benar untuk memohon Kartu Tanda Anggota (KTA) resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah.'}
             </p>
           </div>
 

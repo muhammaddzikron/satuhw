@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 
 const DefaultSignatureKetua = () => (
   <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -92,7 +91,7 @@ import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
-import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
+import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
 import { codeGsText } from '../services/codeGsText';
 
 export const KWARDA_QABILAH_JATENG = [
@@ -632,7 +631,7 @@ export default function AdminDashboard() {
       }
 
       // Capture front card
-      const frontCanvas = await html2canvas(frontEl, {
+      const frontCanvas = await safeHtml2Canvas(frontEl, {
         scale: 3, // high quality
         useCORS: true,
         allowTaint: false,
@@ -640,7 +639,7 @@ export default function AdminDashboard() {
       });
 
       // Capture back card
-      const backCanvas = await html2canvas(backEl, {
+      const backCanvas = await safeHtml2Canvas(backEl, {
         scale: 3, // high quality
         useCORS: true,
         allowTaint: false,

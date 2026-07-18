@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import html2canvas from 'html2canvas';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -73,4 +74,109 @@ export function getCorsSafeUrl(url: string | null | undefined): string {
   }
   
   return url;
+}
+
+export function replaceOklchWithFallback(cssText: string): string {
+  let result = '';
+  let i = 0;
+  while (i < cssText.length) {
+    if (cssText.substring(i, i + 6).toLowerCase() === 'oklch(') {
+      // Find matching closing parenthesis
+      let parenCount = 1;
+      let j = i + 6;
+      while (j < cssText.length && parenCount > 0) {
+        if (cssText[j] === '(') parenCount++;
+        else if (cssText[j] === ')') parenCount--;
+        j++;
+      }
+      // Replace with safe rgb fallback
+      result += 'rgb(16, 185, 129)';
+      i = j;
+    } else {
+      result += cssText[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): Promise<HTMLCanvasElement> {
+  const stylesBackup: { element: HTMLStyleElement | HTMLLinkElement; textContent?: string; originalDisabled?: boolean }[] = [];
+  const tempStyles: HTMLStyleElement[] = [];
+
+  try {
+    // 1. Process all stylesheets
+    const styleElements = Array.from(document.querySelectorAll('style'));
+    const linkElements = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
+
+    // Backup and modify inline style tags
+    for (const style of styleElements) {
+      const originalText = style.textContent || '';
+      if (originalText.toLowerCase().includes('oklch(')) {
+        stylesBackup.push({ element: style, textContent: originalText });
+        style.textContent = replaceOklchWithFallback(originalText);
+      }
+    }
+
+    // Backup and temporarily replace external link stylesheets
+    for (const link of linkElements) {
+      if (link.href) {
+        try {
+          const response = await fetch(link.href);
+          if (response.ok) {
+            const cssText = await response.text();
+            if (cssText.toLowerCase().includes('oklch(')) {
+              // Backup original link state
+              stylesBackup.push({ element: link, originalDisabled: link.disabled });
+              // Disable the link stylesheet
+              link.disabled = true;
+
+              // Inject as modified style tag
+              const tempStyle = document.createElement('style');
+              tempStyle.textContent = replaceOklchWithFallback(cssText);
+              document.head.appendChild(tempStyle);
+              tempStyles.push(tempStyle);
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch external stylesheet for oklch replacement:", link.href, e);
+        }
+      }
+    }
+
+    // Temporarily replace inline oklch styles on elements
+    const inlineStyleBackup: { element: HTMLElement; originalStyle: string }[] = [];
+    const allElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+    for (const el of allElements) {
+      if (el.style && el.getAttribute('style')?.toLowerCase().includes('oklch(')) {
+        const originalStyle = el.getAttribute('style') || '';
+        inlineStyleBackup.push({ element: el, originalStyle });
+        el.setAttribute('style', replaceOklchWithFallback(originalStyle));
+      }
+    }
+
+    // 2. Call the original html2canvas with the prepared document
+    const canvas = await html2canvas(element, options);
+
+    // Restore inline styles
+    for (const backup of inlineStyleBackup) {
+      backup.element.setAttribute('style', backup.originalStyle);
+    }
+
+    return canvas;
+  } finally {
+    // 3. Restore all original styles
+    for (const backup of stylesBackup) {
+      if (backup.textContent !== undefined) {
+        backup.element.textContent = backup.textContent;
+      }
+      if (backup.originalDisabled !== undefined) {
+        (backup.element as HTMLLinkElement).disabled = backup.originalDisabled;
+      }
+    }
+    // Remove temporary style tags
+    for (const tempStyle of tempStyles) {
+      tempStyle.remove();
+    }
+  }
 }
