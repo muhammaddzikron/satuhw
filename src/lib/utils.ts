@@ -66,12 +66,11 @@ export function getCorsSafeUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
   
-  // Convert Drive links to direct link first if needed
-  let finalUrl = url;
+  // Convert Drive links to direct link first if needed and proxy them to avoid CORS blocks
   if (url.includes('drive.google.com')) {
-    finalUrl = getDriveDirectLink(url);
+    const finalUrl = getDriveDirectLink(url);
+    return `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(finalUrl)}`;
   }
   
-  // Use Google opensocial proxy to bypass CORS
-  return `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(finalUrl)}`;
+  return url;
 }

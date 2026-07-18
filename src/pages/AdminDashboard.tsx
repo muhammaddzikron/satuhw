@@ -302,6 +302,8 @@ export default function AdminDashboard() {
     ],
     assignedTasks: [] as any[]
   });
+  const ktaFrontBg = settings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
+  const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
@@ -671,8 +673,9 @@ export default function AdminDashboard() {
       pdf.line(20, 36, 190, 36);
 
       // Let's put Front Card
-      const cardWidth = 95; // slightly larger for readability
-      const cardHeight = 60;
+      // Standard ID-1 card size: 85.6 mm x 54 mm (ukuran KTA pada umumnya)
+      const cardWidth = 85.6; 
+      const cardHeight = 54;
       const xPos = (210 - cardWidth) / 2; // centered
       
       pdf.setFont('helvetica', 'bold');
@@ -6510,14 +6513,14 @@ export default function AdminDashboard() {
                         id="kta-front-capture-admin"
                         className={cn(
                           "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
-                          settings.ktaTemplateFront ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-950 border-emerald-950/20"
+                          ktaFrontBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-950 border-emerald-950/20"
                         )}
                         style={{ boxSizing: 'border-box' }}
                       >
                         {/* Background Template Image */}
-                        {settings.ktaTemplateFront && (
+                        {ktaFrontBg && (
                           <img 
-                            src={getCorsSafeUrl(settings.ktaTemplateFront)} 
+                            src={getCorsSafeUrl(ktaFrontBg)} 
                             alt="Template Front" 
                             className="absolute inset-0 w-full h-full object-cover z-0" 
                             crossOrigin="anonymous" 
@@ -6525,7 +6528,7 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Custom Date above pre-printed Sekretaris text on template background */}
-                        {settings.ktaTemplateFront && (
+                        {ktaFrontBg && (
                           <div className="absolute bottom-[66px] right-[40px] z-20 text-right pointer-events-none">
                             <p className="text-[5.5px] font-bold text-gray-800 leading-none">
                               {(() => {
@@ -6538,7 +6541,7 @@ export default function AdminDashboard() {
                           </div>
                         )}
                         {/* Watermark if no template */}
-                        {!settings.ktaTemplateFront && (
+                        {!ktaFrontBg && (
                           <>
                             <div className="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
                             <div className="absolute left-0 bottom-0 w-40 h-16 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-tr-full pointer-events-none" />
@@ -6547,17 +6550,17 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Top Branding / Logo */}
-                        <div className={cn("flex items-center gap-1.5 z-10", settings.ktaTemplateFront ? "opacity-0 pointer-events-none" : "")}>
+                        <div className={cn("flex items-center gap-1.5 z-10", ktaFrontBg ? "opacity-0 pointer-events-none" : "")}>
                           <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="Logo HW" className="w-9 h-9 object-contain" />
                           <div className="leading-none text-left">
-                            <h4 className={cn("text-[9px] font-black uppercase tracking-wide", settings.ktaTemplateFront ? "text-emerald-900" : "text-white")}>KARTU TANDA ANGGOTA</h4>
-                            <p className={cn("text-[6px] font-bold tracking-wider uppercase mt-0.5", settings.ktaTemplateFront ? "text-gray-500" : "text-emerald-400")}>Gerakan Kepanduan Hizbul Wathan</p>
-                            <p className={cn("text-[5px] font-medium leading-none", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Pimpinan Wilayah Jawa Tengah</p>
+                            <h4 className={cn("text-[9px] font-black uppercase tracking-wide", ktaFrontBg ? "text-emerald-900" : "text-white")}>KARTU TANDA ANGGOTA</h4>
+                            <p className={cn("text-[6px] font-bold tracking-wider uppercase mt-0.5", ktaFrontBg ? "text-gray-500" : "text-emerald-400")}>Gerakan Kepanduan Hizbul Wathan</p>
+                            <p className={cn("text-[5px] font-medium leading-none", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Pimpinan Wilayah Jawa Tengah</p>
                           </div>
                         </div>
 
                         {/* Member Details & Portrait Row */}
-                        <div className={cn("flex gap-3 z-10 text-left", settings.ktaTemplateFront ? "-mt-1.5 mb-auto" : "my-1")}>
+                        <div className={cn("flex gap-3 z-10 text-left", ktaFrontBg ? "-mt-1.5 mb-auto" : "my-1")}>
                           {/* Member Portrait */}
                           <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
                             {viewingKtaApp.photo ? (
@@ -6575,46 +6578,46 @@ export default function AdminDashboard() {
 
                           {/* Member Details */}
                           <div className="flex-1 min-w-0 flex flex-col justify-center space-y-0.5">
-                            <h4 className={cn("text-[8.5px] font-black uppercase tracking-wider mb-0.5", settings.ktaTemplateFront ? "text-emerald-800" : "text-amber-300")}>KARTU ANGGOTA</h4>
+                            <h4 className={cn("text-[8.5px] font-black uppercase tracking-wider mb-0.5", ktaFrontBg ? "text-emerald-800" : "text-amber-300")}>KARTU ANGGOTA</h4>
                             
                             <table className="w-full text-left border-none border-collapse text-[7px] font-semibold">
                               <tbody>
                                 <tr>
-                                  <td className={cn("w-14 font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Nomor</td>
+                                  <td className={cn("w-14 font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Nomor</td>
                                   <td className="w-2 text-center py-0.1">:</td>
-                                  <td className={cn("font-mono font-black tracking-wider py-0.1", settings.ktaTemplateFront ? "text-emerald-800" : "text-amber-200")}>{viewingKtaApp.ktaNumber || 'KTA-HW.JT.XXXX'}</td>
+                                  <td className={cn("font-mono font-black tracking-wider py-0.1", ktaFrontBg ? "text-emerald-800" : "text-amber-200")}>{viewingKtaApp.ktaNumber || 'KTA-HW.JT.XXXX'}</td>
                                 </tr>
                                 <tr>
-                                  <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Nama</td>
+                                  <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Nama</td>
                                   <td className="text-center py-0.1">:</td>
-                                  <td className={cn("font-black uppercase py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{viewingKtaApp.nama}</td>
+                                  <td className={cn("font-black uppercase py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>{viewingKtaApp.nama}</td>
                                 </tr>
                                 <tr>
-                                  <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>TTL</td>
+                                  <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>TTL</td>
                                   <td className="text-center py-0.1">:</td>
-                                  <td className={cn("font-bold py-0.1", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{viewingKtaApp.tempatLahir || '-'}, {viewingKtaApp.tanggalLahir || '-'}</td>
+                                  <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-gray-800" : "text-white")}>{viewingKtaApp.tempatLahir || '-'}, {viewingKtaApp.tanggalLahir || '-'}</td>
                                 </tr>
                                 <tr>
-                                  <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Asal</td>
+                                  <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Asal</td>
                                   <td className="text-center py-0.1">:</td>
-                                  <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>Kwarda {viewingKtaApp.asalDaerah}</td>
+                                  <td className={cn("font-bold py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>Kwarda {viewingKtaApp.asalDaerah}</td>
                                 </tr>
                                 {viewingKtaApp.qabilah && (
                                   <tr>
-                                    <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Qabilah</td>
+                                    <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Qabilah</td>
                                     <td className="text-center py-0.1">:</td>
-                                    <td className={cn("font-bold py-0.1 truncate", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{viewingKtaApp.qabilah}</td>
+                                    <td className={cn("font-bold py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>{viewingKtaApp.qabilah}</td>
                                   </tr>
                                 )}
                                 <tr>
-                                  <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Tingkatan</td>
+                                  <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Tingkatan</td>
                                   <td className="text-center py-0.1">:</td>
-                                  <td className={cn("font-bold py-0.1", settings.ktaTemplateFront ? "text-emerald-700" : "text-amber-200")}>{viewingKtaApp.tingkatan}</td>
+                                  <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-emerald-700" : "text-amber-200")}>{viewingKtaApp.tingkatan}</td>
                                 </tr>
                                 <tr>
-                                  <td className={cn("font-bold uppercase py-0.1", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>Alamat</td>
+                                  <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Alamat</td>
                                   <td className="text-center py-0.1">:</td>
-                                  <td className={cn("font-bold py-0.1 text-[6.5px] leading-tight line-clamp-2", settings.ktaTemplateFront ? "text-gray-600" : "text-slate-200")}>{viewingKtaApp.alamat || '-'}</td>
+                                  <td className={cn("font-bold py-0.1 text-[6.5px] leading-tight line-clamp-2", ktaFrontBg ? "text-gray-600" : "text-slate-200")}>{viewingKtaApp.alamat || '-'}</td>
                                 </tr>
                               </tbody>
                             </table>
@@ -6622,12 +6625,12 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Card Footer */}
-                        <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-auto", settings.ktaTemplateFront ? "border-gray-100" : "border-white/10")}>
-                          <span className={cn("text-[5px] font-mono font-bold", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>SEUMUR HIDUP • JAWA TENGAH</span>
+                        <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-auto", ktaFrontBg ? "border-gray-100" : "border-white/10")}>
+                          <span className={cn("text-[5px] font-mono font-bold", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>SEUMUR HIDUP • JAWA TENGAH</span>
                           
                           {/* Right side signatures section */}
-                          <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
-                            <p className={cn("text-[5.5px] font-bold leading-none", settings.ktaTemplateFront ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {viewingKtaApp.verifiedAt || '13 Juli 2026'}</p>
+                          <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", ktaFrontBg ? "opacity-0 pointer-events-none hidden" : "")}>
+                            <p className={cn("text-[5.5px] font-bold leading-none", ktaFrontBg ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {viewingKtaApp.verifiedAt || '13 Juli 2026'}</p>
                             
                             {/* Signatures & stamp overlapping row */}
                             <div className="flex items-center justify-between w-full h-8 relative mt-0.5 px-1">
@@ -6635,14 +6638,14 @@ export default function AdminDashboard() {
                               <div className="absolute left-[35%] top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-85">
                                 {settings.ktaStempelImage ? (
                                   <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
-                                ) : (
+                               ) : (
                                   <DefaultStempel idSuffix="view-modal-front" />
                                 )}
                               </div>
 
                               {/* Ketua Signature Block */}
                               <div className="flex flex-col items-center w-1/2 relative">
-                                <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Ketua</span>
+                                <span className={cn("text-[4px] font-bold uppercase", ktaFrontBg ? "text-gray-400" : "text-slate-400")}>Ketua</span>
                                 <div className="h-6 flex items-center justify-center">
                                   {settings.ktaTandaTanganKetua ? (
                                     <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-6 object-contain" crossOrigin="anonymous" />
@@ -6650,13 +6653,13 @@ export default function AdminDashboard() {
                                     <DefaultSignatureKetua />
                                   )}
                                 </div>
-                                <span className={cn("text-[4.5px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
-                                <span className={cn("text-[3.5px] font-semibold leading-none truncate w-full text-center", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>{settings.ktaKetuaNbm}</span>
+                                <span className={cn("text-[4.5px] font-black leading-none uppercase truncate w-full text-center", ktaFrontBg ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
+                                <span className={cn("text-[3.5px] font-semibold leading-none truncate w-full text-center", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>{settings.ktaKetuaNbm}</span>
                               </div>
 
                               {/* Sekretaris Signature Block */}
                               <div className="flex flex-col items-center w-1/2 relative">
-                                <span className={cn("text-[4px] font-bold uppercase", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
+                                <span className={cn("text-[4px] font-bold uppercase", ktaFrontBg ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
                                 <div className="h-6 flex items-center justify-center">
                                   {settings.ktaTandaTanganSekretaris ? (
                                     <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" crossOrigin="anonymous" />
@@ -6664,8 +6667,8 @@ export default function AdminDashboard() {
                                     <DefaultSignatureSekretaris />
                                   )}
                                 </div>
-                                <span className={cn("text-[4.5px] font-black leading-none uppercase truncate w-full text-center", settings.ktaTemplateFront ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
-                                <span className={cn("text-[3.5px] font-semibold leading-none truncate w-full text-center", settings.ktaTemplateFront ? "text-gray-400" : "text-slate-300")}>{settings.ktaSekretarisNbm}</span>
+                                <span className={cn("text-[4.5px] font-black leading-none uppercase truncate w-full text-center", ktaFrontBg ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
+                                <span className={cn("text-[3.5px] font-semibold leading-none truncate w-full text-center", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>{settings.ktaSekretarisNbm}</span>
                               </div>
                             </div>
                           </div>
@@ -6680,21 +6683,21 @@ export default function AdminDashboard() {
                         id="kta-back-capture-admin"
                         className={cn(
                           "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
-                          settings.ktaTemplateBack ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
+                          ktaBackBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
                         )}
                         style={{ boxSizing: 'border-box' }}
                       >
                         {/* Background Template Image */}
-                        {settings.ktaTemplateBack && (
+                        {ktaBackBg && (
                           <img 
-                            src={getCorsSafeUrl(settings.ktaTemplateBack)} 
+                            src={getCorsSafeUrl(ktaBackBg)} 
                             alt="Template Back" 
                             className="absolute inset-0 w-full h-full object-cover z-0" 
                             crossOrigin="anonymous" 
                           />
                         )}
                         {/* Watermark if no template */}
-                        {!settings.ktaTemplateBack && (
+                        {!ktaBackBg && (
                           <>
                             <div className="absolute -left-10 -top-10 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
                             <div className="absolute right-0 bottom-0 w-40 h-16 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-tl-full pointer-events-none" />
@@ -6703,9 +6706,9 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Rules and Pledge */}
-                        <div className={cn("space-y-1 z-10 px-1 text-left leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
-                          <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", settings.ktaTemplateBack ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
-                          <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", settings.ktaTemplateBack ? "text-gray-750" : "text-slate-300")}>
+                        <div className={cn("space-y-1 z-10 px-1 text-left leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
+                          <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
+                          <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
                             <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
                             <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
                             <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
@@ -6720,14 +6723,14 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Validation QR & Stamp Block */}
-                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", settings.ktaTemplateBack ? "border-transparent" : "border-white/10")}>
-                          <div className={cn("space-y-0.5 max-w-[140px] leading-tight", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
-                            <p className={cn("text-[4px] uppercase font-bold", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
-                            <p className={cn("text-[5.5px] font-black uppercase leading-none", settings.ktaTemplateBack ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
-                            <p className={cn("text-[4px]", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
+                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", ktaBackBg ? "border-transparent" : "border-white/10")}>
+                          <div className={cn("space-y-0.5 max-w-[140px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
+                            <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
+                            <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
+                            <p className={cn("text-[4px]", ktaBackBg ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
                           </div>
 
-                          <div className={cn("flex items-center gap-1 w-[130px] shrink-0 justify-end relative", settings.ktaTemplateBack ? "opacity-0 pointer-events-none hidden" : "")}>
+                          <div className={cn("flex items-center gap-1 w-[130px] shrink-0 justify-end relative", ktaBackBg ? "opacity-0 pointer-events-none hidden" : "")}>
                             {/* Small Stamp */}
                             <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
                               {settings.ktaStempelImage ? (
@@ -6739,7 +6742,7 @@ export default function AdminDashboard() {
 
                             {/* Ketua Signature placeholder for validation */}
                             <div className="flex flex-col items-center w-[55px] relative leading-none">
-                              <span className={cn("text-[3.5px] font-bold uppercase", settings.ktaTemplateBack ? "text-gray-400" : "text-slate-400")}>Ketua</span>
+                              <span className={cn("text-[3.5px] font-bold uppercase", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Ketua</span>
                               <div className="h-5 flex items-center justify-center">
                                 {settings.ktaTandaTanganKetua ? (
                                   <img src={settings.ktaTandaTanganKetua} alt="Ketua" className="h-5 object-contain" />
@@ -6747,7 +6750,7 @@ export default function AdminDashboard() {
                                   <DefaultSignatureKetua />
                                 )}
                               </div>
-                              <span className={cn("text-[4.2px] font-black uppercase truncate w-full text-center", settings.ktaTemplateBack ? "text-emerald-900" : "text-white")}>{settings.ktaKetuaNama}</span>
+                              <span className={cn("text-[4.2px] font-black uppercase truncate w-full text-center", ktaBackBg ? "text-emerald-900" : "text-white")}>{settings.ktaKetuaNama}</span>
                             </div>
 
                             {/* Validation QR Code Lucide Icon */}
