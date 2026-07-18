@@ -320,32 +320,69 @@ function isTruthy(val) {
 
 function handleRegister(data) {
   var sheet = getSheet('Users');
-  var id = new Date().getTime().toString();
-  
-  // Ensure headers exist
   handleSyncDatabase();
   
-  var row = [
-    id,
-    data.email,
-    data.password || '123456',
-    data.namaLengkap,
-    'umum',
-    data.pendidikan,
-    JSON.stringify(data.pelatihan || []),
-    data.jenisKelamin,
-    data.golongan,
-    data.asalKwarda,
-    data.qabilah,
-    data.alamat,
-    false,
-    data.sosmed,
-    data.noHp,
-    '',
-    '[]'
-  ];
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
   
-  sheet.appendRow(row);
+  var rowData = new Array(headers.length).fill("");
+  var id = new Date().getTime().toString();
+  
+  headerLowers.forEach(function(hLower, i) {
+    if (hLower === 'id') {
+      rowData[i] = id;
+    }
+    else if (hLower === 'email') {
+      rowData[i] = (data.email || "").toString().trim().toLowerCase();
+    }
+    else if (hLower === 'password') {
+      rowData[i] = data.password || '12345';
+    }
+    else if (hLower === 'namalengkap') {
+      rowData[i] = data.namaLengkap || "";
+    }
+    else if (hLower === 'role') {
+      rowData[i] = 'umum';
+    }
+    else if (hLower === 'pendidikan') {
+      rowData[i] = data.pendidikan || "";
+    }
+    else if (hLower === 'pelatihan') {
+      rowData[i] = JSON.stringify(data.pelatihan || []);
+    }
+    else if (hLower === 'jeniskelamin') {
+      rowData[i] = data.jenisKelamin || "L";
+    }
+    else if (hLower === 'golongan') {
+      rowData[i] = data.golongan || "";
+    }
+    else if (hLower === 'asalkwarda') {
+      rowData[i] = data.asalKwarda || "";
+    }
+    else if (hLower === 'qabilah') {
+      rowData[i] = data.qabilah || "";
+    }
+    else if (hLower === 'alamat') {
+      rowData[i] = data.alamat || "";
+    }
+    else if (hLower === 'isverified') {
+      rowData[i] = false;
+    }
+    else if (hLower === 'sosmed') {
+      rowData[i] = data.sosmed || "";
+    }
+    else if (hLower === 'nohp') {
+      rowData[i] = data.noHp || "";
+    }
+    else if (hLower === 'token') {
+      rowData[i] = "";
+    }
+    else if (hLower === 'upgraderequests') {
+      rowData[i] = '[]';
+    }
+  });
+  
+  sheet.appendRow(rowData);
   return responseOk({ success: true, message: "Registrasi berhasil, tunggu verifikasi admin" });
 }
 
@@ -1081,6 +1118,51 @@ function handleUpdateKTAStatus(id, status, ktaNumber, remark) {
         if (isVerifiedCol > 0) {
           userSheet.getRange(userRowIndex + 2, isVerifiedCol).setValue(true);
         }
+        
+        // Update user profile fields with approved KTA details
+        var userRowRange = userSheet.getRange(userRowIndex + 2, 1, 1, userHeaders.length);
+        var userRowValues = userRowRange.getValues()[0];
+        
+        var namaLengkapCol = userHeaders.indexOf('namalengkap');
+        var noHpCol = userHeaders.indexOf('nohp');
+        var jenisKelaminCol = userHeaders.indexOf('jeniskelamin');
+        var qabilahCol = userHeaders.indexOf('qabilah');
+        var alamatCol = userHeaders.indexOf('alamat');
+        var asalKwardaCol = userHeaders.indexOf('asalkwarda');
+        
+        var appName = app.nama || app.namaLengkap || app.Nama || app.NamaLengkap || '';
+        var appNoWa = app.nowa || app.noWa || app.NoWa || '';
+        var appJk = app.jeniskelamin || app.jenisKelamin || app.JenisKelamin || '';
+        var appQabilah = app.qabilah || app.Qabilah || '';
+        var appAlamat = app.alamat || app.Alamat || '';
+        var appAsalDaerah = app.asaldaerah || app.asalDaerah || app.AsalDaerah || '';
+        
+        if (namaLengkapCol > -1 && appName) {
+          userRowValues[namaLengkapCol] = appName;
+        }
+        if (noHpCol > -1 && appNoWa) {
+          userRowValues[noHpCol] = appNoWa;
+        }
+        if (jenisKelaminCol > -1 && appJk) {
+          var userJk = 'L';
+          if (appJk === 'Perempuan' || appJk === 'P') {
+            userJk = 'P';
+          } else if (appJk === 'Laki-laki' || appJk === 'L') {
+            userJk = 'L';
+          }
+          userRowValues[jenisKelaminCol] = userJk;
+        }
+        if (qabilahCol > -1 && appQabilah) {
+          userRowValues[qabilahCol] = appQabilah;
+        }
+        if (alamatCol > -1 && appAlamat) {
+          userRowValues[alamatCol] = appAlamat;
+        }
+        if (asalKwardaCol > -1 && appAsalDaerah) {
+          userRowValues[asalKwardaCol] = appAsalDaerah;
+        }
+        
+        userRowRange.setValues([userRowValues]);
       }
     }
   }

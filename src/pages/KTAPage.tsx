@@ -285,15 +285,40 @@ export default function KTAPage() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'Ukuran foto maksimal 2MB' });
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'Ukuran foto maksimal 10MB' });
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setPhotoPreview(base64String);
-        setFormData(prev => ({ ...prev, photo: base64String }));
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Downscale to max dimension 350px for fast loading & sheet compliance
+          const maxDim = 350;
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7); // 70% quality JPEG is super small and sharp
+            setPhotoPreview(compressedBase64);
+            setFormData(prev => ({ ...prev, photo: compressedBase64 }));
+          } else {
+            const base64String = event.target?.result as string;
+            setPhotoPreview(base64String);
+            setFormData(prev => ({ ...prev, photo: base64String }));
+          }
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -347,6 +372,18 @@ export default function KTAPage() {
 
     const isDuplicate = applications.some((app: any) => {
       if (app.status === 'rejected') return false;
+      
+      // Exclude own application from duplicate checking when updating/editing!
+      if (myApplication) {
+        const appIdStr = String(app.id || app.Id || '');
+        const myAppIdStr = String(myApplication.id || myApplication.Id || '');
+        const appEmailLower = (app.email || '').trim().toLowerCase();
+        const myAppEmailLower = (myApplication.email || '').trim().toLowerCase();
+        
+        if ((appIdStr !== '' && appIdStr === myAppIdStr) || (appEmailLower !== '' && appEmailLower === myAppEmailLower)) {
+          return false;
+        }
+      }
       
       const appNikNormalized = normalizeNikGlobal(app.nik);
       const appEmailNormalized = (app.email || '').trim().toLowerCase();
@@ -693,7 +730,8 @@ export default function KTAPage() {
           )}
 
           {/* HIDDEN CAPTURE CONTAINER FOR PDF GENERATION */}
-          <div id="kta-print-capture" className="absolute left-[-9999px] top-[-9999px] space-y-4" style={{ zIndex: -9999 }}>
+          {myApplication && (
+            <div id="kta-print-capture" className="absolute left-[-9999px] top-[-9999px] space-y-4" style={{ zIndex: -9999 }}>
             {/* FRONT CARD CAPTURE */}
             <div 
               id="kta-front-capture" 
@@ -710,6 +748,13 @@ export default function KTAPage() {
                   alt="Template Front" 
                   className="absolute inset-0 w-full h-full object-cover z-0" 
                   crossOrigin="anonymous" 
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (img.getAttribute('crossOrigin') === 'anonymous') {
+                      img.removeAttribute('crossOrigin');
+                      img.src = ktaFrontBg;
+                    }
+                  }}
                 />
               )}
 
@@ -879,6 +924,13 @@ export default function KTAPage() {
                   alt="Template Back" 
                   className="absolute inset-0 w-full h-full object-cover z-0" 
                   crossOrigin="anonymous" 
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (img.getAttribute('crossOrigin') === 'anonymous') {
+                      img.removeAttribute('crossOrigin');
+                      img.src = ktaBackBg;
+                    }
+                  }}
                 />
               )}
 
@@ -969,6 +1021,7 @@ export default function KTAPage() {
               </div>
             </div>
           </div>
+        )}
 
           {/* Interactive Card Section */}
           <div className="flex flex-col items-center justify-center py-4">
@@ -998,6 +1051,13 @@ export default function KTAPage() {
                       alt="Template Front" 
                       className="absolute inset-0 w-full h-full object-cover z-0" 
                       crossOrigin="anonymous" 
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (img.getAttribute('crossOrigin') === 'anonymous') {
+                          img.removeAttribute('crossOrigin');
+                          img.src = ktaFrontBg;
+                        }
+                      }}
                     />
                   )}
 
@@ -1166,6 +1226,13 @@ export default function KTAPage() {
                       alt="Template Back" 
                       className="absolute inset-0 w-full h-full object-cover z-0" 
                       crossOrigin="anonymous" 
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (img.getAttribute('crossOrigin') === 'anonymous') {
+                          img.removeAttribute('crossOrigin');
+                          img.src = ktaBackBg;
+                        }
+                      }}
                     />
                   )}
 

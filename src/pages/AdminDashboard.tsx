@@ -84,6 +84,7 @@ import {
   CheckCircle2,
   Copy,
   Save,
+  AlertTriangle,
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
@@ -323,6 +324,92 @@ export default function AdminDashboard() {
   const [viewingKtaApp, setViewingKtaApp] = useState<any | null>(null);
   const [flippedAdmin, setFlippedAdmin] = useState(false);
   const [isGeneratingPdfAdmin, setIsGeneratingPdfAdmin] = useState(false);
+
+  // Filter out approved KTA applications whose names or accounts are not fully synchronized with the user/member profiles
+  const unsyncedApprovedRegistrants = React.useMemo(() => {
+    const list: any[] = [];
+    ktaApps.filter(app => app.status === 'approved').forEach(app => {
+      // Find matching member by email or userId
+      const member = members.find(m => 
+        (app.userId && String(m.id) === String(app.userId)) || 
+        (app.email && m.email?.trim().toLowerCase() === app.email.trim().toLowerCase())
+      );
+      if (!member) {
+        list.push({
+          type: 'no_account',
+          ktaApp: app,
+          email: app.email,
+          namaKta: app.nama,
+          message: 'Belum memiliki akun anggota'
+        });
+      } else if (!member.namaLengkap || member.namaLengkap.trim() === '' || member.namaLengkap.trim().toLowerCase() !== app.nama.trim().toLowerCase() || !member.isVerified) {
+        list.push({
+          type: 'mismatched_name',
+          ktaApp: app,
+          member,
+          email: app.email,
+          namaKta: app.nama,
+          namaAnggota: member.namaLengkap || '(Kosong)',
+          message: !member.namaLengkap ? 'Nama anggota kosong' : (!member.isVerified ? 'Status verifikasi pending' : 'Nama tidak sinkron dengan KTA')
+        });
+      }
+    });
+    return list;
+  }, [ktaApps, members]);
+
+  const handleSyncRegistrant = async (item: any) => {
+    try {
+      setLoading(true);
+      if (item.type === 'no_account') {
+        // Create new member account
+        const newMember = {
+          email: item.ktaApp.email,
+          namaLengkap: item.ktaApp.nama,
+          jenisKelamin: item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L',
+          golongan: item.ktaApp.tingkatan || 'Umum',
+          asalKwarda: item.ktaApp.asalDaerah || '',
+          qabilah: item.ktaApp.qabilah || '',
+          alamat: item.ktaApp.alamat || '',
+          noHp: item.ktaApp.noWa || '',
+          isVerified: true,
+          role: 'umum',
+          roles: ['umum'],
+          activeRole: 'umum'
+        };
+        const res = await sheetsService.saveMember(newMember);
+        if (res.success || !res.error) {
+          alert(`Berhasil membuat akun anggota untuk ${item.ktaApp.nama} (${item.ktaApp.email}) dan langsung aktif.`);
+        } else {
+          alert('Gagal membuat akun anggota: ' + (res.message || 'Error'));
+        }
+      } else {
+        // Update existing member
+        const updated = {
+          ...item.member,
+          namaLengkap: item.ktaApp.nama,
+          isVerified: true,
+          jenisKelamin: item.member.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
+          asalKwarda: item.member.asalKwarda || item.ktaApp.asalDaerah || '',
+          qabilah: item.member.qabilah || item.ktaApp.qabilah || '',
+          alamat: item.member.alamat || item.ktaApp.alamat || '',
+          noHp: item.member.noHp || item.ktaApp.noWa || ''
+        };
+        const res = await sheetsService.saveMember(updated);
+        if (res.success || !res.error) {
+          alert(`Berhasil menyinkronkan nama anggota ${item.member.namaLengkap || 'Anggota'} menjadi ${item.ktaApp.nama} dan status terverifikasi.`);
+        } else {
+          alert('Gagal memperbarui nama anggota: ' + (res.message || 'Error'));
+        }
+      }
+      const data = await sheetsService.getMembers();
+      setMembers(data || []);
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Dynamic aggregations for Kwarda & Qabilah
   const kwardaStats = React.useMemo(() => {
@@ -583,8 +670,12 @@ export default function AdminDashboard() {
         setIsRejectModalOpen(false);
         setRejectId(null);
         setRejectReason('');
-        const ktaData = await sheetsService.getKTAApplications();
+        const [ktaData, membersData] = await Promise.all([
+          sheetsService.getKTAApplications(),
+          sheetsService.getMembers()
+        ]);
         setKtaApps(ktaData || []);
+        setMembers(membersData || []);
       } else {
         alert('Gagal menolak KTA: ' + (res.message || 'Respons tidak valid'));
       }
@@ -606,8 +697,12 @@ export default function AdminDashboard() {
         alert('Data KTA berhasil diperbarui!');
         setIsEditKtaModalOpen(false);
         setEditingKtaApp(null);
-        const ktaData = await sheetsService.getKTAApplications();
+        const [ktaData, membersData] = await Promise.all([
+          sheetsService.getKTAApplications(),
+          sheetsService.getMembers()
+        ]);
         setKtaApps(ktaData || []);
+        setMembers(membersData || []);
       } else {
         alert('Gagal memperbarui data KTA: ' + (res.message || 'Respons tidak valid'));
       }
@@ -1217,11 +1312,21 @@ export default function AdminDashboard() {
     if (!member) return;
     
     try {
+      setLoading(true);
       const updated = { ...member, isVerified: !member.isVerified };
-      await sheetsService.saveMember(updated);
-      setMembers(members.map(m => m.id === id ? updated : m));
-    } catch (error) {
-      alert('Gagal mengubah status verifikasi');
+      const res = await sheetsService.saveMember(updated);
+      if (res.success || !res.error) {
+        alert(`Status verifikasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
+        const data = await sheetsService.getMembers();
+        setMembers(data || []);
+      } else {
+        alert('Gagal mengubah status verifikasi: ' + (res.message || 'Respons tidak valid'));
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert('Gagal mengubah status verifikasi: ' + (error.message || 'Error tidak diketahui'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1459,8 +1564,11 @@ export default function AdminDashboard() {
   };
 
   const filteredMembers = members.filter(m => {
-    const matchesSearch = (m.namaLengkap.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.asalKwarda.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = (
+      (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
     
     const isInternal = m.role === 'superadmin' || m.role === 'admin';
     if (isInternal) return false;
@@ -1656,16 +1764,109 @@ export default function AdminDashboard() {
           {activeTab === 'anggota' && (
             <div className="flex flex-col h-full">
               <div className="p-6 border-b border-gray-50 bg-gray-50/30 space-y-4">
+                {/* Unsynced Approved Registrants Warning Alert */}
+                {unsyncedApprovedRegistrants.length > 0 && (
+                  <div className="p-5 bg-amber-50/60 border border-amber-200/60 rounded-3xl space-y-3 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
+                          <AlertTriangle size={18} className="animate-pulse" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-black text-amber-900 font-display">Data Pendaftar Belum Sinkron ({unsyncedApprovedRegistrants.length})</h4>
+                          <p className="text-xs text-amber-700 leading-relaxed font-medium mt-0.5">
+                            Terdapat data pendaftar yang pengajuan KTA-nya sudah disetujui (Approved), namun namanya belum diperbarui di daftar anggota atau belum dibuatkan akun anggota.
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          if (window.confirm(`Apakah Anda yakin ingin menyinkronkan semua (${unsyncedApprovedRegistrants.length}) data pendaftar ini secara otomatis?`)) {
+                            try {
+                              setLoading(true);
+                              let count = 0;
+                              for (const item of unsyncedApprovedRegistrants) {
+                                if (item.type === 'no_account') {
+                                  const newMember = {
+                                    email: item.ktaApp.email,
+                                    namaLengkap: item.ktaApp.nama,
+                                    jenisKelamin: item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L',
+                                    golongan: item.ktaApp.tingkatan || 'Umum',
+                                    asalKwarda: item.ktaApp.asalDaerah || '',
+                                    qabilah: item.ktaApp.qabilah || '',
+                                    alamat: item.ktaApp.alamat || '',
+                                    noHp: item.ktaApp.noWa || '',
+                                    isVerified: true,
+                                    role: 'umum',
+                                    roles: ['umum'],
+                                    activeRole: 'umum'
+                                  };
+                                  await sheetsService.saveMember(newMember);
+                                } else {
+                                  const updated = {
+                                    ...item.member,
+                                    namaLengkap: item.ktaApp.nama,
+                                    isVerified: true,
+                                    jenisKelamin: item.member.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
+                                    asalKwarda: item.member.asalKwarda || item.ktaApp.asalDaerah || '',
+                                    qabilah: item.member.qabilah || item.ktaApp.qabilah || '',
+                                    alamat: item.member.alamat || item.ktaApp.alamat || '',
+                                    noHp: item.member.noHp || item.ktaApp.noWa || ''
+                                  };
+                                  await sheetsService.saveMember(updated);
+                                }
+                                count++;
+                              }
+                              alert(`Berhasil menyinkronkan ${count} data pendaftar ke daftar anggota!`);
+                              const data = await sheetsService.getMembers();
+                              setMembers(data || []);
+                            } catch (err: any) {
+                              console.error(err);
+                              alert('Gagal menyinkronkan beberapa data: ' + err.message);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                        className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-600/10 cursor-pointer shrink-0 self-end md:self-start"
+                      >
+                        Sinkronkan Semua
+                      </button>
+                    </div>
+
+                    {/* Detailed List */}
+                    <div className="max-h-48 overflow-y-auto divide-y divide-amber-200/30 bg-white/70 rounded-2xl p-3 border border-amber-200/30">
+                      {unsyncedApprovedRegistrants.map((item, idx) => (
+                        <div key={`unsynced-${idx}`} className="py-2.5 flex items-center justify-between text-xs font-semibold gap-4">
+                          <div className="min-w-0">
+                            <span className="font-black text-gray-800 block truncate">{item.namaKta}</span>
+                            <span className="text-[10px] text-gray-500 block truncate font-medium">
+                              {item.email} • <span className="text-amber-700 font-bold">{item.message}</span>
+                              {item.type === 'mismatched_name' && ` (Nama saat ini: ${item.namaAnggota})`}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleSyncRegistrant(item)}
+                            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 shadow-sm border border-amber-200"
+                          >
+                            Sinkronkan
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
                     <div className="relative">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="Cari nama atau kwarda..." 
+                        placeholder="Cari nama, email, atau kwarda..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-4 text-xs font-medium" 
+                        className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold shadow-sm outline-none" 
                       />
                     </div>
                     <div className="flex items-center gap-2 px-1">
@@ -2641,6 +2842,12 @@ export default function AdminDashboard() {
                                     >
                                       Approve
                                     </button>
+                                    <button
+                                      onClick={() => handleOpenRejectKTA(app.id)}
+                                      className="px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                    >
+                                      Tolak
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -3170,7 +3377,7 @@ export default function AdminDashboard() {
                               <div 
                                 className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden shadow-lg border border-emerald-800/10 p-4 flex flex-col justify-between"
                                 style={settings.ktaTemplateFront ? {
-                                  backgroundImage: `url(${getDriveDirectLink(settings.ktaTemplateFront)})`,
+                                  backgroundImage: `url(${getCorsSafeUrl(settings.ktaTemplateFront)})`,
                                   backgroundSize: 'cover',
                                   backgroundPosition: 'center',
                                   backgroundColor: 'white'
@@ -3345,7 +3552,7 @@ export default function AdminDashboard() {
                               <div 
                                 className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden shadow-lg border border-emerald-950/20 p-4 flex flex-col justify-between"
                                 style={settings.ktaTemplateBack ? {
-                                  backgroundImage: `url(${getDriveDirectLink(settings.ktaTemplateBack)})`,
+                                  backgroundImage: `url(${getCorsSafeUrl(settings.ktaTemplateBack)})`,
                                   backgroundSize: 'cover',
                                   backgroundPosition: 'center',
                                   backgroundColor: 'white'
@@ -4914,7 +5121,7 @@ export default function AdminDashboard() {
                             KTA
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-gray-800">{app.namaLengkap}</p>
+                            <p className="text-sm font-bold text-gray-800">{app.nama || app.namaLengkap || 'Tanpa Nama'}</p>
                             <p className="text-[10px] text-gray-400 font-medium">
                               {app.asalDaerah} • Qabilah: {app.qabilah || '-'}
                             </p>
@@ -5580,7 +5787,7 @@ export default function AdminDashboard() {
         {/* Reject KTA Remark Dialog */}
         <AnimatePresence>
           {isRejectModalOpen && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -5633,7 +5840,7 @@ export default function AdminDashboard() {
         {/* Reject Training Remark Dialog */}
         <AnimatePresence>
           {isTrainingRejectModalOpen && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -5686,7 +5893,7 @@ export default function AdminDashboard() {
         {/* Grading and Remarks Modal */}
         <AnimatePresence>
           {isGradingModalOpen && selectedTrainingApp && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -5790,7 +5997,7 @@ export default function AdminDashboard() {
         {/* Assign Task Modal */}
         <AnimatePresence>
           {showAssignTaskModal && assigningMateri && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -5875,7 +6082,7 @@ export default function AdminDashboard() {
         {/* ADD PARTICIPANT MODAL */}
         <AnimatePresence>
           {isAddParticipantModalOpen && (
-            <div className="fixed inset-0 z-[115] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -6523,6 +6730,13 @@ export default function AdminDashboard() {
                             alt="Template Front" 
                             className="absolute inset-0 w-full h-full object-cover z-0" 
                             crossOrigin="anonymous" 
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              if (img.getAttribute('crossOrigin') === 'anonymous') {
+                                img.removeAttribute('crossOrigin');
+                                img.src = ktaFrontBg;
+                              }
+                            }}
                           />
                         )}
 
@@ -6693,6 +6907,13 @@ export default function AdminDashboard() {
                             alt="Template Back" 
                             className="absolute inset-0 w-full h-full object-cover z-0" 
                             crossOrigin="anonymous" 
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              if (img.getAttribute('crossOrigin') === 'anonymous') {
+                                img.removeAttribute('crossOrigin');
+                                img.src = ktaBackBg;
+                              }
+                            }}
                           />
                         )}
                         {/* Watermark if no template */}
@@ -6733,7 +6954,7 @@ export default function AdminDashboard() {
                             {/* Small Stamp */}
                             <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
                               {settings.ktaStempelImage ? (
-                                <img src={settings.ktaStempelImage} alt="Stempel" className="w-6 h-6 object-contain rotate-[-12deg]" />
+                                <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-6 h-6 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
                               ) : (
                                 <DefaultStempel idSuffix="view-modal-back" />
                               )}
@@ -6744,7 +6965,7 @@ export default function AdminDashboard() {
                               <span className={cn("text-[3.5px] font-bold uppercase", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Ketua</span>
                               <div className="h-5 flex items-center justify-center">
                                 {settings.ktaTandaTanganKetua ? (
-                                  <img src={settings.ktaTandaTanganKetua} alt="Ketua" className="h-5 object-contain" />
+                                  <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Ketua" className="h-5 object-contain" crossOrigin="anonymous" />
                                 ) : (
                                   <DefaultSignatureKetua />
                                 )}

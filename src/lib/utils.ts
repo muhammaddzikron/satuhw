@@ -66,14 +66,17 @@ export function getDriveDirectLink(url: string | null | undefined): string {
 export function getCorsSafeUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
+  if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('http://localhost') || url.startsWith('https://localhost')) return url;
   
-  // Convert Drive links to direct link first if needed and proxy them to avoid CORS blocks
-  if (url.includes('drive.google.com')) {
-    const finalUrl = getDriveDirectLink(url);
-    return `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(finalUrl)}`;
+  // Resolve Google Drive links first
+  const resolvedUrl = getDriveDirectLink(url);
+  
+  // Proxy all external http/https URLs to avoid CORS blocks with html2canvas and prevent tainted canvas
+  if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
+    return `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(resolvedUrl)}`;
   }
   
-  return url;
+  return resolvedUrl;
 }
 
 export function replaceOklchWithFallback(cssText: string): string {
@@ -121,6 +124,23 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
     // Backup and temporarily replace external link stylesheets
     for (const link of linkElements) {
       if (link.href) {
+        // Skip common third-party resources like Google Fonts, FontAwesome, etc. to avoid CORS/timeout blocks
+        if (
+          link.href.includes('fonts.googleapis.com') ||
+          link.href.includes('fonts.gstatic.com') ||
+          link.href.includes('cdnjs.cloudflare.com') ||
+          link.href.includes('jsdelivr.net') ||
+          link.href.includes('unpkg.com')
+        ) {
+          continue;
+        }
+
+        // Only fetch if it's on the same origin or is a relative URL to avoid CORS errors and speed up loading
+        const isSameOrigin = link.href.startsWith(window.location.origin) || link.href.startsWith('/') || (!link.href.startsWith('http://') && !link.href.startsWith('https://'));
+        if (!isSameOrigin) {
+          continue;
+        }
+
         try {
           const response = await fetch(link.href);
           if (response.ok) {

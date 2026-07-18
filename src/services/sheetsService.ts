@@ -759,7 +759,7 @@ export const sheetsService = {
           ...normalized,
           id: normalized.id || `kta-fallback-${idx}`
         };
-      });
+      }).filter((k: any) => k.nama && k.nama.trim() !== '');
     }
     try {
       const response = await axios.get(`${API_URL}?action=getKTAApplications`);
@@ -770,7 +770,7 @@ export const sheetsService = {
             ...normalized,
             id: normalized.id || `kta-api-${idx}`
           };
-        });
+        }).filter((k: any) => k.nama && k.nama.trim() !== '');
       }
       return [];
     } catch (e) {
@@ -784,7 +784,7 @@ export const sheetsService = {
             ...normalized,
             id: normalized.id || `kta-fallback-${idx}`
           };
-        });
+        }).filter((k: any) => k.nama && k.nama.trim() !== '');
       } catch (err) {
         return [];
       }
@@ -894,7 +894,7 @@ export const sheetsService = {
       if (stored) {
         try {
           let list = JSON.parse(stored);
-          const idx = list.findIndex((x: any) => x.id === id);
+          const idx = list.findIndex((x: any) => String(x.id) === String(id));
           if (idx !== -1) {
             list[idx].status = status;
             if (status === 'approved') {
@@ -911,7 +911,7 @@ export const sheetsService = {
               try {
                 const membersStored = localStorage.getItem('mock_members') || '[]';
                 const membersList = JSON.parse(membersStored);
-                const mIdx = membersList.findIndex((m: any) => m.id === app.userId || m.email === app.email);
+                const mIdx = membersList.findIndex((m: any) => String(m.id) === String(app.userId) || m.email === app.email);
                 if (mIdx !== -1) {
                   membersList[mIdx].isVerified = (status === 'approved');
                   localStorage.setItem('mock_members', JSON.stringify(membersList));
@@ -940,7 +940,7 @@ export const sheetsService = {
       console.error('updateKTAStatus API error, falling back to local storage:', e);
       const stored = localStorage.getItem('kta_applications') || '[]';
       const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
+      const idx = list.findIndex((x: any) => String(x.id) === String(id));
       if (idx !== -1) {
         list[idx].status = status;
         if (status === 'approved') {
@@ -997,7 +997,7 @@ export const sheetsService = {
       return apps.map((t: any, idx: number) => ({
         ...t,
         id: t.id || `train-fallback-${idx}`
-      }));
+      })).filter((t: any) => t.nama && t.nama.trim() !== '');
     }
     try {
       const response = await axios.get(`${API_URL}?action=getTrainingApplications`);
@@ -1005,7 +1005,7 @@ export const sheetsService = {
         return response.data.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-api-${idx}`
-        }));
+        })).filter((t: any) => t.nama && t.nama.trim() !== '');
       }
       return [];
     } catch (e) {
@@ -1016,7 +1016,7 @@ export const sheetsService = {
         return apps.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-fallback-${idx}`
-        }));
+        })).filter((t: any) => t.nama && t.nama.trim() !== '');
       } catch (err) {
         return [];
       }
