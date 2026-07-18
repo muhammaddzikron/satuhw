@@ -28,7 +28,8 @@ const ROLE_DISPLAY: Record<string, string> = {
   sugli: 'Sugli',
   jati1: 'Jati 1',
   jati2: 'Jati 2',
-  jari1: 'Jari 1'
+  jari1: 'Jari 1',
+  umum_pandu: 'Umum Pandu'
 };
 
 const KATEGORI_COLORS: Record<string, string> = {
@@ -37,7 +38,8 @@ const KATEGORI_COLORS: Record<string, string> = {
   sugli: 'bg-orange-100 text-orange-600',
   jati1: 'bg-green-100 text-green-600',
   jati2: 'bg-emerald-100 text-emerald-600',
-  jari1: 'bg-yellow-100 text-yellow-600'
+  jari1: 'bg-yellow-100 text-yellow-600',
+  umum_pandu: 'bg-teal-100 text-teal-600'
 };
 
 export default function MateriPage() {
@@ -63,19 +65,19 @@ export default function MateriPage() {
       setLoading(true);
       try {
         // Collect all roles user has access to
-        // Everyone has access to 'umum'
-        let rolesToFetch = ['umum'];
+        // Everyone has access to 'umum' and 'umum_pandu' (for display, though access is verified)
+        let rolesToFetch = ['umum', 'umum_pandu'];
         
         if (isAuthenticated && user?.roles && Array.isArray(user.roles) && user.roles.length > 0) {
-          rolesToFetch = Array.from(new Set(['umum', ...user.roles]));
+          rolesToFetch = Array.from(new Set(['umum', 'umum_pandu', ...user.roles]));
         } else if (isAuthenticated && activeRole) {
-          rolesToFetch = Array.from(new Set(['umum', activeRole]));
+          rolesToFetch = Array.from(new Set(['umum', 'umum_pandu', activeRole]));
         }
 
         // Special case: admin/superadmin sees everything
         const isPrivileged = activeRole === 'admin' || activeRole === 'superadmin' || (user?.role === 'admin' || user?.role === 'superadmin');
         if (isPrivileged) {
-          rolesToFetch = ['umum', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'];
+          rolesToFetch = ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'];
         }
 
         const results = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
@@ -95,6 +97,7 @@ export default function MateriPage() {
   }, [activeRole, user?.roles, isAuthenticated, user?.role]);
 
   const hasAccess = (cat: string) => {
+    if (cat === 'umum_pandu') return isAuthenticated;
     if (!isAuthenticated) return cat === 'umum';
     const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin';
     if (isPrivileged) return true;
@@ -107,10 +110,11 @@ export default function MateriPage() {
   };
 
   const filteredMateri = materi.filter(m => {
-    const matchFilter = filter === 'semua' || m.kategori === filter;
+    const matchFilter = filter === 'semua' || m.kategori === filter || (filter === 'umum' && m.kategori === 'umum_pandu');
     const matchSearch = m.judul.toLowerCase().includes(search.toLowerCase()) || 
                        m.konten.toLowerCase().includes(search.toLowerCase());
-    const isAccessible = hasAccess(m.kategori);
+    // 'umum_pandu' is visible inline in 'umum' list even to guests, but lock/download is restricted
+    const isAccessible = m.kategori === 'umum_pandu' ? true : hasAccess(m.kategori);
     return matchFilter && matchSearch && isAccessible;
   });
 
@@ -252,7 +256,17 @@ export default function MateriPage() {
               </div>
 
               <div className="flex items-center shrink-0 ml-auto mr-2">
-                {item.driveUrl && (
+                {item.kategori === 'umum_pandu' && !isAuthenticated ? (
+                  <Link
+                    to="/login"
+                    className="flex flex-col items-center justify-center gap-1 p-3 bg-amber-50 text-amber-600 rounded-2xl hover:bg-amber-100 transition-all border border-amber-200 min-w-[80px]"
+                    title="Login untuk mengakses materi ini"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Lock size={20} />
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Log In</span>
+                  </Link>
+                ) : item.driveUrl && (
                   <a 
                     href={item.driveUrl} 
                     target="_blank" 

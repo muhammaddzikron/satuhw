@@ -1872,7 +1872,7 @@ export default function AdminDashboard() {
               {/* Materi Filter & Search */}
               <div className="px-6 py-4 border-b border-gray-50 space-y-4">
                 <div className="flex flex-wrap gap-2 pb-2">
-                  {['semua', 'umum', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'].map((k) => (
+                  {['semua', 'umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'].map((k) => (
                     <button
                       key={k}
                       onClick={() => setMateriFilter(k)}
@@ -1882,7 +1882,7 @@ export default function AdminDashboard() {
                         : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-200'
                       }`}
                     >
-                      {k === 'semua' ? 'Semua' : (k === 'jati1' ? 'Jati 1' : k === 'jati2' ? 'Jati 2' : k === 'jari1' ? 'Jari 1' : k)}
+                      {k === 'semua' ? 'Semua' : (k === 'umum_pandu' ? 'Umum Pandu' : (k === 'jati1' ? 'Jati 1' : k === 'jati2' ? 'Jati 2' : k === 'jari1' ? 'Jari 1' : k))}
                     </button>
                   ))}
                 </div>
@@ -1914,7 +1914,7 @@ export default function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[8px] font-black uppercase rounded-lg">
-                          {m.kategori === 'jati1' ? 'Jati 1' : m.kategori === 'jati2' ? 'Jati 2' : m.kategori === 'jari1' ? 'Jari 1' : m.kategori}
+                          {m.kategori === 'umum_pandu' ? 'Umum Pandu' : m.kategori === 'jati1' ? 'Jati 1' : m.kategori === 'jati2' ? 'Jati 2' : m.kategori === 'jari1' ? 'Jari 1' : m.kategori}
                         </span>
                       </div>
                       <h4 className="text-xs font-bold text-gray-800 truncate">{m.judul}</h4>
@@ -5305,6 +5305,7 @@ export default function AdminDashboard() {
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none"
                     >
                       <option value="umum">Umum</option>
+                      <option value="umum_pandu">Umum Pandu</option>
                       <option value="kwarda">Kwarda</option>
                       <option value="sugli">Sugli</option>
                       <option value="jati1">Jati 1</option>

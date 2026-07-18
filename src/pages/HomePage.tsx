@@ -122,13 +122,13 @@ export default function HomePage() {
         setPlaylistItems(playlist || []);
         setSosmed(contents.find(c => c.section === 'sosmed') || null);
 
-        // Fetch materi for search: Only show 'umum' materi on home page
-        const rolesToFetch = ['umum'];
+        // Fetch materi for search: Only show 'umum' and 'umum_pandu' materi on home page
+        const rolesToFetch = ['umum', 'umum_pandu'];
         const mResults = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
         const flatMateri = (mResults || []).flat().filter(Boolean);
         const uniqueMateri = Array.from(new Map(flatMateri.map(item => [item.id, item])).values());
-        // Extra safety filter to ensure only 'umum' materi is shown on home search
-        setMateriList(uniqueMateri.filter(m => m && m.kategori === 'umum'));
+        // Extra safety filter to ensure only 'umum' or 'umum_pandu' materi is shown on home search
+        setMateriList(uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu')));
       } catch (error) {
         console.error('Error fetching data:', error);
       }
