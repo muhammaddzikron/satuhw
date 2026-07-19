@@ -467,6 +467,7 @@ export default function KTAPage() {
     setMessage(null);
 
     const payload = {
+      id: myApplication?.id || '',
       userId: user?.id || 'guest-' + Math.random().toString(36).substring(2, 9),
       nama: formData.nama,
       alamat: formData.alamat,

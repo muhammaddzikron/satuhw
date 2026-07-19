@@ -842,7 +842,11 @@ function uploadBase64ToDrive(base64Data, fileName) {
     var blob = Utilities.newBlob(decoded, contentType, fileName);
     
     var file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingErr) {
+      // Ignore sharing error in case of domain restrictions (e.g. Workspace GSuite accounts)
+    }
     
     var fileId = file.getId();
     // Google Drive direct view link
@@ -1014,13 +1018,19 @@ function handleApplyKTA(data) {
   
   var apps = getRowsAsObjects(sheet);
   
-  // Cari duplikasi berdasarkan userId atau email aktif (status non-rejected)
+  // Cari berdasarkan ID pengajuan jika ada, atau duplikasi berdasarkan userId / email aktif (status non-rejected)
   var rowIndex = apps.findIndex(function(app) {
+    var appId = (app.id || app.Id || '').toString().trim().toLowerCase();
+    var dataId = (data.id || '').toString().trim().toLowerCase();
+    if (dataId && appId === dataId && !dataId.startsWith('kta-sync-')) {
+      return true;
+    }
+    
     var appStatus = (app.status || app.Status || '').toString().toLowerCase();
     if (appStatus === 'rejected') return false;
     
-    var appUserId = (app.userid || app.userId || app.UserId || '').toString();
-    var dataUserId = (data.userId || '').toString();
+    var appUserId = (app.userid || app.userId || app.UserId || '').toString().trim();
+    var dataUserId = (data.userId || '').toString().trim();
     var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
     var dataEmail = (data.email || '').toString().trim().toLowerCase();
     
@@ -1037,6 +1047,7 @@ function handleApplyKTA(data) {
     else if (header === 'nama') rowData[i] = data.nama || "";
     else if (header === 'nowa') rowData[i] = data.noWa || "";
     else if (header === 'email') rowData[i] = data.email || "";
+    else if (header === 'alamat') rowData[i] = data.alamat || "";
     else if (header === 'sosmed') rowData[i] = data.sosmed || "";
     else if (header === 'photo') {
       var ktaPhoto = data.photo || "";
