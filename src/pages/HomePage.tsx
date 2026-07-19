@@ -37,7 +37,11 @@ import {
   Bell,
   LayoutGrid,
   Video,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  Plus,
+  Download,
+  Share
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -89,6 +93,39 @@ export default function HomePage() {
   const [sosmed, setSosmed] = useState<Content | null>(null);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [runningText, setRunningText] = useState<string>('');
+  
+  // PWA Install States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [activeDeviceTab, setActiveDeviceTab] = useState<'android' | 'ios'>('android');
+
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    if (isIOS) {
+      setActiveDeviceTab('ios');
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      setShowInstallModal(true);
+    }
+  };
   
   // Audio Player State
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -371,6 +408,13 @@ export default function HomePage() {
           </div>
           {/* Quick Sosmed Badges */}
           <div className="flex gap-1.5">
+            <button 
+              onClick={handleInstallClick}
+              title="Simpan Shortcut Layar HP"
+              className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-hw-green shadow-sm active:scale-95 transition-transform cursor-pointer"
+            >
+              <Smartphone size={14} />
+            </button>
             <a href={`https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-rose-500 shadow-sm active:scale-95 transition-transform">
               <Instagram size={14} />
             </a>
@@ -865,6 +909,115 @@ export default function HomePage() {
           setIsPlaying(false);
         }}
       />
+
+      {/* Install App / Add to Home Screen Interactive Guide Modal */}
+      <AnimatePresence>
+        {showInstallModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.25rem] border border-gray-100 max-w-sm w-full p-6 shadow-2xl relative space-y-4"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setShowInstallModal(false)}
+                className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="text-center space-y-1 pt-2">
+                <div className="w-12 h-12 bg-hw-green/10 text-hw-green rounded-2xl flex items-center justify-center mx-auto mb-2">
+                  <Smartphone size={24} />
+                </div>
+                <h3 className="font-display font-black text-gray-800 text-sm tracking-tight">Simpan di Layar Utama HP</h3>
+                <p className="text-[10.5px] text-gray-500 font-medium">Buka SATU HW langsung dari layar HP Anda seperti aplikasi bawaan</p>
+              </div>
+
+              {/* Device Selector Tabs */}
+              <div className="grid grid-cols-2 p-1 bg-gray-50 rounded-2xl border border-gray-100">
+                <button
+                  onClick={() => setActiveDeviceTab('android')}
+                  className={cn(
+                    "py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all",
+                    activeDeviceTab === 'android' ? "bg-white text-hw-green shadow-xs" : "text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  Android
+                </button>
+                <button
+                  onClick={() => setActiveDeviceTab('ios')}
+                  className={cn(
+                    "py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all",
+                    activeDeviceTab === 'ios' ? "bg-white text-hw-green shadow-xs" : "text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  iPhone / iOS
+                </button>
+              </div>
+
+              {/* Instructions Content */}
+              <div className="space-y-3.5 py-1">
+                {activeDeviceTab === 'android' ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-hw-green/10 text-hw-green rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                      <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
+                        Buka browser <strong className="text-gray-800">Google Chrome</strong> di HP Anda.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-hw-green/10 text-hw-green rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                      <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
+                        Klik tombol menu <strong className="text-gray-800">titik tiga (⋮)</strong> di pojok kanan atas layar.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-hw-green/10 text-hw-green rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
+                      <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
+                        Pilih menu <strong className="text-gray-800">"Tambahkan ke Layar Utama"</strong> atau <strong className="text-gray-800">"Instal Aplikasi"</strong>.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                      <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
+                        Buka browser <strong className="text-gray-800">Safari</strong> di iPhone Anda.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                      <div className="text-[11px] text-gray-600 leading-normal font-medium flex flex-wrap items-center gap-1 text-left">
+                        Tap tombol <strong className="text-gray-800">Bagikan (Share)</strong> 
+                        <div className="inline-flex p-1 bg-gray-50 border border-gray-100 rounded-lg text-hw-blue"><Share size={12} /></div>
+                        di bagian bawah layar.
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
+                      <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
+                        Gulir ke bawah, lalu pilih menu <strong className="text-gray-800">"Tambahkan ke Layar Utama"</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm / Action button */}
+              <button 
+                onClick={() => setShowInstallModal(false)}
+                className="w-full bg-hw-green hover:bg-hw-green/95 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+              >
+                Mengerti & Selesai
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

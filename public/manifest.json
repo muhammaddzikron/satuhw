@@ -1,0 +1,21 @@
+{
+  "short_name": "SATU HW",
+  "name": "SATU HW - Kwarwil Hizbul Wathan Jawa Tengah",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#123c1c",
+  "theme_color": "#123c1c",
+  "display": "standalone",
+  "orientation": "portrait"
+}
