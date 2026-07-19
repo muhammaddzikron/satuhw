@@ -182,95 +182,110 @@ const Navigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
-      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
-        <NavigationLink 
-          to="/" 
-          icon={HomeIcon} 
-          label="Home" 
-          active={location.pathname === '/'} 
-        />
-
-        {isAuthenticated ? (
-          isMemberView ? (
-            /* Member/Participant view */
-            <>
-              <NavigationLink 
-                to="/kta" 
-                icon={CreditCard} 
-                label="KTA" 
-                active={location.pathname === '/kta'} 
-              />
-              <NavigationLink 
-                to="/pelatihan" 
-                icon={GraduationCap} 
-                label="Pelatihan" 
-                active={location.pathname === '/pelatihan'} 
-              />
-              <NavigationLink 
-                to="/materi" 
-                icon={BookOpen} 
-                label="Materi" 
-                active={location.pathname === '/materi'} 
-              />
-              <button 
-                onClick={logout}
-                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
-              >
-                <LogOut size={22} />
-                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
-              </button>
-            </>
-          ) : (
-            /* Admin/Staff view */
-            <>
-              <NavigationLink 
-                to="/pelatihan" 
-                icon={GraduationCap} 
-                label="Pelatihan" 
-                active={location.pathname === '/pelatihan'} 
-              />
-              <NavigationLink 
-                to="/admin?tab=anggota" 
-                icon={LayoutDashboard} 
-                label="Dasbor" 
-                active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
-              />
-              <NavigationLink 
-                to="/admin?tab=materi" 
-                icon={BookOpen} 
-                label="Materi" 
-                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
-              />
-              <NavigationLink 
-                to="/admin?tab=konten" 
-                icon={Layout} 
-                label="Konten" 
-                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'konten'} 
-              />
-              <button 
-                onClick={logout}
-                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
-              >
-                <LogOut size={22} />
-                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
-              </button>
-            </>
-          )
-        ) : (
-          /* Guest/Unauthenticated view */
+      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-1">
+        {isAuthenticated && !isMemberView ? (
+          /* Admin/Staff view */
           <>
             <NavigationLink 
-              to="/login" 
-              icon={LogIn} 
-              label="Masuk" 
-              active={location.pathname === '/login'} 
+              to="/" 
+              icon={HomeIcon} 
+              label="Home" 
+              active={location.pathname === '/'} 
             />
             <NavigationLink 
-              to="/register" 
-              icon={UserPlus} 
-              label="Daftar" 
-              active={location.pathname === '/register'} 
+              to="/admin?tab=anggota" 
+              icon={LayoutDashboard} 
+              label="Dasbor" 
+              active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
             />
+            <NavigationLink 
+              to="/admin?tab=kta" 
+              icon={CreditCard} 
+              label="KTA" 
+              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kta'} 
+            />
+            <NavigationLink 
+              to="/admin?tab=pelatihan" 
+              icon={GraduationCap} 
+              label="Pelatihan" 
+              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'pelatihan'} 
+            />
+            <NavigationLink 
+              to="/admin?tab=materi" 
+              icon={BookOpen} 
+              label="Materi" 
+              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
+            />
+            <NavigationLink 
+              to="/admin?tab=konten" 
+              icon={Layout} 
+              label="Konten" 
+              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'konten'} 
+            />
+            <button 
+              onClick={logout}
+              className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-red-500"
+            >
+              <LogOut size={22} />
+              <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+            </button>
+          </>
+        ) : (
+          /* Standard view (Unauthenticated or Member/Participant) */
+          <>
+            <NavigationLink 
+              to="/" 
+              icon={HomeIcon} 
+              label="Home" 
+              active={location.pathname === '/'} 
+            />
+
+            {isAuthenticated ? (
+              /* Member/Participant view */
+              <>
+                <NavigationLink 
+                  to="/kta" 
+                  icon={CreditCard} 
+                  label="KTA" 
+                  active={location.pathname === '/kta'} 
+                />
+                <NavigationLink 
+                  to="/pelatihan" 
+                  icon={GraduationCap} 
+                  label="Pelatihan" 
+                  active={location.pathname === '/pelatihan'} 
+                />
+                <NavigationLink 
+                  to="/materi" 
+                  icon={BookOpen} 
+                  label="Materi" 
+                  active={location.pathname === '/materi'} 
+                />
+                <button 
+                  onClick={logout}
+                  className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
+                >
+                  <LogOut size={22} />
+                  <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+                </button>
+              </>
+            ) : (
+              /* Guest/Unauthenticated view */
+              <>
+                <NavigationLink 
+                  to="/login" 
+                  icon={LogIn} 
+                  label="Masuk" 
+                  active={location.pathname === '/login'} 
+                />
+                <NavigationLink 
+                  to="/register" 
+                  icon={UserPlus} 
+                  label="Daftar" 
+                  active={location.pathname === '/register'} 
+                />
+              </>
+            )}
           </>
         )}
       </div>

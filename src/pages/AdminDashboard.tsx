@@ -401,8 +401,7 @@ export default function AdminDashboard() {
           alert('Gagal memperbarui nama anggota: ' + (res.message || 'Error'));
         }
       }
-      const data = await sheetsService.getMembers();
-      setMembers(data || []);
+      await fetchData();
     } catch (e: any) {
       console.error(e);
       alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
@@ -1006,39 +1005,40 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [materi, membersData, contentsData, settingsData, ktaData, trainingData] = await Promise.all([
-          sheetsService.getMateri('admin'),
-          sheetsService.getMembers(),
-          sheetsService.getContents(),
-          sheetsService.getSettings(),
-          sheetsService.getKTAApplications(),
-          sheetsService.getTrainingApplications()
-        ]);
-        setMateriList(materi || []);
-        setMembers(membersData || []);
-        setContents(contentsData || []);
-        setKtaApps(ktaData || []);
-        setTrainingApps(trainingData || []);
-        if (settingsData) {
-          setSettings(prev => ({
-            ...prev,
-            ...settingsData,
-            gSheetApiUrl: prev.gSheetApiUrl,
-            trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
-            trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
-            assignedTasks: Array.isArray(settingsData.assignedTasks) 
-              ? settingsData.assignedTasks 
-              : safeJsonParse<any[]>(settingsData.assignedTasks, [])
-          }));
-        }
-      } finally {
-        setLoading(false);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [materi, membersData, contentsData, settingsData, ktaData, trainingData] = await Promise.all([
+        sheetsService.getMateri('admin'),
+        sheetsService.getMembers(),
+        sheetsService.getContents(),
+        sheetsService.getSettings(),
+        sheetsService.getKTAApplications(),
+        sheetsService.getTrainingApplications()
+      ]);
+      setMateriList(materi || []);
+      setMembers(membersData || []);
+      setContents(contentsData || []);
+      setKtaApps(ktaData || []);
+      setTrainingApps(trainingData || []);
+      if (settingsData) {
+        setSettings(prev => ({
+          ...prev,
+          ...settingsData,
+          gSheetApiUrl: prev.gSheetApiUrl,
+          trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
+          trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
+          assignedTasks: Array.isArray(settingsData.assignedTasks) 
+            ? settingsData.assignedTasks 
+            : safeJsonParse<any[]>(settingsData.assignedTasks, [])
+        }));
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -1792,8 +1792,7 @@ export default function AdminDashboard() {
                               } else {
                                 throw new Error(res.message || 'Error');
                               }
-                              const data = await sheetsService.getMembers();
-                              setMembers(data || []);
+                              await fetchData();
                             } catch (err: any) {
                               console.error(err);
                               alert('Gagal menyinkronkan data: ' + err.message);
@@ -2493,7 +2492,8 @@ export default function AdminDashboard() {
                           setIsSyncing(true);
                           const res = await sheetsService.syncDatabase();
                           if (res.success) {
-                            alert('Database berhasil disinkronkan!');
+                            await fetchData();
+                            alert('Database berhasil disinkronkan dan data UI diperbarui!');
                           } else {
                             alert('Sinkronisasi selesai namun ada status yang tidak terduga.');
                           }
