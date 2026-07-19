@@ -165,7 +165,7 @@ export default function KTAPage() {
   const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
   
   // Photo preview
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photo || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -178,7 +178,7 @@ export default function KTAPage() {
     noWa: user?.noHp || '',
     email: user?.email || '',
     sosmed: user?.sosmed || '',
-    photo: '',
+    photo: user?.photo || '',
     nik: '',
     tempatLahir: '',
     tanggalLahir: '',
@@ -215,7 +215,11 @@ export default function KTAPage() {
               tanggalLahir: (freshUser as any).tanggalLahir || prev.tanggalLahir || '',
               jenisKelamin: (freshUser as any).jenisKelamin === 'P' ? 'Perempuan' : ((freshUser as any).jenisKelamin === 'L' ? 'Laki-laki' : prev.jenisKelamin),
               qabilah: (freshUser as any).qabilah || prev.qabilah || '',
+              photo: freshUser.photo || prev.photo || '',
             }));
+            if (freshUser.photo) {
+              setPhotoPreview(freshUser.photo);
+            }
           }
         }
       } catch (e) {
@@ -244,13 +248,67 @@ export default function KTAPage() {
       
       // Determine my application
       if (isAuthenticated && user) {
-        const found = apps.find((app: any) => {
+        // Fetch fresh members to ensure we have the absolute latest isVerified state
+        let isUserVerified = user.isVerified;
+        try {
+          const members = await sheetsService.getMembers();
+          const freshUser = members.find(
+            (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
+          );
+          if (freshUser) {
+            isUserVerified = freshUser.isVerified;
+          }
+        } catch (e) {
+          console.error("Error reading fresh verification status:", e);
+        }
+
+        let found = apps.find((app: any) => {
           const userIdMatch = app.userId && user.id && String(app.userId) === String(user.id);
           const emailMatch = app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim();
           const nikMatch = app.nik && (user as any).nik && String(app.nik).trim() === String((user as any).nik).trim();
           const namaMatch = app.nama && user.namaLengkap && app.nama.toLowerCase().trim() === user.namaLengkap.toLowerCase().trim();
           return userIdMatch || emailMatch || nikMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
         });
+
+        if (!found && isUserVerified) {
+          // If the user is verified, but has no KTA application entry, synthesize one so they can see and download their card
+          const getRegionalCode = (kab: string): string => {
+            const name = (kab || '').toLowerCase();
+            if (name.includes('klaten')) return '11.14';
+            if (name.includes('wonosobo')) return '11.29';
+            if (name.includes('banjarnegara')) return '11.01';
+            if (name.includes('brebes')) return '11.06';
+            if (name.includes('tegal')) return '11.35';
+            return '11.14'; // Default to Klaten/general
+          };
+          
+          const regionCode = getRegionalCode(user.asalKwarda || '');
+          const randomSeq = String(Math.floor(1000 + Math.random() * 9000));
+          
+          found = {
+            id: `kta-sync-${user.id || 'verified'}`,
+            userId: user.id || '',
+            nama: user.namaLengkap || '',
+            noWa: user.noHp || '',
+            email: user.email || '',
+            sosmed: user.sosmed || '',
+            photo: user.photo || '',
+            tingkatan: user.role && user.role.includes('jati') ? 'Pandu Dewasa' : 'Anggota',
+            asalDaerah: user.asalKwarda || '',
+            status: 'approved',
+            tanggalAjuan: new Date().toISOString(),
+            ktaNumber: (user as any).ktaNumber || `${regionCode}.${randomSeq}`,
+            remark: '',
+            nik: (user as any).nik || '',
+            tempatLahir: (user as any).tempatLahir || '',
+            tanggalLahir: (user as any).tanggalLahir || '',
+            jenisKelamin: user.jenisKelamin === 'P' ? 'Perempuan' : (user.jenisKelamin === 'L' ? 'Laki-laki' : 'Laki-laki'),
+            jenisKta: 'DIGITAL',
+            qabilah: user.qabilah || '',
+            alamat: user.alamat || '',
+          };
+        }
+
         if (found) {
           setMyApplication(found);
           if (found.photo) {
@@ -352,17 +410,18 @@ export default function KTAPage() {
     }
 
     // Helper functions for normalization
-    const normalizePhoneGlobal = (num: string) => {
+    const normalizePhoneGlobal = (num: any) => {
       if (!num) return '';
-      const digits = num.replace(/\D/g, '');
+      const str = String(num);
+      const digits = str.replace(/\D/g, '');
       if (digits.startsWith('62')) {
         return '0' + digits.substring(2);
       }
       return digits;
     };
 
-    const normalizeNikGlobal = (nikStr: string) => {
-      return nikStr ? nikStr.replace(/\D/g, '') : '';
+    const normalizeNikGlobal = (nikStr: any) => {
+      return nikStr ? String(nikStr).replace(/\D/g, '') : '';
     };
 
     // Check duplication across all applications (excluding rejected ones)
@@ -1363,6 +1422,14 @@ export default function KTAPage() {
                 Balik Kartu
               </button>
             </div>
+
+            <button 
+              onClick={() => setShowEditForm(true)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-rose-50 hover:bg-rose-100/40 border border-rose-100/50 text-rose-600 rounded-2xl transition-all shadow-sm text-xs font-extrabold uppercase tracking-wider cursor-pointer"
+            >
+              <Edit size={16} />
+              Ubah Data Diri & Foto KTA
+            </button>
           </div>
 
           <div className="p-3 bg-blue-50 border border-blue-100/50 rounded-2xl flex items-start gap-2.5 max-w-[340px] mx-auto">

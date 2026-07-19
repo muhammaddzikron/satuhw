@@ -511,6 +511,7 @@ function handleSaveMember(data) {
   var users = getRowsAsObjects(sheet);
   var dataId = (getRobustValue(data, ['id', 'Id']) || '').toString().trim();
   var dataEmail = (getRobustValue(data, ['email', 'Email']) || '').toString().trim().toLowerCase();
+  var finalProfilePhoto = "";
   
   var rowIndex = users.findIndex(function(u) { 
     var uId = (u.id || u.Id || '').toString().trim();
@@ -587,12 +588,64 @@ function handleSaveMember(data) {
       var ur = getRobustValue(data, ['upgradeRequests', 'upgraderequests']) || (existing ? (existing.upgradeRequests || existing.upgraderequests) : []);
       rowData[i] = typeof ur === 'string' ? ur : JSON.stringify(ur);
     }
+    else if (hLower === 'photo' || hLower === 'foto') {
+      var profilePhoto = getRobustValue(data, ['photo', 'Photo', 'foto', 'Foto']) || (existing ? (existing.photo || existing.Photo || existing.foto || existing.Foto) : "");
+      if (typeof profilePhoto === 'string' && profilePhoto.indexOf('data:') === 0 && profilePhoto.indexOf(';base64,') > -1) {
+        try {
+          var mimeType = profilePhoto.split(';base64,')[0].split(':')[1];
+          var extension = '.png';
+          if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') extension = '.jpg';
+          else if (mimeType === 'image/gif') extension = '.gif';
+          var timestamp = new Date().getTime().toString();
+          var fileName = "Profile_" + (getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama']) || "user").toString().replace(/[^a-zA-Z0-9]/g, '_') + "_" + timestamp + extension;
+          profilePhoto = uploadBase64ToDrive(profilePhoto, fileName);
+        } catch (err) {
+          // fallback
+        }
+      }
+      rowData[i] = profilePhoto;
+      finalProfilePhoto = profilePhoto;
+    }
   });
 
   if (rowIndex > -1) {
     sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
   } else {
     sheet.appendRow(rowData);
+  }
+  
+  // Automatically update photo in KTA_Applications if set
+  if (finalProfilePhoto) {
+    try {
+      var ktaSheet = getSheet('KTA_Applications');
+      if (ktaSheet) {
+        var ktaHeaders = ktaSheet.getRange(1, 1, 1, ktaSheet.getLastColumn()).getValues()[0].map(function(h) { 
+          return h ? h.toString().trim().toLowerCase() : ""; 
+        });
+        var photoColIndex = ktaHeaders.indexOf('photo');
+        if (photoColIndex > -1) {
+          var ktaApps = getRowsAsObjects(ktaSheet);
+          ktaApps.forEach(function(app, idx) {
+            var appUserId = (app.userid || app.userId || app.UserId || '').toString().trim();
+            var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
+            
+            var match = false;
+            if (dataId !== '' && appUserId !== '' && appUserId === dataId) {
+              match = true;
+            }
+            if (!match && dataEmail !== '' && appEmail === dataEmail) {
+              match = true;
+            }
+            
+            if (match) {
+              ktaSheet.getRange(idx + 2, photoColIndex + 1).setValue(finalProfilePhoto);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
   
   return responseOk({ success: true, message: "Member saved successfully" });
@@ -766,9 +819,22 @@ function handleGetSettings() {
 
 function uploadBase64ToDrive(base64Data, fileName) {
   var folderId = '1uEEaot_deNU6nGhixxSNl6-axw-sLMPQ';
+  var folder;
   try {
-    var folder = DriveApp.getFolderById(folderId);
-    
+    folder = DriveApp.getFolderById(folderId);
+  } catch (e) {
+    try {
+      var folders = DriveApp.getFoldersByName("HW_KTA_Photos");
+      if (folders.hasNext()) {
+        folder = folders.next();
+      } else {
+        folder = DriveApp.createFolder("HW_KTA_Photos");
+      }
+    } catch (err) {
+      folder = DriveApp.getRootFolder();
+    }
+  }
+  try {
     // Parse base64
     var parts = base64Data.split(';base64,');
     if (parts.length < 2) {
@@ -996,6 +1062,45 @@ function handleApplyKTA(data) {
     sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
   } else {
     sheet.appendRow(rowData);
+  }
+  
+  // Automatically update photo in Members sheet if set
+  var finalKtaPhoto = rowData[headers.indexOf('photo')];
+  if (finalKtaPhoto) {
+    try {
+      var membersSheet = getSheet('Members');
+      if (membersSheet) {
+        var membersHeaders = membersSheet.getRange(1, 1, 1, membersSheet.getLastColumn()).getValues()[0].map(function(h) { 
+          return h ? h.toString().trim().toLowerCase() : ""; 
+        });
+        var memberPhotoColIndex = membersHeaders.indexOf('photo');
+        if (memberPhotoColIndex === -1) {
+          memberPhotoColIndex = membersHeaders.indexOf('foto');
+        }
+        if (memberPhotoColIndex > -1) {
+          var members = getRowsAsObjects(membersSheet);
+          var mIndex = members.findIndex(function(m) {
+            var mId = (m.id || m.Id || '').toString().trim();
+            var mEmail = (m.email || m.Email || '').toString().trim().toLowerCase();
+            
+            var match = false;
+            if (data.userId && mId !== '' && mId === data.userId.toString().trim()) {
+              match = true;
+            }
+            if (!match && data.email && mEmail === data.email.toString().trim().toLowerCase()) {
+              match = true;
+            }
+            return match;
+          });
+          
+          if (mIndex > -1) {
+            membersSheet.getRange(mIndex + 2, memberPhotoColIndex + 1).setValue(finalKtaPhoto);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
   
   // Kembalikan objek data yang teraplikasi kemari

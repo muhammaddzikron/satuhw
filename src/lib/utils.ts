@@ -57,7 +57,8 @@ export function getDriveDirectLink(url: string | null | undefined): string {
   if (url.includes('drive.google.com')) {
     const match = url.match(/\/d\/(.+?)(\/|$|\?|#)/) || url.match(/[?&]id=(.+?)(&|$|#)/);
     if (match && match[1]) {
-      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      // Use lh3.googleusercontent.com format for native Google CORS support!
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
   return url;
@@ -71,9 +72,14 @@ export function getCorsSafeUrl(url: string | null | undefined): string {
   // Resolve Google Drive links first
   const resolvedUrl = getDriveDirectLink(url);
   
-  // Proxy all external http/https URLs to avoid CORS blocks with html2canvas and prevent tainted canvas
+  if (resolvedUrl.includes('googleusercontent.com')) {
+    // Already supports CORS perfectly, no proxy needed!
+    return resolvedUrl;
+  }
+  
+  // Proxy other external URLs via images.weserv.nl (high speed, CORS enabled)
   if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
-    return `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(resolvedUrl)}`;
+    return `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}`;
   }
   
   return resolvedUrl;

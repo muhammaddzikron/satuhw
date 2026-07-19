@@ -18,6 +18,7 @@ export interface User {
   activeRole?: UserRole;
   isVerified?: boolean;
   upgradeRequests?: string[]; // Array of categories requested for upgrade
+  photo?: string;
 }
 
 export interface Materi {

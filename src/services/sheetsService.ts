@@ -303,7 +303,8 @@ export const sheetsService = {
       roles: [] as UserRole[],
       activeRole: 'umum' as UserRole,
       isVerified: data.isVerified !== undefined ? data.isVerified : (data.isverified !== undefined ? data.isverified : false),
-      upgradeRequests: parseArrayField(data.upgradeRequests || data.upgraderequests)
+      upgradeRequests: parseArrayField(data.upgradeRequests || data.upgraderequests),
+      photo: data.photo || data.foto || data.Photo || data.Foto || ''
     };
 
     const rolesRaw = data.role || data.roles || 'umum';
@@ -495,7 +496,7 @@ export const sheetsService = {
       return list.filter((m: any) => m.kategori === role);
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getMateri&role=${role}`);
+      const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         return response.data.map((m: any) => this.mapMateri(m));
       }
@@ -570,7 +571,7 @@ export const sheetsService = {
       return [];
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getMembers`);
+      const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         return response.data.map((m: any) => this.mapUser(m));
       }
@@ -762,7 +763,7 @@ export const sheetsService = {
       }).filter((k: any) => k.nama && k.nama.trim() !== '');
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getKTAApplications`);
+      const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         return response.data.map((k: any, idx: number) => {
           const normalized = normalizeKTAKeys(k);
@@ -1000,7 +1001,7 @@ export const sheetsService = {
       })).filter((t: any) => t.nama && t.nama.trim() !== '');
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getTrainingApplications`);
+      const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         return response.data.map((t: any, idx: number) => ({
           ...t,
@@ -1352,7 +1353,7 @@ export const sheetsService = {
       return section ? list.filter((c: any) => c.section === section) : list;
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}`);
+      const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
       // Ensure we always return an array
       if (Array.isArray(response.data)) {
         return response.data;
@@ -1490,7 +1491,7 @@ export const sheetsService = {
       };
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getSettings`);
+      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`);
       const apiSettings = response.data || {};
       const merged = {
         ...apiSettings,
