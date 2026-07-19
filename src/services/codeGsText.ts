@@ -167,6 +167,10 @@ function doPost(e) {
       return handleApplyTraining(data);
     }
 
+    if (action == 'saveTrainingApplication') {
+      return handleSaveTrainingApplication(data);
+    }
+
     if (action == 'updateTrainingStatus') {
       return handleUpdateTrainingStatus(data.id, data.status, data.remark);
     }
@@ -1542,6 +1546,11 @@ function handleUpdateTrainingStatus(id, status, remark) {
   }
   
   var app = apps[rowIndex];
+  if (status === 'deleted') {
+    sheet.deleteRow(rowIndex + 2);
+    return responseOk({ success: true, message: "Pendaftaran pelatihan berhasil dihapus" });
+  }
+  
   app.status = status;
   if (remark) {
     app.remark = remark;
@@ -1893,6 +1902,122 @@ function handleSyncApprovedKtasToMembers() {
   }
   
   return responseOk({ success: true, addedCount: addedCount, updatedCount: updatedCount });
+}
+
+function handleSaveTrainingApplication(data) {
+  var sheet = getSheet('Training_Applications');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
+    return h ? h.toString().trim().toLowerCase() : ""; 
+  });
+  
+  var apps = getRowsAsObjects(sheet);
+  var rowIndex = apps.findIndex(function(app) { 
+    var appId = (app.id || app.Id || '').toString();
+    return appId === data.id.toString() && appId !== ''; 
+  });
+  
+  if (rowIndex === -1) {
+    return responseError("Training Application not found");
+  }
+  
+  var app = apps[rowIndex];
+  
+  // Update fields
+  if (data.nama !== undefined) app.nama = data.nama;
+  if (data.noWa !== undefined) app.nowa = data.noWa;
+  if (data.email !== undefined) app.email = data.email;
+  if (data.sosmed !== undefined) app.sosmed = data.sosmed;
+  if (data.tingkatan !== undefined) app.tingkatan = data.tingkatan;
+  if (data.pelatihanAkanDiikuti !== undefined) app.pelatihanakandiikuti = data.pelatihanAkanDiikuti;
+  if (data.nik !== undefined) app.nik = data.nik;
+  if (data.tempatLahir !== undefined) app.tempatlahir = data.tempatLahir;
+  if (data.tanggalLahir !== undefined) app.tanggallahir = data.tanggalLahir;
+  if (data.jenisKelamin !== undefined) app.jeniskelamin = data.jenisKelamin;
+  if (data.qabilah !== undefined) app.qabilah = data.qabilah;
+  if (data.lokasiPelatihan !== undefined) app.lokasipelatihan = data.lokasiPelatihan;
+  if (data.tanggalPelatihan !== undefined) app.tanggalpelatihan = data.tanggalPelatihan;
+  if (data.asalDaerah !== undefined) app.asaldaerah = data.asalDaerah;
+  if (data.pelatihGolongan !== undefined) app.pelatihgolongan = data.pelatihGolongan;
+  if (data.golonganAnggota !== undefined) app.golongananggota = data.golonganAnggota;
+  
+  var rowData = new Array(headers.length).fill("");
+  headers.forEach(function(header, i) {
+    var val = app[header];
+    if (val === undefined) {
+      if (header === 'id') val = app.id || app.Id;
+      else if (header === 'userid') val = app.userId || app.UserId;
+      else if (header === 'nowa') val = app.noWa || app.NoWa;
+      else if (header === 'asaldaerah') val = app.asalDaerah || app.AsalDaerah;
+      else if (header === 'tanggalajuan') val = app.tanggalAjuan || app.TanggalAjuan;
+      else if (header === 'pelatihanakandiikuti') val = app.pelatihanAkanDiikuti || app.PelatihanAkanDiikuti;
+      else if (header === 'tempatlahir') val = app.tempatLahir || app.TempatLahir;
+      else if (header === 'tanggallahir') val = app.tanggalLahir || app.TanggalLahir;
+      else if (header === 'jeniskelamin') val = app.jenisKelamin || app.JenisKelamin;
+      else if (header === 'lokasipelatihan') val = app.lokasiPelatihan || app.LokasiPelatihan;
+      else if (header === 'tanggalpelatihan') val = app.tanggalPelatihan || app.TanggalPelatihan;
+      else if (header === 'pelatihgolongan') val = app.pelatihGolongan || app.PelatihGolongan;
+      else if (header === 'golongananggota') val = app.golonganAnggota || app.GolonganAnggota;
+    }
+    rowData[i] = val !== undefined ? val : "";
+  });
+  
+  sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
+  
+  // Update linked user/member
+  var userId = app.userid || app.userId || app.UserId || data.userId;
+  var email = app.email || app.Email || data.email;
+  
+  if (userId || email) {
+    var userSheet = getSheet('Users');
+    var userHeaders = userSheet.getRange(1, 1, 1, userSheet.getLastColumn()).getValues()[0].map(function(h) { 
+      return h ? h.toString().trim().toLowerCase() : ""; 
+    });
+    var users = getRowsAsObjects(userSheet);
+    var userRowIndex = users.findIndex(function(u) {
+      var uId = (u.id || u.Id || '').toString();
+      var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+      return (userId && uId === userId.toString()) || (email && uEmail === email.trim().toLowerCase());
+    });
+    
+    if (userRowIndex > -1) {
+      var uRowRange = userSheet.getRange(userRowIndex + 2, 1, 1, userHeaders.length);
+      var uRowValues = uRowRange.getValues()[0];
+      
+      var nameIdx = userHeaders.indexOf('namalengkap');
+      if (nameIdx > -1 && data.nama) uRowValues[nameIdx] = data.nama;
+      
+      var emailIdx = userHeaders.indexOf('email');
+      if (emailIdx > -1 && data.email) uRowValues[emailIdx] = data.email;
+      
+      var noHpIdx = userHeaders.indexOf('nohp');
+      if (noHpIdx > -1 && data.noWa) uRowValues[noHpIdx] = data.noWa;
+      
+      var nikIdx = userHeaders.indexOf('nik');
+      if (nikIdx > -1 && data.nik) uRowValues[nikIdx] = data.nik;
+      
+      var tempatIdx = userHeaders.indexOf('tempatlahir');
+      if (tempatIdx > -1 && data.tempatLahir) uRowValues[tempatIdx] = data.tempatLahir;
+      
+      var tglIdx = userHeaders.indexOf('tanggallahir');
+      if (tglIdx > -1 && data.tanggalLahir) uRowValues[tglIdx] = data.tanggalLahir;
+      
+      var jkIdx = userHeaders.indexOf('jeniskelamin');
+      if (jkIdx > -1 && data.jenisKelamin) uRowValues[jkIdx] = data.jenisKelamin;
+      
+      var qabIdx = userHeaders.indexOf('qabilah');
+      if (qabIdx > -1 && data.qabilah) uRowValues[qabIdx] = data.qabilah;
+      
+      var kwardaIdx = userHeaders.indexOf('asalkwarda');
+      if (kwardaIdx > -1 && data.asalDaerah) uRowValues[kwardaIdx] = data.asalDaerah;
+      
+      var golonganIdx = userHeaders.indexOf('golongan');
+      if (golonganIdx > -1 && data.golonganAnggota) uRowValues[golonganIdx] = data.golonganAnggota;
+      
+      uRowRange.setValues([uRowValues]);
+    }
+  }
+  
+  return responseOk({ success: true, message: "Pendaftaran dan data anggota berhasil disinkronisasi", application: app });
 }
 
 `;

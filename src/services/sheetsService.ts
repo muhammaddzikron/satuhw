@@ -929,6 +929,106 @@ export const sheetsService = {
     }
   },
 
+  async saveTrainingApplicationAndSyncMember(appData: any): Promise<any> {
+    if (!IS_API_VALID) {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      try {
+        let list = JSON.parse(stored);
+        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
+        if (idx !== -1) {
+          // Update training app
+          list[idx] = { ...list[idx], ...appData };
+          localStorage.setItem('training_applications', JSON.stringify(list));
+          
+          // Also sync with mock_members
+          const userId = appData.userId || list[idx].userId;
+          const email = appData.email || list[idx].email;
+          
+          if (userId || email) {
+            const membersStored = localStorage.getItem('mock_members') || '[]';
+            const membersList = JSON.parse(membersStored);
+            const mIdx = membersList.findIndex((m: any) => 
+              String(m.id) === String(userId) || 
+              (email && String(m.email).toLowerCase().trim() === String(email).toLowerCase().trim())
+            );
+            
+            if (mIdx !== -1) {
+              const m = membersList[mIdx];
+              membersList[mIdx] = {
+                ...m,
+                namaLengkap: appData.nama || m.namaLengkap,
+                email: appData.email || m.email,
+                noHp: appData.noWa || m.noHp,
+                nik: appData.nik || m.nik,
+                tempatLahir: appData.tempatLahir || m.tempatLahir,
+                tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
+                jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
+                qabilah: appData.qabilah || m.qabilah,
+                asalKwarda: appData.asalDaerah || m.asalKwarda,
+                golongan: appData.golonganAnggota || m.golongan
+              };
+              localStorage.setItem('mock_members', JSON.stringify(membersList));
+            }
+          }
+          return { success: true, application: list[idx] };
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return { success: false, message: 'Training Application not found locally' };
+    }
+    try {
+      return await this.post({
+        action: 'saveTrainingApplication',
+        ...appData
+      });
+    } catch (e) {
+      console.error('saveTrainingApplication API error, falling back to local storage:', e);
+      const stored = localStorage.getItem('training_applications') || '[]';
+      try {
+        let list = JSON.parse(stored);
+        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...appData };
+          localStorage.setItem('training_applications', JSON.stringify(list));
+          
+          // Sync to local mock_members as well
+          const userId = appData.userId || list[idx].userId;
+          const email = appData.email || list[idx].email;
+          if (userId || email) {
+            const membersStored = localStorage.getItem('mock_members') || '[]';
+            const membersList = JSON.parse(membersStored);
+            const mIdx = membersList.findIndex((m: any) => 
+              String(m.id) === String(userId) || 
+              (email && String(m.email).toLowerCase().trim() === String(email).toLowerCase().trim())
+            );
+            if (mIdx !== -1) {
+              const m = membersList[mIdx];
+              membersList[mIdx] = {
+                ...m,
+                namaLengkap: appData.nama || m.namaLengkap,
+                email: appData.email || m.email,
+                noHp: appData.noWa || m.noHp,
+                nik: appData.nik || m.nik,
+                tempatLahir: appData.tempatLahir || m.tempatLahir,
+                tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
+                jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
+                qabilah: appData.qabilah || m.qabilah,
+                asalKwarda: appData.asalDaerah || m.asalKwarda,
+                golongan: appData.golonganAnggota || m.golongan
+              };
+              localStorage.setItem('mock_members', JSON.stringify(membersList));
+            }
+          }
+          return { success: true, application: list[idx] };
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return { success: false, message: 'Failed to save training application' };
+    }
+  },
+
   async updateKTAStatus(id: string, status: 'approved' | 'rejected', ktaNumber?: string, remark?: string): Promise<any> {
     if (!IS_API_VALID) {
       const stored = localStorage.getItem('kta_applications');
@@ -1038,7 +1138,7 @@ export const sheetsService = {
       return apps.map((t: any, idx: number) => ({
         ...t,
         id: t.id || `train-fallback-${idx}`
-      })).filter((t: any) => t.nama && t.nama.trim() !== '');
+      })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
     }
     try {
       const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
@@ -1046,7 +1146,7 @@ export const sheetsService = {
         return response.data.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-api-${idx}`
-        })).filter((t: any) => t.nama && t.nama.trim() !== '');
+        })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
       }
       return [];
     } catch (e) {
@@ -1057,7 +1157,7 @@ export const sheetsService = {
         return apps.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-fallback-${idx}`
-        })).filter((t: any) => t.nama && t.nama.trim() !== '');
+        })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
       } catch (err) {
         return [];
       }
@@ -1089,23 +1189,23 @@ export const sheetsService = {
       const duplicate = list.find((item: any) => {
         if (item.status === 'rejected' || item.status === 'deleted') return false;
         const samePelatihan = item.pelatihanAkanDiikuti && 
-          item.pelatihanAkanDiikuti.toLowerCase().trim() === (trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
+          String(item.pelatihanAkanDiikuti).toLowerCase().trim() === String(trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
         if (!samePelatihan) return false;
         
         const itemUserId = String(item.userId || '');
         const dataUserId = String(trainingData.userId || '');
         const isUserMatch = dataUserId && itemUserId && dataUserId === itemUserId && !dataUserId.startsWith('guest-') && !itemUserId.startsWith('guest-');
         
-        const itemEmail = (item.email || '').trim().toLowerCase();
-        const dataEmail = (trainingData.email || '').trim().toLowerCase();
+        const itemEmail = String(item.email || '').trim().toLowerCase();
+        const dataEmail = String(trainingData.email || '').trim().toLowerCase();
         const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
         
-        const itemNik = (item.nik || '').trim();
-        const dataNik = (trainingData.nik || '').trim();
+        const itemNik = String(item.nik || '').trim();
+        const dataNik = String(trainingData.nik || '').trim();
         const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
         
-        const itemWa = (item.noWa || item.noHp || '').trim();
-        const dataWa = (trainingData.noWa || trainingData.noHp || '').trim();
+        const itemWa = String(item.noWa || item.noHp || '').trim();
+        const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
         const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
         
         return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
@@ -1132,23 +1232,23 @@ export const sheetsService = {
       const duplicate = list.find((item: any) => {
         if (item.status === 'rejected' || item.status === 'deleted') return false;
         const samePelatihan = item.pelatihanAkanDiikuti && 
-          item.pelatihanAkanDiikuti.toLowerCase().trim() === (trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
+          String(item.pelatihanAkanDiikuti).toLowerCase().trim() === String(trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
         if (!samePelatihan) return false;
         
         const itemUserId = String(item.userId || '');
         const dataUserId = String(trainingData.userId || '');
         const isUserMatch = dataUserId && itemUserId && dataUserId === itemUserId && !dataUserId.startsWith('guest-') && !itemUserId.startsWith('guest-');
         
-        const itemEmail = (item.email || '').trim().toLowerCase();
-        const dataEmail = (trainingData.email || '').trim().toLowerCase();
+        const itemEmail = String(item.email || '').trim().toLowerCase();
+        const dataEmail = String(trainingData.email || '').trim().toLowerCase();
         const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
         
-        const itemNik = (item.nik || '').trim();
-        const dataNik = (trainingData.nik || '').trim();
+        const itemNik = String(item.nik || '').trim();
+        const dataNik = String(trainingData.nik || '').trim();
         const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
         
-        const itemWa = (item.noWa || item.noHp || '').trim();
-        const dataWa = (trainingData.noWa || trainingData.noHp || '').trim();
+        const itemWa = String(item.noWa || item.noHp || '').trim();
+        const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
         const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
         
         return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
@@ -1174,7 +1274,7 @@ export const sheetsService = {
     }
   },
 
-  async updateTrainingStatus(id: string, status: 'approved' | 'rejected', remark?: string): Promise<any> {
+  async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', remark?: string): Promise<any> {
     if (!IS_API_VALID) {
       const stored = localStorage.getItem('training_applications');
       if (stored) {
@@ -1182,6 +1282,12 @@ export const sheetsService = {
           let list = JSON.parse(stored);
           const idx = list.findIndex((x: any) => x.id === id);
           if (idx !== -1) {
+            if (status === 'deleted') {
+              const deletedItem = list[idx];
+              list.splice(idx, 1);
+              localStorage.setItem('training_applications', JSON.stringify(list));
+              return { success: true, application: deletedItem };
+            }
             list[idx].status = status;
             if (remark) {
               list[idx].remark = remark;
@@ -1254,6 +1360,12 @@ export const sheetsService = {
       const list = JSON.parse(stored);
       const idx = list.findIndex((x: any) => x.id === id);
       if (idx !== -1) {
+        if (status === 'deleted') {
+          const deletedItem = list[idx];
+          list.splice(idx, 1);
+          localStorage.setItem('training_applications', JSON.stringify(list));
+          return { success: true, application: deletedItem };
+        }
         list[idx].status = status;
         if (remark) {
           list[idx].remark = remark;

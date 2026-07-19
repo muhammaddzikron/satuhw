@@ -486,6 +486,10 @@ export default function AdminDashboard() {
   const [isTrainingRejectModalOpen, setIsTrainingRejectModalOpen] = useState(false);
   const [trainingSubTab, setTrainingSubTab] = useState<'peserta' | 'presensi' | 'penugasan' | 'penilaian' | 'piagam' | 'pengaturan'>('peserta');
 
+  // Training Edit States
+  const [editingTrainingApp, setEditingTrainingApp] = useState<any | null>(null);
+  const [isEditTrainingModalOpen, setIsEditTrainingModalOpen] = useState(false);
+
   // Add participant states
   const [isAddParticipantModalOpen, setIsAddParticipantModalOpen] = useState(false);
   const [addParticipantSelectedMemberId, setAddParticipantSelectedMemberId] = useState('');
@@ -833,6 +837,52 @@ export default function AdminDashboard() {
     } catch (e: any) {
       console.error(e);
       alert('Gagal menyetujui pendaftaran: ' + (e.message || 'Cek koneksi'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePendingTraining = async (appId: string) => {
+    try {
+      setLoading(true);
+      const res = await sheetsService.updateTrainingStatus(appId, 'pending');
+      if (res.success || res.application) {
+        alert('Status pendaftaran dikembalikan ke Menunggu!');
+        const tApps = await sheetsService.getTrainingApplications();
+        setTrainingApps(tApps || []);
+      } else {
+        alert('Gagal mengubah status pendaftaran ke Menunggu: ' + (res.message || 'Respons tidak valid'));
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengubah status pendaftaran ke Menunggu: ' + (e.message || 'Cek koneksi'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEditTraining = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTrainingApp) return;
+    try {
+      setLoading(true);
+      const res = await sheetsService.saveTrainingApplicationAndSyncMember(editingTrainingApp);
+      if (res.success || res.application) {
+        alert('Data peserta pelatihan dan data anggota berhasil diperbarui!');
+        setIsEditTrainingModalOpen(false);
+        setEditingTrainingApp(null);
+        const [tApps, mData] = await Promise.all([
+          sheetsService.getTrainingApplications(),
+          sheetsService.getMembers()
+        ]);
+        setTrainingApps(tApps || []);
+        setMembers(mData || []);
+      } else {
+        alert('Gagal menyimpan data: ' + (res.message || 'Respons tidak valid'));
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menyimpan data: ' + (err.message || 'Cek koneksi'));
     } finally {
       setLoading(false);
     }
@@ -3855,53 +3905,70 @@ export default function AdminDashboard() {
                                 </td>
 
                                 <td className="p-4 text-right pr-6">
-                                  {app.status === 'pending' ? (
-                                    <div className="flex gap-2 justify-end">
+                                  <div className="flex flex-wrap gap-1.5 justify-end">
+                                    {app.status !== 'approved' && (
                                       <button
                                         onClick={() => handleApproveTraining(app.id)}
-                                        className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                                        className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
                                       >
                                         Setujui
                                       </button>
+                                    )}
+                                    {app.status !== 'rejected' && (
                                       <button
                                         onClick={() => handleOpenRejectTraining(app.id)}
-                                        className="px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-100 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                                        className="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
                                       >
-                                        Tolak
+                                        Ditolak
                                       </button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex gap-2 justify-end">
+                                    )}
+                                    {app.status !== 'pending' && (
                                       <button
-                                        onClick={() => {
-                                          alert(`Detail Pendaftaran Pelatihan:\n\nNama Lengkap: ${app.nama}\nEmail: ${app.email}\nWhatsApp: ${app.noWa}\nTempat, Tgl Lahir: ${app.tempatLahir || '-'}, ${app.tanggalLahir || '-'}\nJenis Kelamin: ${app.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}\nAsal Kabupaten: ${app.asalDaerah || '-'}\nQabilah: ${app.qabilah || '-'}\nGolongan: ${app.golonganAnggota || '-'}\nPelatih Golongan: ${app.pelatihGolongan || '-'}\nPelatihan Yang Diikuti: ${app.pelatihanAkanDiikuti}\nStatus: ${app.status.toUpperCase()}`);
-                                        }}
-                                        className="px-2.5 py-1.5 bg-gray-50 text-gray-550 border border-gray-100 rounded-lg hover:bg-gray-100 font-black text-[9px] uppercase tracking-wider"
+                                        onClick={() => handlePendingTraining(app.id)}
+                                        className="px-2 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-100 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
                                       >
-                                        Detail
+                                        Menunggu
                                       </button>
-                                      <button
-                                        onClick={async () => {
-                                          if (confirm('Hapus rincian pendaftaran pelatihan ini?')) {
-                                            try {
-                                              setLoading(true);
-                                              await sheetsService.updateTrainingStatus(app.id, 'deleted');
-                                              alert('Dihapus!');
-                                              const tApps = await sheetsService.getTrainingApplications();
-                                              setTrainingApps(tApps || []);
-                                            } catch (err: any) {
-                                              alert('Gagal menghapus: ' + err.message);
-                                            } finally {
-                                              setLoading(false);
-                                            }
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setEditingTrainingApp({ ...app });
+                                        setIsEditTrainingModalOpen(true);
+                                      }}
+                                      className="px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        alert(`Detail Pendaftaran Pelatihan:\n\nNama Lengkap: ${app.nama}\nEmail: ${app.email}\nWhatsApp: ${app.noWa}\nNIK: ${app.nik || '-'}\nTempat, Tgl Lahir: ${app.tempatLahir || '-'}, ${app.tanggalLahir || '-'}\nJenis Kelamin: ${app.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}\nAsal Kabupaten: ${app.asalDaerah || '-'}\nQabilah: ${app.qabilah || '-'}\nGolongan: ${app.golonganAnggota || '-'}\nPelatih Golongan: ${app.pelatihGolongan || '-'}\nPelatihan Yang Diikuti: ${app.pelatihanAkanDiikuti}\nStatus: ${app.status.toUpperCase()}`);
+                                      }}
+                                      className="px-2 py-1 bg-gray-50 text-gray-550 border border-gray-150 rounded-lg font-black text-[9px] uppercase tracking-wider hover:bg-gray-100"
+                                    >
+                                      Detail
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm('Hapus rincian pendaftaran pelatihan ini? Ketika dihapus, data pelatihan akan terhapus namun data anggota KTA tetap aman.')) {
+                                          try {
+                                            setLoading(true);
+                                            await sheetsService.updateTrainingStatus(app.id, 'deleted');
+                                            alert('Data pendaftaran pelatihan berhasil dihapus!');
+                                            const tApps = await sheetsService.getTrainingApplications();
+                                            setTrainingApps(tApps || []);
+                                          } catch (err: any) {
+                                            alert('Gagal menghapus: ' + err.message);
+                                          } finally {
+                                            setLoading(false);
                                           }
-                                        }}
-                                        className="p-1.5 px-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg shrink-0"
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
-                                    </div>
-                                  )}
+                                        }
+                                      }}
+                                      className="p-1 px-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg border border-rose-100 shrink-0 flex items-center justify-center"
+                                      title="Hapus Data"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -6046,8 +6113,8 @@ export default function AdminDashboard() {
                             if (!addParticipantSearchQuery.trim()) return true;
                             const q = addParticipantSearchQuery.toLowerCase();
                             return (
-                              m.namaLengkap?.toLowerCase().includes(q) ||
-                              m.email?.toLowerCase().includes(q) ||
+                              String(m.namaLengkap || '').toLowerCase().includes(q) ||
+                              String(m.email || '').toLowerCase().includes(q) ||
                               String(m.nik || '').includes(q) ||
                               String(m.noHp || '').includes(q)
                             );
@@ -6058,8 +6125,8 @@ export default function AdminDashboard() {
                               if (!addParticipantSearchQuery.trim()) return true;
                               const q = addParticipantSearchQuery.toLowerCase();
                               return (
-                                m.namaLengkap?.toLowerCase().includes(q) ||
-                                m.email?.toLowerCase().includes(q) ||
+                                String(m.namaLengkap || '').toLowerCase().includes(q) ||
+                                String(m.email || '').toLowerCase().includes(q) ||
                                 String(m.nik || '').includes(q) ||
                                 String(m.noHp || '').includes(q)
                               );
@@ -6166,6 +6233,208 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* EDIT PARTICIPANT MODAL */}
+        <AnimatePresence>
+          {isEditTrainingModalOpen && editingTrainingApp && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6 overflow-y-auto">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => { setIsEditTrainingModalOpen(false); setEditingTrainingApp(null); }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden p-6 z-10 max-h-[90vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+                  <div>
+                    <h3 className="text-base font-black text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                      ✏️ Edit Data Peserta Pelatihan
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                      Perubahan Otomatis Sinkron ke Data Anggota (KTA)
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setIsEditTrainingModalOpen(false); setEditingTrainingApp(null); }}
+                    className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEditTraining} className="space-y-4 overflow-y-auto my-4 pr-1 flex-1 text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nama Lengkap */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                      <input 
+                        type="text"
+                        required
+                        value={editingTrainingApp.nama || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nama: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                      <input 
+                        type="email"
+                        required
+                        value={editingTrainingApp.email || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, email: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* No WhatsApp */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. WhatsApp</label>
+                      <input 
+                        type="text"
+                        required
+                        value={editingTrainingApp.noWa || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, noWa: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* NIK */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.nik || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nik: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Tempat Lahir */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.tempatLahir || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tempatLahir: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Tanggal Lahir */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
+                      <input 
+                        type="date"
+                        value={editingTrainingApp.tanggalLahir || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tanggalLahir: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Jenis Kelamin */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jenis Kelamin</label>
+                      <select 
+                        value={editingTrainingApp.jenisKelamin || 'L'}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, jenisKelamin: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        <option value="L">Laki-laki</option>
+                        <option value="P">Perempuan</option>
+                      </select>
+                    </div>
+
+                    {/* Asal Daerah */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asal Daerah (Kabupaten)</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.asalDaerah || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, asalDaerah: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Qabilah */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.qabilah || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, qabilah: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Pelatihan Akan Diikuti */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Akan Diikuti</label>
+                      <select 
+                        value={editingTrainingApp.pelatihanAkanDiikuti || 'Jati 1'}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, pelatihanAkanDiikuti: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        <option value="Jati 1">Jati 1 (Jaya Melati 1)</option>
+                        <option value="Jati 2">Jati 2 (Jaya Melati 2)</option>
+                        <option value="Jari 1">Jari 1 (Jaya Matahari 1)</option>
+                      </select>
+                    </div>
+
+                    {/* Pelatih Golongan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatih Golongan</label>
+                      <select 
+                        value={editingTrainingApp.pelatihGolongan || 'Tunas Athfal'}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, pelatihGolongan: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Golongan Anggota */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan Anggota</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.golonganAnggota || editingTrainingApp.tingkatan || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, golonganAnggota: e.target.value, tingkatan: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-gray-100 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditTrainingModalOpen(false); setEditingTrainingApp(null); }}
+                      className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-500 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-2 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-hw-green/10 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
+                  </div>
+                </form>
               </motion.div>
             </div>
           )}
