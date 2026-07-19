@@ -19,7 +19,8 @@ import {
   Calendar, 
   UserSquare,
   Sparkles,
-  Check
+  Check,
+  ArrowLeft
 } from 'lucide-react';
 import { sheetsService } from '../services/sheetsService';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
@@ -326,6 +327,15 @@ export default function RegisterPage() {
 
   return (
     <div className="pt-2 max-w-md mx-auto">
+      <div className="flex items-center justify-between mb-4 px-2">
+        <button 
+          onClick={() => navigate('/')}
+          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-extrabold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+        >
+          <ArrowLeft size={12} /> Kembali ke Beranda
+        </button>
+      </div>
+
       <div className="mb-4 text-center">
         <h2 className="text-xl font-display font-black text-gray-800 flex items-center justify-center gap-2">
           <Sparkles className="text-hw-green fill-hw-green/20" size={20} />

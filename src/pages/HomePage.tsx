@@ -566,16 +566,16 @@ export default function HomePage() {
       {/* Conditional KTA & Training Banners based on authentication */}
       {!isAuthenticated ? (
         <section className="px-1">
-          <div className="bg-white rounded-[2rem] border border-gray-150 p-6 shadow-sm space-y-5">
+          <div className="bg-slate-50 rounded-[2rem] border border-slate-200/60 p-6 shadow-sm space-y-5">
             <div className="space-y-4">
               {/* Option 1: Already has account */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50/50 border border-orange-100/50 flex items-start gap-3">
-                <div className="p-2 bg-orange-600 text-white rounded-xl mt-0.5 shrink-0">
+              <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
+                <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl mt-0.5 shrink-0">
                   <GraduationCap size={16} />
                 </div>
                 <div className="space-y-1 flex-1">
-                  <h4 className="text-[11px] font-black text-gray-800 uppercase tracking-wider font-display">Pendaftaran Pelatihan</h4>
-                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Pendaftaran Pelatihan</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
                     Sudah punya akun? Silahkan <Link to="/login" className="text-orange-600 hover:underline font-black">login</Link> dan Daftar Pelatihannya
                   </p>
                   <Link 
@@ -588,13 +588,13 @@ export default function HomePage() {
               </div>
 
               {/* Option 2: No account yet */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-hw-green/5 to-emerald-50/30 border border-hw-green/10 flex items-start gap-3">
-                <div className="p-2 bg-hw-green text-white rounded-xl mt-0.5 shrink-0">
+              <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
+                <div className="p-2.5 bg-emerald-50 text-hw-green rounded-xl mt-0.5 shrink-0">
                   <CreditCard size={16} />
                 </div>
                 <div className="space-y-1 flex-1">
-                  <h4 className="text-[11px] font-black text-gray-800 uppercase tracking-wider font-display">Belum Punya Akun?</h4>
-                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Belum Punya Akun?</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
                     Jika belum punya akun, daftar dulu dengan membuat Kartu Anggota dibawah ini
                   </p>
                 </div>
@@ -604,18 +604,30 @@ export default function HomePage() {
             {/* Attached KTA Banner */}
             <Link 
               to="/register" 
-              className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-2.5xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
+              className="relative overflow-hidden flex items-center justify-between bg-gradient-to-r from-hw-green via-emerald-700 to-emerald-800 text-white p-5 rounded-[1.75rem] shadow-md shadow-emerald-950/10 hover:shadow-lg hover:shadow-emerald-950/15 transition-all duration-300 border border-emerald-600/30 hover:scale-[1.01] active:scale-[0.99]"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-xl text-white">
-                  <CreditCard size={18} />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
+              <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
+              
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="p-3 bg-white/10 backdrop-blur-sm rounded-2xl text-white border border-white/10 shadow-inner shrink-0">
+                  <CreditCard size={22} className="animate-pulse" />
                 </div>
-                <div className="text-left space-y-0.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider">Buat KTA HW Jateng</h4>
-                  <p className="text-[9px] text-emerald-100 font-semibold leading-none">Daftar Akun Baru & Dapatkan KTA Digital</p>
+                <div className="text-left space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-sm font-black uppercase tracking-wider font-display">Buat KTA HW Jateng</h4>
+                    <span className="bg-amber-400 text-slate-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                      Wajib
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-emerald-100/90 font-medium leading-relaxed max-w-[210px]">
+                    Daftar akun baru & dapatkan Kartu Anggota resmi
+                  </p>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-emerald-200" />
+              <div className="p-1.5 bg-white/10 rounded-full hover:bg-white/20 transition-colors shrink-0">
+                <ChevronRight size={18} className="text-white" />
+              </div>
             </Link>
           </div>
         </section>
