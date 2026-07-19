@@ -300,7 +300,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="text-[9px] text-emerald-800 leading-normal font-medium bg-emerald-50 p-2 rounded-xl border border-emerald-200 border-dashed">
-                Demi ketertiban verifikasi, silakan kirim bukti transfer pembayaran Anda melalui WhatsApp. Setelah admin menyetujui, akun Anda otomatis aktif sepenuhnya.
+                Demi ketertiban verifikasi, silakan kirim bukti transfer pembayaran Anda melalui WhatsApp ke Medkom HW Jateng (089688754000). Setelah admin menyetujui, akun Anda otomatis aktif sepenuhnya.
               </div>
             </div>
 
@@ -573,6 +573,27 @@ export default function RegisterPage() {
                     </select>
                   </div>
                 </div>
+
+                {/* PAYMENT NOTIFICATION IN REGISTER PROCESS */}
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5 space-y-2 mt-2">
+                  <div className="flex items-center gap-1.5 text-hw-green font-bold text-[11px]">
+                    <CreditCard size={14} />
+                    <span>Info Pembayaran KTA {formData.jenisKta}</span>
+                  </div>
+                  <div className="text-[10px] text-emerald-800 leading-normal space-y-1">
+                    <p>
+                      Biaya keanggotaan senilai <strong className="text-hw-green text-[11px]">{formData.jenisKta === 'Fisik' ? 'Rp 50.000' : 'Rp 10.000'}</strong> ditransfer ke:
+                    </p>
+                    <div className="bg-white/80 p-2 rounded-xl border border-emerald-100/50 space-y-0.5 font-sans">
+                      <p className="font-bold text-gray-800 text-[10px]">Bank Syariah Indonesia (BSI)</p>
+                      <p className="text-xs font-black text-gray-800 tracking-wide font-mono">7307427448</p>
+                      <p className="text-[9px] text-gray-500 font-semibold uppercase">an. Kwarwil HW Jateng</p>
+                    </div>
+                    <p className="text-[9.5px]">
+                      Setelah mendaftar, konfirmasi bukti transfer via WhatsApp ke <strong className="text-emerald-900">Medkom HW Jateng 089688754000</strong>.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -700,11 +721,24 @@ export default function RegisterPage() {
               </div>
 
               {/* PAYMENT BRIEF NOTICE */}
-              <div className="bg-emerald-50/40 border border-emerald-100 rounded-3xl p-4 flex gap-2.5 items-start">
-                <CreditCard size={16} className="text-hw-green shrink-0 mt-0.5" />
-                <p className="text-[10px] text-emerald-800 leading-normal font-medium">
-                  <strong>Aktivasi Pembayaran KTA:</strong> Pengajuan ini memerlukan pembayaran administrasi sebesar <strong>{formData.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-'}</strong> ke BSI Kwarwil HW Jateng setelah form dikirimkan.
-                </p>
+              <div className="bg-emerald-50/45 border border-emerald-100 rounded-3xl p-4 space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <CreditCard size={16} className="text-hw-green shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-emerald-800 leading-normal font-medium">
+                      <strong>Aktivasi Pembayaran KTA:</strong> Pengajuan ini memerlukan pembayaran administrasi sebesar <strong>{formData.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-'}</strong> sesuai pilihan KTA <strong>{formData.jenisKta}</strong> Anda.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white/80 p-3 rounded-2xl border border-emerald-100/50 text-[10px] text-emerald-900 space-y-1">
+                  <p className="font-semibold text-gray-500 text-[8px] uppercase tracking-wider">Transfer Pembayaran ke:</p>
+                  <p className="font-bold text-emerald-800 text-[10px]">Bank Syariah Indonesia (BSI)</p>
+                  <p className="text-xs font-black text-gray-800 tracking-wide font-mono">7307427448</p>
+                  <p className="text-[9px] text-gray-500 font-semibold uppercase">an. Kwarwil HW Jateng</p>
+                  <div className="pt-1.5 border-t border-emerald-100/50 mt-1 text-[9px] text-gray-600 leading-relaxed font-medium">
+                    Konfirmasi Bukti Transfer WhatsApp ke <strong>Medkom HW Jateng 089688754000</strong> setelah mengirimkan pendaftaran.
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
