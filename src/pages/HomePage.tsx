@@ -31,7 +31,9 @@ import {
   SkipForward,
   SkipBack,
   RefreshCw,
-  CreditCard
+  CreditCard,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -570,8 +572,8 @@ export default function HomePage() {
             <div className="space-y-4">
               {/* Option 1: Already has account */}
               <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
-                <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl mt-0.5 shrink-0">
-                  <GraduationCap size={16} />
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-2xl shadow-md shadow-orange-500/20 mt-0.5 shrink-0">
+                  <LogIn size={18} />
                 </div>
                 <div className="space-y-1 flex-1">
                   <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Pendaftaran Pelatihan</h4>
@@ -589,8 +591,8 @@ export default function HomePage() {
 
               {/* Option 2: No account yet */}
               <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
-                <div className="p-2.5 bg-emerald-50 text-hw-green rounded-xl mt-0.5 shrink-0">
-                  <CreditCard size={16} />
+                <div className="p-3 bg-gradient-to-br from-hw-green to-emerald-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 mt-0.5 shrink-0">
+                  <UserPlus size={18} />
                 </div>
                 <div className="space-y-1 flex-1">
                   <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Belum Punya Akun?</h4>
