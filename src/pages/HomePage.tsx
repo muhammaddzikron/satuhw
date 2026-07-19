@@ -33,7 +33,8 @@ import {
   RefreshCw,
   CreditCard,
   LogIn,
-  UserPlus
+  UserPlus,
+  Bell
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -84,6 +85,7 @@ export default function HomePage() {
   const [playlistItems, setPlaylistItems] = useState<Content[]>([]);
   const [sosmed, setSosmed] = useState<Content | null>(null);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [runningText, setRunningText] = useState<string>('');
   
   // Audio Player State
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -123,6 +125,9 @@ export default function HomePage() {
         setGalleryItems(contents.filter(c => c.section === 'galeri'));
         setPlaylistItems(playlist || []);
         setSosmed(contents.find(c => c.section === 'sosmed') || null);
+
+        const rtContent = contents.find(c => c.section === 'running-text');
+        setRunningText(rtContent?.field1 || 'Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW, mohon dukungan dan supportnya, Salam HW!');
 
         // Fetch materi for search: Only show 'umum' and 'umum_pandu' materi on home page
         const rolesToFetch = ['umum', 'umum_pandu'];
@@ -411,6 +416,21 @@ export default function HomePage() {
         <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
         <div className="absolute bottom-[-20px] left-[-20px] w-24 h-24 bg-hw-blue/20 rounded-full blur-xl"></div>
       </section>
+
+      {/* Running Announcement Text */}
+      {runningText && (
+        <div id="announcement-ticker" className="bg-gray-100/80 border border-gray-100 rounded-2xl p-2.5 flex items-center gap-3 overflow-hidden shadow-xs">
+          <div className="flex items-center gap-1 text-hw-green shrink-0 font-bold text-xs bg-white px-2.5 py-1 rounded-xl shadow-xs border border-gray-50">
+            <Bell size={12} className="animate-bounce text-hw-green" />
+            <span className="uppercase tracking-wider text-[9px] font-black">Info</span>
+          </div>
+          <div className="relative flex-1 overflow-hidden w-full h-4 flex items-center">
+            <div className="animate-marquee whitespace-nowrap text-xs text-gray-600 font-medium leading-none">
+              {runningText}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <section className="relative">

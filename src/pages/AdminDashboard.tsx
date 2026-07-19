@@ -2198,7 +2198,8 @@ export default function AdminDashboard() {
                       { id: 'playlist', label: 'Playlist Audio', icon: Music, desc: 'Kelola file mp3/audio' },
                       { id: 'sosmed', label: 'Media Sosial', icon: Share2, desc: 'Update link sosmed' },
                       { id: 'doa', label: 'Daftar Doa', icon: Heart, desc: 'Kelola kumpulan doa' },
-                      { id: 'kontak', label: 'Info Kontak', icon: Phone, desc: 'Update info qabilah' }
+                      { id: 'kontak', label: 'Info Kontak', icon: Phone, desc: 'Update info qabilah' },
+                      { id: 'running-text', label: 'Teks Berjalan', icon: FileText, desc: 'Update teks pengumuman berjalan' }
                     ].map((item) => (
                       <button 
                         key={item.id} 
@@ -2261,7 +2262,7 @@ export default function AdminDashboard() {
                         {contentList.length === 0 ? (
                            <div className="p-10 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-100">
                              <p className="text-xs text-gray-400 font-medium">Belum ada konten untuk bagian ini.</p>
-                             {['profil', 'sosmed', 'kontak'].includes(selectedContentSection) && (
+                             {['profil', 'sosmed', 'kontak', 'running-text'].includes(selectedContentSection) && (
                                <button 
                                  key="init-content-btn"
                                  onClick={() => {
@@ -2273,7 +2274,7 @@ export default function AdminDashboard() {
                                   Inisialisasi Konten
                                 </button>
                              )}
-                             {!['profil', 'sosmed', 'kontak'].includes(selectedContentSection) && (
+                             {!['profil', 'sosmed', 'kontak', 'running-text'].includes(selectedContentSection) && (
                                <button 
                                  key="add-first-item-btn"
                                  onClick={() => handleOpenContentModal()}
@@ -2302,7 +2303,7 @@ export default function AdminDashboard() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <h4 className="text-xs font-bold text-gray-800 truncate uppercase">
-                                    {selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section)}
+                                    {selectedContentSection === 'running-text' ? 'Teks Berjalan' : (selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section))}
                                   </h4>
                                   <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
                                 </div>
@@ -5592,6 +5593,24 @@ export default function AdminDashboard() {
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm h-48 outline-none focus:ring-2 focus:ring-hw-green/20"
                             placeholder="Isi konten profil..."
                           />
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedContentSection === 'running-text' && (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teks Berjalan Beranda</label>
+                          <textarea 
+                            rows={4}
+                            value={contentFormData.field1}
+                            onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm h-32 outline-none focus:ring-2 focus:ring-hw-green/20"
+                            placeholder="Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW, mohon dukungan dan supportnya, Salam HW!"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            * Teks ini akan berjalan di halaman depan tepat di atas kotak pencarian materi.
+                          </p>
                         </div>
                       </div>
                     )}
