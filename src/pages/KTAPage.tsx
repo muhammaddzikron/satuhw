@@ -791,7 +791,11 @@ export default function KTAPage() {
 
           {/* HIDDEN CAPTURE CONTAINER FOR PDF GENERATION */}
           {myApplication && (
-            <div id="kta-print-capture" className="absolute left-[-9999px] top-[-9999px] space-y-4" style={{ zIndex: -9999 }}>
+            <div 
+              id="kta-print-capture" 
+              className="fixed top-0 left-0 w-0 h-0 overflow-hidden pointer-events-none opacity-0" 
+              style={{ zIndex: -50 }}
+            >
             {/* FRONT CARD CAPTURE */}
             <div 
               id="kta-front-capture" 

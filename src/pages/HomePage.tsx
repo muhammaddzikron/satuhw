@@ -566,7 +566,7 @@ export default function HomePage() {
       {/* Elongated KTA Banner Button */}
       <section className="px-1">
         <Link 
-          to="/kta" 
+          to={isAuthenticated ? "/kta" : "/register"} 
           className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
         >
           <div className="flex items-center gap-3">
