@@ -2636,16 +2636,6 @@ export default function AdminDashboard() {
                     1. Ringkasan & Aksi Cepat
                   </button>
                   <button 
-                    onClick={() => setActiveKtaSubTab('stats')}
-                    className={`px-4 py-2.5 text-xs font-black border-b-2 transition-all whitespace-nowrap uppercase tracking-wider ${
-                      activeKtaSubTab === 'stats'
-                      ? 'border-hw-green text-hw-green'
-                      : 'border-transparent text-gray-400 hover:text-gray-700'
-                    }`}
-                  >
-                    2. Statistik KTA
-                  </button>
-                  <button 
                     onClick={() => setActiveKtaSubTab('kwarda')}
                     className={`px-4 py-2.5 text-xs font-black border-b-2 transition-all whitespace-nowrap uppercase tracking-wider ${
                       activeKtaSubTab === 'kwarda'
@@ -2653,7 +2643,7 @@ export default function AdminDashboard() {
                       : 'border-transparent text-gray-400 hover:text-gray-700'
                     }`}
                   >
-                    3. Daftar Kwarda & Qabilah
+                    2. Daftar Kwarda & Qabilah
                   </button>
                   <button 
                     onClick={() => setActiveKtaSubTab('template')}
@@ -2663,7 +2653,7 @@ export default function AdminDashboard() {
                       : 'border-transparent text-gray-400 hover:text-gray-700'
                     }`}
                   >
-                    4. Template KTA
+                    3. Template KTA
                   </button>
                 </div>
               </div>
@@ -2715,7 +2705,81 @@ export default function AdminDashboard() {
                         </span>
                         <span className="text-[11px] text-indigo-650 font-semibold font-sans">kartu aktif</span>
                       </div>
-                      <p className="text-[10px] text-indigo-600 mt-2 font-medium">KTA digital & fisik resmi yang siap divalidasi dan dicetak.</p>
+                      <div className="flex items-center gap-4 text-[10px] font-extrabold text-indigo-700 mt-2.5 pt-2 border-t border-indigo-100/50">
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          <span>Digital: {ktaApps.filter(k => k.status === 'approved' && (k.jenisKta === 'Digital' || !k.jenisKta)).length}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                          <span>Fisik: {ktaApps.filter(k => k.status === 'approved' && k.jenisKta === 'Fisik').length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Beautiful & Compact KTA Statistics */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* Left: Tingkatan HW Penyebaran */}
+                    <div className="lg:col-span-8 bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-gray-50">
+                        <Award size={14} className="text-hw-green" />
+                        <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-wider font-display">Distribusi Tingkatan HW</h4>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2.5">
+                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map((tingkatan) => {
+                          const count = ktaApps.filter(k => k.tingkatan === tingkatan).length;
+                          const approved = ktaApps.filter(k => k.tingkatan === tingkatan && k.status === 'approved').length;
+                          const pending = ktaApps.filter(k => k.tingkatan === tingkatan && k.status === 'pending').length;
+                          const maxCount = Math.max(...['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(t => ktaApps.filter(k => k.tingkatan === t).length), 1);
+                          return (
+                            <div key={tingkatan} className="space-y-1">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-gray-700 font-extrabold truncate max-w-[85px]">{tingkatan}</span>
+                                <span className="text-gray-400 font-mono font-bold text-[9px]">{count} total <span className="text-green-600 font-extrabold">({approved} ✔)</span></span>
+                              </div>
+                              <div className="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden flex border border-gray-100">
+                                <div 
+                                  style={{ width: `${(approved / maxCount) * 100}%` }} 
+                                  className="bg-hw-green h-full rounded-l-full"
+                                />
+                                <div 
+                                  style={{ width: `${(pending / maxCount) * 100}%` }} 
+                                  className="bg-yellow-400 h-full rounded-r-full"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right: Ringkasan Status KTA */}
+                    <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 pb-1.5 border-b border-gray-50">
+                          <Users size={14} className="text-hw-green" />
+                          <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-wider font-display">Ringkasan Status KTA</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-2.5">
+                          <div className="bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100 text-center">
+                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Total Masuk</div>
+                            <div className="text-base font-black text-gray-800 font-display">{ktaApps.length}</div>
+                          </div>
+                          <div className="bg-amber-50/30 p-2.5 rounded-2xl border border-amber-100/60 text-center">
+                            <div className="text-[9px] text-amber-600 font-bold uppercase tracking-wider leading-none mb-1">Menunggu</div>
+                            <div className="text-base font-black text-amber-700 font-display">{ktaApps.filter(k => k.status === 'pending').length}</div>
+                          </div>
+                          <div className="bg-emerald-50/30 p-2.5 rounded-2xl border border-emerald-100/60 text-center">
+                            <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider leading-none mb-1">Disetujui</div>
+                            <div className="text-base font-black text-emerald-700 font-display">{ktaApps.filter(k => k.status === 'approved').length}</div>
+                          </div>
+                          <div className="bg-rose-50/30 p-2.5 rounded-2xl border border-rose-100/60 text-center">
+                            <div className="text-[9px] text-rose-600 font-bold uppercase tracking-wider leading-none mb-1">Ditolak</div>
+                            <div className="text-base font-black text-rose-700 font-display">{ktaApps.filter(k => k.status === 'rejected').length}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -3030,107 +3094,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Sub-tab content 1: Statistik KTA */}
-              {activeKtaSubTab === 'stats' && (
-                <div className="p-6 space-y-6">
-                  {/* Grid metrics */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-yellow-50/55 p-5 rounded-3xl border border-yellow-100 flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">Pending (Menunggu)</span>
-                      <span className="text-3xl font-black text-yellow-700 mt-2">{ktaApps.filter(k => k.status === 'pending').length}</span>
-                    </div>
-                    <div className="bg-green-50/55 p-5 rounded-3xl border border-green-100 flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Approved (Disetujui)</span>
-                      <span className="text-3xl font-black text-green-700 mt-2">{ktaApps.filter(k => k.status === 'approved').length}</span>
-                    </div>
-                    <div className="bg-blue-50/55 p-5 rounded-3xl border border-blue-100 flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">KTA Digital</span>
-                      <span className="text-3xl font-black text-blue-700 mt-2">
-                        {ktaApps.filter(k => k.status === 'approved' && (k.jenisKta === 'Digital' || !k.jenisKta)).length}
-                      </span>
-                    </div>
-                    <div className="bg-indigo-50/55 p-5 rounded-3xl border border-indigo-100 flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">KTA Fisik</span>
-                      <span className="text-3xl font-black text-indigo-700 mt-2">
-                        {ktaApps.filter(k => k.status === 'approved' && k.jenisKta === 'Fisik').length}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Visual breakdowns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Tingkatan HW Breakdown */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                      <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                        <Award size={16} className="text-hw-green" />
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Statistik Tingkatan HW</h4>
-                      </div>
-                      <div className="space-y-3.5 text-xs font-bold text-gray-700">
-                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map((tingkatan) => {
-                          const count = ktaApps.filter(k => k.tingkatan === tingkatan).length;
-                          const approved = ktaApps.filter(k => k.tingkatan === tingkatan && k.status === 'approved').length;
-                          const pending = ktaApps.filter(k => k.tingkatan === tingkatan && k.status === 'pending').length;
-                          const maxCount = Math.max(...['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(t => ktaApps.filter(k => k.tingkatan === t).length), 1);
-                          return (
-                            <div key={tingkatan} className="space-y-1">
-                              <div className="flex justify-between items-center text-[11px]">
-                                <span className="text-gray-800 font-extrabold">{tingkatan}</span>
-                                <span className="text-gray-400 font-mono">{count} total <span className="text-green-600">({approved} approved)</span></span>
-                              </div>
-                              <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
-                                <div 
-                                  style={{ width: `${(approved / maxCount) * 100}%` }} 
-                                  className="bg-hw-green h-full rounded-l-full"
-                                />
-                                <div 
-                                  style={{ width: `${(pending / maxCount) * 100}%` }} 
-                                  className="bg-yellow-400 h-full rounded-r-full"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* General Summary */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 pb-2 border-b border-gray-50 mb-3">
-                          <Users size={16} className="text-hw-green" />
-                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Ringkasan Pengajuan</h4>
-                        </div>
-                        <div className="divide-y divide-gray-50 text-xs font-bold text-gray-600">
-                          <div className="py-2.5 flex justify-between">
-                            <span>Total Pengajuan Masuk</span>
-                            <span className="text-gray-850 font-black">{ktaApps.length}</span>
-                          </div>
-                          <div className="py-2.5 flex justify-between">
-                            <span>Menunggu Persetujuan (Pending)</span>
-                            <span className="text-yellow-600 font-black">{ktaApps.filter(k => k.status === 'pending').length}</span>
-                          </div>
-                          <div className="py-2.5 flex justify-between">
-                            <span>Telah Disetujui (Approved)</span>
-                            <span className="text-green-600 font-black">{ktaApps.filter(k => k.status === 'approved').length}</span>
-                          </div>
-                          <div className="py-2.5 flex justify-between">
-                            <span>Ditolak / Perlu Revisi</span>
-                            <span className="text-rose-600 font-black">{ktaApps.filter(k => k.status === 'rejected').length}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-150 flex items-center gap-3">
-                        <div className="p-2 bg-hw-green/10 text-hw-green rounded-xl">
-                          <Check size={18} />
-                        </div>
-                        <p className="text-[10px] text-gray-500 font-semibold leading-relaxed">
-                          Anggota yang pengajuannya disetujui dapat mengunduh <strong>KTA Resmi</strong> dalam format PDF langsung dari dasbor mereka.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Sub-tab content 2: Daftar Kwarda & Qabilah PTMA */}
               {activeKtaSubTab === 'kwarda' && (
@@ -6085,8 +6048,8 @@ export default function AdminDashboard() {
                             return (
                               m.namaLengkap?.toLowerCase().includes(q) ||
                               m.email?.toLowerCase().includes(q) ||
-                              m.nik?.includes(q) ||
-                              m.noHp?.includes(q)
+                              String(m.nik || '').includes(q) ||
+                              String(m.noHp || '').includes(q)
                             );
                           }).slice(0, 10).length === 0 ? (
                             <p className="text-center text-[11px] font-bold text-gray-400 py-6">Tidak ada anggota terdaftar yang cocok</p>
@@ -6097,8 +6060,8 @@ export default function AdminDashboard() {
                               return (
                                 m.namaLengkap?.toLowerCase().includes(q) ||
                                 m.email?.toLowerCase().includes(q) ||
-                                m.nik?.includes(q) ||
-                                m.noHp?.includes(q)
+                                String(m.nik || '').includes(q) ||
+                                String(m.noHp || '').includes(q)
                               );
                             }).slice(0, 5).map(m => (
                               <button

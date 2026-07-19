@@ -324,14 +324,14 @@ export default function DaftarPelatihanPage() {
                       {allMembers.filter(m => 
                         m.namaLengkap.toLowerCase().includes(lookupQuery.toLowerCase()) ||
                         m.email.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                        (m.noHp || '').includes(lookupQuery)
+                        String(m.noHp || '').includes(lookupQuery)
                       ).length === 0 ? (
                         <p className="p-3 text-[11px] text-gray-400 font-bold text-center">Data anggota tidak ditemukan</p>
                       ) : (
                         allMembers.filter(m => 
                           m.namaLengkap.toLowerCase().includes(lookupQuery.toLowerCase()) ||
                           m.email.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                          (m.noHp || '').includes(lookupQuery)
+                          String(m.noHp || '').includes(lookupQuery)
                         ).map(m => (
                           <div key={m.id} className="p-3 flex items-center justify-between hover:bg-gray-50/50">
                             <div>
