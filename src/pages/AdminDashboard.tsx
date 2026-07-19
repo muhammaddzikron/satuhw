@@ -636,7 +636,9 @@ export default function AdminDashboard() {
       setLoading(true);
       const res = await sheetsService.updateKTAStatus(appId, 'approved');
       if (res.success || res.application) {
-        alert('Pengajuan KTA berhasil disetujui!');
+        // Automatically synchronize approved KTAs to members so they enter the general member list immediately
+        await sheetsService.syncApprovedKtasToMembers();
+        alert('Pengajuan KTA berhasil disetujui dan data otomatis masuk ke anggota umum!');
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
@@ -1784,45 +1786,17 @@ export default function AdminDashboard() {
                           if (window.confirm(`Apakah Anda yakin ingin menyinkronkan semua (${unsyncedApprovedRegistrants.length}) data pendaftar ini secara otomatis?`)) {
                             try {
                               setLoading(true);
-                              let count = 0;
-                              for (const item of unsyncedApprovedRegistrants) {
-                                if (item.type === 'no_account') {
-                                  const newMember = {
-                                    email: item.ktaApp.email,
-                                    namaLengkap: item.ktaApp.nama,
-                                    jenisKelamin: item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L',
-                                    golongan: item.ktaApp.tingkatan || 'Umum',
-                                    asalKwarda: item.ktaApp.asalDaerah || '',
-                                    qabilah: item.ktaApp.qabilah || '',
-                                    alamat: item.ktaApp.alamat || '',
-                                    noHp: item.ktaApp.noWa || '',
-                                    isVerified: true,
-                                    role: 'umum',
-                                    roles: ['umum'],
-                                    activeRole: 'umum'
-                                  };
-                                  await sheetsService.saveMember(newMember);
-                                } else {
-                                  const updated = {
-                                    ...item.member,
-                                    namaLengkap: item.ktaApp.nama,
-                                    isVerified: true,
-                                    jenisKelamin: item.member.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
-                                    asalKwarda: item.member.asalKwarda || item.ktaApp.asalDaerah || '',
-                                    qabilah: item.member.qabilah || item.ktaApp.qabilah || '',
-                                    alamat: item.member.alamat || item.ktaApp.alamat || '',
-                                    noHp: item.member.noHp || item.ktaApp.noWa || ''
-                                  };
-                                  await sheetsService.saveMember(updated);
-                                }
-                                count++;
+                              const res = await sheetsService.syncApprovedKtasToMembers();
+                              if (res.success || !res.error) {
+                                alert(`Berhasil menyinkronkan data pendaftar! ${res.addedCount || 0} akun baru dibuat, ${res.updatedCount || 0} akun diperbarui.`);
+                              } else {
+                                throw new Error(res.message || 'Error');
                               }
-                              alert(`Berhasil menyinkronkan ${count} data pendaftar ke daftar anggota!`);
                               const data = await sheetsService.getMembers();
                               setMembers(data || []);
                             } catch (err: any) {
                               console.error(err);
-                              alert('Gagal menyinkronkan beberapa data: ' + err.message);
+                              alert('Gagal menyinkronkan data: ' + err.message);
                             } finally {
                               setLoading(false);
                             }

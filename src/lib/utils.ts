@@ -300,7 +300,7 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
                 return val;
               };
             }
-            const val = Reflect.get(target, prop, receiver);
+            const val = Reflect.get(target, prop);
             if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
               return replaceOklchWithFallback(val);
             }

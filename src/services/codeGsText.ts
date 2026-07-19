@@ -143,6 +143,10 @@ function doPost(e) {
       return handleSyncDatabase();
     }
 
+    if (action == 'syncApprovedKtasToMembers') {
+      return handleSyncApprovedKtasToMembers();
+    }
+
     if (action == 'backupNow') {
       return handleBackupNow();
     }
@@ -1769,6 +1773,126 @@ function handleUpdateTrainingSchedule(id, lokasiPelatihan, tanggalPelatihan) {
   });
   
   return responseOk({ success: true, application: clientApp });
+}
+
+function handleSyncApprovedKtasToMembers() {
+  var userSheet = getSheet('Users');
+  var usersRange = userSheet.getDataRange();
+  var usersData = usersRange.getValues();
+  var userHeaders = usersData[0].map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
+  
+  var ktaSheet = getSheet('KTA_Applications');
+  var ktas = getRowsAsObjects(ktaSheet);
+  
+  var emailColIdx = userHeaders.indexOf('email');
+  var idColIdx = userHeaders.indexOf('id');
+  var nameColIdx = userHeaders.indexOf('namalengkap');
+  var genderColIdx = userHeaders.indexOf('jeniskelamin');
+  var kwardaColIdx = userHeaders.indexOf('asalkwarda');
+  var qabilahColIdx = userHeaders.indexOf('qabilah');
+  var noHpColIdx = userHeaders.indexOf('nohp');
+  var isVerifiedColIdx = userHeaders.indexOf('isverified');
+  var roleColIdx = userHeaders.indexOf('role');
+  var photoColIdx = userHeaders.indexOf('photo');
+  if (photoColIdx === -1) photoColIdx = userHeaders.indexOf('foto');
+  
+  // Create a map of existing users by email pointing to their row index in usersData array
+  var userRowIndexByEmail = {};
+  for (var r = 1; r < usersData.length; r++) {
+    var email = (usersData[r][emailColIdx] || "").toString().trim().toLowerCase();
+    if (email) {
+      userRowIndexByEmail[email] = r;
+    }
+  }
+  
+  var addedCount = 0;
+  var updatedCount = 0;
+  
+  ktas.forEach(function(k) {
+    var kStatus = (k.status || k.Status || "").toString().trim().toLowerCase();
+    if (kStatus !== 'approved') return;
+    
+    var kEmail = (k.email || k.Email || "").toString().trim().toLowerCase();
+    if (!kEmail) return;
+    
+    var kName = (k.nama || k.namaLengkap || k.Nama || k.NamaLengkap || "").toString().trim();
+    var kGender = (k.jenisKelamin || k.jenis_kelamin || "L").toString().trim();
+    if (kGender === 'Perempuan' || kGender === 'P') kGender = 'P';
+    else kGender = 'L';
+    
+    var kKwarda = (k.asalDaerah || k.asal_daerah || k.asalKwarda || "").toString().trim();
+    var kQabilah = (k.qabilah || k.Qabilah || "").toString().trim();
+    var kNoHp = (k.noWa || k.nowa || k.noHp || k.nohp || "").toString().trim();
+    var kPhoto = (k.photo || k.foto || "").toString().trim();
+    
+    if (userRowIndexByEmail[kEmail] === undefined) {
+      // Create new user row data
+      var id = 'user-' + kEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      var rowData = new Array(userHeaders.length).fill("");
+      userHeaders.forEach(function(hLower, i) {
+        if (hLower === 'id') rowData[i] = id;
+        else if (hLower === 'email') rowData[i] = kEmail;
+        else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
+        else if (hLower === 'namalengkap') rowData[i] = kName;
+        else if (hLower === 'role') rowData[i] = '[\"umum\"]';
+        else if (hLower === 'jeniskelamin') rowData[i] = kGender;
+        else if (hLower === 'golongan') rowData[i] = k.tingkatan || "Dewasa";
+        else if (hLower === 'asalkwarda') rowData[i] = kKwarda;
+        else if (hLower === 'qabilah') rowData[i] = kQabilah;
+        else if (hLower === 'isverified') rowData[i] = true;
+        else if (hLower === 'nohp') rowData[i] = kNoHp;
+        if (photoColIdx !== -1 && (hLower === 'photo' || hLower === 'foto')) rowData[i] = kPhoto;
+        else if (hLower === 'upgraderequests') rowData[i] = "[]";
+      });
+      usersData.push(rowData);
+      userRowIndexByEmail[kEmail] = usersData.length - 1;
+      addedCount++;
+    } else {
+      // Update existing row in usersData
+      var rIdx = userRowIndexByEmail[kEmail];
+      var needsUpdate = false;
+      
+      if (!usersData[rIdx][nameColIdx] || usersData[rIdx][nameColIdx].toString().trim().toLowerCase() !== kName.toLowerCase()) {
+        usersData[rIdx][nameColIdx] = kName;
+        needsUpdate = true;
+      }
+      if (usersData[rIdx][genderColIdx] !== kGender) {
+        usersData[rIdx][genderColIdx] = kGender;
+        needsUpdate = true;
+      }
+      if (!usersData[rIdx][kwardaColIdx] || usersData[rIdx][kwardaColIdx].toString().trim() === '') {
+        usersData[rIdx][kwardaColIdx] = kKwarda;
+        needsUpdate = true;
+      }
+      if (!usersData[rIdx][qabilahColIdx] || usersData[rIdx][qabilahColIdx].toString().trim() === '') {
+        usersData[rIdx][qabilahColIdx] = kQabilah;
+        needsUpdate = true;
+      }
+      if (!usersData[rIdx][noHpColIdx] || usersData[rIdx][noHpColIdx].toString().trim() === '') {
+        usersData[rIdx][noHpColIdx] = kNoHp;
+        needsUpdate = true;
+      }
+      if (usersData[rIdx][isVerifiedColIdx] !== true && usersData[rIdx][isVerifiedColIdx] !== "true" && usersData[rIdx][isVerifiedColIdx] !== 1) {
+        usersData[rIdx][isVerifiedColIdx] = true;
+        needsUpdate = true;
+      }
+      if (photoColIdx !== -1 && (!usersData[rIdx][photoColIdx] || usersData[rIdx][photoColIdx].toString().trim() === '') && kPhoto) {
+        usersData[rIdx][photoColIdx] = kPhoto;
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+        updatedCount++;
+      }
+    }
+  });
+  
+  if (addedCount > 0 || updatedCount > 0) {
+    // Clear and write back all data
+    userSheet.getRange(1, 1, usersData.length, userHeaders.length).setValues(usersData);
+  }
+  
+  return responseOk({ success: true, addedCount: addedCount, updatedCount: updatedCount });
 }
 
 `;
