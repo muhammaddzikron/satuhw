@@ -803,13 +803,30 @@ export const sheetsService = {
           console.error(e);
         }
       }
+      
+      const existingIndex = list.findIndex((item: any) => 
+        (ktaData.id && item.id === ktaData.id) || 
+        (item.email && ktaData.email && item.email.toLowerCase().trim() === ktaData.email.toLowerCase().trim()) ||
+        (item.userId && ktaData.userId && String(item.userId) === String(ktaData.userId))
+      );
+      
+      const existingApp = existingIndex > -1 ? list[existingIndex] : null;
+      
       const newApp = {
-        id: 'kta-' + Math.random().toString(36).substring(2, 9),
-        status: 'pending',
-        tanggalAjuan: new Date().toISOString(),
+        id: ktaData.id && !ktaData.id.startsWith('kta-sync-') 
+          ? ktaData.id 
+          : (existingApp ? existingApp.id : 'kta-' + Math.random().toString(36).substring(2, 9)),
+        status: existingApp ? (existingApp.status === 'rejected' ? 'pending' : existingApp.status) : 'pending',
+        tanggalAjuan: existingApp ? (existingApp.tanggalAjuan || existingApp.tanggalajuan || new Date().toISOString()) : new Date().toISOString(),
         ...ktaData
       };
-      list = list.filter((item: any) => item.email !== ktaData.email && item.userId !== ktaData.userId);
+      
+      if (existingApp && existingApp.ktaNumber && !newApp.ktaNumber) {
+        newApp.ktaNumber = existingApp.ktaNumber;
+      }
+      
+      list = list.filter((item: any, idx) => idx !== existingIndex);
+      list = list.filter((item: any) => item.email !== ktaData.email && item.userId !== ktaData.userId && item.id !== newApp.id);
       list.push(newApp);
       localStorage.setItem('kta_applications', JSON.stringify(list));
       return { success: true, application: newApp };
@@ -822,13 +839,36 @@ export const sheetsService = {
     } catch (e) {
       console.error('applyKTA API error, falling back to local storage:', e);
       const stored = localStorage.getItem('kta_applications') || '[]';
-      const list = JSON.parse(stored);
+      let list = [];
+      try {
+        list = JSON.parse(stored);
+      } catch (err) {
+        console.error(err);
+      }
+      
+      const existingIndex = list.findIndex((item: any) => 
+        (ktaData.id && item.id === ktaData.id) || 
+        (item.email && ktaData.email && item.email.toLowerCase().trim() === ktaData.email.toLowerCase().trim()) ||
+        (item.userId && ktaData.userId && String(item.userId) === String(ktaData.userId))
+      );
+      
+      const existingApp = existingIndex > -1 ? list[existingIndex] : null;
+      
       const newApp = {
-        id: 'kta-' + Math.random().toString(36).substring(2, 9),
-        status: 'pending',
-        tanggalAjuan: new Date().toISOString(),
+        id: ktaData.id && !ktaData.id.startsWith('kta-sync-') 
+          ? ktaData.id 
+          : (existingApp ? existingApp.id : 'kta-' + Math.random().toString(36).substring(2, 9)),
+        status: existingApp ? (existingApp.status === 'rejected' ? 'pending' : existingApp.status) : 'pending',
+        tanggalAjuan: existingApp ? (existingApp.tanggalAjuan || existingApp.tanggalajuan || new Date().toISOString()) : new Date().toISOString(),
         ...ktaData
       };
+      
+      if (existingApp && existingApp.ktaNumber && !newApp.ktaNumber) {
+        newApp.ktaNumber = existingApp.ktaNumber;
+      }
+      
+      list = list.filter((item: any, idx) => idx !== existingIndex);
+      list = list.filter((item: any) => item.email !== ktaData.email && item.userId !== ktaData.userId && item.id !== newApp.id);
       list.push(newApp);
       localStorage.setItem('kta_applications', JSON.stringify(list));
       return { success: true, application: newApp };

@@ -1052,10 +1052,32 @@ function handleApplyKTA(data) {
     else if (header === 'nowa') rowData[i] = data.noWa || "";
     else if (header === 'email') rowData[i] = data.email || "";
     else if (header === 'sosmed') rowData[i] = data.sosmed || "";
-    else if (header === 'photo') rowData[i] = data.photo || "";
+    else if (header === 'photo') {
+      var ktaPhoto = data.photo || "";
+      if (typeof ktaPhoto === 'string' && ktaPhoto.indexOf('data:') === 0 && ktaPhoto.indexOf(';base64,') > -1) {
+        try {
+          var mimeType = ktaPhoto.split(';base64,')[0].split(':')[1];
+          var extension = '.png';
+          if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') extension = '.jpg';
+          else if (mimeType === 'image/gif') extension = '.gif';
+          var timestamp = new Date().getTime().toString();
+          var fileName = "KTA_" + (data.nama || "anggota").toString().replace(/[^a-zA-Z0-9]/g, '_') + "_" + timestamp + extension;
+          ktaPhoto = uploadBase64ToDrive(ktaPhoto, fileName);
+        } catch (err) {
+          // fallback
+        }
+      }
+      rowData[i] = ktaPhoto;
+    }
     else if (header === 'tingkatan') rowData[i] = data.tingkatan || "";
     else if (header === 'asaldaerah') rowData[i] = data.asalDaerah || "";
-    else if (header === 'status') rowData[i] = existing ? (existing.status || existing.Status || "pending") : "pending";
+    else if (header === 'status') {
+      var currentStatus = existing ? (existing.status || existing.Status || "pending") : "pending";
+      if (currentStatus.toString().toLowerCase() === 'rejected') {
+        currentStatus = 'pending';
+      }
+      rowData[i] = currentStatus;
+    }
     else if (header === 'tanggalajuan') rowData[i] = existing ? (existing.tanggalajuan || existing.tanggalAjuan || existing.TanggalAjuan || new Date().toISOString()) : new Date().toISOString();
     else if (header === 'ktanumber') rowData[i] = existing ? (existing.ktanumber || existing.ktaNumber || "") : "";
     else if (header === 'remark') rowData[i] = existing ? (existing.remark || existing.Remark || "") : "";
@@ -1074,11 +1096,11 @@ function handleApplyKTA(data) {
     sheet.appendRow(rowData);
   }
   
-  // Automatically update photo in Members sheet if set
+  // Automatically update photo in Users sheet if set
   var finalKtaPhoto = rowData[headers.indexOf('photo')];
   if (finalKtaPhoto) {
     try {
-      var membersSheet = getSheet('Members');
+      var membersSheet = getSheet('Users');
       if (membersSheet) {
         var membersHeaders = membersSheet.getRange(1, 1, 1, membersSheet.getLastColumn()).getValues()[0].map(function(h) { 
           return h ? h.toString().trim().toLowerCase() : ""; 
