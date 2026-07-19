@@ -563,43 +563,103 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Elongated KTA Banner Button */}
-      <section className="px-1">
-        <Link 
-          to={isAuthenticated ? "/kta" : "/register"} 
-          className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-2xl text-white">
-              <CreditCard size={20} />
-            </div>
-            <div className="text-left space-y-0.5">
-              <h4 className="text-xs font-black uppercase tracking-wider">Buat KTA HW Jateng</h4>
-              <p className="text-[9px] text-emerald-100 font-semibold leading-none">Ajukan & cetak Kartu Tanda Anggota Digital resmi sekarang</p>
-            </div>
-          </div>
-          <ChevronRight size={16} className="text-emerald-200" />
-        </Link>
-      </section>
+      {/* Conditional KTA & Training Banners based on authentication */}
+      {!isAuthenticated ? (
+        <section className="px-1">
+          <div className="bg-white rounded-[2rem] border border-gray-150 p-6 shadow-sm space-y-5">
+            <div className="space-y-4">
+              {/* Option 1: Already has account */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50/50 border border-orange-100/50 flex items-start gap-3">
+                <div className="p-2 bg-orange-600 text-white rounded-xl mt-0.5 shrink-0">
+                  <GraduationCap size={16} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-[11px] font-black text-gray-800 uppercase tracking-wider font-display">Pendaftaran Pelatihan</h4>
+                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                    Sudah punya akun? Silahkan <Link to="/login" className="text-orange-600 hover:underline font-black">login</Link> dan Daftar Pelatihannya
+                  </p>
+                  <Link 
+                    to="/login" 
+                    className="inline-flex items-center gap-1 text-[10px] text-orange-600 font-extrabold hover:underline uppercase tracking-wider mt-1.5"
+                  >
+                    Masuk & Daftar Pelatihan <ChevronRight size={10} />
+                  </Link>
+                </div>
+              </div>
 
-      {/* Elongated Training Banner Button */}
-      <section className="px-1">
-        <Link 
-          to="/daftar-pelatihan" 
-          className="flex items-center justify-between bg-gradient-to-r from-orange-600 to-yellow-500 text-white p-4 rounded-3xl shadow-md shadow-orange-600/20 hover:shadow-lg transition-all border border-orange-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/20 rounded-2xl text-white">
-              <GraduationCap size={20} />
+              {/* Option 2: No account yet */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-hw-green/5 to-emerald-50/30 border border-hw-green/10 flex items-start gap-3">
+                <div className="p-2 bg-hw-green text-white rounded-xl mt-0.5 shrink-0">
+                  <CreditCard size={16} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-[11px] font-black text-gray-800 uppercase tracking-wider font-display">Belum Punya Akun?</h4>
+                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                    Jika belum punya akun, daftar dulu dengan membuat Kartu Anggota dibawah ini
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="text-left space-y-0.5">
-              <h4 className="text-xs font-black uppercase tracking-wider">Daftar Pelatihan JATI 1/ JATI 2/ JARI 1</h4>
-              <p className="text-[9px] text-orange-50 font-semibold leading-none">Ikuti pelatihan Kepanduan HW resmi & buka akses modul latih Anda</p>
-            </div>
+
+            {/* Attached KTA Banner */}
+            <Link 
+              to="/register" 
+              className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-2.5xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-xl text-white">
+                  <CreditCard size={18} />
+                </div>
+                <div className="text-left space-y-0.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider">Buat KTA HW Jateng</h4>
+                  <p className="text-[9px] text-emerald-100 font-semibold leading-none">Daftar Akun Baru & Dapatkan KTA Digital</p>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-emerald-200" />
+            </Link>
           </div>
-          <ChevronRight size={16} className="text-orange-100" />
-        </Link>
-      </section>
+        </section>
+      ) : (
+        <>
+          {/* Elongated KTA Banner Button for Authenticated Users */}
+          <section className="px-1">
+            <Link 
+              to="/kta" 
+              className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/10 rounded-2xl text-white">
+                  <CreditCard size={20} />
+                </div>
+                <div className="text-left space-y-0.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider">Buat KTA HW Jateng</h4>
+                  <p className="text-[9px] text-emerald-100 font-semibold leading-none">Ajukan & cetak Kartu Tanda Anggota Digital resmi sekarang</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-emerald-200" />
+            </Link>
+          </section>
+
+          {/* Elongated Training Banner Button for Authenticated Users */}
+          <section className="px-1">
+            <Link 
+              to="/daftar-pelatihan" 
+              className="flex items-center justify-between bg-gradient-to-r from-orange-600 to-yellow-500 text-white p-4 rounded-3xl shadow-md shadow-orange-600/20 hover:shadow-lg transition-all border border-orange-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-2xl text-white">
+                  <GraduationCap size={20} />
+                </div>
+                <div className="text-left space-y-0.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider">Daftar Pelatihan JATI 1/ JATI 2/ JARI 1</h4>
+                  <p className="text-[9px] text-orange-50 font-semibold leading-none">Ikuti pelatihan Kepanduan HW resmi & buka akses modul latih Anda</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-orange-100" />
+            </Link>
+          </section>
+        </>
+      )}
 
       {/* Gallery Section Preview */}
       <section className="space-y-4">

@@ -1782,10 +1782,19 @@ export const sheetsService = {
         
         let addedCount = 0;
         let updatedCount = 0;
+        let ktasChanged = false;
         
         const newMembers = [...members];
         
         ktas.forEach((k: any) => {
+          const kStatus = k.status?.toLowerCase();
+          const ktaNum = (k.ktaNumber || k.KtaNumber || k.Ktanumber || k.ktanumber || '').toString().trim();
+          
+          if (ktaNum !== '' && kStatus !== 'approved') {
+            k.status = 'approved';
+            ktasChanged = true;
+          }
+          
           if (k.status?.toLowerCase() !== 'approved') return;
           const kEmail = k.email?.trim().toLowerCase();
           if (!kEmail) return;
@@ -1838,6 +1847,9 @@ export const sheetsService = {
         });
         
         localStorage.setItem('mock_members', JSON.stringify(newMembers));
+        if (ktasChanged) {
+          localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        }
         return { success: true, addedCount, updatedCount };
       } catch (err: any) {
         return { success: false, message: err.message };

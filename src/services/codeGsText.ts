@@ -428,6 +428,10 @@ function handleGetMembers() {
   
   var ktaSheet = getSheet('KTA_Applications');
   var ktas = getRowsAsObjects(ktaSheet);
+  var ktaHeaders = ktaSheet.getRange(1, 1, 1, ktaSheet.getLastColumn()).getValues()[0].map(function(h) {
+    return h ? h.toString().trim().toLowerCase() : "";
+  });
+  var ktaStatusColIdx = ktaHeaders.indexOf('status');
   
   var existingEmails = {};
   users.forEach(function(u) {
@@ -486,18 +490,31 @@ function handleGetMembers() {
     }
   });
   
-  ktas.forEach(function(k) {
-    var email = k.email || k.Email || k.emailAddress || k.EmailAddress;
-    var nama = k.namaLengkap || k.nama || k.NamaLengkap || k.Nama || k.nama_lengkap;
-    var noWa = k.noHp || k.nohp || k.noWa || k.nowa || k.NoWa;
-    var sosmed = k.sosmed || k.Sosmed;
-    var tingkatan = k.pelatihan || k.tingkatan;
-    var asalDaerah = k.asalKwarda || k.asalkwarda || k.asalDaerah || k.asaldaerah || k.AsalDaerah;
-    var qabilah = k.qabilah || k.Qabilah;
-    var jenisKelamin = k.jenisKelamin || k.jeniskelamin || k.JenisKelamin || "L";
+  ktas.forEach(function(k, idx) {
+    var kStatus = (k.status || k.Status || "").toString().trim().toLowerCase();
+    var ktaNum = (k.ktaNumber || k.KtaNumber || k.Ktanumber || k.ktanumber || "").toString().trim();
     
-    if (email && nama) {
-      addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
+    // Auto-approve if they have a KTA number but status is not approved
+    if (ktaNum !== "" && kStatus !== "approved" && ktaStatusColIdx > -1) {
+      ktaSheet.getRange(idx + 2, ktaStatusColIdx + 1).setValue('approved');
+      k.status = 'approved';
+      kStatus = 'approved';
+    }
+    
+    // Only auto-sync if they have a KTA (either approved status or has KTA number)
+    if (kStatus === 'approved' || ktaNum !== "") {
+      var email = k.email || k.Email || k.emailAddress || k.EmailAddress;
+      var nama = k.namaLengkap || k.nama || k.NamaLengkap || k.Nama || k.nama_lengkap;
+      var noWa = k.noHp || k.nohp || k.noWa || k.nowa || k.NoWa;
+      var sosmed = k.sosmed || k.Sosmed;
+      var tingkatan = k.pelatihan || k.tingkatan;
+      var asalDaerah = k.asalKwarda || k.asalkwarda || k.asalDaerah || k.asaldaerah || k.AsalDaerah;
+      var qabilah = k.qabilah || k.Qabilah;
+      var jenisKelamin = k.jenisKelamin || k.jeniskelamin || k.JenisKelamin || "L";
+      
+      if (email && nama) {
+        addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
+      }
     }
   });
   
@@ -1793,6 +1810,11 @@ function handleSyncApprovedKtasToMembers() {
   var ktaSheet = getSheet('KTA_Applications');
   var ktas = getRowsAsObjects(ktaSheet);
   
+  var ktaHeaders = ktaSheet.getRange(1, 1, 1, ktaSheet.getLastColumn()).getValues()[0].map(function(h) {
+    return h ? h.toString().trim().toLowerCase() : "";
+  });
+  var ktaStatusColIdx = ktaHeaders.indexOf('status');
+  
   var emailColIdx = userHeaders.indexOf('email');
   var idColIdx = userHeaders.indexOf('id');
   var nameColIdx = userHeaders.indexOf('namalengkap');
@@ -1817,8 +1839,17 @@ function handleSyncApprovedKtasToMembers() {
   var addedCount = 0;
   var updatedCount = 0;
   
-  ktas.forEach(function(k) {
+  ktas.forEach(function(k, idx) {
     var kStatus = (k.status || k.Status || "").toString().trim().toLowerCase();
+    var ktaNum = (k.ktaNumber || k.KtaNumber || k.Ktanumber || k.ktanumber || "").toString().trim();
+    
+    // Auto-approve if they have a KTA number but status is not approved
+    if (ktaNum !== "" && kStatus !== "approved" && ktaStatusColIdx > -1) {
+      ktaSheet.getRange(idx + 2, ktaStatusColIdx + 1).setValue('approved');
+      k.status = 'approved';
+      kStatus = 'approved';
+    }
+    
     if (kStatus !== 'approved') return;
     
     var kEmail = (k.email || k.Email || "").toString().trim().toLowerCase();

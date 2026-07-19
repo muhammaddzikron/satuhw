@@ -1058,6 +1058,13 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Auto-sync approved/migrated KTAs to members on dashboard load
+      try {
+        await sheetsService.syncApprovedKtasToMembers();
+      } catch (err) {
+        console.warn('Silent auto-sync failed:', err);
+      }
+
       const [materi, membersData, contentsData, settingsData, ktaData, trainingData] = await Promise.all([
         sheetsService.getMateri('admin'),
         sheetsService.getMembers(),

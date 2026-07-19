@@ -615,79 +615,86 @@ export default function ProfilePage() {
           </div>
 
           {/* KTA Status Card */}
-          <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-50 pb-3">
-              <div className="flex items-center gap-2">
-                <CreditCard size={18} className="text-hw-green" />
-                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">KTA Digital</h4>
-              </div>
-              
-              {loadingKta ? (
-                <span className="animate-pulse px-2.5 py-1 rounded-full bg-gray-50 text-gray-400 text-[10px] font-bold">Memeriksa...</span>
-              ) : ktaApp ? (
-                ktaApp.status === 'approved' ? (
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100 flex items-center gap-1 uppercase tracking-wider">
-                    <ShieldCheck size={12} className="fill-emerald-50" /> Terverifikasi
-                  </span>
-                ) : ktaApp.status === 'rejected' ? (
-                  <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-100 flex items-center gap-1 uppercase tracking-wider">
-                    <ShieldAlert size={12} className="fill-rose-50" /> Ditolak
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-100 flex items-center gap-1 uppercase tracking-wider">
-                    <Info size={12} className="fill-amber-50" /> Dalam Proses
-                  </span>
-                )
-              ) : (
-                <span className="px-2.5 py-1 rounded-full bg-gray-50 text-gray-500 text-[10px] font-bold border border-gray-150 uppercase tracking-wider">
-                  Belum Mengajukan
-                </span>
-              )}
-            </div>
-
-            {ktaApp ? (
-              <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div>
-                    <p className="text-gray-400 font-bold uppercase text-[9px]">Nomor Anggota</p>
-                    <p className="font-mono font-bold text-gray-800">{ktaApp.ktaNumber || 'Belum Terbit'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 font-bold uppercase text-[9px]">Tingkatan</p>
-                    <p className="font-bold text-gray-800">{ktaApp.tingkatan || 'Umum'}</p>
-                  </div>
+          {!(ktaApp && ktaApp.status === 'approved') && (
+            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard size={18} className="text-hw-green" />
+                  <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">KTA Digital</h4>
                 </div>
                 
-                {ktaApp.status === 'rejected' && ktaApp.remark && (
-                  <div className="bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 text-[10px] text-rose-700 font-medium">
-                    <strong>Alasan Penolakan:</strong> {ktaApp.remark}
-                  </div>
+                {loadingKta ? (
+                  <span className="animate-pulse px-2.5 py-1 rounded-full bg-gray-50 text-gray-400 text-[10px] font-bold">Memeriksa...</span>
+                ) : ktaApp ? (
+                  ktaApp.status === 'rejected' ? (
+                    <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-100 flex items-center gap-1 uppercase tracking-wider">
+                      <ShieldAlert size={12} className="fill-rose-50" /> Ditolak
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-100 flex items-center gap-1 uppercase tracking-wider">
+                      <Info size={12} className="fill-amber-50" /> Dalam Proses
+                    </span>
+                  )
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full bg-gray-50 text-gray-500 text-[10px] font-bold border border-gray-150 uppercase tracking-wider">
+                    Belum Mengajukan
+                  </span>
                 )}
+              </div>
 
-                <Link 
-                  to="/kta" 
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-hw-green text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors uppercase tracking-wider"
-                >
-                  <CreditCard size={14} /> Lihat KTA Digital Anda
-                </Link>
-              </div>
-            ) : (
-              <div className="text-center py-4 px-3 space-y-3 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-                  Anda belum mengajukan Kartu Tanda Anggota (KTA) Hizbul Wathan Digital Jawa Tengah.
-                </p>
-                <Link 
-                  to="/kta" 
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-hw-green text-white text-[10px] font-bold rounded-xl hover:bg-emerald-700 transition-colors uppercase tracking-wider"
-                >
-                  Ajukan KTA Sekarang
-                </Link>
-              </div>
-            )}
-          </div>
+              {ktaApp ? (
+                <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <p className="text-gray-400 font-bold uppercase text-[9px]">Nomor Anggota</p>
+                      <p className="font-mono font-bold text-gray-800">{ktaApp.ktaNumber || 'Belum Terbit'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 font-bold uppercase text-[9px]">Tingkatan</p>
+                      <p className="font-bold text-gray-800">{ktaApp.tingkatan || 'Umum'}</p>
+                    </div>
+                  </div>
+                  
+                  {ktaApp.status === 'rejected' && ktaApp.remark && (
+                    <div className="bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 text-[10px] text-rose-700 font-medium">
+                      <strong>Alasan Penolakan:</strong> {ktaApp.remark}
+                    </div>
+                  )}
+
+                  <Link 
+                    to="/kta" 
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-hw-green text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors uppercase tracking-wider"
+                  >
+                    <CreditCard size={14} /> Lihat Status / Formulir KTA
+                  </Link>
+                </div>
+              ) : (
+                <div className="text-center py-4 px-3 space-y-3 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                  <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+                    Anda belum mengajukan Kartu Tanda Anggota (KTA) Hizbul Wathan Digital Jawa Tengah.
+                  </p>
+                  <Link 
+                    to="/kta" 
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-hw-green text-white text-[10px] font-bold rounded-xl hover:bg-emerald-700 transition-colors uppercase tracking-wider"
+                  >
+                    Ajukan KTA Sekarang
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Account Actions */}
           <div className="grid grid-cols-1 gap-3">
+            <button 
+              onClick={() => {
+                setIsEditing(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="w-full bg-hw-blue text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-hw-blue/20 hover:scale-[1.02] transition-all cursor-pointer"
+            >
+              <UserIcon size={18} /> Update Data Diri Anggota
+            </button>
             <Link to="/upgrade" className="w-full bg-hw-green text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-hw-green/20 hover:scale-[1.02] transition-all">
               <Award size={18} /> Upgrade Level Keanggotaan
             </Link>

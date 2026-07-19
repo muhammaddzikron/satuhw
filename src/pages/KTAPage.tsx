@@ -1542,13 +1542,21 @@ export default function KTAPage() {
               <h3 className="text-base font-display font-bold text-gray-800">
                 {showEditForm ? 'Ubah Data Pengajuan KTA' : 'Pendaftaran KTA HW Jateng'}
               </h3>
-              {showEditForm && (
+              {showEditForm ? (
                 <button 
                   type="button"
                   onClick={() => setShowEditForm(false)}
                   className="px-3 py-1 bg-gray-150 hover:bg-gray-200 text-gray-700 text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
                 >
                   Batal Ubah
+                </button>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-extrabold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowLeft size={12} /> Kembali ke Beranda
                 </button>
               )}
             </div>
@@ -1794,22 +1802,31 @@ export default function KTAPage() {
               </label>
             </div>
 
-            {/* Submit Button */}
-            <button 
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 gradient-bg text-white hover:opacity-90 rounded-2xl shadow-lg transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <RefreshCw className="animate-spin" size={16} /> Mengirim Data...
-                </>
-              ) : (
-                <>
-                  <CreditCard size={16} /> Daftar & Dapatkan KTA Sekarang
-                </>
-              )}
-            </button>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                onClick={() => navigate('/')}
+                className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl transition-all text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft size={14} /> Kembali
+              </button>
+              <button 
+                type="submit"
+                disabled={submitting}
+                className="flex-[2] py-3.5 gradient-bg text-white hover:opacity-90 rounded-2xl shadow-lg transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} /> Mengirim...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard size={16} /> Daftar KTA Sekarang
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         </div>
       )}
