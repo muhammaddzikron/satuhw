@@ -221,7 +221,7 @@ function getSheet(name) {
     } else if (name == 'Contents') {
       sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
     } else if (name == 'KTA_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta']);
+      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
     } else if (name == 'Training_Applications') {
       sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
     } else if (name == 'Settings') {

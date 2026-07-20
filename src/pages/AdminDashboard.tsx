@@ -328,12 +328,20 @@ export default function AdminDashboard() {
   // Filter out approved KTA applications whose names or accounts are not fully synchronized with the user/member profiles
   const unsyncedApprovedRegistrants = React.useMemo(() => {
     const list: any[] = [];
+    const isValidId = (id: any): boolean => {
+      if (!id) return false;
+      const s = String(id).trim().toLowerCase();
+      return s !== '' && s !== 'null' && s !== 'undefined' && s !== 'nan' && s !== '0' && s !== 'false';
+    };
+
     ktaApps.filter(app => app.status === 'approved').forEach(app => {
       // Find matching member by email or userId
-      const member = members.find(m => 
-        (app.userId && String(m.id) === String(app.userId)) || 
-        (app.email && m.email?.trim().toLowerCase() === app.email.trim().toLowerCase())
-      );
+      const member = members.find(m => {
+        const hasValidUserId = isValidId(app.userId) && isValidId(m.id);
+        const matchesUserId = hasValidUserId && String(m.id).trim() === String(app.userId).trim();
+        const matchesEmail = app.email && m.email && m.email.trim().toLowerCase() === app.email.trim().toLowerCase();
+        return matchesUserId || matchesEmail;
+      });
       if (!member) {
         list.push({
           type: 'no_account',

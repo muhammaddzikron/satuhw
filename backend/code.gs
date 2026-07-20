@@ -213,9 +213,9 @@ function getSheet(name) {
     } else if (name == 'Contents') {
       sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
     } else if (name == 'KTA_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta']);
+      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
     } else if (name == 'Training_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'lokasiPelatihan', 'tanggalPelatihan']);
+      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
     } else if (name == 'Settings') {
       sheet.appendRow(['key', 'value']);
       sheet.appendRow(['appName', 'Aplikasi HW Banyumas']);
@@ -247,8 +247,8 @@ function handleSyncDatabase() {
   ensureHeaders('Users', ['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests', 'photo']);
   ensureHeaders('Materi', ['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
   ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
-  ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta']);
-  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'lokasiPelatihan', 'tanggalPelatihan']);
+  ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
+  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
   ensureHeaders('Settings', ['key', 'value']);
   return responseOk({ success: true, message: "Database synchronized successfully" });
 }
