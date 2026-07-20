@@ -335,20 +335,33 @@ export default function AdminDashboard() {
     };
 
     ktaApps.filter(app => app.status === 'approved').forEach(app => {
-      // Find matching member by email or userId
+      // Find matching member by email or userId AND matching name
       const member = members.find(m => {
         const hasValidUserId = isValidId(app.userId) && isValidId(m.id);
         const matchesUserId = hasValidUserId && String(m.id).trim() === String(app.userId).trim();
         const matchesEmail = app.email && m.email && m.email.trim().toLowerCase() === app.email.trim().toLowerCase();
-        return matchesUserId || matchesEmail;
+        
+        const isNameMatch = (m.namaLengkap || '').trim().toLowerCase() === (app.nama || '').trim().toLowerCase();
+        const isNameEmpty = !(m.namaLengkap || '').trim();
+        
+        return (matchesUserId || matchesEmail) && (isNameMatch || isNameEmpty);
       });
+
+      // Find any clashing member with same email to check for email collisions (e.g. parent/sibling)
+      const clashingMember = members.find(m => 
+        app.email && m.email && m.email.trim().toLowerCase() === app.email.trim().toLowerCase()
+      );
+
       if (!member) {
         list.push({
           type: 'no_account',
           ktaApp: app,
           email: app.email,
           namaKta: app.nama,
-          message: 'Belum memiliki akun anggota'
+          clashingMember,
+          message: clashingMember 
+            ? `Email bentrok dengan "${clashingMember.namaLengkap || 'Tanpa Nama'}"`
+            : 'Belum memiliki akun anggota'
         });
       } else if (!member.namaLengkap || member.namaLengkap.trim() === '' || member.namaLengkap.trim().toLowerCase() !== app.nama.trim().toLowerCase() || !member.isVerified) {
         list.push({
@@ -415,6 +428,56 @@ export default function AdminDashboard() {
       alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForceSyncRegistrant = async (item: any, targetMember: any) => {
+    if (window.confirm(`Apakah Anda yakin ingin memaksa sinkronisasi dengan menimpa nama anggota "${targetMember.namaLengkap || 'Kosong'}" menjadi "${item.ktaApp.nama}"?`)) {
+      try {
+        setLoading(true);
+        const updated = {
+          ...targetMember,
+          namaLengkap: item.ktaApp.nama,
+          isVerified: true,
+          jenisKelamin: targetMember.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
+          asalKwarda: targetMember.asalKwarda || item.ktaApp.asalDaerah || '',
+          qabilah: targetMember.qabilah || item.ktaApp.qabilah || '',
+          alamat: targetMember.alamat || item.ktaApp.alamat || '',
+          noHp: targetMember.noHp || item.ktaApp.noWa || ''
+        };
+        const res = await sheetsService.saveMember(updated);
+        if (res.success || !res.error) {
+          alert(`Berhasil memperbarui nama anggota menjadi ${item.ktaApp.nama} dan status terverifikasi.`);
+        } else {
+          alert('Gagal memperbarui nama anggota: ' + (res.message || 'Error'));
+        }
+        await fetchData();
+      } catch (e: any) {
+        console.error(e);
+        alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteKtaApp = async (id: string, name: string) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus pengajuan KTA untuk ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
+      try {
+        setLoading(true);
+        const res = await sheetsService.deleteKTAApplication(id);
+        if (res.success || !res.error) {
+          alert(`Berhasil menghapus pengajuan KTA untuk ${name}.`);
+        } else {
+          alert('Gagal menghapus pengajuan: ' + (res.message || 'Error'));
+        }
+        await fetchData();
+      } catch (e: any) {
+        console.error(e);
+        alert('Gagal menghapus pengajuan: ' + (e.message || 'Error'));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -1873,24 +1936,87 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Detailed List */}
-                    <div className="max-h-48 overflow-y-auto divide-y divide-amber-200/30 bg-white/70 rounded-2xl p-3 border border-amber-200/30">
-                      {unsyncedApprovedRegistrants.map((item, idx) => (
-                        <div key={`unsynced-${idx}`} className="py-2.5 flex items-center justify-between text-xs font-semibold gap-4">
-                          <div className="min-w-0">
-                            <span className="font-black text-gray-800 block truncate">{item.namaKta}</span>
-                            <span className="text-[10px] text-gray-500 block truncate font-medium">
-                              {item.email} • <span className="text-amber-700 font-bold">{item.message}</span>
-                              {item.type === 'mismatched_name' && ` (Nama saat ini: ${item.namaAnggota})`}
-                            </span>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-amber-200/30 bg-white/70 rounded-2xl p-3 border border-amber-200/30">
+                      {unsyncedApprovedRegistrants.map((item, idx) => {
+                        const appId = item.ktaApp.id || item.ktaApp.Id;
+                        return (
+                          <div key={`unsynced-${idx}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between text-xs font-semibold gap-3">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-black text-gray-800 block truncate">{item.namaKta}</span>
+                              <span className="text-[10px] text-gray-500 block truncate font-medium">
+                                {item.email} • <span className="text-amber-700 font-bold">{item.message}</span>
+                                {item.type === 'mismatched_name' && ` (Nama anggota saat ini: ${item.namaAnggota})`}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 self-end md:self-center">
+                              {/* If clashing member exists, offer overwrite option */}
+                              {item.type === 'no_account' && item.clashingMember && (
+                                <>
+                                  <button
+                                    onClick={() => handleSyncRegistrant(item)}
+                                    title="Membuat akun anggota baru yang terpisah dengan email yang sama"
+                                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Buat Baru
+                                  </button>
+                                  <button
+                                    onClick={() => handleForceSyncRegistrant(item, item.clashingMember)}
+                                    title={`Menimpa nama "${item.clashingMember.namaLengkap}" menjadi "${item.namaKta}"`}
+                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Timpa Nama
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Normal no_account (no clashing member) */}
+                              {item.type === 'no_account' && !item.clashingMember && (
+                                <button
+                                  onClick={() => handleSyncRegistrant(item)}
+                                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                  Sinkronkan
+                                </button>
+                              )}
+
+                              {/* Mismatched name option */}
+                              {item.type === 'mismatched_name' && (
+                                <>
+                                  <button
+                                    onClick={() => handleSyncRegistrant(item)}
+                                    title="Perbarui nama pada akun yang ada"
+                                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Perbarui Akun
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      // Force creating a separate account instead of updating existing
+                                      const forcedItem = { ...item, type: 'no_account' };
+                                      handleSyncRegistrant(forcedItem);
+                                    }}
+                                    title="Buat akun terpisah dengan email yang sama"
+                                    className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Buat Baru
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Always allow deletion of the KTA application */}
+                              {appId && (
+                                <button
+                                  onClick={() => handleDeleteKtaApp(appId, item.namaKta)}
+                                  title="Hapus pengajuan KTA ini dari sistem"
+                                  className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                  Hapus
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleSyncRegistrant(item)}
-                            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 shadow-sm border border-amber-200"
-                          >
-                            Sinkronkan
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

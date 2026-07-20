@@ -159,6 +159,10 @@ function doPost(e) {
       return handleUpdateKTAStatus(data.id, data.status, data.ktaNumber, data.remark);
     }
 
+    if (action == 'deleteKTAApplication') {
+      return handleDeleteKTAApplication(data.id);
+    }
+
     if (action == 'applyTraining') {
       return handleApplyTraining(data);
     }
@@ -511,24 +515,30 @@ function handleSaveMember(data) {
   var users = getRowsAsObjects(sheet);
   var dataId = (getRobustValue(data, ['id', 'Id']) || '').toString().trim();
   var dataEmail = (getRobustValue(data, ['email', 'Email']) || '').toString().trim().toLowerCase();
+  var dataName = (getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'nama_lengkap', 'nama lengkap']) || '').toString().trim().toLowerCase();
   var finalProfilePhoto = "";
   
-  var rowIndex = users.findIndex(function(u) { 
-    var uId = (u.id || u.Id || '').toString().trim();
-    var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
-    
-    if (dataId !== '' && uId !== '') {
+  var rowIndex = -1;
+  if (dataId !== '') {
+    rowIndex = users.findIndex(function(u) { 
+      var uId = (u.id || u.Id || '').toString().trim();
+      var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+      
       if (uId === dataId) return true;
-    }
-    if (uEmail !== '') {
-      var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
-      if (stableId === dataId) return true;
-    }
-    if (dataEmail !== '' && uEmail === dataEmail) {
-      return true;
-    }
-    return false;
-  });
+      if (uEmail !== '') {
+        var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
+        if (stableId === dataId) return true;
+      }
+      return false;
+    });
+  } else if (dataEmail !== '') {
+    // Match by both email and name to allow multiple members under the same email
+    rowIndex = users.findIndex(function(u) {
+      var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+      var uName = (u.namaLengkap || u.namalengkap || u.nama || u.nama_lengkap || '').toString().trim().toLowerCase();
+      return uEmail === dataEmail && uName === dataName;
+    });
+  }
   
   var existing = rowIndex > -1 ? users[rowIndex] : null;
   
@@ -1679,8 +1689,8 @@ function handleSyncApprovedKtasToMembers() {
   var ktaSheet = getSheet('KTA_Applications');
   var ktas = getRowsAsObjects(ktaSheet);
   
-  var emailColIdx = userHeaders.indexOf('email');
   var idColIdx = userHeaders.indexOf('id');
+  var emailColIdx = userHeaders.indexOf('email');
   var nameColIdx = userHeaders.indexOf('namalengkap');
   var genderColIdx = userHeaders.indexOf('jeniskelamin');
   var kwardaColIdx = userHeaders.indexOf('asalkwarda');
@@ -1691,12 +1701,19 @@ function handleSyncApprovedKtasToMembers() {
   var photoColIdx = userHeaders.indexOf('photo');
   if (photoColIdx === -1) photoColIdx = userHeaders.indexOf('foto');
   
-  // Create a map of existing users by email pointing to their row index in usersData array
-  var userRowIndexByEmail = {};
+  // Index existing users by id, and also by email + '|' + name (lowercase and trimmed)
+  var userRowIndexById = {};
+  var userRowIndexByEmailAndName = {};
+  
   for (var r = 1; r < usersData.length; r++) {
-    var email = (usersData[r][emailColIdx] || "").toString().trim().toLowerCase();
-    if (email) {
-      userRowIndexByEmail[email] = r;
+    var uId = (usersData[r][idColIdx] || "").toString().trim();
+    if (uId) {
+      userRowIndexById[uId] = r;
+    }
+    var uEmail = (usersData[r][emailColIdx] || "").toString().trim().toLowerCase();
+    var uName = (usersData[r][nameColIdx] || "").toString().trim().toLowerCase();
+    if (uEmail && uName) {
+      userRowIndexByEmailAndName[uEmail + '|' + uName] = r;
     }
   }
   
@@ -1720,12 +1737,36 @@ function handleSyncApprovedKtasToMembers() {
     var kNoHp = (k.noWa || k.nowa || k.noHp || k.nohp || "").toString().trim();
     var kPhoto = (k.photo || k.foto || "").toString().trim();
     
-    if (userRowIndexByEmail[kEmail] === undefined) {
+    // Look up existing user by:
+    // 1. Email + Name (exact match of email and name)
+    // 2. Or, if the application has a userId that exists in our users list AND that user has the same name (to be safe)
+    var rIdx = userRowIndexByEmailAndName[kEmail + '|' + kName.toLowerCase()];
+    
+    if (rIdx === undefined && k.userId) {
+      var kUserId = k.userId.toString().trim();
+      if (userRowIndexById[kUserId] !== undefined) {
+        var existingName = (usersData[userRowIndexById[kUserId]][nameColIdx] || "").toString().trim().toLowerCase();
+        // Only match by userId if the name is empty or matches kName to prevent overwriting someone else's name
+        if (existingName === "" || existingName === kName.toLowerCase()) {
+          rIdx = userRowIndexById[kUserId];
+        }
+      }
+    }
+    
+    if (rIdx === undefined) {
       // Create new user row data
-      var id = 'user-' + kEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      var sanitizedName = kName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      var sanitizedEmail = kEmail.replace(/[^a-zA-Z0-9]/g, '_');
+      var uniqueId = 'user-' + sanitizedEmail + '-' + sanitizedName;
+      
+      // Ensure uniqueId doesn't collide
+      if (userRowIndexById[uniqueId] !== undefined) {
+        uniqueId = 'user-' + sanitizedEmail + '-' + new Date().getTime() + '-' + Math.floor(Math.random() * 1000);
+      }
+      
       var rowData = new Array(userHeaders.length).fill("");
       userHeaders.forEach(function(hLower, i) {
-        if (hLower === 'id') rowData[i] = id;
+        if (hLower === 'id') rowData[i] = uniqueId;
         else if (hLower === 'email') rowData[i] = kEmail;
         else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
         else if (hLower === 'namalengkap') rowData[i] = kName;
@@ -1740,11 +1781,15 @@ function handleSyncApprovedKtasToMembers() {
         else if (hLower === 'upgraderequests') rowData[i] = "[]";
       });
       usersData.push(rowData);
-      userRowIndexByEmail[kEmail] = usersData.length - 1;
+      
+      // Update our indexes
+      var newIdx = usersData.length - 1;
+      userRowIndexById[uniqueId] = newIdx;
+      userRowIndexByEmailAndName[kEmail + '|' + kName.toLowerCase()] = newIdx;
+      
       addedCount++;
     } else {
       // Update existing row in usersData
-      var rIdx = userRowIndexByEmail[kEmail];
       var needsUpdate = false;
       
       if (!usersData[rIdx][nameColIdx] || usersData[rIdx][nameColIdx].toString().trim().toLowerCase() !== kName.toLowerCase()) {
@@ -1788,5 +1833,19 @@ function handleSyncApprovedKtasToMembers() {
   }
   
   return responseOk({ success: true, addedCount: addedCount, updatedCount: updatedCount });
+}
+
+function handleDeleteKTAApplication(id) {
+  var sheet = getSheet('KTA_Applications');
+  var apps = getRowsAsObjects(sheet);
+  var rowIndex = apps.findIndex(function(app) { 
+    var appId = (app.id || app.Id || '').toString().trim();
+    return appId === id.toString().trim() && appId !== ''; 
+  });
+  if (rowIndex > -1) {
+    sheet.deleteRow(rowIndex + 2);
+    return responseOk({ success: true, message: "KTA Application deleted successfully" });
+  }
+  return responseError("Pengajuan KTA tidak ditemukan");
 }
 

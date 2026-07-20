@@ -1097,6 +1097,43 @@ export const sheetsService = {
     }
   },
 
+  async deleteKTAApplication(id: string): Promise<any> {
+    if (!IS_API_VALID) {
+      const stored = localStorage.getItem('kta_applications');
+      if (stored) {
+        try {
+          let list = JSON.parse(stored);
+          const idx = list.findIndex((x: any) => String(x.id) === String(id));
+          if (idx !== -1) {
+            list.splice(idx, 1);
+            localStorage.setItem('kta_applications', JSON.stringify(list));
+            return { success: true };
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return { success: false, message: 'Application not found locally' };
+    }
+    try {
+      return await this.post({
+        action: 'deleteKTAApplication',
+        id
+      });
+    } catch (e) {
+      console.error('deleteKTAApplication API error, falling back to local storage:', e);
+      const stored = localStorage.getItem('kta_applications') || '[]';
+      let list = JSON.parse(stored);
+      const idx = list.findIndex((x: any) => String(x.id) === String(id));
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        localStorage.setItem('kta_applications', JSON.stringify(list));
+        return { success: true };
+      }
+      return { success: false, message: 'Failed to delete application' };
+    }
+  },
+
   async getTrainingApplications(): Promise<any[]> {
     if (!IS_API_VALID) {
       const stored = localStorage.getItem('training_applications');
