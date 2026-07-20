@@ -3552,8 +3552,8 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Footer & Signatures Block */}
-                                <div className="border-t border-gray-100 pt-1 z-10 flex items-center justify-between relative">
-                                  <span className="text-[5px] font-mono font-bold text-gray-400">SEUMUR HIDUP • JAWA TENGAH</span>
+                                <div className="pt-1 z-10 flex items-center justify-between relative">
+                                  <span className="text-[5px]"></span>
                                   
                                   {/* Right side signatures section */}
                                   <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
@@ -7152,8 +7152,8 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Card Footer */}
-                        <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-auto", ktaFrontBg ? "border-gray-100" : "border-white/10")}>
-                          <span className={cn("text-[5px] font-mono font-bold", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>SEUMUR HIDUP • JAWA TENGAH</span>
+                        <div className="pt-1 z-10 flex items-center justify-between relative mt-auto">
+                          <span className="text-[5px]"></span>
                           
                           {/* Right side signatures section */}
                           <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", ktaFrontBg ? "opacity-0 pointer-events-none hidden" : "")}>
