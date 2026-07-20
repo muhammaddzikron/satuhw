@@ -197,6 +197,47 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuthStore();
+  const memberPhotoInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleMemberPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran foto maksimal 10MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const maxDim = 350;
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            setFormData(prev => ({ ...prev, photo: compressedBase64 }));
+          } else {
+            const base64String = event.target?.result as string;
+            setFormData(prev => ({ ...prev, photo: base64String }));
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'anggota');
   const [searchQuery, setSearchQuery] = useState('');
@@ -239,7 +280,8 @@ export default function AdminDashboard() {
     sosmed: '',
     password: '',
     isVerified: true,
-    upgradeRequests: [] as string[]
+    upgradeRequests: [] as string[],
+    photo: ''
   });
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
@@ -1364,7 +1406,8 @@ export default function AdminDashboard() {
         sosmed: member.sosmed || '',
         password: '', // Always empty when opening for security, only update if typed
         isVerified: member.isVerified,
-        upgradeRequests: Array.isArray(member.upgradeRequests) ? member.upgradeRequests : []
+        upgradeRequests: Array.isArray(member.upgradeRequests) ? member.upgradeRequests : [],
+        photo: member.photo || member.foto || ''
       });
     } else {
       setEditingMember(null);
@@ -1384,7 +1427,8 @@ export default function AdminDashboard() {
         sosmed: '',
         password: '',
         isVerified: true,
-        upgradeRequests: []
+        upgradeRequests: [],
+        photo: ''
       });
     }
     setIsModalOpen(true);
@@ -5295,6 +5339,40 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 scrollbar-none">
+                  {/* Foto Profil Section */}
+                  <div className="flex flex-col items-center justify-center py-4 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                    <div className="relative group w-24 h-24 rounded-2xl bg-gray-100 flex items-center justify-center border-4 border-white shadow-md overflow-hidden text-gray-300">
+                      {formData.photo ? (
+                        <img src={formData.photo} alt="Foto Profil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <UserIcon size={40} />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => memberPhotoInputRef.current?.click()}
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer animate-fade-in"
+                        title="Ubah Foto Profil"
+                      >
+                        <Camera size={20} />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => memberPhotoInputRef.current?.click()}
+                      className="mt-3 px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black text-gray-600 hover:bg-gray-50 transition-all uppercase tracking-wider shadow-sm cursor-pointer"
+                    >
+                      Pilih Foto
+                    </button>
+                    <input 
+                      type="file"
+                      ref={memberPhotoInputRef}
+                      onChange={handleMemberPhotoChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <span className="text-[9px] text-gray-400 mt-1">Maksimal 10MB (Kapasitas optimal)</span>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
                     <input 
