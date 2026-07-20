@@ -238,6 +238,47 @@ export default function AdminDashboard() {
     }
   };
 
+  const ktaPhotoInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleKtaPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran foto maksimal 10MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const maxDim = 350;
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            setEditingKtaApp(prev => prev ? ({ ...prev, photo: compressedBase64 }) : null);
+          } else {
+            const base64String = event.target?.result as string;
+            setEditingKtaApp(prev => prev ? ({ ...prev, photo: base64String }) : null);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'anggota');
   const [searchQuery, setSearchQuery] = useState('');
@@ -6948,6 +6989,39 @@ export default function AdminDashboard() {
                         placeholder="@username"
                       />
                     </div>
+                  </div>
+
+                  {/* Foto KTA Section */}
+                  <div className="flex flex-col items-center justify-center py-4 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                    <div className="relative group w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center border-4 border-white shadow-md overflow-hidden text-gray-300">
+                      {editingKtaApp.photo ? (
+                        <img src={editingKtaApp.photo} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <UserIcon size={30} />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => ktaPhotoInputRef.current?.click()}
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Ubah Foto KTA"
+                      >
+                        <Camera size={16} />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => ktaPhotoInputRef.current?.click()}
+                      className="mt-2 px-3 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-black text-gray-600 hover:bg-gray-50 transition-all uppercase tracking-wider shadow-sm cursor-pointer"
+                    >
+                      Pilih Foto KTA
+                    </button>
+                    <input 
+                      type="file"
+                      ref={ktaPhotoInputRef}
+                      onChange={handleKtaPhotoChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
                   </div>
 
                   <div className="space-y-1">

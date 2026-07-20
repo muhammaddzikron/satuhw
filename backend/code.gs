@@ -159,6 +159,10 @@ function doPost(e) {
       return handleUpdateKTAStatus(data.id, data.status, data.ktaNumber, data.remark);
     }
 
+    if (action == 'saveKTAApplication') {
+      return handleSaveKTAApplication(data);
+    }
+
     if (action == 'deleteKTAApplication') {
       return handleDeleteKTAApplication(data.id);
     }
@@ -1847,5 +1851,95 @@ function handleDeleteKTAApplication(id) {
     return responseOk({ success: true, message: "KTA Application deleted successfully" });
   }
   return responseError("Pengajuan KTA tidak ditemukan");
+}
+
+function handleSaveKTAApplication(data) {
+  var sheet = getSheet('KTA_Applications');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
+    return h ? h.toString().trim().toLowerCase() : ""; 
+  });
+  
+  var apps = getRowsAsObjects(sheet);
+  var rowIndex = apps.findIndex(function(app) {
+    var appId = (app.id || app.Id || '').toString();
+    return appId === data.id.toString() && appId !== '';
+  });
+  
+  if (rowIndex === -1) {
+    return responseError("KTA Application not found with ID: " + data.id);
+  }
+  
+  var existing = apps[rowIndex];
+  var rowData = new Array(headers.length).fill("");
+  headers.forEach(function(header, i) {
+    var val = undefined;
+    if (header === 'id') val = data.id;
+    else if (header === 'userid') val = data.userId !== undefined ? data.userId : (existing.userid || existing.userId || "");
+    else if (header === 'nama') val = data.nama !== undefined ? data.nama : (existing.nama || "");
+    else if (header === 'nowa') val = data.noWa !== undefined ? data.noWa : (existing.nowa || existing.noWa || "");
+    else if (header === 'email') val = data.email !== undefined ? data.email : (existing.email || "");
+    else if (header === 'sosmed') val = data.sosmed !== undefined ? data.sosmed : (existing.sosmed || "");
+    else if (header === 'photo') val = data.photo !== undefined ? data.photo : (existing.photo || "");
+    else if (header === 'tingkatan') val = data.tingkatan !== undefined ? data.tingkatan : (existing.tingkatan || "");
+    else if (header === 'asaldaerah') val = data.asalDaerah !== undefined ? data.asalDaerah : (existing.asaldaerah || existing.asalDaerah || "");
+    else if (header === 'status') val = data.status !== undefined ? data.status : (existing.status || "pending");
+    else if (header === 'tanggalajuan') val = data.tanggalAjuan !== undefined ? data.tanggalAjuan : (existing.tanggalajuan || existing.tanggalAjuan || new Date().toISOString());
+    else if (header === 'ktanumber') val = data.ktaNumber !== undefined ? data.ktaNumber : (existing.ktanumber || existing.ktaNumber || "");
+    else if (header === 'remark') val = data.remark !== undefined ? data.remark : (existing.remark || "");
+    else if (header === 'nik') val = data.nik !== undefined ? data.nik : (existing.nik || "");
+    else if (header === 'tempatlahir') val = data.tempatLahir !== undefined ? data.tempatLahir : (existing.tempatlahir || existing.tempatLahir || "");
+    else if (header === 'tanggallahir') val = data.tanggalLahir !== undefined ? data.tanggalLahir : (existing.tanggallahir || existing.tanggalLahir || "");
+    else if (header === 'jeniskelamin') val = data.jenisKelamin !== undefined ? data.jenisKelamin : (existing.jeniskelamin || existing.jenisKelamin || "");
+    else if (header === 'qabilah') val = data.qabilah !== undefined ? data.qabilah : (existing.qabilah || "");
+    else if (header === 'jeniskta') val = data.jenisKta !== undefined ? data.jenisKta : (existing.jeniskta || existing.jenisKta || "Digital");
+    else if (header === 'alamat') val = data.alamat !== undefined ? data.alamat : (existing.alamat || "");
+    
+    rowData[i] = val !== undefined ? val : "";
+  });
+  
+  sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
+  
+  if (data.status === 'approved') {
+    var userId = data.userId || existing.userid || existing.userId;
+    var email = data.email || existing.email;
+    if (userId || email) {
+      var userSheet = getSheet('Users');
+      var userHeaders = userSheet.getRange(1, 1, 1, userSheet.getLastColumn()).getValues()[0].map(function(h) { 
+        return h ? h.toString().trim().toLowerCase() : ""; 
+      });
+      var users = getRowsAsObjects(userSheet);
+      var userRowIndex = users.findIndex(function(u) {
+        var uId = (u.id || u.Id || '').toString();
+        var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+        return (userId && uId === userId.toString()) || (email && uEmail === email.trim().toLowerCase());
+      });
+      
+      if (userRowIndex > -1) {
+        var isVerifiedCol = userHeaders.indexOf('isverified') + 1;
+        if (isVerifiedCol > 0) {
+          userSheet.getRange(userRowIndex + 2, isVerifiedCol).setValue(true);
+        }
+      }
+    }
+  }
+  
+  var clientApp = {};
+  headers.forEach(function(header, i) {
+    var clientKey = header;
+    if (header === 'userid') clientKey = 'userId';
+    else if (header === 'nowa') clientKey = 'noWa';
+    else if (header === 'asaldaerah') clientKey = 'asalDaerah';
+    else if (header === 'tanggalajuan') clientKey = 'tanggalAjuan';
+    else if (header === 'ktanumber') clientKey = 'ktaNumber';
+    else if (header === 'tempatlahir') clientKey = 'tempatLahir';
+    else if (header === 'tanggallahir') clientKey = 'tanggalLahir';
+    else if (header === 'jeniskelamin') clientKey = 'jenisKelamin';
+    else if (header === 'jeniskta') clientKey = 'jenisKta';
+    else if (header === 'alamat') clientKey = 'alamat';
+    
+    clientApp[clientKey] = rowData[i];
+  });
+  
+  return responseOk({ success: true, application: clientApp });
 }
 
