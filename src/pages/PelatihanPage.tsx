@@ -33,7 +33,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 
-interface TrainingProgram {
+export interface TrainingProgram {
   id: 'Jati 1' | 'Jati 2' | 'Jari 1';
   title: string;
   subtitle: string;
@@ -44,7 +44,7 @@ interface TrainingProgram {
   assignments: { id: string; title: string; description: string }[];
 }
 
-const TRAINING_PROGRAMS: TrainingProgram[] = [
+export const TRAINING_PROGRAMS: TrainingProgram[] = [
   {
     id: 'Jati 1',
     title: 'JATI 1',
@@ -182,12 +182,21 @@ export default function PelatihanPage() {
   const [savingAttendance, setSavingAttendance] = useState<Record<string, boolean>>({});
 
   const getAttendanceStatus = (attendanceMap: any, sesId: string): string => {
+    if (!attendanceMap) return 'belum';
     const item = attendanceMap[sesId];
-    if (!item) return 'belum';
+    if (item === undefined || item === null) return 'belum';
+    if (typeof item === 'boolean') {
+      return item ? 'hadir' : 'absen';
+    }
     if (typeof item === 'object' && item !== null) {
       return item.status || 'belum';
     }
-    return item;
+    if (typeof item === 'string') {
+      if (item === 'true') return 'hadir';
+      if (item === 'false') return 'absen';
+      return item;
+    }
+    return 'belum';
   };
 
   const getAttendanceTimestamp = (attendanceMap: any, sesId: string): string | null => {
@@ -802,27 +811,30 @@ export default function PelatihanPage() {
 
             {/* Inner Feature Tabs for Requirements, Sessions, Tasks, Certificate */}
             <div className="space-y-4">
-              <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar gap-1.5 pb-1">
+              <div className="grid grid-cols-5 gap-1 bg-gray-100/70 p-1.5 rounded-2xl border border-gray-200/50">
                 {[
-                  { id: 'info', label: 'Pelatihan ' + selectedLevel, icon: Info },
-                  { id: 'materi', label: 'Materi Penunjang', icon: BookOpen },
-                  { id: 'sesi', label: 'Sesi & Absen', icon: Calendar },
-                  { id: 'tugas', label: 'Kirim Tugas', icon: ClipboardList },
-                  { id: 'piagam', label: 'Piagam Digital', icon: Award }
+                  { id: 'info', shortLabel: 'Pelatihan', fullLabel: 'Pelatihan ' + selectedLevel, icon: Info },
+                  { id: 'materi', shortLabel: 'Materi', fullLabel: 'Materi Penunjang', icon: BookOpen },
+                  { id: 'sesi', shortLabel: 'Sesi & Absen', fullLabel: 'Sesi & Absen', icon: Calendar },
+                  { id: 'tugas', shortLabel: 'Tugas', fullLabel: 'Kirim Tugas', icon: ClipboardList },
+                  { id: 'piagam', shortLabel: 'Piagam', fullLabel: 'Piagam Digital', icon: Award }
                 ].map((tab) => {
                   const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`py-2 px-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
-                        activeTab === tab.id
-                          ? 'bg-hw-green/10 text-hw-green border border-hw-green/20'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                      className={`py-2 px-1 rounded-xl text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-tight transition-all flex flex-col sm:flex-row items-center justify-center gap-1 text-center leading-tight cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-700 text-white shadow-xs'
+                          : 'text-gray-500 hover:text-gray-800 hover:bg-white/60'
                       }`}
+                      title={tab.fullLabel}
                     >
-                      <Icon size={12} />
-                      {tab.label}
+                      <Icon size={14} className="shrink-0" />
+                      <span className="hidden md:inline">{tab.fullLabel}</span>
+                      <span className="md:hidden">{tab.shortLabel}</span>
                     </button>
                   );
                 })}

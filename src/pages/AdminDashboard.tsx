@@ -37,6 +37,22 @@ const DefaultStempel = ({ idSuffix }: { idSuffix: string }) => (
     </text>
   </svg>
 );
+import { TRAINING_PROGRAMS } from './PelatihanPage';
+
+const isSessionPresent = (attObj: any, sesId: string): boolean => {
+  if (!attObj) return false;
+  const val = attObj[sesId];
+  if (val === undefined || val === null) return false;
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    return val === 'hadir' || val === 'true';
+  }
+  if (typeof val === 'object' && val !== null) {
+    return val.status === 'hadir';
+  }
+  return false;
+};
+
 import { 
   Users, 
   QrCode,
@@ -1143,17 +1159,28 @@ export default function AdminDashboard() {
         throw new Error('Pendaftaran tidak ditemukan.');
       }
       
-      let attObj: Record<string, boolean> = {};
+      let attObj: Record<string, any> = {};
       if (app.kehadiran) {
-        attObj = safeJsonParse<Record<string, boolean>>(app.kehadiran, {});
+        attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
       }
       
-      const updatedAttObj = {
-        ...attObj,
-        [dayKey]: isPresent
-      };
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+      if (isPresent) {
+        attObj[dayKey] = {
+          status: 'hadir',
+          timestamp: `${dateStr} pukul ${timeStr} (Admin)`
+        };
+      } else {
+        attObj[dayKey] = {
+          status: 'absen',
+          timestamp: `${dateStr} pukul ${timeStr} (Admin)`
+        };
+      }
       
-      const kehadiranStr = JSON.stringify(updatedAttObj);
+      const kehadiranStr = JSON.stringify(attObj);
       
       await sheetsService.updateAttendance(appId, kehadiranStr);
       const updated = await sheetsService.getTrainingApplications();
@@ -1164,23 +1191,15 @@ export default function AdminDashboard() {
   };
 
   const getCalculatedGrading = (app: any) => {
-    const progCatMap: Record<string, string> = {
-      'Jati 1': 'jati1',
-      'Jati 2': 'jati2',
-      'Jari 1': 'jari1'
-    };
-    const cat = progCatMap[app.pelatihanAkanDiikuti] || 'jati1';
-    const progMaterials = materiList.filter(m => m.kategori === cat);
-    const sessions = progMaterials.length > 0 
-      ? progMaterials.map(m => m.judul) 
-      : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
+    const prog = TRAINING_PROGRAMS.find(p => p.id === app.pelatihanAkanDiikuti);
+    const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
 
-    let attObj: Record<string, boolean> = {};
+    let attObj: Record<string, any> = {};
     if (app.kehadiran) {
-      attObj = safeJsonParse<Record<string, boolean>>(app.kehadiran, {});
+      attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
     }
     const totalSessions = sessions.length;
-    const attendedSessions = sessions.filter(sesi => !!attObj[sesi]).length;
+    const attendedSessions = sessions.filter(sesi => isSessionPresent(attObj, sesi)).length;
     const attendancePercentage = totalSessions > 0 
       ? Math.round((attendedSessions / totalSessions) * 100) 
       : 0;
@@ -4345,16 +4364,8 @@ export default function AdminDashboard() {
 
                     {/* Presensi Grid Table */}
                     {(() => {
-                      const progCatMap: Record<string, string> = {
-                        'Jati 1': 'jati1',
-                        'Jati 2': 'jati2',
-                        'Jari 1': 'jari1'
-                      };
-                      const cat = progCatMap[selectedPresensiProg];
-                      const progMaterials = materiList.filter(m => m.kategori === cat);
-                      const sessions = progMaterials.length > 0 
-                        ? progMaterials.map(m => m.judul) 
-                        : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
+                      const prog = TRAINING_PROGRAMS.find(p => p.id === selectedPresensiProg);
+                      const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
 
                       const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg);
 
@@ -4378,13 +4389,13 @@ export default function AdminDashboard() {
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                               {enrolled.map((app) => {
-                                let attObj: Record<string, boolean> = {};
+                                let attObj: Record<string, any> = {};
                                 if (app.kehadiran) {
-                                  attObj = safeJsonParse<Record<string, boolean>>(app.kehadiran, {});
+                                  attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
                                 }
 
                                 const totalSessions = sessions.length;
-                                const attendedSessions = sessions.filter(sesi => !!attObj[sesi]).length;
+                                const attendedSessions = sessions.filter(sesi => isSessionPresent(attObj, sesi)).length;
                                 const attendancePercentage = totalSessions > 0 
                                   ? Math.round((attendedSessions / totalSessions) * 100) 
                                   : 0;
@@ -4410,9 +4421,25 @@ export default function AdminDashboard() {
                                     </td>
                                     
                                     {sessions.map((sesi) => {
-                                      const isPresent = !!attObj[sesi];
+                                      const isPresent = isSessionPresent(attObj, sesi);
+                                      const rawItem = attObj[sesi];
+                                      let statusText = 'Absen';
+                                      let statusColor = 'text-gray-300 font-medium';
+                                      if (isPresent) {
+                                        statusText = 'Hadir';
+                                        statusColor = 'text-hw-green font-extrabold';
+                                      } else if (typeof rawItem === 'object' && rawItem?.status === 'izin') {
+                                        statusText = 'Izin';
+                                        statusColor = 'text-blue-500 font-bold';
+                                      } else if (typeof rawItem === 'string' && rawItem === 'izin') {
+                                        statusText = 'Izin';
+                                        statusColor = 'text-blue-500 font-bold';
+                                      }
+
+                                      const timestamp = typeof rawItem === 'object' && rawItem?.timestamp ? rawItem.timestamp : null;
+
                                       return (
-                                        <td key={sesi} className="p-4 text-center">
+                                        <td key={sesi} className="p-3 text-center border-r border-gray-50 last:border-r-0 min-w-[85px]">
                                           <div className="flex flex-col items-center justify-center">
                                             <input 
                                               type="checkbox" 
@@ -4420,9 +4447,14 @@ export default function AdminDashboard() {
                                               onChange={(e) => handleUpdateAttendance(app.id, sesi, e.target.checked)}
                                               className="w-5 h-5 rounded-lg border-gray-300 text-hw-green focus:ring-hw-green/20 cursor-pointer accent-hw-green"
                                             />
-                                            <span className={`text-[9px] font-bold uppercase mt-1 ${isPresent ? 'text-hw-green font-extrabold' : 'text-gray-300 font-medium'}`}>
-                                              {isPresent ? 'Hadir' : 'Absen'}
+                                            <span className={`text-[9px] uppercase mt-1 ${statusColor}`}>
+                                              {statusText}
                                             </span>
+                                            {timestamp && (
+                                              <span className="text-[7.5px] text-gray-400 font-mono mt-0.5 max-w-[90px] truncate" title={timestamp}>
+                                                {timestamp}
+                                              </span>
+                                            )}
                                           </div>
                                         </td>
                                       );
