@@ -58,6 +58,7 @@ import {
   Trash2,
   Edit2,
   Download,
+  FileSpreadsheet,
   Eye,
   Database,
   Globe,
@@ -1741,64 +1742,98 @@ export default function AdminDashboard() {
     doc.save(`Data_HW_${filterName}.pdf`);
   };
 
-  const exportKTAToCSV = () => {
-    const headers = ['No', 'Nomor KTA', 'Nama Lengkap', 'NIK', 'Email', 'No. WA', 'Tingkatan', 'Asal Kwarda', 'Qabilah', 'Jenis KTA', 'Status'];
-    const data = ktaApps.map((k, idx) => [
+  const exportKTAToExcel = () => {
+    const targetApps = ktaApps.filter(app => {
+      const matchSearch = 
+        (app.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.nik || '').includes(ktaSearchQuery) ||
+        (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
+      const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
+      return matchSearch && matchStatus;
+    });
+
+    const headers = ['No', 'Nomor KTA', 'Nama Lengkap', 'NIK', 'Email', 'No. WhatsApp', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Tingkatan', 'Asal Kwarda', 'Qabilah', 'Alamat', 'Jenis KTA', 'Status', 'Tanggal Ajuan'];
+    const data = targetApps.map((k, idx) => [
       idx + 1,
       k.ktaNumber || '-',
-      k.nama,
-      k.nik || '-',
+      k.nama || '-',
+      k.nik ? `'${k.nik}` : '-',
       k.email || '-',
-      k.noWa || '-',
+      k.noWa ? `'${k.noWa}` : '-',
+      k.tempatLahir || '-',
+      k.tanggalLahir || '-',
+      k.jenisKelamin || '-',
       k.tingkatan || '-',
       k.asalDaerah || '-',
       k.qabilah || '-',
+      k.alamat || '-',
       k.jenisKta || 'Digital',
-      k.status === 'pending' ? 'Menunggu' : k.status === 'approved' ? 'Disetujui' : 'Ditolak'
+      k.status === 'pending' ? 'Menunggu' : k.status === 'approved' ? 'Disetujui' : 'Ditolak',
+      k.tanggalAjuan ? new Date(k.tanggalAjuan).toLocaleDateString('id-ID') : '-'
     ]);
     
-    let csvContent = "data:text/csv;charset=utf-8,\ufeff" 
+    let csvContent = "\ufeff" 
       + headers.join(",") + "\n"
       + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
       
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Data_Pendaftar_KTA_HW_Jateng_${new Date().toLocaleDateString('id-ID')}.csv`);
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const statusSuffix = ktaFilterStatus !== 'Semua' ? `_${ktaFilterStatus}` : '';
+    link.setAttribute("download", `Data_KTA_HW_Jateng${statusSuffix}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const exportKTAToPDF = () => {
+    const targetApps = ktaApps.filter(app => {
+      const matchSearch = 
+        (app.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+        (app.nik || '').includes(ktaSearchQuery) ||
+        (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
+      const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
+      return matchSearch && matchStatus;
+    });
+
     const doc = new jsPDF() as any;
-    const headers = [['No', 'Nama Lengkap', 'NIK', 'Tingkatan', 'Kwarda', 'Status', 'Nomor KTA']];
-    const data = ktaApps.map((k, idx) => [
+    const headers = [['No', 'Nomor KTA', 'Nama Lengkap', 'NIK', 'Tingkatan', 'Kwarda / Qabilah', 'Status']];
+    const data = targetApps.map((k, idx) => [
       idx + 1,
-      k.nama,
+      k.ktaNumber || '-',
+      k.nama || '-',
       k.nik || '-',
       k.tingkatan || '-',
-      k.asalDaerah || '-',
-      k.status === 'pending' ? 'Menunggu' : k.status === 'approved' ? 'Disetujui' : 'Ditolak',
-      k.ktaNumber || '-'
+      `${k.asalDaerah || '-'}${k.qabilah ? ` (${k.qabilah})` : ''}`,
+      k.status === 'pending' ? 'Menunggu' : k.status === 'approved' ? 'Disetujui' : 'Ditolak'
     ]);
 
-    doc.setFontSize(16);
-    doc.text('Laporan Pendaftar KTA Kepanduan Hizbul Wathan', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Kwil Jawa Tengah - Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22);
-    doc.text(`Total Pengajuan: ${ktaApps.length} (Menunggu: ${ktaApps.filter(k => k.status === 'pending').length}, Disetujui: ${ktaApps.filter(k => k.status === 'approved').length})`, 14, 27);
+    doc.setFontSize(14);
+    doc.text('Laporan Data Pendaftar KTA HW Jawa Tengah', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Total Filter: ${targetApps.length} Pengajuan (Status: ${ktaFilterStatus === 'Semua' ? 'Semua Status' : ktaFilterStatus})`, 14, 26);
 
     doc.autoTable({
       head: headers,
       body: data,
-      startY: 35,
+      startY: 32,
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillStyle: '#1a413d' }
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillStyle: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
     });
 
-    doc.save(`Laporan_Pendaftar_KTA_HW_Jateng_${new Date().toLocaleDateString('id-ID')}.pdf`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Laporan_KTA_HW_Jateng_${dateStr}.pdf`);
   };
 
   const filteredMembers = members.filter(m => {
@@ -2905,22 +2940,6 @@ export default function AdminDashboard() {
                     <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Pengelolaan KTA HW Jateng</h3>
                     <p className="text-xs text-gray-400 font-medium">Verifikasi pendaftaran, penerbitan Kartu Tanda Anggota, dan statistik KTA</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={exportKTAToCSV}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/40 rounded-xl font-bold text-[11px] transition-all shadow-sm cursor-pointer"
-                    >
-                      <Download size={12} />
-                      KTA ke CSV
-                    </button>
-                    <button
-                      onClick={exportKTAToPDF}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/40 rounded-xl font-bold text-[11px] transition-all shadow-sm cursor-pointer"
-                    >
-                      <FileText size={12} />
-                      Laporan PDF
-                    </button>
-                  </div>
                 </div>
 
                 {/* Sub-tabs switcher */}
@@ -3189,6 +3208,24 @@ export default function AdminDashboard() {
                           <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Manajemen KTA HW</h4>
                           <p className="text-[10px] text-gray-400 font-medium">Kelola, saring, verifikasi, atau edit semua pengajuan KTA HW Jawa Tengah.</p>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={exportKTAToExcel}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-black text-[11px] transition-all shadow-sm cursor-pointer active:scale-95"
+                          title="Export Data KTA Terfilter ke format Excel / CSV"
+                        >
+                          <FileSpreadsheet size={14} />
+                          Export Excel KTA
+                        </button>
+                        <button
+                          onClick={exportKTAToPDF}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-black text-[11px] transition-all shadow-sm cursor-pointer active:scale-95"
+                          title="Export Laporan Data KTA Terfilter ke format PDF"
+                        >
+                          <FileText size={14} />
+                          Export PDF KTA
+                        </button>
                       </div>
                     </div>
 
