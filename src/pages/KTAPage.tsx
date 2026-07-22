@@ -138,6 +138,11 @@ const DefaultStempel = ({ idSuffix }: { idSuffix: string }) => (
   </svg>
 );
 
+const truncateText = (text: string, maxLen: number): string => {
+  if (!text) return '';
+  return text.length > maxLen ? text.substring(0, maxLen - 3) + '...' : text;
+};
+
 export default function KTAPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, updateUser } = useAuthStore();
@@ -535,6 +540,24 @@ export default function KTAPage() {
         throw new Error("Elemen kartu tidak ditemukan");
       }
 
+      // Helper to wait for all images inside an element to load
+      const waitForImages = async (el: HTMLElement) => {
+        const images = Array.from(el.querySelectorAll('img'));
+        await Promise.all(
+          images.map(img => {
+            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+            return new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+              setTimeout(resolve, 1500);
+            });
+          })
+        );
+      };
+
+      await waitForImages(frontEl);
+      await waitForImages(backEl);
+
       // Capture front card
       const frontCanvas = await safeHtml2Canvas(frontEl, {
         scale: 3, // high quality
@@ -793,8 +816,8 @@ export default function KTAPage() {
           {myApplication && (
             <div 
               id="kta-print-capture" 
-              className="fixed top-0 left-0 w-0 h-0 overflow-hidden pointer-events-none opacity-0" 
-              style={{ zIndex: -50 }}
+              className="fixed -left-[9999px] top-0 pointer-events-none" 
+              style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -9999 }}
             >
             {/* FRONT CARD CAPTURE */}
             <div 
@@ -824,8 +847,11 @@ export default function KTAPage() {
 
               {/* Custom Date above pre-printed Sekretaris text on template background */}
               {ktaFrontBg && (
-                <div className="absolute bottom-[66px] right-[40px] z-20 text-right pointer-events-none">
-                  <p className="text-[5.5px] font-bold text-gray-800 leading-none">
+                <div className="absolute bottom-[66px] right-[40px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
+                  <p 
+                    className="text-[5.5px] font-bold text-gray-800 leading-none"
+                    style={{ color: '#1f2937', position: 'relative', zIndex: 30 }}
+                  >
                     {(() => {
                       const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
                       const d = new Date();
@@ -857,11 +883,11 @@ export default function KTAPage() {
               </div>
 
               {/* Card Body */}
-              <div className={cn("flex gap-3 z-10", ktaFrontBg ? "-mt-1.5 mb-auto" : "my-1")}>
+              <div className={cn("flex gap-3 text-left relative z-20", ktaFrontBg ? "-mt-1.5 mb-auto" : "my-1")} style={{ position: 'relative', zIndex: 20 }}>
                 {/* User photo */}
-                <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
-                  {photoPreview ? (
-                    <img src={getCorsSafeUrl(photoPreview)} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm z-20" style={{ position: 'relative', zIndex: 20 }}>
+                  {(photoPreview || myApplication?.photo || user?.photo) ? (
+                    <img src={getCorsSafeUrl(photoPreview || myApplication?.photo || user?.photo || '')} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-emerald-600">
                       <UserIcon size={14} />
@@ -874,47 +900,157 @@ export default function KTAPage() {
                 </div>
 
                 {/* Member Details */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center space-y-0.5">
-                  <h4 className={cn("text-[8.5px] font-black uppercase tracking-wider mb-0.5", ktaFrontBg ? "text-emerald-800" : "text-amber-300")}>KARTU ANGGOTA</h4>
+                <div className="w-[240px] flex-1 min-w-0 flex flex-col justify-center space-y-0.5 relative z-20" style={{ width: '240px', position: 'relative', zIndex: 20 }}>
+                  <h4 
+                    className={cn("text-[8.5px] font-black uppercase tracking-wider mb-0.5", ktaFrontBg ? "text-emerald-800" : "text-amber-300")}
+                    style={{ color: ktaFrontBg ? '#065f46' : '#fcd34d', position: 'relative', zIndex: 20 }}
+                  >
+                    KARTU ANGGOTA
+                  </h4>
                   
-                  <table className="w-full text-left border-none border-collapse text-[7px] font-semibold">
+                  <table className="w-full text-left border-none border-collapse text-[7px] font-semibold relative z-20" style={{ position: 'relative', zIndex: 20 }}>
                     <tbody>
                       <tr>
-                        <td className={cn("w-14 font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Nomor</td>
-                        <td className="w-2 text-center py-0.1">:</td>
-                        <td className={cn("font-mono font-black tracking-wider py-0.1", ktaFrontBg ? "text-emerald-800" : "text-amber-200")}>{myApplication.ktaNumber || 'KTA-HW.JT.XXXX'}</td>
+                        <td 
+                          className="w-14 font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          Nomor
+                        </td>
+                        <td 
+                          className="w-2 text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-mono font-black tracking-wider py-0.1"
+                          style={{ color: ktaFrontBg ? '#065f46' : '#fde68a', position: 'relative', zIndex: 20 }}
+                        >
+                          {myApplication.ktaNumber || 'KTA-HW.JT.XXXX'}
+                        </td>
                       </tr>
                       <tr>
-                        <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Nama</td>
-                        <td className="text-center py-0.1">:</td>
-                        <td className={cn("font-black uppercase py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.nama}</td>
+                        <td 
+                          className="font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          Nama
+                        </td>
+                        <td 
+                          className="text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-black uppercase py-0.1"
+                          style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
+                        >
+                          {truncateText(myApplication.nama || '', 32)}
+                        </td>
                       </tr>
                       <tr>
-                        <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>TTL</td>
-                        <td className="text-center py-0.1">:</td>
-                        <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.tempatLahir || '-'}, {myApplication.tanggalLahir || '-'}</td>
+                        <td 
+                          className="font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          TTL
+                        </td>
+                        <td 
+                          className="text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-bold py-0.1"
+                          style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
+                        >
+                          {truncateText(myApplication.tempatLahir || '-', 15)}, {truncateText(myApplication.tanggalLahir || '-', 15)}
+                        </td>
                       </tr>
                       <tr>
-                        <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Asal</td>
-                        <td className="text-center py-0.1">:</td>
-                        <td className={cn("font-bold py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>Kwarda {myApplication.asalDaerah}</td>
+                        <td 
+                          className="font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          Asal
+                        </td>
+                        <td 
+                          className="text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-bold py-0.1"
+                          style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
+                        >
+                          Kwarda {truncateText(myApplication.asalDaerah || '', 22)}
+                        </td>
                       </tr>
                       {myApplication.qabilah && (
                         <tr>
-                          <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Qabilah</td>
-                          <td className="text-center py-0.1">:</td>
-                          <td className={cn("font-bold py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.qabilah}</td>
+                          <td 
+                            className="font-bold uppercase py-0.1" 
+                            style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                          >
+                            Qabilah
+                          </td>
+                          <td 
+                            className="text-center py-0.1"
+                            style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                          >
+                            :
+                          </td>
+                          <td 
+                            className="font-bold py-0.1"
+                            style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
+                          >
+                            {truncateText(myApplication.qabilah, 25)}
+                          </td>
                         </tr>
                       )}
                       <tr>
-                        <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Tingkatan</td>
-                        <td className="text-center py-0.1">:</td>
-                        <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-emerald-700" : "text-amber-200")}>{myApplication.tingkatan}</td>
+                        <td 
+                          className="font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          Tingkatan
+                        </td>
+                        <td 
+                          className="text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-bold py-0.1"
+                          style={{ color: ktaFrontBg ? '#047857' : '#fde68a', position: 'relative', zIndex: 20 }}
+                        >
+                          {myApplication.tingkatan}
+                        </td>
                       </tr>
                       <tr>
-                        <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Alamat</td>
-                        <td className="text-center py-0.1">:</td>
-                        <td className={cn("font-bold py-0.1 text-[6.5px] leading-tight line-clamp-2", ktaFrontBg ? "text-gray-600" : "text-slate-200")}>{myApplication.alamat || '-'}</td>
+                        <td 
+                          className="font-bold uppercase py-0.1" 
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          Alamat
+                        </td>
+                        <td 
+                          className="text-center py-0.1"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          :
+                        </td>
+                        <td 
+                          className="font-bold py-0.1 text-[6.5px] leading-tight"
+                          style={{ color: ktaFrontBg ? '#4b5563' : '#cbd5e1', position: 'relative', zIndex: 20 }}
+                        >
+                          {truncateText(myApplication.alamat || '-', 55)}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -1163,8 +1299,8 @@ export default function KTAPage() {
                   <div className={cn("flex gap-3 z-10", ktaFrontBg ? "-mt-1.5 mb-auto" : "my-1")}>
                     {/* User photo */}
                     <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
-                      {photoPreview ? (
-                        <img src={getCorsSafeUrl(photoPreview)} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                      {(photoPreview || myApplication?.photo || user?.photo) ? (
+                        <img src={getCorsSafeUrl(photoPreview || myApplication?.photo || user?.photo || '')} alt="Foto KTA" className="w-full h-full object-cover" crossOrigin="anonymous" />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-emerald-600">
                           <UserIcon size={14} />
@@ -1190,7 +1326,7 @@ export default function KTAPage() {
                           <tr>
                             <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Nama</td>
                             <td className="text-center py-0.1">:</td>
-                            <td className={cn("font-black uppercase py-0.1 truncate", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.nama}</td>
+                            <td className={cn("font-black uppercase py-0.1", ktaFrontBg ? "text-gray-800" : "text-white")}>{truncateText(myApplication.nama || user?.namaLengkap || '', 32)}</td>
                           </tr>
                           <tr>
                             <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>TTL</td>
