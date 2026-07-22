@@ -3673,7 +3673,7 @@ export default function AdminDashboard() {
                               >
                                 {/* Custom Date above pre-printed Sekretaris text on template background */}
                                 {settings.ktaTemplateFront && (
-                                  <div className="absolute bottom-[66px] right-[40px] z-20 text-right pointer-events-none">
+                                  <div className="absolute bottom-[80px] right-[40px] z-20 text-right pointer-events-none">
                                     <p className="text-[5.5px] font-bold text-gray-800 leading-none">
                                       {(() => {
                                         const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -7345,7 +7345,7 @@ export default function AdminDashboard() {
 
                         {/* Custom Date above pre-printed Sekretaris text on template background */}
                         {ktaFrontBg && (
-                          <div className="absolute bottom-[66px] right-[40px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
+                          <div className="absolute bottom-[80px] right-[40px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
                             <p 
                               className="text-[5.5px] font-bold text-gray-800 leading-none"
                               style={{ color: '#1f2937', position: 'relative', zIndex: 30 }}
