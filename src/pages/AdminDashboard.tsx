@@ -858,6 +858,27 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const res = await sheetsService.saveKTAApplication(editingKtaApp);
+
+      // Sync to matching Member profile
+      if (editingKtaApp.email || editingKtaApp.userId) {
+        const matchingMember = members.find(m => 
+          (editingKtaApp.userId && m.id === editingKtaApp.userId) || 
+          (m.email && editingKtaApp.email && m.email.toLowerCase().trim() === editingKtaApp.email.toLowerCase().trim())
+        );
+        if (matchingMember) {
+          const updatedMember = {
+            ...matchingMember,
+            ...(editingKtaApp.photo ? { photo: editingKtaApp.photo } : {}),
+            ...(editingKtaApp.nama ? { namaLengkap: editingKtaApp.nama } : {}),
+            ...(editingKtaApp.nik ? { nik: editingKtaApp.nik } : {}),
+            ...(editingKtaApp.noWa ? { noHp: editingKtaApp.noWa } : {}),
+            ...(editingKtaApp.asalDaerah ? { asalKwarda: editingKtaApp.asalDaerah } : {}),
+            ...(editingKtaApp.qabilah ? { qabilah: editingKtaApp.qabilah } : {})
+          };
+          await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+        }
+      }
+
       if (res.success || res.application) {
         alert('Data KTA berhasil diperbarui!');
         setIsEditKtaModalOpen(false);
@@ -1522,10 +1543,34 @@ export default function AdminDashboard() {
       if (res.error) {
         throw new Error(res.error);
       }
+
+      // Sync KTA application if matching entry exists
+      if (payload.email || payload.id) {
+        const matchingKta = ktaApps.find(app => 
+          (payload.id && app.userId === payload.id) || 
+          (app.email && payload.email && app.email.toLowerCase().trim() === payload.email.toLowerCase().trim())
+        );
+        if (matchingKta) {
+          const updatedKta = {
+            ...matchingKta,
+            ...(payload.photo ? { photo: payload.photo } : {}),
+            ...(payload.namaLengkap ? { nama: payload.namaLengkap } : {}),
+            ...(payload.nik ? { nik: payload.nik } : {}),
+            ...(payload.noHp ? { noWa: payload.noHp } : {}),
+            ...(payload.asalKwarda ? { asalDaerah: payload.asalKwarda } : {}),
+            ...(payload.qabilah ? { qabilah: payload.qabilah } : {})
+          };
+          await sheetsService.saveKTAApplication(updatedKta).catch(err => console.error("Sync KTA error:", err));
+        }
+      }
       
-      // Refresh list
-      const data = await sheetsService.getMembers();
-      setMembers(data);
+      // Refresh lists
+      const [data, ktaData] = await Promise.all([
+        sheetsService.getMembers(),
+        sheetsService.getKTAApplications()
+      ]);
+      setMembers(data || []);
+      setKtaApps(ktaData || []);
       setIsModalOpen(false);
     } catch (error: any) {
       console.error('Save member error:', error);

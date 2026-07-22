@@ -248,17 +248,19 @@ export default function KTAPage() {
         console.error("Gagal memuat pengaturan KTA:", err);
       }
 
-      const apps = await sheetsService.getKTAApplications();
+      const [apps, members] = await Promise.all([
+        sheetsService.getKTAApplications().catch(() => []),
+        sheetsService.getMembers().catch(() => [])
+      ]);
       setApplications(apps);
       
       // Determine my application
       if (isAuthenticated && user) {
-        // Fetch fresh members to ensure we have the absolute latest isVerified state
         let isUserVerified = user.isVerified;
+        let freshUser: any = null;
         try {
-          const members = await sheetsService.getMembers();
-          const freshUser = members.find(
-            (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
+          freshUser = members.find(
+            (m) => m.id === user.id || (m.email && user.email && m.email.toLowerCase().trim() === user.email.toLowerCase().trim())
           );
           if (freshUser) {
             isUserVerified = freshUser.isVerified;
@@ -274,6 +276,16 @@ export default function KTAPage() {
           const namaMatch = app.nama && user.namaLengkap && app.nama.toLowerCase().trim() === user.namaLengkap.toLowerCase().trim();
           return userIdMatch || emailMatch || nikMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
         });
+
+        // Determine best photo from all centralized sources
+        const bestPhoto = 
+          found?.photo || 
+          freshUser?.photo || 
+          freshUser?.foto || 
+          user.photo || 
+          (user as any).foto || 
+          members.find(m => m.email && (found?.email || user.email) && m.email.toLowerCase().trim() === (found?.email || user.email).toLowerCase().trim())?.photo || 
+          '';
 
         if (!found && isUserVerified) {
           // If the user is verified, but has no KTA application entry, synthesize one so they can see and download their card
@@ -293,47 +305,52 @@ export default function KTAPage() {
           found = {
             id: `kta-sync-${user.id || 'verified'}`,
             userId: user.id || '',
-            nama: user.namaLengkap || '',
-            noWa: user.noHp || '',
-            email: user.email || '',
-            sosmed: user.sosmed || '',
-            photo: user.photo || '',
+            nama: user.namaLengkap || freshUser?.namaLengkap || '',
+            noWa: user.noHp || freshUser?.noHp || '',
+            email: user.email || freshUser?.email || '',
+            sosmed: user.sosmed || freshUser?.sosmed || '',
+            photo: bestPhoto,
             tingkatan: user.role && user.role.includes('jati') ? 'Pandu Dewasa' : 'Anggota',
-            asalDaerah: user.asalKwarda || '',
+            asalDaerah: user.asalKwarda || freshUser?.asalKwarda || '',
             status: 'approved',
             tanggalAjuan: new Date().toISOString(),
-            ktaNumber: (user as any).ktaNumber || `${regionCode}.${randomSeq}`,
+            ktaNumber: (user as any).ktaNumber || freshUser?.ktaNumber || `${regionCode}.${randomSeq}`,
             remark: '',
-            nik: (user as any).nik || '',
-            tempatLahir: (user as any).tempatLahir || '',
-            tanggalLahir: (user as any).tanggalLahir || '',
+            nik: (user as any).nik || freshUser?.nik || '',
+            tempatLahir: (user as any).tempatLahir || freshUser?.tempatLahir || '',
+            tanggalLahir: (user as any).tanggalLahir || freshUser?.tanggalLahir || '',
             jenisKelamin: user.jenisKelamin === 'P' ? 'Perempuan' : (user.jenisKelamin === 'L' ? 'Laki-laki' : 'Laki-laki'),
             jenisKta: 'DIGITAL',
-            qabilah: user.qabilah || '',
-            alamat: user.alamat || '',
+            qabilah: user.qabilah || freshUser?.qabilah || '',
+            alamat: user.alamat || freshUser?.alamat || '',
           };
         }
 
         if (found) {
-          setMyApplication(found);
-          if (found.photo) {
-            setPhotoPreview(found.photo);
+          if (bestPhoto) {
+            found.photo = bestPhoto;
+            setPhotoPreview(bestPhoto);
+            if (!user.photo) {
+              updateUser({ photo: bestPhoto });
+            }
           }
-          // Pre-fill form fields with application data
+          setMyApplication(found);
+
+          // Pre-fill form fields with application data / fresh user data
           setFormData(prev => ({
             ...prev,
-            nama: found.nama || prev.nama,
-            alamat: found.alamat || prev.alamat,
+            nama: found.nama || freshUser?.namaLengkap || prev.nama,
+            alamat: found.alamat || freshUser?.alamat || prev.alamat,
             tingkatan: found.tingkatan || prev.tingkatan,
-            asalDaerah: found.asalDaerah || prev.asalDaerah,
-            noWa: found.noWa || prev.noWa,
-            email: found.email || prev.email,
-            sosmed: found.sosmed || prev.sosmed,
-            nik: found.nik || prev.nik,
-            tempatLahir: found.tempatLahir || prev.tempatLahir,
-            tanggalLahir: found.tanggalLahir || prev.tanggalLahir,
-            jenisKelamin: found.jenisKelamin || prev.jenisKelamin,
-            qabilah: found.qabilah || prev.qabilah,
+            asalDaerah: found.asalDaerah || freshUser?.asalKwarda || prev.asalDaerah,
+            noWa: found.noWa || freshUser?.noHp || prev.noWa,
+            email: found.email || freshUser?.email || prev.email,
+            sosmed: found.sosmed || freshUser?.sosmed || prev.sosmed,
+            nik: found.nik || freshUser?.nik || prev.nik,
+            tempatLahir: found.tempatLahir || freshUser?.tempatLahir || prev.tempatLahir,
+            tanggalLahir: found.tanggalLahir || freshUser?.tanggalLahir || prev.tanggalLahir,
+            jenisKelamin: found.jenisKelamin || freshUser?.jenisKelamin || prev.jenisKelamin,
+            qabilah: found.qabilah || freshUser?.qabilah || prev.qabilah,
             jenisKta: found.jenisKta || prev.jenisKta,
           }));
         }

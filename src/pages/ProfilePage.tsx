@@ -214,6 +214,28 @@ export default function ProfilePage() {
         throw new Error(res.error);
       }
 
+      // Also explicitly sync KTA Application if it exists for this user
+      if (formData.photo || formData.namaLengkap) {
+        try {
+          const apps = await sheetsService.getKTAApplications();
+          const userApp = apps.find((app: any) => app.userId === user.id || (app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim()));
+          if (userApp) {
+            const updatedApp = {
+              ...userApp,
+              ...(formData.photo ? { photo: formData.photo } : {}),
+              ...(formData.namaLengkap ? { nama: formData.namaLengkap } : {}),
+              ...(formData.noHp ? { noWa: formData.noHp } : {}),
+              ...(formData.asalKwarda ? { asalDaerah: formData.asalKwarda } : {}),
+              ...(formData.qabilah ? { qabilah: formData.qabilah } : {})
+            };
+            await sheetsService.saveKTAApplication(updatedApp);
+            setKtaApp(updatedApp);
+          }
+        } catch (err) {
+          console.error("Error updating KTA Application on profile edit:", err);
+        }
+      }
+
       // Update local state - Merge with current user to keep fields not in formData
       // but ensure updated fields from formData are spread
       const { password, ...formDataWithoutPassword } = formData;

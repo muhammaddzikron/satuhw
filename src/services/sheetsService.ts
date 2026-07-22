@@ -587,7 +587,7 @@ export const sheetsService = {
       const stored = localStorage.getItem('mock_members') || '[]';
       try {
         let members = JSON.parse(stored);
-        const idx = members.findIndex((m: any) => String(m.id) === String(userData.id) || m.email?.trim().toLowerCase() === userData.email?.trim().toLowerCase());
+        const idx = members.findIndex((m: any) => String(m.id) === String(userData.id) || (m.email && userData.email && m.email.trim().toLowerCase() === userData.email.trim().toLowerCase()));
         const mapped = {
           ...userData,
           id: userData.id || `user-${Date.now()}`
@@ -598,6 +598,36 @@ export const sheetsService = {
           members.push(mapped);
         }
         localStorage.setItem('mock_members', JSON.stringify(members));
+
+        // Synchronize photo and profile fields to KTA_Applications
+        try {
+          const ktaStored = localStorage.getItem('kta_applications') || '[]';
+          let ktasList = JSON.parse(ktaStored);
+          let ktaUpdated = false;
+          ktasList = ktasList.map((app: any) => {
+            const matchUserId = app.userId && mapped.id && String(app.userId) === String(mapped.id);
+            const matchEmail = app.email && mapped.email && app.email.trim().toLowerCase() === mapped.email.trim().toLowerCase();
+            if (matchUserId || matchEmail) {
+              ktaUpdated = true;
+              return {
+                ...app,
+                ...(mapped.photo ? { photo: mapped.photo } : {}),
+                ...(mapped.namaLengkap ? { nama: mapped.namaLengkap } : {}),
+                ...(mapped.nik ? { nik: mapped.nik } : {}),
+                ...(mapped.noHp ? { noWa: mapped.noHp } : {}),
+                ...(mapped.asalKwarda ? { asalDaerah: mapped.asalKwarda } : {}),
+                ...(mapped.qabilah ? { qabilah: mapped.qabilah } : {}),
+              };
+            }
+            return app;
+          });
+          if (ktaUpdated) {
+            localStorage.setItem('kta_applications', JSON.stringify(ktasList));
+          }
+        } catch (syncErr) {
+          console.error("Error syncing saveMember to KTA applications:", syncErr);
+        }
+
         return { success: true, message: 'Simulation success' };
       } catch (err) {
         console.error(err);
@@ -885,20 +915,31 @@ export const sheetsService = {
           list[idx] = { ...list[idx], ...appData };
           localStorage.setItem('kta_applications', JSON.stringify(list));
           
-          // Also sync user verification if status is changed to approved
-          if (appData.userId && appData.status) {
-            try {
-              const membersStored = localStorage.getItem('mock_members') || '[]';
-              const membersList = JSON.parse(membersStored);
-              const mIdx = membersList.findIndex((m: any) => String(m.id) === String(appData.userId) || m.email === appData.email);
-              if (mIdx !== -1) {
-                membersList[mIdx].isVerified = (appData.status === 'approved');
-                localStorage.setItem('mock_members', JSON.stringify(membersList));
-              }
-            } catch (err) {
-              console.error(err);
+          // Also sync user profile and verification status
+          try {
+            const membersStored = localStorage.getItem('mock_members') || '[]';
+            const membersList = JSON.parse(membersStored);
+            const mIdx = membersList.findIndex((m: any) => 
+              (appData.userId && String(m.id) === String(appData.userId)) || 
+              (m.email && appData.email && m.email.trim().toLowerCase() === appData.email.trim().toLowerCase())
+            );
+            if (mIdx !== -1) {
+              membersList[mIdx] = {
+                ...membersList[mIdx],
+                ...(appData.photo ? { photo: appData.photo } : {}),
+                ...(appData.nama ? { namaLengkap: appData.nama } : {}),
+                ...(appData.nik ? { nik: appData.nik } : {}),
+                ...(appData.noWa ? { noHp: appData.noWa } : {}),
+                ...(appData.asalDaerah ? { asalKwarda: appData.asalDaerah } : {}),
+                ...(appData.qabilah ? { qabilah: appData.qabilah } : {}),
+                ...(appData.status ? { isVerified: (appData.status === 'approved') } : {})
+              };
+              localStorage.setItem('mock_members', JSON.stringify(membersList));
             }
+          } catch (err) {
+            console.error("Error syncing saveKTAApplication to member profile:", err);
           }
+
           return { success: true, application: list[idx] };
         }
       } catch (e) {
@@ -1876,7 +1917,12 @@ export const sheetsService = {
             if (!m.qabilah || m.qabilah === '') { m.qabilah = kQabilah; updated = true; }
             if (!m.noHp || m.noHp === '') { m.noHp = kNoHp; updated = true; }
             if (!m.isVerified) { m.isVerified = true; updated = true; }
-            if (kPhoto && (!m.photo || m.photo === '')) { m.photo = kPhoto; updated = true; }
+            if (kPhoto) {
+              if (m.photo !== kPhoto) { m.photo = kPhoto; updated = true; }
+            } else if (m.photo) {
+              k.photo = m.photo;
+              ktasChanged = true;
+            }
             if (updated) {
               updatedCount++;
             }
