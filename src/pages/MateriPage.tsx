@@ -146,7 +146,7 @@ export default function MateriPage() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h2 className="text-xl font-display font-bold text-gray-800">SATU HW</h2>
+            <h2 className="text-xl font-display font-bold text-gray-800">SATU HW JATENG</h2>
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">HIZBUL WATHAN SUPER APPS</p>
           </div>
         </div>

@@ -129,7 +129,7 @@ const Header = () => {
                   className="h-10 w-auto"
                 />
                 <div>
-                  <h1 className="text-lg font-display font-bold text-hw-dark leading-tight">SATU HW</h1>
+                  <h1 className="text-lg font-display font-bold text-hw-dark leading-tight">SATU HW JATENG</h1>
                   <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase">Hizbul Wathan Super Apps</p>
                 </div>
               </div>

@@ -5964,7 +5964,7 @@ export default function AdminDashboard() {
                             value={contentFormData.field1}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm h-32 outline-none focus:ring-2 focus:ring-hw-green/20"
-                            placeholder="Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW, mohon dukungan dan supportnya, Salam HW!"
+                            placeholder="Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW JATENG, mohon dukungan dan supportnya, Salam HW!"
                           />
                           <p className="text-[10px] text-gray-400 mt-1">
                             * Teks ini akan berjalan di halaman depan tepat di atas kotak pencarian materi.
