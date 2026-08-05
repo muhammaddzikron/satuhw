@@ -68,7 +68,7 @@ export default function ProfilePage() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
@@ -82,13 +82,45 @@ export default function ProfilePage() {
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
+          let compressedBase64 = event.target?.result as string;
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-            setFormData(prev => ({ ...prev, photo: compressedBase64 }));
-          } else {
-            const base64String = event.target?.result as string;
-            setFormData(prev => ({ ...prev, photo: base64String }));
+            compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          }
+          
+          setFormData(prev => ({ ...prev, photo: compressedBase64 }));
+
+          // If user changes photo outside full edit mode, save immediately
+          if (!isEditing && user) {
+            try {
+              setLoading(true);
+              const updatedUser = { ...user, photo: compressedBase64 };
+              await sheetsService.saveMember(updatedUser);
+
+              // Also sync KTA application photo
+              try {
+                const apps = await sheetsService.getKTAApplications();
+                const userApp = apps.find((app: any) => 
+                  (app.userId && user.id && String(app.userId) === String(user.id)) || 
+                  (app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim())
+                );
+                if (userApp) {
+                  await sheetsService.saveKTAApplication({ ...userApp, photo: compressedBase64 });
+                  setKtaApp({ ...userApp, photo: compressedBase64 });
+                }
+              } catch (err) {
+                console.error('Error syncing KTA app photo:', err);
+              }
+
+              updateUser({ photo: compressedBase64 });
+              setMessage({ type: 'success', text: 'Foto profil dan KTA berhasil diperbarui!' });
+              setTimeout(() => setMessage(null), 3000);
+            } catch (err: any) {
+              console.error('Error auto saving photo:', err);
+              setMessage({ type: 'error', text: 'Gagal memperbarui foto profil: ' + (err.message || 'Error') });
+            } finally {
+              setLoading(false);
+            }
           }
         };
         img.src = event.target?.result as string;
@@ -354,16 +386,14 @@ export default function ProfilePage() {
                 ) : (
                   <UserIcon size={40} />
                 )}
-                {isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    title="Ubah Foto Profil"
-                  >
-                    <Camera size={20} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  title="Ubah Foto Profil"
+                >
+                  <Camera size={20} />
+                </button>
               </div>
               {!isEditing && (
                 <div className={cn(

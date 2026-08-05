@@ -277,13 +277,13 @@ export default function KTAPage() {
           return userIdMatch || emailMatch || nikMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
         });
 
-        // Determine best photo from all centralized sources
+        // Determine best photo from all centralized sources (Member Profile photo takes top priority)
         const bestPhoto = 
-          found?.photo || 
           freshUser?.photo || 
           freshUser?.foto || 
           user.photo || 
           (user as any).foto || 
+          found?.photo || 
           members.find(m => m.email && (found?.email || user.email) && m.email.toLowerCase().trim() === (found?.email || user.email).toLowerCase().trim())?.photo || 
           '';
 
@@ -330,7 +330,7 @@ export default function KTAPage() {
           if (bestPhoto) {
             found.photo = bestPhoto;
             setPhotoPreview(bestPhoto);
-            if (!user.photo) {
+            if (user.photo !== bestPhoto) {
               updateUser({ photo: bestPhoto });
             }
           }
@@ -1931,25 +1931,27 @@ export default function KTAPage() {
               />
             </div>
 
-            {/* Biaya Admin Hub */}
-            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl space-y-3">
-              <div>
-                <p className="text-[10px] font-bold text-emerald-800">Rincian Biaya Penerbitan & Aktivasi:</p>
-                <p className="text-xs text-emerald-700 leading-normal font-medium mt-1">
-                  - KTA Digital: <strong>Rp 10.000,-</strong> <br />
-                  - KTA Fisik: <strong>Rp 50.000,-</strong> (sudah termasuk ongkir ke alamat Anda)
-                </p>
-              </div>
-              <div className="bg-white/80 p-3 rounded-2xl border border-emerald-100/50 text-[10px] text-emerald-900 space-y-1">
-                <p className="font-semibold text-gray-500 text-[8px] uppercase tracking-wider">Transfer Pembayaran ke:</p>
-                <p className="font-bold text-emerald-800 text-[10px]">Bank Syariah Indonesia (BSI)</p>
-                <p className="text-xs font-black text-gray-800 tracking-wide font-mono">7307427448</p>
-                <p className="text-[9px] text-gray-500 font-semibold uppercase">an. Kwarwil HW Jateng</p>
-                <div className="pt-1.5 border-t border-emerald-100/50 mt-1 text-[9px] text-gray-600 leading-relaxed font-medium">
-                  Konfirmasi Bukti Transfer WhatsApp ke <strong>Medkom HW Jateng 089688754000</strong> setelah mengirimkan pendaftaran.
+            {/* Biaya Admin Hub (Hanya muncul saat Pengajuan KTA Baru) */}
+            {!showEditForm && !myApplication && (
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl space-y-3">
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-800">Rincian Biaya Penerbitan & Aktivasi:</p>
+                  <p className="text-xs text-emerald-700 leading-normal font-medium mt-1">
+                    - KTA Digital: <strong>Rp 10.000,-</strong> <br />
+                    - KTA Fisik: <strong>Rp 50.000,-</strong> (sudah termasuk ongkir ke alamat Anda)
+                  </p>
+                </div>
+                <div className="bg-white/80 p-3 rounded-2xl border border-emerald-100/50 text-[10px] text-emerald-900 space-y-1">
+                  <p className="font-semibold text-gray-500 text-[8px] uppercase tracking-wider">Transfer Pembayaran ke:</p>
+                  <p className="font-bold text-emerald-800 text-[10px]">Bank Syariah Indonesia (BSI)</p>
+                  <p className="text-xs font-black text-gray-800 tracking-wide font-mono">7307427448</p>
+                  <p className="text-[9px] text-gray-500 font-semibold uppercase">an. Kwarwil HW Jateng</p>
+                  <div className="pt-1.5 border-t border-emerald-100/50 mt-1 text-[9px] text-gray-600 leading-relaxed font-medium">
+                    Konfirmasi Bukti Transfer WhatsApp ke <strong>Medkom HW Jateng 089688754000</strong> setelah mengirimkan pendaftaran.
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Centang cek konfirmasi ketaatan data */}
             <div className="flex items-start gap-2.5 pt-1.5 pb-2">

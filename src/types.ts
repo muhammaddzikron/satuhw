@@ -22,6 +22,7 @@ export interface User {
   nik?: string;
   ktaNumber?: string;
   verifiedAt?: string;
+  password?: string;
 }
 
 export interface Materi {

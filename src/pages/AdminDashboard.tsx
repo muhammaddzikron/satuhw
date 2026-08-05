@@ -326,7 +326,7 @@ export default function AdminDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-  const [notifActiveTab, setNotifActiveTab] = useState<'pendaftaran' | 'upgrade' | 'kta'>('pendaftaran');
+  const [notifActiveTab, setNotifActiveTab] = useState<'pendaftaran' | 'upgrade' | 'kta' | 'pelatihan'>('pendaftaran');
   const [editingMember, setEditingMember] = useState<any>(null);
   const [formData, setFormData] = useState({
     namaLengkap: '',
@@ -1046,6 +1046,77 @@ export default function AdminDashboard() {
       alert('Gagal mengunduh KTA PDF. Silakan coba kembali.');
     } finally {
       setIsGeneratingPdfAdmin(false);
+    }
+  };
+
+  const handleRejectMember = async (m: any) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menolak & menghapus pendaftaran anggota ${m.namaLengkap || 'ini'}?`)) return;
+    try {
+      setLoading(true);
+      await sheetsService.deleteMember(m.id);
+      alert(`Pendaftaran ${m.namaLengkap || 'Anggota'} telah ditolak & dihapus dari antrean.`);
+      const refreshed = await sheetsService.getMembers();
+      setMembers(refreshed || []);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menolak pendaftaran: ' + (err.message || 'Error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveUpgrade = async (m: any, roleToApprove: string) => {
+    try {
+      setLoading(true);
+      let currentRoles: string[] = [];
+      if (Array.isArray(m.roles)) {
+        currentRoles = [...m.roles];
+      } else if (m.role) {
+        if (m.role.startsWith('[')) {
+          try { currentRoles = JSON.parse(m.role); } catch { currentRoles = [m.role]; }
+        } else {
+          currentRoles = m.role.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+      }
+      if (!currentRoles.includes(roleToApprove)) {
+        currentRoles.push(roleToApprove);
+      }
+      const remainingRequests = (Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).filter((r: string) => r !== roleToApprove);
+      const updatedMember = {
+        ...m,
+        role: currentRoles[0],
+        roles: currentRoles,
+        upgradeRequests: remainingRequests
+      };
+      await sheetsService.saveMember(updatedMember);
+      alert(`Permohonan upgrade ${ROLE_LABELS[roleToApprove] || roleToApprove} untuk ${m.namaLengkap} berhasil disetujui!`);
+      const refreshed = await sheetsService.getMembers();
+      setMembers(refreshed || []);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menyetujui upgrade: ' + (err.message || 'Error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectUpgrade = async (m: any, roleToReject: string) => {
+    try {
+      setLoading(true);
+      const remainingRequests = (Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).filter((r: string) => r !== roleToReject);
+      const updatedMember = {
+        ...m,
+        upgradeRequests: remainingRequests
+      };
+      await sheetsService.saveMember(updatedMember);
+      alert(`Permohonan upgrade ${ROLE_LABELS[roleToReject] || roleToReject} untuk ${m.namaLengkap} ditolak.`);
+      const refreshed = await sheetsService.getMembers();
+      setMembers(refreshed || []);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menolak upgrade: ' + (err.message || 'Error'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1988,7 +2059,8 @@ export default function AdminDashboard() {
   const membersWithUpgradeRequests = members.filter(m => m.upgradeRequests && m.upgradeRequests.length > 0);
   const pendingMembers = members.filter(m => !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
   const pendingKtaApps = ktaApps.filter(k => k.status === 'pending');
-  const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length;
+  const pendingTrainingApps = trainingApps.filter(t => t.status === 'pending');
+  const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length + pendingTrainingApps.length;
 
   if (loading) return <LoadingPage />;
 
@@ -5359,7 +5431,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <h3 className="font-display font-black text-gray-800">Pusat Notifikasi & Approval</h3>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Pendaftaran, Upgrade, & Ajuan KTA</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Pendaftaran, Upgrade, KTA & Pelatihan</p>
                   </div>
                 </div>
                 <button onClick={() => setIsNotificationModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -5368,25 +5440,25 @@ export default function AdminDashboard() {
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-gray-100 bg-gray-50/50 p-2 gap-2">
+              <div className="flex border-b border-gray-100 bg-gray-50/50 p-2 gap-1.5 overflow-x-auto no-scrollbar">
                 <button
                   onClick={() => setNotifActiveTab('pendaftaran')}
-                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-w-[90px] py-2.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                     notifActiveTab === 'pendaftaran'
                       ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
                       : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  Pendaftaran
+                  Daftar
                   {pendingMembers.length > 0 && (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[8px] rounded-full font-black">
                       {pendingMembers.length}
                     </span>
                   )}
                 </button>
                 <button
                   onClick={() => setNotifActiveTab('upgrade')}
-                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-w-[90px] py-2.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                     notifActiveTab === 'upgrade'
                       ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
                       : 'text-gray-400 hover:text-gray-600'
@@ -5394,23 +5466,38 @@ export default function AdminDashboard() {
                 >
                   Upgrade
                   {membersWithUpgradeRequests.length > 0 && (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[8px] rounded-full font-black">
                       {membersWithUpgradeRequests.length}
                     </span>
                   )}
                 </button>
                 <button
                   onClick={() => setNotifActiveTab('kta')}
-                  className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-w-[90px] py-2.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                     notifActiveTab === 'kta'
                       ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
                       : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  Ajuan KTA
+                  KTA
                   {pendingKtaApps.length > 0 && (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full font-black">
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[8px] rounded-full font-black">
                       {pendingKtaApps.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setNotifActiveTab('pelatihan')}
+                  className={`flex-1 min-w-[90px] py-2.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    notifActiveTab === 'pelatihan'
+                      ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Pelatihan
+                  {pendingTrainingApps.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[8px] rounded-full font-black">
+                      {pendingTrainingApps.length}
                     </span>
                   )}
                 </button>
@@ -5442,7 +5529,7 @@ export default function AdminDashboard() {
                               {m.email} • {m.asalKwarda || 'Kwarda -'}
                             </p>
                             <span className="mt-1 inline-block px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[8px] font-black uppercase tracking-wider">
-                              Golongan: {m.golongan}
+                              Golongan: {m.golongan || 'Umum'}
                             </span>
                           </div>
                         </div>
@@ -5452,7 +5539,7 @@ export default function AdminDashboard() {
                               setIsNotificationModalOpen(false);
                               handleOpenModal(m);
                             }}
-                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
                             title="Tinjau Data Anggota"
                           >
                             <Eye size={15} />
@@ -5461,9 +5548,17 @@ export default function AdminDashboard() {
                             onClick={async () => {
                               await handleChangeVerify(m.id);
                             }}
-                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all"
+                            className="px-3 py-1.5 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all shadow-sm"
                           >
                             Setujui
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              await handleRejectMember(m);
+                            }}
+                            className="px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-rose-100 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          >
+                            Tolak
                           </button>
                         </div>
                       </div>
@@ -5475,54 +5570,63 @@ export default function AdminDashboard() {
                       <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
                         <Bell size={32} />
                       </div>
-                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada ajuan baru</p>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada ajuan upgrade baru</p>
                     </div>
                   ) : (
                     membersWithUpgradeRequests.map((m) => (
                       <div 
                         key={`req-${m.id}`}
-                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex items-center justify-between gap-4"
+                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-hw-blue text-white flex items-center justify-center font-black text-xs">
-                            {m.namaLengkap?.charAt(0) || 'U'}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">{m.namaLengkap}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {(Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).map((roleId: string) => (
-                                <span key={roleId} className="px-1.5 py-0.5 bg-rose-50 text-rose-500 border border-rose-100 rounded text-[9px] font-black uppercase tracking-tighter">
-                                  {ROLE_LABELS[roleId] || roleId}
-                                </span>
-                              ))}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-hw-blue text-white flex items-center justify-center font-black text-xs shrink-0">
+                              {m.namaLengkap?.charAt(0) || 'U'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">{m.namaLengkap}</p>
+                              <p className="text-[10px] text-gray-400 font-medium">{m.email}</p>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
                           <button 
                             onClick={() => {
                               setIsNotificationModalOpen(false);
                               handleOpenModal(m);
                             }}
-                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
-                            title="Tinjau Data Anggota"
+                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all border border-emerald-100 shrink-0"
+                            title="Tinjau Data Lengkap"
                           >
                             <Eye size={15} />
                           </button>
-                          <button 
-                            onClick={() => {
-                              setIsNotificationModalOpen(false);
-                              handleOpenModal(m);
-                            }}
-                            className="px-4 py-2 bg-white border border-gray-200 text-hw-blue rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-hw-blue hover:text-white hover:border-hw-blue transition-all"
-                          >
-                            Proses
-                          </button>
+                        </div>
+
+                        <div className="space-y-2 pt-1 border-t border-gray-100">
+                          {(Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).map((roleId: string) => (
+                            <div key={roleId} className="flex items-center justify-between bg-white p-2.5 rounded-2xl border border-gray-100">
+                              <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded text-[9px] font-black uppercase tracking-wider">
+                                {ROLE_LABELS[roleId] || roleId}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleApproveUpgrade(m, roleId)}
+                                  className="px-2.5 py-1 bg-hw-green text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm"
+                                >
+                                  Setujui
+                                </button>
+                                <button
+                                  onClick={() => handleRejectUpgrade(m, roleId)}
+                                  className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-rose-100 transition-all shadow-sm"
+                                >
+                                  Tolak
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))
                   )
-                ) : (
+                ) : notifActiveTab === 'kta' ? (
                   pendingKtaApps.length === 0 ? (
                     <div className="text-center py-10 space-y-3">
                       <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
@@ -5557,7 +5661,7 @@ export default function AdminDashboard() {
                               setIsViewKtaModalOpen(true);
                               setFlippedAdmin(false);
                             }}
-                            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
                             title="Tinjau Kartu KTA"
                           >
                             <Eye size={15} />
@@ -5566,7 +5670,7 @@ export default function AdminDashboard() {
                             onClick={async () => {
                               await handleApproveKTA(app.id);
                             }}
-                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all"
+                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all shadow-sm"
                           >
                             Setujui
                           </button>
@@ -5574,7 +5678,66 @@ export default function AdminDashboard() {
                             onClick={() => {
                               handleOpenRejectKTA(app.id);
                             }}
-                            className="px-3.5 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 hover:bg-rose-100 transition-all"
+                            className="px-3.5 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 hover:bg-rose-100 transition-all shadow-sm"
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                ) : (
+                  pendingTrainingApps.length === 0 ? (
+                    <div className="text-center py-10 space-y-3">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
+                        <GraduationCap size={32} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Tidak ada pendaftaran pelatihan baru</p>
+                    </div>
+                  ) : (
+                    pendingTrainingApps.map((app) => (
+                      <div 
+                        key={`train-notif-${app.id}`}
+                        className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                            PLT
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{app.nama || 'Peserta'}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {app.asalDaerah || 'Kwarda'} • {app.noWa || app.email || '-'}
+                            </p>
+                            <span className="mt-1 inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[8px] font-black uppercase tracking-wider">
+                              Pelatihan: {app.pelatihanAkanDiikuti || 'Jaya Matahari 1'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                          <button 
+                            onClick={() => {
+                              setEditingTrainingApp({ ...app });
+                              setIsEditTrainingModalOpen(true);
+                            }}
+                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                            title="Edit Data Pelatihan"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              await handleApproveTraining(app.id);
+                            }}
+                            className="px-3.5 py-2 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          >
+                            Setujui
+                          </button>
+                          <button 
+                            onClick={() => {
+                              handleOpenRejectTraining(app.id);
+                            }}
+                            className="px-3.5 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 hover:bg-rose-100 transition-all shadow-sm"
                           >
                             Tolak
                           </button>

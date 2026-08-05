@@ -127,7 +127,7 @@ export const TRAINING_PROGRAMS: TrainingProgram[] = [
   {
     id: 'Jari 1',
     title: 'JARI 1',
-    subtitle: 'Jaya Melati Muda 1',
+    subtitle: 'Jaya Matahari 1',
     description: 'Pelatihan bagi kader remaja/muda Hizbul Wathan untuk membekali kemampuan teknis memimpin regu, survival lapangan, sandi, kompas, serta pertolongan pertama.',
     fee: 'Rp 50.000',
     requirements: [

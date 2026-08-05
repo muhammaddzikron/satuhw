@@ -228,36 +228,114 @@ export const firestoreService = {
 
   // --- MEMBERS ---
   async getMembers(): Promise<User[]> {
+    let members: User[] = [];
     try {
       const snap = await getDocs(collection(db, 'members'));
       if (!snap.empty) {
-        let members = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
-        const ktaStored = localStorage.getItem('kta_applications');
-        if (ktaStored) {
-          try {
-            const ktas = JSON.parse(ktaStored);
-            members = members.map((m: any) => {
-              if (!m.photo) {
-                const kMatch = ktas.find((k: any) => 
-                  (k.email && m.email && k.email.trim().toLowerCase() === m.email.trim().toLowerCase()) ||
-                  (k.userId && m.id && String(k.userId) === String(m.id))
-                );
-                if (kMatch?.photo) {
-                  return { ...m, photo: kMatch.photo };
-                }
-              }
-              return m;
-            });
-          } catch (e) {}
-        }
-        localStorage.setItem('mock_members', JSON.stringify(members));
-        return members;
+        members = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
       }
     } catch (err) {
       console.error('Firestore getMembers error, fallback to cache:', err);
     }
-    const stored = localStorage.getItem('mock_members') || '[]';
-    return JSON.parse(stored);
+
+    if (members.length === 0) {
+      const stored = localStorage.getItem('mock_members') || '[]';
+      try {
+        members = JSON.parse(stored);
+      } catch (e) {
+        members = [];
+      }
+    }
+
+    // Synchronize KTA Applications into members list automatically
+    try {
+      const ktaStored = localStorage.getItem('kta_applications');
+      let ktas: any[] = [];
+      if (ktaStored) {
+        try { ktas = JSON.parse(ktaStored); } catch(e) {}
+      }
+      // Also fetch from Firestore if possible
+      try {
+        const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+        if (!ktaSnap.empty) {
+          const fsKtas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          // Merge with ktaStored
+          fsKtas.forEach((fk: any) => {
+            if (!ktas.some((k: any) => k.id === fk.id || (k.email && fk.email && String(k.email).trim().toLowerCase() === String(fk.email).trim().toLowerCase()))) {
+              ktas.push(fk);
+            }
+          });
+        }
+      } catch(e) {}
+
+      if (Array.isArray(ktas) && ktas.length > 0) {
+        ktas.forEach((k: any) => {
+          if (!k) return;
+          const kEmail = (k.email || '').trim().toLowerCase();
+          const kUserId = k.userId ? String(k.userId).trim() : '';
+          const kId = k.id ? String(k.id).trim() : '';
+
+          if (!kEmail && !kUserId) return;
+
+          const matchedIdx = members.findIndex((m: any) => {
+            const mEmail = (m.email || '').trim().toLowerCase();
+            const mId = m.id ? String(m.id).trim() : '';
+            return (kEmail && mEmail && kEmail === mEmail) || (kUserId && mId && kUserId === mId) || (kId && mId && kId === mId);
+          });
+
+          if (matchedIdx >= 0) {
+            const m = members[matchedIdx];
+            const mEmail = (m.email || '').trim().toLowerCase();
+            const mRoles = Array.isArray(m.roles) ? m.roles : (m.role ? [m.role as UserRole] : ['umum']);
+            const isAdmin = m.role === 'superadmin' || m.role === 'admin' || mRoles.includes('superadmin') || mRoles.includes('admin') || mEmail === 'admin@hw.org' || mEmail === 'admin@hw.or.id';
+
+            members[matchedIdx] = {
+              ...m,
+              namaLengkap: m.namaLengkap || k.nama || k.namaLengkap || 'Anggota HW',
+              nik: m.nik || k.nik || '',
+              noHp: m.noHp || k.noWa || k.noHp || '',
+              alamat: m.alamat || k.alamat || '',
+              qabilah: m.qabilah || k.qabilah || '',
+              asalKwarda: m.asalKwarda || k.asalDaerah || '',
+              golongan: m.golongan || k.tingkatan || 'Dewasa',
+              photo: m.photo || k.photo || '',
+              isVerified: m.isVerified !== undefined ? m.isVerified : (k.status === 'approved'),
+              ktaNumber: m.ktaNumber || k.ktaNumber || '',
+              password: isAdmin ? (m.password || 'adnimku') : (m.password || '12345hw')
+            };
+          } else if (kEmail) {
+            const newMember: User = {
+              id: kUserId || kId || `user-${kEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+              email: kEmail,
+              namaLengkap: k.nama || k.namaLengkap || 'Anggota HW',
+              jenisKelamin: k.jenisKelamin === 'Perempuan' || k.jenisKelamin === 'P' ? 'P' : 'L',
+              golongan: k.tingkatan || 'Dewasa',
+              pelatihan: [],
+              pendidikan: '',
+              sosmed: k.sosmed || '',
+              nik: k.nik || '',
+              noHp: k.noWa || k.noHp || '',
+              alamat: k.alamat || '',
+              qabilah: k.qabilah || '',
+              asalKwarda: k.asalDaerah || '',
+              photo: k.photo || '',
+              isVerified: k.status === 'approved',
+              ktaNumber: k.ktaNumber || '',
+              role: 'umum',
+              roles: ['umum'],
+              activeRole: 'umum',
+              password: '12345hw'
+            };
+            members.push(newMember);
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error syncing KTA apps in getMembers:', e);
+    }
+
+    localStorage.setItem('mock_members', JSON.stringify(members));
+    return members;
   },
 
   async login(email: string, password: string): Promise<{ user: User; token: string } | null> {
@@ -267,18 +345,36 @@ export const firestoreService = {
     try {
       const members = await this.getMembers();
       const found = members.find((m: any) => m.email && m.email.trim().toLowerCase() === cleanEmail);
-      if (found) {
-        const expectedPass = (found as any).password || '12345hw';
-        // Allow exact password match or dev fallback passwords
-        if (cleanPass === expectedPass || cleanPass === '12345hw' || cleanPass === 'admin' || cleanPass === 'alda' || cleanPass === '123456' || cleanPass === 'password123') {
-          let roles: UserRole[] = found.roles || [];
-          if (typeof found.role === 'string' && found.role.startsWith('[')) {
-            try { roles = JSON.parse(found.role); } catch(e) {}
-          } else if (typeof found.role === 'string') {
-            roles = [found.role as UserRole];
-          }
-          if (roles.length === 0) roles = ['umum'];
 
+      if (found) {
+        let roles: UserRole[] = found.roles || [];
+        if (typeof found.role === 'string' && found.role.startsWith('[')) {
+          try { roles = JSON.parse(found.role); } catch(e) {}
+        } else if (typeof found.role === 'string') {
+          roles = [found.role as UserRole];
+        }
+        if (roles.length === 0) roles = ['umum'];
+
+        const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanEmail === 'admin@hw.org' || cleanEmail === 'admin@hw.or.id';
+        const storedPass = (found as any).password;
+
+        let isValidPassword = false;
+        if (isAdmin) {
+          // ADMIN ACCOUNTS: DO NOT ALLOW DEFAULT 12345hw UNLESS STORED PASS IS EXPLICITLY 12345hw
+          // Check stored admin password or official admin fallback passwords (adnimku, admin, admin123)
+          const expectedAdminPass = storedPass || 'adnimku';
+          if (cleanPass === expectedAdminPass || cleanPass === 'adnimku' || cleanPass === 'admin' || cleanPass === 'admin123') {
+            isValidPassword = true;
+          }
+        } else {
+          // REGULAR MEMBERS: Allow stored password, OR default password '12345hw', OR developer testing fallbacks
+          const expectedUserPass = storedPass || '12345hw';
+          if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456') {
+            isValidPassword = true;
+          }
+        }
+
+        if (isValidPassword) {
           const userObj: User = {
             ...found,
             roles,
@@ -307,33 +403,49 @@ export const firestoreService = {
     }
     // Sync local cache
     const current = await this.getMembers();
-    const idx = current.findIndex(m => m.id === memberId);
+    const idx = current.findIndex(m => String(m.id) === String(memberId) || (m.email && member.email && m.email.trim().toLowerCase() === member.email.trim().toLowerCase()));
     if (idx >= 0) {
-      current[idx] = dataToSave as User;
+      current[idx] = { ...current[idx], ...(dataToSave as User) };
     } else {
       current.push(dataToSave as User);
     }
     localStorage.setItem('mock_members', JSON.stringify(current));
 
-    // Sync photo and profile updates to KTA Applications collection
+    // Sync photo and profile updates to KTA Applications collection in both Firestore and localStorage
     try {
-      const ktas = await this.getKTAApplications();
-      const matched = ktas.find(k => 
-        (k.userId && String(k.userId) === String(memberId)) ||
-        (k.email && member.email && k.email.trim().toLowerCase() === member.email.trim().toLowerCase())
-      );
-      if (matched) {
-        const ktaSync: any = {};
-        if (member.photo) ktaSync.photo = member.photo;
-        if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
-        if (member.nik) ktaSync.nik = member.nik;
-        if (member.noHp) ktaSync.noWa = member.noHp;
-        if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
-        if (member.qabilah) ktaSync.qabilah = member.qabilah;
-        if (Object.keys(ktaSync).length > 0) {
-          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true });
+      const ktasStr = localStorage.getItem('kta_applications') || '[]';
+      let localKtas: any[] = [];
+      try { localKtas = JSON.parse(ktasStr); } catch(e) {}
+
+      localKtas.forEach((k: any) => {
+        if ((k.userId && String(k.userId) === String(memberId)) ||
+            (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
+          if (member.photo) k.photo = member.photo;
+          if (member.namaLengkap) k.nama = member.namaLengkap;
+          if (member.nik) k.nik = member.nik;
+          if (member.noHp) k.noWa = member.noHp;
+          if (member.asalKwarda) k.asalDaerah = member.asalKwarda;
+          if (member.qabilah) k.qabilah = member.qabilah;
         }
-      }
+      });
+      localStorage.setItem('kta_applications', JSON.stringify(localKtas));
+
+      const ktas = await this.getKTAApplications();
+      ktas.forEach((k: any) => {
+        if ((k.userId && String(k.userId) === String(memberId)) ||
+            (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
+          const ktaSync: any = {};
+          if (member.photo) ktaSync.photo = member.photo;
+          if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
+          if (member.nik) ktaSync.nik = member.nik;
+          if (member.noHp) ktaSync.noWa = member.noHp;
+          if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
+          if (member.qabilah) ktaSync.qabilah = member.qabilah;
+          if (Object.keys(ktaSync).length > 0) {
+            setDoc(doc(db, 'kta_applications', k.id), cleanData(ktaSync), { merge: true }).catch(() => {});
+          }
+        }
+      });
     } catch (syncErr) {
       console.error('Error syncing member to KTA application:', syncErr);
     }
@@ -471,14 +583,12 @@ export const firestoreService = {
         try {
           const members = JSON.parse(membersStored);
           ktas = ktas.map((k: any) => {
-            if (!k.photo) {
-              const match = members.find((m: any) => 
-                (m.email && k.email && m.email.trim().toLowerCase() === k.email.trim().toLowerCase()) ||
-                (m.id && k.userId && String(m.id) === String(k.userId))
-              );
-              if (match?.photo) {
-                return { ...k, photo: match.photo };
-              }
+            const match = members.find((m: any) => 
+              (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
+              (m.id && k.userId && String(m.id) === String(k.userId))
+            );
+            if (match?.photo) {
+              return { ...k, photo: match.photo };
             }
             return k;
           });

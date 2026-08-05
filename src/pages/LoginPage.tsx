@@ -149,7 +149,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
       
       <div className="text-center mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-800">
-          {showForgotModal ? 'Reset Password' : 'Login Area'}
+          {showForgotModal ? 'Reset Password' : 'Login Anggota HW'}
         </h2>
         <p className="text-gray-500 text-sm px-4">
           {showForgotModal 
@@ -302,7 +302,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           <div className="border-b border-gray-100 pb-2.5 mb-2 text-center">
             <h3 className="text-base font-extrabold font-display text-gray-800 flex items-center justify-center gap-2">
               <Lock size={18} className="text-hw-green" />
-              Login Area
+              Login Anggota HW
             </h3>
             <p className="text-xs text-gray-500 font-medium">Masukkan email/username dan password Anda di bawah ini</p>
           </div>

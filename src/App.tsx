@@ -81,16 +81,16 @@ const NavigationLink = ({ to, icon: Icon, label, active }: { to: string, icon: a
   <Link 
     to={to} 
     className={cn(
-      "flex flex-col items-center justify-center gap-1 py-1 px-3 transition-all duration-300",
-      active ? "text-hw-green" : "text-gray-400 hover:text-gray-600"
+      "flex flex-col items-center justify-center gap-1 py-1 px-2.5 transition-all duration-300 relative rounded-xl",
+      active ? "text-white font-extrabold scale-105" : "text-emerald-100 hover:text-white font-medium opacity-80 hover:opacity-100"
     )}
   >
-    <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-    <span className="text-[10px] font-medium">{label}</span>
+    <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+    <span className="text-[10px] tracking-tight">{label}</span>
     {active && (
       <motion.div 
         layoutId="nav-active"
-        className="w-1 h-1 rounded-full bg-hw-green mt-0.5"
+        className="w-1.5 h-1.5 rounded-full bg-amber-300 mt-0.5 shadow-sm"
       />
     )}
   </Link>
@@ -111,8 +111,8 @@ const Navigation = () => {
   const isMemberView = !canAccessAdmin() || activeRole === 'umum';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
-      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-1">
+    <nav className="fixed bottom-0 inset-x-0 z-[100] bg-gradient-to-r from-hw-green via-emerald-600 to-hw-blue border-t border-white/20 shadow-2xl safe-bottom pointer-events-auto">
+      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
         {isAuthenticated && !isMemberView ? (
           /* Admin/Staff view */
           <>
@@ -154,9 +154,9 @@ const Navigation = () => {
             />
             <button 
               onClick={logout}
-              className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-red-500"
+              className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-rose-200 hover:text-white transition-colors"
             >
-              <LogOut size={22} />
+              <LogOut size={20} />
               <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
             </button>
           </>
@@ -193,9 +193,9 @@ const Navigation = () => {
                 />
                 <button 
                   onClick={logout}
-                  className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-red-500"
+                  className="flex flex-col items-center justify-center gap-1 py-1 px-2.5 text-rose-200 hover:text-white transition-colors"
                 >
-                  <LogOut size={22} />
+                  <LogOut size={20} />
                   <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
                 </button>
               </>
