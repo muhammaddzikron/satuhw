@@ -21,6 +21,7 @@ import {
   Layers,
   Award,
   Users,
+  Calendar,
   Languages,
   Instagram,
   Youtube,
@@ -738,6 +739,23 @@ export default function HomePage() {
                   <ChevronRight size={18} className="text-white" />
                 </div>
               </Link>
+
+              {/* Banner Kegiatan HW Jateng for Guests */}
+              <Link 
+                to="/kegiatan" 
+                className="flex items-center justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white p-4 rounded-3xl shadow-md shadow-blue-700/20 hover:shadow-lg transition-all border border-blue-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200 mt-2"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/20 rounded-2xl text-white">
+                    <Calendar size={20} />
+                  </div>
+                  <div className="text-left space-y-0.5">
+                    <h4 className="text-xs font-black uppercase tracking-wider">Kegiatan HW Jateng</h4>
+                    <p className="text-[9px] text-blue-100 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-blue-100" />
+              </Link>
             </div>
           </div>
         ) : (
@@ -777,6 +795,25 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-orange-100" />
+              </Link>
+            </div>
+
+            {/* Banner Kegiatan HW Jateng */}
+            <div className="px-1">
+              <Link 
+                to="/kegiatan" 
+                className="flex items-center justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white p-4 rounded-3xl shadow-md shadow-blue-700/20 hover:shadow-lg transition-all border border-blue-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/20 rounded-2xl text-white">
+                    <Calendar size={20} />
+                  </div>
+                  <div className="text-left space-y-0.5">
+                    <h4 className="text-xs font-black uppercase tracking-wider">Kegiatan HW Jateng</h4>
+                    <p className="text-[9px] text-blue-100 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-blue-100" />
               </Link>
             </div>
           </div>

@@ -103,11 +103,14 @@ import {
   Save,
   AlertTriangle,
   Pencil,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Calendar,
+  Edit
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
@@ -360,6 +363,26 @@ export default function AdminDashboard() {
     coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
     driveUrl: ''
   });
+
+  // Kegiatan HW Jateng State
+  const [activitiesList, setActivitiesList] = useState<any[]>([]);
+  const [activityApplicationsList, setActivityApplicationsList] = useState<any[]>([]);
+  const [activitySubTab, setActivitySubTab] = useState<'kegiatan' | 'peserta'>('kegiatan');
+  const [isKegiatanModalOpen, setIsKegiatanModalOpen] = useState(false);
+  const [editingKegiatan, setEditingKegiatan] = useState<any | null>(null);
+  const [kegiatanFormData, setKegiatanFormData] = useState({
+    namaKegiatan: '',
+    kategori: 'Kemah Bakti',
+    tanggal: '',
+    lokasi: '',
+    biaya: 'Gratis',
+    status: 'Buka',
+    kuota: '100 Peserta',
+    deskripsi: '',
+    gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+    penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+  });
+  const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
 
   const [selectedContentSection, setSelectedContentSection] = useState<string | null>(null);
   const [contents, setContents] = useState<Content[]>([]);
@@ -1251,6 +1274,79 @@ export default function AdminDashboard() {
     }
   };
 
+  // Activity Handlers
+  const handleOpenActivityModal = (activity?: any) => {
+    if (activity) {
+      setEditingKegiatan(activity);
+      setKegiatanFormData({
+        namaKegiatan: activity.namaKegiatan || '',
+        kategori: activity.kategori || 'Kemah Bakti',
+        tanggal: activity.tanggal || '',
+        lokasi: activity.lokasi || '',
+        biaya: activity.biaya || 'Gratis',
+        status: activity.status || 'Buka',
+        kuota: activity.kuota || '100 Peserta',
+        deskripsi: activity.deskripsi || '',
+        gambarUrl: activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah'
+      });
+    } else {
+      setEditingKegiatan(null);
+      setKegiatanFormData({
+        namaKegiatan: '',
+        kategori: 'Kemah Bakti',
+        tanggal: '',
+        lokasi: '',
+        biaya: 'Gratis',
+        status: 'Buka',
+        kuota: '100 Peserta',
+        deskripsi: '',
+        gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+      });
+    }
+    setIsKegiatanModalOpen(true);
+  };
+
+  const handleSaveActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kegiatanFormData.namaKegiatan) {
+      alert('Nama kegiatan wajib diisi');
+      return;
+    }
+    try {
+      setLoading(true);
+      const payload = {
+        id: editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`,
+        ...kegiatanFormData
+      };
+      await sheetsService.saveActivity(payload);
+      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil dibuat!');
+      setIsKegiatanModalOpen(false);
+      const actData = await sheetsService.getActivities();
+      setActivitiesList(actData || []);
+    } catch (err: any) {
+      alert('Gagal menyimpan kegiatan: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteActivity = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) return;
+    try {
+      setLoading(true);
+      await sheetsService.deleteActivity(id);
+      alert('Kegiatan berhasil dihapus');
+      const actData = await sheetsService.getActivities();
+      setActivitiesList(actData || []);
+    } catch (err: any) {
+      alert('Gagal menghapus kegiatan: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateAttendance = async (appId: string, dayKey: string, isPresent: boolean) => {
     try {
       const app = trainingApps.find(a => String(a.id) === String(appId));
@@ -1382,19 +1478,23 @@ export default function AdminDashboard() {
         console.warn('Silent auto-sync failed:', err);
       }
 
-      const [materi, membersData, contentsData, settingsData, ktaData, trainingData] = await Promise.all([
+      const [materi, membersData, contentsData, settingsData, ktaData, trainingData, activitiesData, actRegData] = await Promise.all([
         sheetsService.getMateri('admin'),
         sheetsService.getMembers(),
         sheetsService.getContents(),
         sheetsService.getSettings(),
         sheetsService.getKTAApplications(),
-        sheetsService.getTrainingApplications()
+        sheetsService.getTrainingApplications(),
+        sheetsService.getActivities(),
+        sheetsService.getActivityApplications()
       ]);
       setMateriList(materi || []);
       setMembers(membersData || []);
       setContents(contentsData || []);
       setKtaApps(ktaData || []);
       setTrainingApps(trainingData || []);
+      setActivitiesList(activitiesData || []);
+      setActivityApplicationsList(actRegData || []);
       if (settingsData) {
         setSettings(prev => ({
           ...prev,
@@ -2169,6 +2269,7 @@ export default function AdminDashboard() {
           { id: 'anggota', label: 'Anggota', icon: Users },
           { id: 'kta', label: 'KTA', icon: CreditCard },
           { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap },
+          { id: 'kegiatan', label: 'Kegiatan', icon: Calendar },
           { id: 'materi', label: 'Materi', icon: BookOpen },
           { id: 'konten', label: 'Konten', icon: Layout },
           user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield },
@@ -5362,6 +5463,342 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* KEGIATAN TAB */}
+          {activeTab === 'kegiatan' && (
+            <div className="p-6 md:p-8 space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-hw-dark to-slate-900 p-6 rounded-3xl text-white">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="text-emerald-400" size={20} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Resmi HW Jateng</span>
+                  </div>
+                  <h3 className="text-lg font-black font-display mt-0.5">Manajemen Kegiatan HW Jateng</h3>
+                  <p className="text-xs text-slate-300">Input dan kelola agenda kegiatan kepanduan wilayah Jawa Tengah</p>
+                </div>
+
+                <button
+                  onClick={() => handleOpenActivityModal()}
+                  className="px-5 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-hw-green/20 flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus size={16} /> Tambah Kegiatan Baru
+                </button>
+              </div>
+
+              {/* Sub-tab Navigation */}
+              <div className="flex border-b border-gray-100 gap-6 text-xs font-black">
+                <button
+                  onClick={() => setActivitySubTab('kegiatan')}
+                  className={`pb-3 transition-colors cursor-pointer border-b-2 ${
+                    activitySubTab === 'kegiatan' ? 'border-hw-green text-hw-green' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Daftar Kegiatan ({activitiesList.length})
+                </button>
+                <button
+                  onClick={() => setActivitySubTab('peserta')}
+                  className={`pb-3 transition-colors cursor-pointer border-b-2 ${
+                    activitySubTab === 'peserta' ? 'border-hw-green text-hw-green' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Peserta Terdaftar ({activityApplicationsList.length})
+                </button>
+              </div>
+
+              {/* SUB TAB 1: DAFTAR KEGIATAN */}
+              {activitySubTab === 'kegiatan' && (
+                <div>
+                  {activitiesList.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                      <Calendar size={40} className="mx-auto text-gray-300" />
+                      <p className="text-xs font-bold">Belum ada kegiatan yang diinputkan.</p>
+                      <button
+                        onClick={() => handleOpenActivityModal()}
+                        className="px-4 py-2 bg-hw-green text-white rounded-xl text-xs font-bold"
+                      >
+                        + Tambah Kegiatan Pertama
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {activitiesList.map((act) => (
+                        <div key={act.id} className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                          <div>
+                            <div className="relative h-40 bg-gray-100 overflow-hidden">
+                              <img src={act.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} alt={act.namaKegiatan} className="w-full h-full object-cover" />
+                              <div className="absolute top-3 left-3 bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                                {act.kategori}
+                              </div>
+                              <span className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
+                                act.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                              }`}>
+                                {act.status || 'Buka'}
+                              </span>
+                            </div>
+
+                            <div className="p-5 space-y-3">
+                              <div>
+                                <h4 className="font-display font-black text-sm text-gray-900 leading-snug">{act.namaKegiatan}</h4>
+                                <p className="text-xs text-gray-500 line-clamp-2 mt-1">{act.deskripsi}</p>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                <div>📅 {act.tanggal}</div>
+                                <div>📍 {act.lokasi}</div>
+                                <div>💰 {act.biaya || 'Gratis'}</div>
+                                <div>👥 {act.kuota || 'Terbuka'}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => handleOpenActivityModal(act)}
+                              className="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Edit size={14} /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteActivity(act.id)}
+                              className="px-3.5 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Trash2 size={14} /> Hapus
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUB TAB 2: PESERTA TERDAFTAR */}
+              {activitySubTab === 'peserta' && (
+                <div className="space-y-4">
+                  {/* Filter Activity */}
+                  <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-wider shrink-0">Pilih Kegiatan:</span>
+                    <select
+                      value={selectedActivityForParticipants}
+                      onChange={(e) => setSelectedActivityForParticipants(e.target.value)}
+                      className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none"
+                    >
+                      <option value="semua">Semua Kegiatan ({activityApplicationsList.length} Peserta)</option>
+                      {activitiesList.map(a => (
+                        <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Table */}
+                  <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-gray-50 text-gray-500 uppercase font-black text-[10px] tracking-wider border-b border-gray-100">
+                          <tr>
+                            <th className="p-4">Peserta</th>
+                            <th className="p-4">Kegiatan</th>
+                            <th className="p-4">No. HP / WA</th>
+                            <th className="p-4">Kwarda & Qabilah</th>
+                            <th className="p-4">Status KTA</th>
+                            <th className="p-4">Tgl Daftar</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {activityApplicationsList
+                            .filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants)
+                            .map((app) => (
+                              <tr key={app.id} className="hover:bg-gray-50/80 transition-colors">
+                                <td className="p-4 font-bold text-gray-900">
+                                  {app.namaLengkap}
+                                  <div className="text-[10px] text-gray-400 font-mono font-normal">NIK: {app.nik || '-'}</div>
+                                </td>
+                                <td className="p-4 font-bold text-hw-green">
+                                  {app.namaKegiatan || 'Kegiatan HW'}
+                                </td>
+                                <td className="p-4 font-mono font-bold text-gray-700">
+                                  {app.noHp}
+                                </td>
+                                <td className="p-4 text-gray-600">
+                                  {app.asalKwarda} / {app.qabilah || '-'}
+                                </td>
+                                <td className="p-4">
+                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+                                    <CheckCircle2 size={12} /> KTA Aktif
+                                  </span>
+                                </td>
+                                <td className="p-4 text-gray-400 text-[11px]">
+                                  {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          {activityApplicationsList.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">
+                                Belum ada pendaftar kegiatan.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ACTIVITY FORM MODAL */}
+          <AnimatePresence>
+            {isKegiatanModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+                >
+                  <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Pusat Data Kegiatan</span>
+                      <h3 className="text-sm font-black font-display">{editingKegiatan ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}</h3>
+                    </div>
+                    <button onClick={() => setIsKegiatanModalOpen(false)} className="p-2 text-white/70 hover:text-white rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveActivity} className="p-6 overflow-y-auto space-y-4 flex-1">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nama Kegiatan *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={kegiatanFormData.namaKegiatan}
+                        onChange={e => setKegiatanFormData({ ...kegiatanFormData, namaKegiatan: e.target.value })}
+                        placeholder="Contoh: Kemah Bakti HW Jateng 2026"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Kategori</label>
+                        <select
+                          value={kegiatanFormData.kategori}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, kategori: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        >
+                          <option value="Kemah Bakti">Kemah Bakti</option>
+                          <option value="Jambore">Jambore</option>
+                          <option value="Muswil">Muswil</option>
+                          <option value="Pelatihan Khusus">Pelatihan Khusus</option>
+                          <option value="Silaturahmi">Silaturahmi</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Status Pendaftaran</label>
+                        <select
+                          value={kegiatanFormData.status}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, status: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        >
+                          <option value="Buka">Buka (Terbuka)</option>
+                          <option value="Tutup">Tutup (Ditutup)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Tanggal Pelaksanaan</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.tanggal}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, tanggal: e.target.value })}
+                          placeholder="Contoh: 15-18 Oktober 2026"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Lokasi</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.lokasi}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, lokasi: e.target.value })}
+                          placeholder="Contoh: Baturraden, Banyumas"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Infaq / Biaya</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.biaya}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, biaya: e.target.value })}
+                          placeholder="Contoh: Rp 75.000 / Gratis"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Kuota Peserta</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.kuota}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, kuota: e.target.value })}
+                          placeholder="Contoh: 500 Peserta"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Gambar URL (Banner)</label>
+                      <input 
+                        type="text" 
+                        value={kegiatanFormData.gambarUrl}
+                        onChange={e => setKegiatanFormData({ ...kegiatanFormData, gambarUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Deskripsi Kegiatan</label>
+                      <textarea 
+                        rows={3}
+                        value={kegiatanFormData.deskripsi}
+                        onChange={e => setKegiatanFormData({ ...kegiatanFormData, deskripsi: e.target.value })}
+                        placeholder="Tuliskan ringkasan agenda kegiatan..."
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsKegiatanModalOpen(false)}
+                        className="px-5 py-3 bg-gray-100 text-gray-600 rounded-2xl text-xs font-bold hover:bg-gray-200 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 cursor-pointer"
+                      >
+                        Simpan Kegiatan
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
           {/* AKUN TAB */}
           {activeTab === 'akun' && (
             <div className="p-8 max-w-md mx-auto">

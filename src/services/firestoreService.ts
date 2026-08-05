@@ -280,7 +280,7 @@ export const firestoreService = {
         const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
         const validMembers: User[] = [];
         for (const m of rawMembers) {
-          const name = (m.namaLengkap || m.nama || '').trim();
+          const name = (m.namaLengkap || (m as any).nama || '').trim();
           const email = (m.email || '').trim();
           const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
           if (isInvalid) {
@@ -641,8 +641,9 @@ export const firestoreService = {
 
       const cleanKtas: any[] = [];
       for (const k of rawKtas) {
-        const name = (k.nama || k.namaLengkap || '').trim();
-        const email = (k.email || '').trim();
+        const item = k as any;
+        const name = (item.nama || item.namaLengkap || '').trim();
+        const email = (item.email || '').trim();
         const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW');
         if (isInvalid) {
           deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
@@ -888,7 +889,8 @@ export const firestoreService = {
         const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const cleanTrainings: any[] = [];
         for (const t of rawTrainings) {
-          const name = (t.nama || t.namaLengkap || '').trim();
+          const item = t as any;
+          const name = (item.nama || item.namaLengkap || '').trim();
           if (!name || name === 'Tanpa Nama' || name === '-') {
             deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
           } else {
@@ -1075,6 +1077,163 @@ export const firestoreService = {
     }
     localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
     return dataToSave;
+  },
+
+  // --- KEGIATAN HW JATENG ---
+  async getActivities(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, 'hw_activities'));
+      if (!snap.empty) {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        localStorage.setItem('hw_activities', JSON.stringify(list));
+        return list;
+      }
+    } catch (err) {
+      console.error('Firestore getActivities error:', err);
+    }
+    const stored = localStorage.getItem('hw_activities');
+    if (stored) {
+      try { return JSON.parse(stored); } catch (e) {}
+    }
+    const defaults = [
+      {
+        id: 'keg-1',
+        namaKegiatan: 'Kemah Bakti Pandu HW Jawa Tengah 2026',
+        kategori: 'Kemah Bakti',
+        tanggal: '20 - 22 Agustus 2026',
+        lokasi: 'Baturraden, Kabupaten Banyumas',
+        biaya: 'Rp 35.000',
+        status: 'Buka',
+        kuota: '500 Peserta',
+        deskripsi: 'Ajang silaturahmi dan pengabdian masyarakat Pandu HW se-Jawa Tengah dengan kegiatan bakti sosial, penghijauan, dan latihan kepanduan.',
+        gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+      },
+      {
+        id: 'keg-2',
+        namaKegiatan: 'Jambore Wilayah Hizbul Wathan 2026',
+        kategori: 'Jambore',
+        tanggal: '10 - 14 September 2026',
+        lokasi: 'Kawasan Wisata Bandungan, Kabupaten Semarang',
+        biaya: 'Rp 75.000',
+        status: 'Buka',
+        kuota: '1000 Peserta',
+        deskripsi: 'Pertemuan agung Pandu Pengenal dan Penghela HW se-Jawa Tengah yang mengusung semangat kepanduan Islami, kecakapan hidup, dan kompetensi teknologi.',
+        gambarUrl: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+      },
+      {
+        id: 'keg-3',
+        namaKegiatan: 'Musyawarah Wilayah HW Jawa Tengah',
+        kategori: 'Muswil',
+        tanggal: '15 - 16 Oktober 2026',
+        lokasi: 'Auditorium Universitas Muhammadiyah Semarang (UNIMUS)',
+        biaya: 'Gratis (Undangan)',
+        status: 'Buka',
+        kuota: '200 Utusan',
+        deskripsi: 'Musyawarah tertinggi tingkat wilayah Jawa Tengah untuk perumusan program kerja strategis dan pemilihan kepemimpinan Kwartir Wilayah HW.',
+        gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+      }
+    ];
+    localStorage.setItem('hw_activities', JSON.stringify(defaults));
+    return defaults;
+  },
+
+  async saveActivity(activityData: any): Promise<any> {
+    const newAct = cleanData({
+      ...activityData,
+      id: activityData.id || `keg-${Date.now()}`
+    });
+    try {
+      await setDoc(doc(db, 'hw_activities', newAct.id), newAct, { merge: true });
+    } catch (err) {
+      console.error('Firestore saveActivity error:', err);
+    }
+    const list = await this.getActivities();
+    const idx = list.findIndex(a => a.id === newAct.id);
+    if (idx >= 0) {
+      list[idx] = newAct;
+    } else {
+      list.unshift(newAct);
+    }
+    localStorage.setItem('hw_activities', JSON.stringify(list));
+    return newAct;
+  },
+
+  async deleteActivity(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'hw_activities', id));
+    } catch (err) {
+      console.error('Firestore deleteActivity error:', err);
+    }
+    const list = await this.getActivities();
+    const filtered = list.filter(a => a.id !== id);
+    localStorage.setItem('hw_activities', JSON.stringify(filtered));
+    return true;
+  },
+
+  async getActivityApplications(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, 'activity_applications'));
+      if (!snap.empty) {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        localStorage.setItem('activity_applications', JSON.stringify(list));
+        return list;
+      }
+    } catch (err) {
+      console.error('Firestore getActivityApplications error:', err);
+    }
+    const stored = localStorage.getItem('activity_applications');
+    if (stored) {
+      try { return JSON.parse(stored); } catch (e) {}
+    }
+    return [];
+  },
+
+  async registerActivity(appData: any): Promise<any> {
+    const regId = appData.id || `actreg-${Date.now()}`;
+    const cleanReg = cleanData({
+      ...appData,
+      id: regId,
+      status: appData.status || 'approved',
+      tanggalDaftar: new Date().toISOString()
+    });
+
+    try {
+      await setDoc(doc(db, 'activity_applications', regId), cleanReg);
+    } catch (err) {
+      console.error('Firestore registerActivity error:', err);
+    }
+
+    const regList = await this.getActivityApplications();
+    regList.unshift(cleanReg);
+    localStorage.setItem('activity_applications', JSON.stringify(regList));
+
+    // Automatically create/ensure KTA Application & Member Profile for participant
+    try {
+      const email = cleanReg.email?.trim().toLowerCase();
+      const nama = cleanReg.namaLengkap || cleanReg.nama || 'Anggota HW';
+      const ktaPayload = {
+        id: `kta-${email ? email.replace(/[^a-zA-Z0-9]/g, '_') : Date.now()}`,
+        userId: cleanReg.userId || `user-${Date.now()}`,
+        nama: nama,
+        nik: cleanReg.nik || '',
+        noWa: cleanReg.noHp || cleanReg.noWa || '',
+        email: email || '',
+        asalDaerah: cleanReg.asalKwarda || cleanReg.asalDaerah || 'Jawa Tengah',
+        qabilah: cleanReg.qabilah || 'Peserta Kegiatan HW',
+        tingkatan: cleanReg.golongan || 'Dewasa',
+        status: 'approved',
+        approvalDate: new Date().toISOString(),
+        isDigitalOnly: true
+      };
+      await this.saveKTAApplication(ktaPayload);
+    } catch (e) {
+      console.error('Auto KTA creation for activity error:', e);
+    }
+
+    return cleanReg;
   },
 
   /**

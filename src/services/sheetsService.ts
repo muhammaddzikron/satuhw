@@ -1737,6 +1737,27 @@ export const sheetsService = {
     return await firestoreService.backupAndUploadAllToFirestore();
   },
 
+  // --- KEGIATAN HW JATENG METHODS ---
+  async getActivities(): Promise<any[]> {
+    return await firestoreService.getActivities();
+  },
+
+  async saveActivity(activityData: any): Promise<any> {
+    return await firestoreService.saveActivity(activityData);
+  },
+
+  async deleteActivity(id: string): Promise<boolean> {
+    return await firestoreService.deleteActivity(id);
+  },
+
+  async getActivityApplications(): Promise<any[]> {
+    return await firestoreService.getActivityApplications();
+  },
+
+  async registerActivity(appData: any): Promise<any> {
+    return await firestoreService.registerActivity(appData);
+  },
+
   getMockContents(): Content[] {
     return [
       {
