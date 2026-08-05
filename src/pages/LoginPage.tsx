@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Lock, Mail, Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, MessageCircle } from 'lucide-react';
+import { 
+  Lock, 
+  Mail, 
+  Eye, 
+  EyeOff, 
+  Loader2, 
+  ShieldCheck, 
+  ChevronLeft, 
+  MessageCircle, 
+  Search, 
+  CheckCircle2, 
+  XCircle, 
+  UserPlus 
+} from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 
@@ -13,10 +26,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [resetFullName, setResetFullName] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
   const [waNumber, setWaNumber] = useState('6281234567890');
   const [showForgotModal, setShowForgotModal] = useState(false);
   
+  // Cek Email Status states
+  const [checkEmailInput, setCheckEmailInput] = useState('');
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [checkResult, setCheckResult] = useState<{
+    checked: boolean;
+    found: boolean;
+    user?: any;
+    emailSearched?: string;
+  } | null>(null);
+
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
@@ -33,6 +55,41 @@ export default function LoginPage() {
     };
     fetchSettings();
   }, []);
+
+  const handleCheckEmailStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = checkEmailInput.trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    setIsCheckingEmail(true);
+    try {
+      const members = await sheetsService.getMembers();
+      const found = members.find((m: any) => 
+        (m.email && m.email.trim().toLowerCase() === cleanEmail) ||
+        (m.id && String(m.id).trim().toLowerCase() === cleanEmail)
+      );
+
+      if (found) {
+        setCheckResult({
+          checked: true,
+          found: true,
+          user: found,
+          emailSearched: cleanEmail
+        });
+        setEmail(found.email || cleanEmail);
+      } else {
+        setCheckResult({
+          checked: true,
+          found: false,
+          emailSearched: cleanEmail
+        });
+      }
+    } catch (err) {
+      console.error('Error checking email status:', err);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +132,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
       <div className="w-full flex justify-start mb-6">
         <button 
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-gray-400 hover:text-hw-green transition-colors text-sm font-bold"
+          className="flex items-center gap-1 text-gray-400 hover:text-hw-green transition-colors text-sm font-bold cursor-pointer"
         >
           <ChevronLeft size={20} />
           Kembali
@@ -90,16 +147,105 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
         <Lock className="text-hw-green" size={32} />
       </motion.div>
       
-      <div className="text-center mb-10">
+      <div className="text-center mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-800">
           {showForgotModal ? 'Reset Password' : 'Selamat Datang'}
         </h2>
         <p className="text-gray-500 text-sm px-4">
           {showForgotModal 
             ? 'Lengkapi data dibawah untuk mengajukan reset password via WhatsApp' 
-            : 'Masuk untuk mengakses materi lengkap'}
+            : 'Masuk untuk mengakses materi & fitur lengkap aplikasi'}
         </p>
       </div>
+
+      {!showForgotModal && (
+        <div className="w-full bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/50 border border-emerald-200/90 rounded-3xl p-5 mb-8 shadow-sm">
+          <div className="flex items-center gap-2 mb-1.5 text-emerald-900">
+            <Search size={18} className="text-emerald-700" />
+            <h3 className="text-sm font-extrabold font-display">Cek Status Akun / Email</h3>
+          </div>
+          <p className="text-xs text-gray-600 mb-3.5 leading-relaxed">
+            Ketik email Anda untuk mendeteksi apakah akun Anggota HW sudah aktif di aplikasi.
+          </p>
+
+          <form onSubmit={handleCheckEmailStatus} className="flex gap-2">
+            <div className="relative flex-1">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="email"
+                value={checkEmailInput}
+                onChange={(e) => {
+                  setCheckEmailInput(e.target.value);
+                  if (checkResult) setCheckResult(null);
+                }}
+                placeholder="nama@email.com"
+                required
+                className="w-full bg-white border border-emerald-200 rounded-xl py-3 pl-10 pr-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isCheckingEmail}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              {isCheckingEmail ? <Loader2 size={14} className="animate-spin" /> : 'Cek Status'}
+            </button>
+          </form>
+
+          {checkResult && checkResult.checked && (
+            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-3.5">
+              {checkResult.found ? (
+                <div className="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-4 text-xs text-emerald-950 space-y-2.5">
+                  <div className="flex items-center gap-2 font-extrabold text-emerald-900 text-sm">
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                    <span>Akun Anggota HW Aktif!</span>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                    Akun atas nama <strong className="text-emerald-950 font-black">{checkResult.user?.namaLengkap || 'Anggota HW'}</strong> ({checkResult.emailSearched}) terdeteksi <span className="bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-extrabold">SUDAH AKTIF</span>.
+                  </p>
+                  <div className="pt-2 border-t border-emerald-200/60 flex flex-col gap-2">
+                    <p className="text-[11px] text-gray-600">
+                      👉 Email telah otomatis diisikan di form login di bawah. Silakan masukkan password Anda untuk masuk.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgotModal(true);
+                          setResetEmail(checkResult.user?.email || checkResult.emailSearched || '');
+                          setResetFullName(checkResult.user?.namaLengkap || '');
+                        }}
+                        className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        Lupa Password? Hubungi Admin
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 text-xs text-amber-950 space-y-2.5">
+                  <div className="flex items-center gap-2 font-extrabold text-amber-900 text-sm">
+                    <XCircle size={18} className="text-amber-600 shrink-0" />
+                    <span>Akun Belum Terdaftar / Belum Aktif</span>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                    Email <span className="font-bold text-amber-900">{checkResult.emailSearched}</span> belum terdeteksi aktif di sistem aplikasi HW.
+                  </p>
+                  <div className="pt-2 border-t border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-[11px] text-amber-900 font-medium">Silakan lakukan pendaftaran akun baru:</span>
+                    <Link
+                      to={`/register?email=${encodeURIComponent(checkResult.emailSearched || '')}`}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      Daftar Sekarang <UserPlus size={14} />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {showForgotModal ? (
         <form onSubmit={handleWhatsAppReset} className="w-full space-y-4">
@@ -135,9 +281,9 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
 
           <button 
             type="submit"
-            className="w-full bg-hw-green text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-hw-green text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <MessageCircle size={20} /> Ajukan via WhatsApp
+            <MessageCircle size={20} /> Hubungi Admin via WhatsApp
           </button>
 
           <button 
@@ -146,7 +292,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
               setShowForgotModal(false);
               setError('');
             }}
-            className="w-full text-gray-500 text-sm font-medium py-2 hover:text-hw-green transition-colors"
+            className="w-full text-gray-500 text-sm font-medium py-2 hover:text-hw-green transition-colors cursor-pointer"
           >
             Kembali ke Login
           </button>
@@ -175,8 +321,18 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           </div>
 
           <div className="space-y-1">
-            <div className="ml-1">
+            <div className="ml-1 flex items-center justify-between">
               <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Password</label>
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowForgotModal(true);
+                  if (email) setResetEmail(email);
+                }}
+                className="text-xs font-bold text-hw-green hover:underline cursor-pointer"
+              >
+                Lupa Password?
+              </button>
             </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -191,7 +347,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -201,14 +357,14 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           <button 
             type="submit"
             disabled={isLoading}
-            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
           </button>
         </form>
       )}
 
-      <div className="mt-10 text-center flex flex-col gap-3">
+      <div className="mt-8 text-center flex flex-col gap-3">
         <p className="text-gray-500 text-sm">
           Belum punya akun?{' '}
           <Link to="/register" className="text-hw-green font-bold hover:underline">
@@ -219,12 +375,13 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           <button 
             type="button"
             onClick={() => setShowForgotModal(true)}
-            className="text-xs font-bold text-hw-green hover:underline uppercase tracking-wider"
+            className="text-xs font-bold text-hw-green hover:underline uppercase tracking-wider cursor-pointer"
           >
-            Lupa Password?
+            Lupa Password / Hubungi Admin
           </button>
         )}
       </div>
     </div>
   );
 }
+

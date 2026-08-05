@@ -2083,8 +2083,8 @@ export default function AdminDashboard() {
       <div className="flex flex-wrap gap-2 pb-4 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2">
         {[
           { id: 'anggota', label: 'Anggota', icon: Users },
-          { id: 'kta', label: 'Kelola KTA', icon: CreditCard },
-          { id: 'pelatihan', label: 'Kelola Pelatihan', icon: GraduationCap },
+          { id: 'kta', label: 'KTA', icon: CreditCard },
+          { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap },
           { id: 'materi', label: 'Materi', icon: BookOpen },
           { id: 'konten', label: 'Konten', icon: Layout },
           user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield },
