@@ -772,8 +772,8 @@ export default function HomePage() {
                     <GraduationCap size={20} />
                   </div>
                   <div className="text-left space-y-0.5">
-                    <h4 className="text-xs font-black uppercase tracking-wider">Daftar Pelatihan JATI 1/ JATI 2/ JARI 1</h4>
-                    <p className="text-[9px] text-orange-50 font-semibold leading-none">Ikuti pelatihan Kepanduan HW resmi & buka akses modul latih Anda</p>
+                    <h4 className="text-xs font-black uppercase tracking-wider">Pelatihan Jaya Melati 1/2 HW Jateng</h4>
+                    <p className="text-[9px] text-orange-50 font-semibold leading-none">Daftar & ikuti kegiatan pelatihan resmi HW Jateng</p>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-orange-100" />

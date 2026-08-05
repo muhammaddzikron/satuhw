@@ -28,7 +28,8 @@ import {
   AlertCircle,
   TrendingUp,
   Info,
-  Pencil
+  Pencil,
+  MapPin
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -168,6 +169,7 @@ export default function PelatihanPage() {
   const [taskLink, setTaskLink] = useState('');
   const [submittingTask, setSubmittingTask] = useState(false);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+  const [trainingActivities, setTrainingActivities] = useState<any[]>([]);
   
   // Admin interaction state
   const [searchQuery, setSearchQuery] = useState('');
@@ -300,17 +302,25 @@ export default function PelatihanPage() {
         setLoadingMateri(false);
       }
 
-      // Fetch assigned tasks (from Settings)
+      // Fetch assigned tasks and training activities (from Settings)
       try {
         const settingsData = await sheetsService.getSettings();
-        if (settingsData && settingsData.assignedTasks) {
-          const parsed = Array.isArray(settingsData.assignedTasks) 
-            ? settingsData.assignedTasks 
-            : JSON.parse(settingsData.assignedTasks || '[]');
-          setAssignedTasks(parsed);
+        if (settingsData) {
+          if (settingsData.assignedTasks) {
+            const parsed = Array.isArray(settingsData.assignedTasks) 
+              ? settingsData.assignedTasks 
+              : JSON.parse(settingsData.assignedTasks || '[]');
+            setAssignedTasks(parsed);
+          }
+          if (settingsData.trainingActivities) {
+            const acts = Array.isArray(settingsData.trainingActivities)
+              ? settingsData.trainingActivities
+              : JSON.parse(settingsData.trainingActivities || '[]');
+            setTrainingActivities(acts);
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch settings for assigned tasks:', err);
+        console.error('Failed to fetch settings for tasks and activities:', err);
       }
     } catch (err) {
       console.error('Failed to load training applications:', err);
@@ -533,10 +543,94 @@ export default function PelatihanPage() {
           <GraduationCap className="text-hw-green animate-pulse" size={24} />
           <span className="text-[10px] font-black uppercase tracking-widest text-hw-green">Satu HW Training</span>
         </div>
-        <h2 className="text-2xl font-black text-hw-dark leading-none font-display">Portal Pelatihan</h2>
+        <h2 className="text-2xl font-black text-hw-dark leading-none font-display">Portal Pelatihan Jaya Melati 1/2 HW Jateng</h2>
         <p className="text-xs text-gray-500 font-medium">
-          Akses kurikulum resmi, kirim tugas, absen sesi, dan cetak piagam pelatihan Jati 1, Jati 2, & Jari 1.
+          Daftar kegiatan pelatihan resmi, akses modul kurikulum, kumpulkan tugas, presensi sesi, dan cetak piagam.
         </p>
+      </div>
+
+      {/* Agenda Kegiatan Pelatihan HW Jateng */}
+      <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-hw-green" size={18} />
+            <h3 className="font-display font-bold text-gray-800 text-sm uppercase tracking-wider">Agenda Kegiatan Pelatihan HW Jateng</h3>
+          </div>
+          <span className="text-[10px] font-black bg-hw-green/10 text-hw-green px-2.5 py-1 rounded-full uppercase">
+            {trainingActivities.length} Kegiatan
+          </span>
+        </div>
+
+        {trainingActivities.length > 0 ? (
+          <div className="space-y-3">
+            {trainingActivities.map((act: any) => (
+              <div 
+                key={act.id}
+                className="bg-gray-50 hover:bg-emerald-50/40 p-4 rounded-2xl border border-gray-100/80 transition-all space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                      {act.jenisPelatihan || 'Pelatihan Jaya Melati'}
+                    </span>
+                    <h4 className="font-display font-bold text-gray-800 text-sm mt-1">{act.namaKegiatan}</h4>
+                  </div>
+                  <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                    act.status === 'Tutup' 
+                      ? 'bg-red-100 text-red-600' 
+                      : 'bg-emerald-500 text-white shadow-xs'
+                  }`}>
+                    {act.status === 'Tutup' ? 'Tutup Pendaftaran' : 'Buka Pendaftaran'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 font-medium pt-1">
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
+                    <MapPin size={14} className="text-hw-green shrink-0" />
+                    <span className="truncate">{act.lokasiPelatihan || 'Lokasi Pusdiklat HW'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
+                    <Calendar size={14} className="text-hw-green shrink-0" />
+                    <span className="truncate">{act.tanggalPelatihan || 'Jadwal Menyusul'}</span>
+                  </div>
+                </div>
+
+                {act.deskripsi && (
+                  <p className="text-[11px] text-gray-500 italic leading-snug px-1">
+                    "{act.deskripsi}"
+                  </p>
+                )}
+
+                <div className="pt-1 flex justify-end">
+                  <button
+                    onClick={() => navigate('/daftar-pelatihan', { state: { activity: act } })}
+                    disabled={act.status === 'Tutup'}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 uppercase tracking-wider transition-all ${
+                      act.status === 'Tutup'
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-hw-green hover:bg-emerald-700 text-white shadow-xs hover:scale-[1.02] active:scale-95 cursor-pointer'
+                    }`}
+                  >
+                    <span>Daftar Kegiatan Ini</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
+            <GraduationCap className="mx-auto text-gray-400" size={24} />
+            <p className="text-xs text-gray-500 font-bold">Belum ada kegiatan pelatihan aktif yang terdaftar.</p>
+            <p className="text-[10px] text-gray-400">Pengurus HW Jateng akan mengumumkan jadwal kegiatan pelatihan terbaru di sini.</p>
+            <button
+              onClick={() => navigate('/daftar-pelatihan')}
+              className="mt-2 inline-flex items-center gap-1 bg-hw-green text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors"
+            >
+              Formulir Pendaftaran Umum
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Program Level Tabs Selector */}

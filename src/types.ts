@@ -19,6 +19,9 @@ export interface User {
   isVerified?: boolean;
   upgradeRequests?: string[]; // Array of categories requested for upgrade
   photo?: string;
+  nik?: string;
+  ktaNumber?: string;
+  verifiedAt?: string;
 }
 
 export interface Materi {
@@ -64,4 +67,15 @@ export interface Content {
   title?: string;
   body?: string;
   image?: string;
+}
+
+export interface TrainingActivity {
+  id: string;
+  namaKegiatan: string;
+  jenisPelatihan: string;
+  lokasiPelatihan: string;
+  tanggalPelatihan: string;
+  status: 'Buka' | 'Tutup';
+  deskripsi?: string;
+  fee?: string;
 }

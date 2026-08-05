@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -17,7 +17,10 @@ import {
   Calendar,
   Layers,
   Award,
-  AlertCircle
+  AlertCircle,
+  Check,
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -38,8 +41,11 @@ export default function DaftarPelatihanPage() {
 
   const [settings, setSettings] = useState<any>({
     trainingLocations: [],
-    trainingDates: []
+    trainingDates: [],
+    trainingActivities: []
   });
+
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     namaLengkap: '',
@@ -63,27 +69,88 @@ export default function DaftarPelatihanPage() {
     agreeChecked: false
   });
 
-  // Load existing members for lookup & settings
+  const location = useLocation();
+  const activityFromState = (location.state as any)?.activity;
+
+  // Load existing members & KTA applications for lookup, settings & profile pre-population
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [list, s] = await Promise.all([
-          sheetsService.getMembers(),
-          sheetsService.getSettings()
+        const [list, s, ktaApps] = await Promise.all([
+          sheetsService.getMembers().catch(() => []),
+          sheetsService.getSettings().catch(() => ({} as any)),
+          sheetsService.getKTAApplications().catch(() => [])
         ]);
         setAllMembers(list || []);
+
+        let locations: string[] = [];
+        let dates: string[] = [];
+        let activities: any[] = [];
+
         if (s) {
-          const locations = Array.isArray(s.trainingLocations) ? s.trainingLocations : [];
-          const dates = Array.isArray(s.trainingDates) ? s.trainingDates : [];
+          locations = Array.isArray(s.trainingLocations) ? s.trainingLocations : [];
+          dates = Array.isArray(s.trainingDates) ? s.trainingDates : [];
+          activities = Array.isArray(s.trainingActivities)
+            ? s.trainingActivities
+            : typeof s.trainingActivities === 'string'
+              ? JSON.parse(s.trainingActivities || '[]')
+              : [];
+
           setSettings({
             ...s,
             trainingLocations: locations,
-            trainingDates: dates
+            trainingDates: dates,
+            trainingActivities: activities
           });
+        }
+
+        let prefillLocation = activityFromState?.lokasiPelatihan || locations[0] || '';
+        let prefillDate = activityFromState?.tanggalPelatihan || dates[0] || '';
+        let prefillTraining = activityFromState?.jenisPelatihan || activityFromState?.namaKegiatan || 'Jati 1';
+
+        if (activityFromState?.id) {
+          setSelectedActivityId(activityFromState.id);
+        } else if (activities.length > 0) {
+          const firstOpen = activities.find((a: any) => a.status !== 'Tutup') || activities[0];
+          if (firstOpen) {
+            setSelectedActivityId(firstOpen.id);
+            prefillLocation = firstOpen.lokasiPelatihan || prefillLocation;
+            prefillDate = firstOpen.tanggalPelatihan || prefillDate;
+            prefillTraining = firstOpen.jenisPelatihan || firstOpen.namaKegiatan || prefillTraining;
+          }
+        }
+
+        if (isAuthenticated && user) {
+          const freshMember = (list || []).find((m: any) => m.id === user.id || (m.email && user.email && m.email.toLowerCase().trim() === user.email.toLowerCase().trim()));
+          const ktaApp = (ktaApps || []).find((a: any) => a.userId === user.id || (a.email && user.email && a.email.toLowerCase().trim() === user.email.toLowerCase().trim()));
+
           setFormData(prev => ({
             ...prev,
-            lokasiPelatihan: prev.lokasiPelatihan || locations[0] || '',
-            tanggalPelatihan: prev.tanggalPelatihan || dates[0] || ''
+            namaLengkap: freshMember?.namaLengkap || user.namaLengkap || ktaApp?.nama || prev.namaLengkap,
+            jenisKelamin: freshMember?.jenisKelamin || user.jenisKelamin || (ktaApp?.jenisKelamin === 'Perempuan' ? 'P' : 'L') || prev.jenisKelamin,
+            tempatLahir: freshMember?.tempatLahir || (user as any).tempatLahir || ktaApp?.tempatLahir || prev.tempatLahir,
+            tanggalLahir: freshMember?.tanggalLahir || (user as any).tanggalLahir || ktaApp?.tanggalLahir || prev.tanggalLahir,
+            golongan: freshMember?.golongan || user.golongan || ktaApp?.tingkatan || prev.golongan,
+            pelatihGolongan: (freshMember as any)?.pelatihGolongan || (user as any).pelatihGolongan || prev.pelatihGolongan,
+            pendidikan: freshMember?.pendidikan || user.pendidikan || prev.pendidikan,
+            asalKwarda: freshMember?.asalKwarda || user.asalKwarda || ktaApp?.asalDaerah || prev.asalKwarda,
+            qabilah: freshMember?.qabilah || user.qabilah || ktaApp?.qabilah || prev.qabilah,
+            alamat: freshMember?.alamat || user.alamat || ktaApp?.alamat || prev.alamat,
+            noHp: freshMember?.noHp || user.noHp || ktaApp?.noWa || prev.noHp,
+            email: freshMember?.email || user.email || ktaApp?.email || prev.email,
+            sosmed: freshMember?.sosmed || user.sosmed || ktaApp?.sosmed || prev.sosmed,
+            nik: freshMember?.nik || (user as any).nik || ktaApp?.nik || prev.nik || '',
+            pelatihanAkanDiikuti: prefillTraining,
+            lokasiPelatihan: prefillLocation,
+            tanggalPelatihan: prefillDate,
+            agreeChecked: true // Auto-check for convenience for logged in user
+          }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            pelatihanAkanDiikuti: prefillTraining,
+            lokasiPelatihan: prefillLocation,
+            tanggalPelatihan: prefillDate
           }));
         }
       } catch (err) {
@@ -91,31 +158,21 @@ export default function DaftarPelatihanPage() {
       }
     };
     fetchData();
-  }, []);
-
-  // Pre-populate if authenticated
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      setFormData(prev => ({
-        ...prev,
-        namaLengkap: user.namaLengkap || '',
-        jenisKelamin: user.jenisKelamin || 'L',
-        golongan: user.golongan || 'Pengenal',
-        pelatihGolongan: (user as any).pelatihGolongan || 'Tunas Athfal',
-        pendidikan: user.pendidikan || 'SMA/SMK/MA',
-        asalKwarda: user.asalKwarda || '',
-        qabilah: user.qabilah || '',
-        alamat: user.alamat || '',
-        noHp: user.noHp || '',
-        email: user.email || '',
-        sosmed: user.sosmed || '',
-      }));
-    }
   }, [isAuthenticated, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectActivity = (act: any) => {
+    setSelectedActivityId(act.id);
+    setFormData(prev => ({
+      ...prev,
+      pelatihanAkanDiikuti: act.jenisPelatihan || act.namaKegiatan || prev.pelatihanAkanDiikuti,
+      lokasiPelatihan: act.lokasiPelatihan || prev.lokasiPelatihan,
+      tanggalPelatihan: act.tanggalPelatihan || prev.tanggalPelatihan
+    }));
   };
 
   const handleSelectTraining = (lvl: string) => {
@@ -209,6 +266,12 @@ export default function DaftarPelatihanPage() {
               Terima kasih <span className="font-bold text-hw-dark">{formData.namaLengkap}</span>, pendaftaran Anda untuk mengikuti pelatihan <span className="font-bold text-hw-green">{formData.pelatihanAkanDiikuti}</span> telah diterima oleh sistem dan sedang dalam proses verifikasi admin.
             </p>
 
+            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1">
+              <p className="text-[10px] uppercase font-black tracking-wider text-gray-400">Rincian Kegiatan:</p>
+              <p className="font-bold text-gray-800 text-xs">📍 {formData.lokasiPelatihan}</p>
+              <p className="font-medium text-gray-600 text-xs">📅 {formData.tanggalPelatihan}</p>
+            </div>
+
             <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-800 space-y-3">
               <p className="font-bold text-emerald-900 text-xs">Instruksi Pembayaran & Aktivasi:</p>
               <p className="text-[11px] leading-normal">
@@ -236,16 +299,16 @@ export default function DaftarPelatihanPage() {
             )}
 
             <p className="text-[11px] italic text-gray-400 text-center mt-2">
-              Hak akses ke materi pelatihan {formData.pelatihanAkanDiikuti} akan otomatis terbuka begitu pembayaran dikonfirmasi dan status dirubah menjadi disetujui.
+              Hak akses ke materi pelatihan {formData.pelatihanAkanDiikuti} akan otomatis terbuka begitu pembayaran dikonfirmasi dan status disetujui.
             </p>
           </div>
         </div>
 
         <button 
-          onClick={() => navigate('/')}
-          className="w-full max-w-xs py-3.5 rounded-2xl bg-hw-dark text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          onClick={() => navigate('/pelatihan')}
+          className="w-full max-w-xs py-3.5 rounded-2xl bg-hw-dark text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
         >
-          Kembali ke Home
+          Kembali ke Portal Pelatihan
         </button>
       </motion.div>
     );
@@ -256,173 +319,135 @@ export default function DaftarPelatihanPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button 
-          onClick={() => navigate('/')} 
-          className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-hw-green transition-colors"
+          onClick={() => navigate('/pelatihan')} 
+          className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h2 className="text-xl font-display font-bold text-gray-800">Pendaftaran Pelatihan</h2>
-          <p className="text-gray-500 text-[11px]">Program Jati 1, Jati 2, dan Jari 1</p>
+          <h2 className="text-xl font-display font-bold text-gray-800">Formulir Pendaftaran Pelatihan</h2>
+          <p className="text-gray-500 text-[11px]">Pelatihan Jaya Melati 1/2 HW Jawa Tengah</p>
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-        {/* Progress bar for guests */}
-        {!isAuthenticated && (
-          <div className="flex gap-1.5 px-6 pt-6 h-1.5">
-            {[1, 2, 3].map(i => (
-              <div 
-                key={`step-${i}`} 
-                className={`flex-1 rounded-full transition-all duration-300 ${step >= i ? 'bg-hw-green' : 'bg-gray-100'}`} 
-              />
-            ))}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-xs flex items-start gap-2">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>{errorMsg}</span>
+      {/* AGENDA PELATIHAN DARI ADMIN */}
+      {Array.isArray(settings.trainingActivities) && settings.trainingActivities.length > 0 && (
+        <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="text-hw-green" size={18} />
+              <h3 className="font-display font-bold text-gray-800 text-xs uppercase tracking-wider">Pilih Agenda Kegiatan Pelatihan</h3>
             </div>
-          )}
+            <span className="text-[9px] font-black bg-hw-green/10 text-hw-green px-2 py-0.5 rounded-full uppercase">
+              Resmi HW Jateng
+            </span>
+          </div>
 
-          {/* Guest Lookup Option */}
-          {!isAuthenticated && !selectedMember && (
-            <div className="bg-hw-green/5 border border-hw-green/10 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-extrabold text-hw-dark">Sudah Terdaftar di Aplikasi?</h4>
-                  <p className="text-[10px] text-gray-500">Cari data Anda agar tidak perlu mengisi formulir dari awal.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowLookup(!showLookup)}
-                  className="px-3 py-1.5 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all hover:bg-emerald-700"
+          <div className="space-y-2.5">
+            {settings.trainingActivities.map((act: any) => {
+              const isSelected = selectedActivityId === act.id || (
+                formData.lokasiPelatihan === act.lokasiPelatihan && formData.tanggalPelatihan === act.tanggalPelatihan
+              );
+
+              return (
+                <div
+                  key={act.id}
+                  onClick={() => act.status !== 'Tutup' && handleSelectActivity(act)}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    act.status === 'Tutup' 
+                      ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                      : isSelected
+                        ? 'bg-emerald-50/80 border-hw-green ring-2 ring-hw-green/20 shadow-xs'
+                        : 'bg-gray-50/70 hover:bg-gray-100/80 border-gray-150'
+                  }`}
                 >
-                  {showLookup ? 'Batal' : 'Cari Data'}
-                </button>
-              </div>
-
-              {showLookup && (
-                <div className="space-y-2 pt-1 border-t border-gray-150/30">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Ketik Nama, Email, atau No. WhatsApp Anda..."
-                      value={lookupQuery}
-                      onChange={(e) => setLookupQuery(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
-                    />
-                  </div>
-                  
-                  {/* Results list */}
-                  {lookupQuery.trim().length >= 2 && (
-                    <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 max-h-40 overflow-y-auto shadow-sm">
-                      {allMembers.filter(m => 
-                        m.namaLengkap.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                        m.email.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                        String(m.noHp || '').includes(lookupQuery)
-                      ).length === 0 ? (
-                        <p className="p-3 text-[11px] text-gray-400 font-bold text-center">Data anggota tidak ditemukan</p>
-                      ) : (
-                        allMembers.filter(m => 
-                          m.namaLengkap.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                          m.email.toLowerCase().includes(lookupQuery.toLowerCase()) ||
-                          String(m.noHp || '').includes(lookupQuery)
-                        ).map(m => (
-                          <div key={m.id} className="p-3 flex items-center justify-between hover:bg-gray-50/50">
-                            <div>
-                              <p className="text-xs font-extrabold text-gray-700">{m.namaLengkap}</p>
-                              <p className="text-[10px] text-gray-400 font-medium">{m.email} | {m.noHp || '-'}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedMember(m);
-                                setFormData(prev => ({
-                                  ...prev,
-                                  namaLengkap: m.namaLengkap || '',
-                                  jenisKelamin: m.jenisKelamin || 'L',
-                                  nik: m.nik || '',
-                                  tempatLahir: m.tempatLahir || '',
-                                  tanggalLahir: m.tanggalLahir || '',
-                                  golongan: m.golongan || 'Pengenal',
-                                  pelatihGolongan: (m as any).pelatihGolongan || 'Tunas Athfal',
-                                  pendidikan: m.pendidikan || 'SMA/SMK/MA',
-                                  asalKwarda: m.asalKwarda || '',
-                                  qabilah: m.qabilah || '',
-                                  alamat: m.alamat || '',
-                                  noHp: m.noHp || '',
-                                  email: m.email || '',
-                                  sosmed: m.sosmed || '',
-                                  agreeChecked: true
-                                }));
-                                setShowLookup(false);
-                                setLookupQuery('');
-                              }}
-                              className="px-2.5 py-1 bg-hw-green text-white rounded-lg text-[10px] font-black uppercase tracking-wider"
-                            >
-                              Pilih
-                            </button>
-                          </div>
-                        ))
-                      )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                          {act.jenisPelatihan || 'Jaya Melati'}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[9px] font-bold text-hw-green flex items-center gap-1">
+                            <Check size={12} /> Terpilih
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-display font-bold text-gray-800 text-xs mt-1">{act.namaKegiatan}</h4>
                     </div>
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      act.status === 'Tutup' ? 'bg-red-100 text-red-600' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {act.status === 'Tutup' ? 'Tutup' : 'Buka'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 font-medium mt-2 pt-2 border-t border-gray-200/50">
+                    <div className="flex items-center gap-1">
+                      <MapPin size={12} className="text-hw-green shrink-0" />
+                      <span className="truncate">{act.lokasiPelatihan || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar size={12} className="text-hw-green shrink-0" />
+                      <span className="truncate">{act.tanggalPelatihan || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main Form Card */}
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+        {/* LOGGED IN MEMBER AUTO-PREFILLED CARD */}
+        {(isAuthenticated && user) || selectedMember ? (
+          <div className="p-6 space-y-5">
+            <div className="p-4 bg-emerald-50 border border-emerald-200/70 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-hw-green text-white flex items-center justify-center shrink-0 shadow-sm">
+                <CheckCircle2 size={22} />
+              </div>
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-200/60 px-2 py-0.5 rounded-md">
+                    ✓ Data Profil Terisi Otomatis
+                  </span>
+                  {selectedMember && (
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedMember(null)}
+                      className="text-[10px] text-rose-600 font-bold underline"
+                    >
+                      Batal
+                    </button>
                   )}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* If a registered member is selected, show simplified training signup only */}
-          {selectedMember ? (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-              <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3">
-                <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={18} />
-                <div className="space-y-1 flex-1">
-                  <p className="font-bold text-emerald-900 text-xs">Terhubung dengan KTA Anggota</p>
-                  <p className="text-[11px] text-emerald-800 leading-normal">
-                    Nama: <span className="font-bold">{selectedMember.namaLengkap}</span> <br />
-                    Email: <span className="font-mono">{selectedMember.email}</span> | WA: {selectedMember.noHp || '-'} <br />
-                    Asal: {selectedMember.asalKwarda || '-'} | Qabilah: {selectedMember.qabilah || '-'}
-                  </p>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setSelectedMember(null);
-                      setFormData({
-                        namaLengkap: '',
-                        jenisKelamin: 'L',
-                        nik: '',
-                        tempatLahir: '',
-                        tanggalLahir: '',
-                        golongan: 'Pengenal',
-                        pelatihGolongan: 'Tunas Athfal',
-                        pelatihanAkanDiikuti: 'Jati 1',
-                        pendidikan: 'SMA/SMK/MA',
-                        asalKwarda: '',
-                        qabilah: '',
-                        alamat: '',
-                        noHp: '',
-                        sosmed: '',
-                        email: '',
-                        password: '12345',
-                        agreeChecked: false
-                      });
-                    }}
-                    className="text-[10px] text-rose-600 hover:text-rose-800 font-bold underline mt-1.5 block"
-                  >
-                    Ganti / Cari Anggota Lain
-                  </button>
+                <h3 className="font-display font-bold text-gray-900 text-sm">
+                  {formData.namaLengkap || user?.namaLengkap}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-600 font-medium pt-1">
+                  <p>NIK: <span className="font-mono text-gray-800 font-bold">{formData.nik || '-'}</span></p>
+                  <p>Email: <span className="font-mono text-gray-800 font-bold">{formData.email || '-'}</span></p>
+                  <p>WhatsApp: <span className="font-mono text-gray-800 font-bold">{formData.noHp || '-'}</span></p>
+                  <p>Golongan: <span className="font-bold text-gray-800">{formData.golongan || '-'}</span></p>
+                  <p>Kwarda: <span className="font-bold text-gray-800">{formData.asalKwarda || '-'}</span></p>
+                  <p>Qabilah: <span className="font-bold text-gray-800">{formData.qabilah || '-'}</span></p>
                 </div>
               </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {errorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-xs flex items-start gap-2">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
 
               {/* Pelatih Golongan */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatih Golongan</label>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatih Golongan Yang Dituju</label>
                 <select 
                   name="pelatihGolongan" 
                   value={formData.pelatihGolongan} 
@@ -436,8 +461,8 @@ export default function DaftarPelatihanPage() {
               </div>
 
               {/* Pelatihan Yang Akan Diikuti Selection */}
-              <div className="space-y-2 pt-2">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pilih Tingkat Pelatihan Yang Diikuti</label>
+              <div className="space-y-2 pt-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tingkat Pelatihan</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'Jati 1', label: 'Jati 1', desc: 'Jaya Melati 1' },
@@ -448,7 +473,7 @@ export default function DaftarPelatihanPage() {
                       key={p.id}
                       type="button"
                       onClick={() => handleSelectTraining(p.id)}
-                      className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center ${
+                      className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer ${
                         formData.pelatihanAkanDiikuti === p.id 
                           ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm' 
                           : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'
@@ -462,11 +487,11 @@ export default function DaftarPelatihanPage() {
                 </div>
               </div>
 
-              {/* Pilihan Lokasi & Tanggal Pelaksanaan */}
+              {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Admin */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📍 Pilih Lokasi Pelatihan
+                    📍 Lokasi Pelatihan (Input Admin)
                   </label>
                   {Array.isArray(settings.trainingLocations) && settings.trainingLocations.length > 0 ? (
                     <select 
@@ -480,15 +505,20 @@ export default function DaftarPelatihanPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold text-gray-400 italic">
-                      Akan ditentukan kemudian
-                    </div>
+                    <input
+                      type="text"
+                      name="lokasiPelatihan"
+                      value={formData.lokasiPelatihan}
+                      onChange={handleChange}
+                      placeholder="Contoh: Pusdiklat HW Jateng"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                    />
                   )}
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📅 Pilih Tanggal Pelaksanaan
+                    📅 Tanggal Pelaksanaan (Input Admin)
                   </label>
                   {Array.isArray(settings.trainingDates) && settings.trainingDates.length > 0 ? (
                     <select 
@@ -502,9 +532,14 @@ export default function DaftarPelatihanPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold text-gray-400 italic">
-                      Akan ditentukan kemudian
-                    </div>
+                    <input
+                      type="text"
+                      name="tanggalPelatihan"
+                      value={formData.tanggalPelatihan}
+                      onChange={handleChange}
+                      placeholder="Contoh: 12-14 Juli 2026"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                    />
                   )}
                 </div>
               </div>
@@ -520,49 +555,142 @@ export default function DaftarPelatihanPage() {
                   className="mt-0.5 rounded border-gray-300 text-hw-green focus:ring-hw-green shrink-0 w-4 h-4 cursor-pointer"
                 />
                 <label htmlFor="agreeCheckedSelected" className="text-[11px] text-gray-600 leading-normal select-none cursor-pointer font-medium">
-                  Saya menyatakan bahwa data di atas adalah benar dan saya siap mendaftar pada program pelatihan yang dipilih.
+                  Saya menyatakan data profil saya sudah sesuai dan saya siap mendaftar pada kegiatan pelatihan yang dipilih.
                 </label>
               </div>
 
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full bg-hw-green text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-hw-green/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all text-xs mt-2"
+                className="w-full bg-hw-green hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-hw-green/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all text-xs cursor-pointer"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="animate-spin" size={16} /> Memproses pendaftaran...
+                    <Loader2 className="animate-spin" size={18} /> Memproses pendaftaran...
                   </>
                 ) : (
                   <>
-                    Daftar Pelatihan Sekarang <ChevronRight size={16} />
+                    Daftar Pelatihan Sekarang <ChevronRight size={18} />
                   </>
                 )}
               </button>
-            </motion.div>
-          ) : (
-            <>
-              {/* Guest User Step 1 or Logged-In Direct view */}
-              {((!isAuthenticated && step === 1) || isAuthenticated) && (
+            </form>
+          </div>
+        ) : (
+          /* GUEST FORM (3 STEPS) */
+          <div className="p-6 space-y-6">
+            {/* Progress bar for guests */}
+            <div className="flex gap-1.5 h-1.5">
+              {[1, 2, 3].map(i => (
+                <div 
+                  key={`step-${i}`} 
+                  className={`flex-1 rounded-full transition-all duration-300 ${step >= i ? 'bg-hw-green' : 'bg-gray-100'}`} 
+                />
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {errorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-xs flex items-start gap-2">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {/* Guest Lookup Option */}
+              {!selectedMember && (
+                <div className="bg-hw-green/5 border border-hw-green/10 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-extrabold text-hw-dark">Sudah Terdaftar di Aplikasi?</h4>
+                      <p className="text-[10px] text-gray-500">Cari data Anda agar tidak perlu mengisi formulir dari awal.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLookup(!showLookup)}
+                      className="px-3 py-1.5 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all hover:bg-emerald-700 cursor-pointer"
+                    >
+                      {showLookup ? 'Batal' : 'Cari Data'}
+                    </button>
+                  </div>
+
+                  {showLookup && (
+                    <div className="space-y-2 pt-1 border-t border-gray-150/30">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Ketik Nama, Email, atau No. WhatsApp Anda..."
+                          value={lookupQuery}
+                          onChange={(e) => setLookupQuery(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
+                        />
+                      </div>
+                      
+                      {/* Results list */}
+                      {lookupQuery.trim().length >= 2 && (
+                        <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 max-h-40 overflow-y-auto shadow-sm">
+                          {allMembers.filter(m => 
+                            m.namaLengkap?.toLowerCase().includes(lookupQuery.toLowerCase()) ||
+                            m.email?.toLowerCase().includes(lookupQuery.toLowerCase()) ||
+                            String(m.noHp || '').includes(lookupQuery)
+                          ).length === 0 ? (
+                            <p className="p-3 text-[11px] text-gray-400 font-bold text-center">Data anggota tidak ditemukan</p>
+                          ) : (
+                            allMembers.filter(m => 
+                              m.namaLengkap?.toLowerCase().includes(lookupQuery.toLowerCase()) ||
+                              m.email?.toLowerCase().includes(lookupQuery.toLowerCase()) ||
+                              String(m.noHp || '').includes(lookupQuery)
+                            ).map(m => (
+                              <div key={m.id} className="p-3 flex items-center justify-between hover:bg-gray-50/50">
+                                <div>
+                                  <p className="text-xs font-extrabold text-gray-700">{m.namaLengkap}</p>
+                                  <p className="text-[10px] text-gray-400 font-medium">{m.email} | {m.noHp || '-'}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedMember(m);
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      namaLengkap: m.namaLengkap || '',
+                                      jenisKelamin: m.jenisKelamin || 'L',
+                                      nik: m.nik || '',
+                                      tempatLahir: m.tempatLahir || '',
+                                      tanggalLahir: m.tanggalLahir || '',
+                                      golongan: m.golongan || 'Pengenal',
+                                      pelatihGolongan: (m as any).pelatihGolongan || 'Tunas Athfal',
+                                      pendidikan: m.pendidikan || 'SMA/SMK/MA',
+                                      asalKwarda: m.asalKwarda || '',
+                                      qabilah: m.qabilah || '',
+                                      alamat: m.alamat || '',
+                                      noHp: m.noHp || '',
+                                      email: m.email || '',
+                                      sosmed: m.sosmed || '',
+                                      agreeChecked: true
+                                    }));
+                                    setShowLookup(false);
+                                    setLookupQuery('');
+                                  }}
+                                  className="px-2.5 py-1 bg-hw-green text-white rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                                >
+                                  Pilih
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Guest User Step 1 */}
+              {step === 1 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                   <div className="border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-hw-green text-white text-[9px] flex items-center justify-center font-bold">1</span>
-                    <h3 className="font-bold text-sm text-gray-700">Biodata & NIK Anggota</h3>
-                  </div>
-
-                  {/* NIK Field */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nomor Induk Kependudukan (NIK)</label>
-                    <input 
-                      type="text" 
-                      name="nik" 
-                      required 
-                      maxLength={16}
-                      placeholder="Contoh: 3302xxxxxxxxxxxx"
-                      value={formData.nik} 
-                      onChange={handleChange} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
-                    />
+                    <h3 className="font-bold text-sm text-gray-700">Biodata Anggota</h3>
                   </div>
 
                   {/* Nama Lengkap */}
@@ -575,8 +703,7 @@ export default function DaftarPelatihanPage() {
                       placeholder="Nama sesuai KTP/KTA"
                       value={formData.namaLengkap} 
                       onChange={handleChange} 
-                      disabled={isAuthenticated}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold disabled:opacity-60" 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
                   </div>
 
@@ -594,6 +721,7 @@ export default function DaftarPelatihanPage() {
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                       />
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tanggal Lahir</label>
                       <input 
@@ -607,7 +735,7 @@ export default function DaftarPelatihanPage() {
                     </div>
                   </div>
 
-                   {/* Jenis Kelamin & Golongan */}
+                  {/* Jenis Kelamin & Golongan */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Kelamin</label>
@@ -615,8 +743,7 @@ export default function DaftarPelatihanPage() {
                         name="jenisKelamin" 
                         value={formData.jenisKelamin} 
                         onChange={handleChange} 
-                        disabled={isAuthenticated}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold disabled:opacity-60"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                       >
                         <option value="L">Laki-laki</option>
                         <option value="P">Perempuan</option>
@@ -628,8 +755,7 @@ export default function DaftarPelatihanPage() {
                         name="golongan" 
                         value={formData.golongan} 
                         onChange={handleChange} 
-                        disabled={isAuthenticated}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold disabled:opacity-60"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                       >
                         {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                           <option key={g} value={g}>{g}</option>
@@ -653,7 +779,7 @@ export default function DaftarPelatihanPage() {
                     </select>
                   </div>
 
-                  {/* Pelatihan Yang Akan Diikuti Selection (Jati 1 / Jati 2 / Jari 1) */}
+                  {/* Pelatihan Yang Akan Diikuti Selection */}
                   <div className="space-y-2 pt-2">
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatihan Yang Akan Diikuti</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -666,7 +792,7 @@ export default function DaftarPelatihanPage() {
                           key={p.id}
                           type="button"
                           onClick={() => handleSelectTraining(p.id)}
-                          className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center ${
+                          className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer ${
                             formData.pelatihanAkanDiikuti === p.id 
                               ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm' 
                               : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'
@@ -698,9 +824,14 @@ export default function DaftarPelatihanPage() {
                           ))}
                         </select>
                       ) : (
-                        <div className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold text-gray-400 italic">
-                          Akan ditentukan kemudian
-                        </div>
+                        <input
+                          type="text"
+                          name="lokasiPelatihan"
+                          value={formData.lokasiPelatihan}
+                          onChange={handleChange}
+                          placeholder="Pusdiklat HW Jateng"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                        />
                       )}
                     </div>
 
@@ -720,126 +851,30 @@ export default function DaftarPelatihanPage() {
                           ))}
                         </select>
                       ) : (
-                        <div className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold text-gray-400 italic">
-                          Akan ditentukan kemudian
-                        </div>
+                        <input
+                          type="text"
+                          name="tanggalPelatihan"
+                          value={formData.tanggalPelatihan}
+                          onChange={handleChange}
+                          placeholder="12-14 Juli 2026"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                        />
                       )}
                     </div>
                   </div>
 
-                  {!isAuthenticated ? (
-                    <button 
-                      type="button" 
-                      onClick={() => setStep(2)} 
-                      className="w-full mt-4 bg-hw-dark text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-transform text-xs"
-                    >
-                      Lanjut ke Alamat <ChevronRight size={16} />
-                    </button>
-                  ) : (
-                    <div className="space-y-4 pt-4 border-t border-gray-100 mt-4">
-                      <div className="border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-hw-green text-white text-[9px] flex items-center justify-center font-bold">2</span>
-                        <h3 className="font-bold text-sm text-gray-700">Kontak & Alamat</h3>
-                      </div>
-
-                      {/* WhatsApp Field */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nomor WhatsApp Aktif</label>
-                        <input 
-                          type="text" 
-                          name="noHp" 
-                          required 
-                          placeholder="Contoh: 08123456789"
-                          value={formData.noHp} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
-                        />
-                      </div>
-
-                      {/* Asal Kwarda (Kabupaten/Daerah) */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Kabupaten / Kwarda</label>
-                        <input 
-                          type="text" 
-                          name="asalKwarda" 
-                          required 
-                          placeholder="Contoh: Banyumas"
-                          value={formData.asalKwarda} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
-                        />
-                      </div>
-
-                      {/* Asal Qabilah */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan)</label>
-                        <input 
-                          type="text" 
-                          name="qabilah" 
-                          required 
-                          placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"
-                          value={formData.qabilah} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
-                        />
-                      </div>
-
-                      {/* Alamat Rumah */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Alamat Lengkap Rumah</label>
-                        <textarea 
-                          name="alamat" 
-                          required 
-                          rows={3} 
-                          placeholder="Dusun, RT/RW, Kelurahan, Kecamatan, Kabupaten, Kode Pos"
-                          value={formData.alamat} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold resize-none" 
-                        />
-                      </div>
-
-                      <div className="border-b border-gray-100 pb-2 pt-4 mb-2 flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-hw-green text-white text-[9px] flex items-center justify-center font-bold">3</span>
-                        <h3 className="font-bold text-sm text-gray-700">Pernyataan Validitas Data</h3>
-                      </div>
-
-                      {/* Declaration Checklist */}
-                      <div className="p-4 bg-gray-50 rounded-2xl border border-gray-150/50 flex items-start gap-3">
-                        <input 
-                          type="checkbox" 
-                          id="agreeChecked"
-                          name="agreeChecked"
-                          checked={formData.agreeChecked}
-                          onChange={(e) => setFormData(prev => ({ ...prev, agreeChecked: e.target.checked }))}
-                          className="mt-0.5 rounded border-gray-300 text-hw-green focus:ring-hw-green shrink-0 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="agreeChecked" className="text-[11px] text-gray-600 leading-normal select-none cursor-pointer font-medium">
-                          Saya menyatakan bahwa semua data pendaftaran diatas adalah benar, asli, dan dapat dipertanggungjawabkan keabsahannya.
-                        </label>
-                      </div>
-
-                      <button 
-                        type="submit" 
-                        disabled={isLoading}
-                        className="w-full bg-hw-green text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-hw-green/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all text-xs mt-2"
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="animate-spin" size={16} /> Memproses pendaftaran...
-                          </>
-                        ) : (
-                          <>
-                            Daftar Pelatihan Sekarang <ChevronRight size={16} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  <button 
+                    type="button" 
+                    onClick={() => setStep(2)} 
+                    className="w-full mt-4 bg-hw-dark text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-transform text-xs cursor-pointer"
+                  >
+                    Lanjut ke Alamat <ChevronRight size={16} />
+                  </button>
                 </motion.div>
               )}
 
               {/* Guest User Step 2 */}
-              {!isAuthenticated && step === 2 && (
+              {step === 2 && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                   <div className="border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-hw-green text-white text-[9px] flex items-center justify-center font-bold">2</span>
@@ -907,14 +942,14 @@ export default function DaftarPelatihanPage() {
                     <button 
                       type="button" 
                       onClick={() => setStep(1)} 
-                      className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs"
+                      className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
                     >
                       <ChevronLeft size={16} /> Kembali
                     </button>
                     <button 
                       type="button" 
                       onClick={() => setStep(3)} 
-                      className="w-full bg-hw-dark text-white font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs"
+                      className="w-full bg-hw-dark text-white font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
                     >
                       Lanjut <ChevronRight size={16} />
                     </button>
@@ -923,7 +958,7 @@ export default function DaftarPelatihanPage() {
               )}
 
               {/* Guest User Step 3 */}
-              {!isAuthenticated && step === 3 && (
+              {step === 3 && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                   <div className="border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-hw-green text-white text-[9px] flex items-center justify-center font-bold">3</span>
@@ -971,9 +1006,9 @@ export default function DaftarPelatihanPage() {
                     />
                   </div>
 
-                  {/* Password info for auto generated account */}
+                  {/* Password info */}
                   <div className="p-3 bg-hw-green/5 border border-hw-green/10 rounded-xl text-[11px] text-gray-600 leading-normal">
-                    <span className="font-bold text-hw-green">Catatan Pembuatan Akun:</span> Pendaftaran pelatihan ini sekaligus mendaftarkan Anda sebagai anggota resmi HW. Password masuk default Anda adalah <span className="font-mono font-bold text-hw-dark bg-white px-1 py-0.5 rounded border border-gray-100">12345</span>. Anda dapat merubah password ini setelah masuk.
+                    <span className="font-bold text-hw-green">Catatan Pembuatan Akun:</span> Pendaftaran pelatihan ini sekaligus mendaftarkan Anda sebagai anggota resmi HW. Password masuk default Anda adalah <span className="font-mono font-bold text-hw-dark bg-white px-1 py-0.5 rounded border border-gray-100">12345</span>.
                   </div>
 
                   {/* Statement Checklist */}
@@ -996,27 +1031,27 @@ export default function DaftarPelatihanPage() {
                       type="button" 
                       onClick={() => setStep(2)} 
                       disabled={isLoading}
-                      className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs disabled:opacity-50"
+                      className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs disabled:opacity-50 cursor-pointer"
                     >
                       <ChevronLeft size={16} /> Kembali
                     </button>
                     <button 
                       type="submit" 
                       disabled={isLoading}
-                      className="w-full bg-hw-green text-white font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-hw-green/10 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all"
+                      className="w-full bg-hw-green hover:bg-emerald-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-hw-green/10 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer"
                     >
                       {isLoading ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
-                        <>Daftar Pelatihan</>
+                        <>Daftar Pelatihan Sekarang</>
                       )}
                     </button>
                   </div>
                 </motion.div>
               )}
-            </>
-          )}
-        </form>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

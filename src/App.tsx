@@ -50,100 +50,30 @@ import DaftarPelatihanPage from './pages/DaftarPelatihanPage';
 import PelatihanPage from './pages/PelatihanPage';
 
 const Header = () => {
-  const { user, activeRole, setActiveRole } = useAuthStore();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+  const isFullWidth = location.pathname === '/admin';
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const ROLE_DISPLAY: Record<string, string> = {
-    umum: 'Anggota Umum',
-    kwarda: 'Admin Kwarda',
-    sugli: 'Dewan Sugli',
-    jati1: 'Jaya Melati 1',
-    jati2: 'Jaya Melati 2',
-    jari1: 'Jaya Matahari 1',
-    admin: 'Admin Petugas',
-    superadmin: 'Super Admin'
-  };
-  
   return (
-    <>
-      {/* Role Switcher - Sticky at top for users with multiple roles, but hidden if acting as 'umum' / member */}
-      {user && user.roles && user.roles.length > 1 && activeRole !== 'umum' && (
-        <motion.div 
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="sticky top-0 z-[60] bg-hw-blue text-white shadow-xl overflow-hidden"
-        >
-          <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
-              <ShieldCheck size={18} className="text-hw-green" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/60 mb-0.5">Pilih Akses Materi</p>
-              <div className="relative">
-                <select 
-                  value={activeRole || 'umum'}
-                  onChange={(e) => setActiveRole(e.target.value as any)}
-                  className="w-full bg-transparent border-none p-0 text-sm font-bold uppercase tracking-wide outline-none focus:ring-0 appearance-none cursor-pointer"
-                >
-                  {(Array.isArray(user.roles) ? user.roles : []).map(r => (
-                    <option key={r} value={r} className="text-gray-800 py-2">
-                      {ROLE_DISPLAY[r] || r}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
-                  <ChevronRight size={14} className="rotate-90" />
-                </div>
-              </div>
-            </div>
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 shadow-xs">
+      <div className={cn("mx-auto flex items-center justify-between", isFullWidth ? "max-w-7xl" : "max-w-md")}>
+        <Link to="/" className="flex items-center gap-3 group">
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" 
+            alt="Logo HW" 
+            className="h-10 w-auto group-hover:scale-105 transition-transform"
+          />
+          <div>
+            <h1 className="text-lg font-display font-bold text-hw-dark leading-tight">SATU HW JATENG</h1>
+            <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase">Hizbul Wathan Super Apps</p>
           </div>
-          <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-hw-green/50 to-transparent opacity-30" />
-        </motion.div>
-      )}
-
-      <AnimatePresence>
-        {isScrolled && (
-          <motion.header 
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3"
-            style={{ 
-              top: user && user.roles && user.roles.length > 1 && activeRole !== 'umum' ? '56px' : '0' 
-            }}
-          >
-            <div className="max-w-md mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" 
-                  alt="Logo HW" 
-                  className="h-10 w-auto"
-                />
-                <div>
-                  <h1 className="text-lg font-display font-bold text-hw-dark leading-tight">SATU HW JATENG</h1>
-                  <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase">Hizbul Wathan Super Apps</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="p-2 text-gray-400 hover:text-hw-green transition-colors">
-                  <Bell size={20} />
-                </button>
-              </div>
-            </div>
-          </motion.header>
-        )}
-      </AnimatePresence>
-
-    </>
+        </Link>
+        <div className="flex items-center gap-2">
+          <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer" title="Notifikasi">
+            <Bell size={20} />
+          </button>
+        </div>
+      </div>
+    </header>
   );
 };
 

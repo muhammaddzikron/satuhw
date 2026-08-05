@@ -102,6 +102,7 @@ import {
   Copy,
   Save,
   AlertTriangle,
+  Pencil,
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
@@ -396,6 +397,8 @@ export default function AdminDashboard() {
     ktaTandaTanganKetua: '',
     ktaTandaTanganSekretaris: '',
     ktaStempelImage: '',
+    trainingTypes: ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'] as string[],
+    trainingActivities: [] as any[],
     trainingLocations: [] as string[],
     trainingDates: [] as string[],
     upgradeFees: [
@@ -683,9 +686,22 @@ export default function AdminDashboard() {
   const [remarkInput, setRemarkInput] = useState('');
   const [graduationStatusInput, setGraduationStatusInput] = useState('Lulus');
   
-  // Inputs for adding location and date settings
+  // Inputs for training settings (Type, Activity, Location, Date)
+  const [newTypeInput, setNewTypeInput] = useState('');
   const [newLocationInput, setNewLocationInput] = useState('');
   const [newDateInput, setNewDateInput] = useState('');
+  
+  // Activity Modal State
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [activityForm, setActivityForm] = useState({
+    namaKegiatan: '',
+    jenisPelatihan: 'Jaya Melati 1',
+    lokasiPelatihan: '',
+    tanggalPelatihan: '',
+    status: 'Buka' as 'Buka' | 'Tutup',
+    deskripsi: ''
+  });
 
   // Schedule Editing States
   const [editingScheduleAppId, setEditingScheduleAppId] = useState<string | null>(null);
@@ -1301,6 +1317,8 @@ export default function AdminDashboard() {
           ...prev,
           ...settingsData,
           gSheetApiUrl: prev.gSheetApiUrl,
+          trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
+          trainingActivities: Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : [],
           trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
           trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
           assignedTasks: Array.isArray(settingsData.assignedTasks) 
@@ -5015,38 +5033,231 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* 6. ATUR LOKASI & TANGGAL SUB-TAB */}
+                {/* 6. ATUR JENIS, LOKASI & TANGGAL PELATIHAN SUB-TAB */}
                 {trainingSubTab === 'pengaturan' && (
                   <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                      <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Settings className="text-hw-green" size={18} /> Pengaturan Lokasi & Jadwal Pelaksanaan
-                      </h4>
-                      <p className="text-xs text-gray-400 font-medium">
-                        Atur daftar lokasi pelatihan dan tanggal pelaksanaan yang tersedia untuk dipilih peserta pada formulir pendaftaran.
-                      </p>
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-2 font-display">
+                          <Settings className="text-hw-green" size={18} /> Kelola Jenis Pelatihan & Kegiatan HW Jateng
+                        </h4>
+                        <p className="text-xs text-gray-400 font-medium">
+                          Kelola jenis pelatihan, daftar kegiatan pelatihan aktif (lokasi & tanggal pelaksanaan), serta opsi pilihan untuk formulir pendaftaran.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingActivityId(null);
+                          setActivityForm({
+                            namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
+                            jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
+                            lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
+                            tanggalPelatihan: (settings.trainingDates || [])[0] || '',
+                            status: 'Buka',
+                            deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah'
+                          });
+                          setIsActivityModalOpen(true);
+                        }}
+                        className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-900/10 flex items-center gap-2 self-start md:self-auto cursor-pointer"
+                      >
+                        <Plus size={16} /> Tambah Kegiatan Pelatihan
+                      </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* DAFTAR KEGIATAN PELATIHAN HW JATENG */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                            <span>🗓️</span> Daftar Kegiatan Pelatihan HW Jateng
+                          </h5>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            Kegiatan ini tampil di halaman depan portal pelatihan dan menentukan opsi waktu & tempat pada formulir pendaftaran.
+                          </p>
+                        </div>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black">
+                          {(settings.trainingActivities || []).length} Kegiatan
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {(settings.trainingActivities || []).length === 0 ? (
+                          <div className="col-span-full py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                            <p className="text-xs font-bold text-gray-400">Belum ada Kegiatan Pelatihan terdaftar.</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingActivityId(null);
+                                setActivityForm({
+                                  namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
+                                  jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
+                                  lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
+                                  tanggalPelatihan: (settings.trainingDates || [])[0] || '',
+                                  status: 'Buka',
+                                  deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah'
+                                });
+                                setIsActivityModalOpen(true);
+                              }}
+                              className="mt-2 text-xs text-hw-green font-black underline hover:text-emerald-700 cursor-pointer"
+                            >
+                              + Buat Kegiatan Pelatihan Pertama
+                            </button>
+                          </div>
+                        ) : (
+                          (settings.trainingActivities || []).map((act: any, idx: number) => (
+                            <div key={act.id || idx} className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className={cn(
+                                    "inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-1",
+                                    act.status === 'Buka' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                  )}>
+                                    {act.jenisPelatihan || 'Jaya Melati 1'} • {act.status === 'Buka' ? 'Pendaftaran Buka' : 'Tutup'}
+                                  </span>
+                                  <h6 className="text-xs font-black text-gray-800 font-display">{act.namaKegiatan}</h6>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingActivityId(act.id || String(idx));
+                                      setActivityForm({
+                                        namaKegiatan: act.namaKegiatan || '',
+                                        jenisPelatihan: act.jenisPelatihan || 'Jaya Melati 1',
+                                        lokasiPelatihan: act.lokasiPelatihan || '',
+                                        tanggalPelatihan: act.tanggalPelatihan || '',
+                                        status: act.status || 'Buka',
+                                        deskripsi: act.deskripsi || ''
+                                      });
+                                      setIsActivityModalOpen(true);
+                                    }}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Edit Kegiatan"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Hapus kegiatan "${act.namaKegiatan}"?`)) {
+                                        const filtered = (settings.trainingActivities || []).filter((_: any, i: number) => i !== idx && _.id !== act.id);
+                                        setSettings(prev => ({ ...prev, trainingActivities: filtered }));
+                                      }
+                                    }}
+                                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Hapus"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1 text-[11px] text-gray-600">
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">📍 Tempat:</span>
+                                  <strong className="text-gray-800">{act.lokasiPelatihan || '-'}</strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">📅 Tanggal:</span>
+                                  <strong className="text-gray-800">{act.tanggalPelatihan || '-'}</strong>
+                                </p>
+                                {act.deskripsi && (
+                                  <p className="text-[10px] text-gray-500 italic pt-1 border-t border-gray-100">
+                                    "{act.deskripsi}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* JENIS PELATIHAN CARD */}
+                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest">
+                            🏅 Jenis Pelatihan
+                          </h5>
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-black">
+                            {(settings.trainingTypes || []).length} Jenis
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {(settings.trainingTypes || []).length === 0 ? (
+                            <p className="text-xs font-bold text-gray-400 py-6 text-center">
+                              Belum ada jenis pelatihan.
+                            </p>
+                          ) : (
+                            (settings.trainingTypes || []).map((typ, idx) => (
+                              <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
+                                <span className="text-xs font-bold text-gray-750">{typ}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const filtered = (settings.trainingTypes || []).filter((_, i) => i !== idx);
+                                    setSettings(prev => ({ ...prev, trainingTypes: filtered }));
+                                  }}
+                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-gray-100 flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Contoh: Jaya Melati 3..."
+                            value={newTypeInput}
+                            onChange={(e) => setNewTypeInput(e.target.value)}
+                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newTypeInput.trim()) return;
+                              if ((settings.trainingTypes || []).includes(newTypeInput.trim())) {
+                                alert('Jenis pelatihan sudah terdaftar.');
+                                return;
+                              }
+                              setSettings(prev => ({
+                                ...prev,
+                                trainingTypes: [...(prev.trainingTypes || []), newTypeInput.trim()]
+                              }));
+                              setNewTypeInput('');
+                            }}
+                            className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Tambah
+                          </button>
+                        </div>
+                      </div>
+
                       {/* LOKASI CARD */}
                       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                           <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest">
-                            📍 Daftar Lokasi Pelatihan
+                            📍 Daftar Lokasi
                           </h5>
                           <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-black">
                             {(settings.trainingLocations || []).length} Lokasi
                           </span>
                         </div>
 
-                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {(settings.trainingLocations || []).length === 0 ? (
-                            <p className="text-xs font-bold text-gray-400 py-8 text-center">
-                              Belum ada lokasi pelatihan. Silakan tambahkan di bawah.
+                            <p className="text-xs font-bold text-gray-400 py-6 text-center">
+                              Belum ada lokasi pelatihan.
                             </p>
                           ) : (
                             (settings.trainingLocations || []).map((loc, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                              <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
                                 <span className="text-xs font-bold text-gray-750">{loc}</span>
                                 <button
                                   type="button"
@@ -5054,7 +5265,7 @@ export default function AdminDashboard() {
                                     const filtered = (settings.trainingLocations || []).filter((_, i) => i !== idx);
                                     setSettings(prev => ({ ...prev, trainingLocations: filtered }));
                                   }}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <X size={14} />
                                 </button>
@@ -5069,7 +5280,7 @@ export default function AdminDashboard() {
                             placeholder="Ketik lokasi baru..."
                             value={newLocationInput}
                             onChange={(e) => setNewLocationInput(e.target.value)}
-                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2.5 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
+                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
                           />
                           <button
                             type="button"
@@ -5085,7 +5296,7 @@ export default function AdminDashboard() {
                               }));
                               setNewLocationInput('');
                             }}
-                            className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                            className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                           >
                             Tambah
                           </button>
@@ -5096,21 +5307,21 @@ export default function AdminDashboard() {
                       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                           <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest">
-                            📅 Daftar Tanggal Pelaksanaan
+                            📅 Daftar Tanggal
                           </h5>
                           <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-black">
                             {(settings.trainingDates || []).length} Jadwal
                           </span>
                         </div>
 
-                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {(settings.trainingDates || []).length === 0 ? (
-                            <p className="text-xs font-bold text-gray-400 py-8 text-center">
-                              Belum ada tanggal pelaksanaan. Silakan tambahkan di bawah.
+                            <p className="text-xs font-bold text-gray-400 py-6 text-center">
+                              Belum ada tanggal pelaksanaan.
                             </p>
                           ) : (
                             (settings.trainingDates || []).map((dt, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                              <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
                                 <span className="text-xs font-bold text-gray-750">{dt}</span>
                                 <button
                                   type="button"
@@ -5118,7 +5329,7 @@ export default function AdminDashboard() {
                                     const filtered = (settings.trainingDates || []).filter((_, i) => i !== idx);
                                     setSettings(prev => ({ ...prev, trainingDates: filtered }));
                                   }}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <X size={14} />
                                 </button>
@@ -5133,7 +5344,7 @@ export default function AdminDashboard() {
                             placeholder="Contoh: 12-14 Juli 2026..."
                             value={newDateInput}
                             onChange={(e) => setNewDateInput(e.target.value)}
-                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2.5 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
+                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
                           />
                           <button
                             type="button"
@@ -5149,7 +5360,7 @@ export default function AdminDashboard() {
                               }));
                               setNewDateInput('');
                             }}
-                            className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                            className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                           >
                             Tambah
                           </button>
@@ -5163,7 +5374,7 @@ export default function AdminDashboard() {
                         type="button"
                         onClick={() => handleUpdateSettings()}
                         disabled={isSavingSettings}
-                        className="px-6 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-hw-green/10 flex items-center gap-2"
+                        className="px-6 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-hw-green/10 flex items-center gap-2 cursor-pointer"
                       >
                         {isSavingSettings ? 'Menyimpan...' : 'Simpan Semua Pengaturan Pelatihan'}
                       </button>
@@ -7714,16 +7925,29 @@ export default function AdminDashboard() {
                       Tutup
                     </button>
                     {viewingKtaApp.status === 'pending' && (
-                      <button 
-                        onClick={async () => {
-                          await handleApproveKTA(viewingKtaApp.id);
-                          setIsViewKtaModalOpen(false);
-                          setViewingKtaApp(null);
-                        }}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        Approve & Terbitkan KTA
-                      </button>
+                      <>
+                        <button 
+                          onClick={async () => {
+                            await handleApproveKTA(viewingKtaApp.id);
+                            setIsViewKtaModalOpen(false);
+                            setViewingKtaApp(null);
+                          }}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          Approve & Terbitkan KTA
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const appId = viewingKtaApp.id;
+                            setIsViewKtaModalOpen(false);
+                            setViewingKtaApp(null);
+                            handleOpenRejectKTA(appId);
+                          }}
+                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          Tolak Pengajuan
+                        </button>
+                      </>
                     )}
                   </div>
 
@@ -7749,6 +7973,151 @@ export default function AdminDashboard() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* MODAL KEGIATAN PELATIHAN */}
+        {isActivityModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-gray-100 shadow-2xl animate-fade-in">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
+                  {editingActivityId ? 'Edit Kegiatan Pelatihan' : 'Tambah Kegiatan Pelatihan Baru'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsActivityModalOpen(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs font-semibold">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nama Kegiatan Pelatihan</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Pelatihan Jaya Melati 1/2 HW Jateng"
+                    value={activityForm.namaKegiatan}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, namaKegiatan: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Pelatihan</label>
+                    <select
+                      value={activityForm.jenisPelatihan}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, jenisPelatihan: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                    >
+                      {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1']).map((t: string) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Status Pendaftaran</label>
+                    <select
+                      value={activityForm.status}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, status: e.target.value as any }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                    >
+                      <option value="Buka">Buka Pendaftaran</option>
+                      <option value="Tutup">Tutup Pendaftaran</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tempat / Lokasi Pelaksanaan</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Pusdiklat HW Jateng / Gedung Dakwah Muhammadiyah Jateng"
+                    value={activityForm.lokasiPelatihan}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, lokasiPelatihan: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Waktu / Tanggal Pelaksanaan</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 12-14 Juli 2026"
+                    value={activityForm.tanggalPelatihan}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, tanggalPelatihan: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Deskripsi Kegiatan Singkat</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Keterangan singkat kegiatan..."
+                    value={activityForm.deskripsi}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, deskripsi: e.target.value }))}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsActivityModalOpen(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!activityForm.namaKegiatan.trim()) {
+                      alert('Nama kegiatan wajib diisi.');
+                      return;
+                    }
+                    const newAct = {
+                      id: editingActivityId || `act-${Date.now()}`,
+                      ...activityForm
+                    };
+                    let updatedActivities = [...(settings.trainingActivities || [])];
+                    if (editingActivityId) {
+                      updatedActivities = updatedActivities.map((a: any) => a.id === editingActivityId ? newAct : a);
+                    } else {
+                      updatedActivities.push(newAct);
+                    }
+
+                    // Sync location and date to lookup lists if not existing
+                    let updatedLocations = [...(settings.trainingLocations || [])];
+                    if (activityForm.lokasiPelatihan && !updatedLocations.includes(activityForm.lokasiPelatihan)) {
+                      updatedLocations.push(activityForm.lokasiPelatihan);
+                    }
+
+                    let updatedDates = [...(settings.trainingDates || [])];
+                    if (activityForm.tanggalPelatihan && !updatedDates.includes(activityForm.tanggalPelatihan)) {
+                      updatedDates.push(activityForm.tanggalPelatihan);
+                    }
+
+                    setSettings(prev => ({
+                      ...prev,
+                      trainingActivities: updatedActivities,
+                      trainingLocations: updatedLocations,
+                      trainingDates: updatedDates
+                    }));
+
+                    setIsActivityModalOpen(false);
+                  }}
+                  className="px-5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-wider cursor-pointer"
+                >
+                  {editingActivityId ? 'Simpan Perubahan' : 'Tambah Kegiatan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div key="global-loading-overlay" className="fixed inset-0 z-[999] bg-white/20 backdrop-blur-sm flex items-center justify-center">

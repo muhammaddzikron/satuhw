@@ -1986,7 +1986,7 @@ export default function KTAPage() {
                   </>
                 ) : (
                   <>
-                    <CreditCard size={16} /> Daftar KTA Sekarang
+                    <CreditCard size={16} /> {(myApplication || showEditForm) ? 'UPDATE DATA KTA' : 'DAFTAR KTA SEKARANG'}
                   </>
                 )}
               </button>

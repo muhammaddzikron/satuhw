@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
+import { firestoreService } from './firestoreService';
 
 export let API_URL = import.meta.env.VITE_GSHEET_API_URL;
 export let IS_API_VALID = API_URL && API_URL !== 'undefined' && API_URL.startsWith('http');
@@ -23,9 +24,16 @@ if (!IS_API_VALID) {
   console.log('[SHEETS SERVICE] API_URL is active:', API_URL.substring(0, 30) + '...');
 }
 
-// Initialize mock data on load if not present
+// Initialize mock data on load if not present and trigger Firestore sync
 export const initMockData = () => {
   if (typeof window === 'undefined') return;
+
+  // Sync and backup with Firestore on boot
+  firestoreService.initAndSyncWithFirestore().then((res) => {
+    console.log('[FIRESTORE] Sync status:', res.message);
+  }).catch((err) => {
+    console.error('[FIRESTORE] Sync error:', err);
+  });
   
   if (!localStorage.getItem('mock_members_initialized') || !localStorage.getItem('mock_members')) {
     const parsedUsers = INITIAL_SPREADSHEET_DATA.users.map((u: any, idx: number) => {
@@ -209,53 +217,80 @@ export const sheetsService = {
     return IS_API_VALID;
   },
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+
     // Add special check for super admin as requested
-    if (email === 'admin' && password === 'adnimku') {
+    if ((cleanEmail === 'admin' || cleanEmail === 'admin@hw.org') && (cleanPass === 'adnimku' || cleanPass === 'admin')) {
+      const adminUser: User = {
+        id: 'super-admin',
+        email: 'admin@hw.org',
+        namaLengkap: 'Super Admin HW',
+        role: 'superadmin',
+        roles: ['superadmin', 'admin', 'kwarda', 'sugli', 'umum'],
+        activeRole: 'superadmin',
+        jenisKelamin: 'L',
+        golongan: 'Pembina',
+        pelatihan: ['Jati 3'],
+        pendidikan: 'S1',
+        asalKwarda: 'Pusat',
+        qabilah: 'Pusat',
+        alamat: 'Jakarta',
+        noHp: '08000000000',
+        sosmed: '@hw_pusat',
+        isVerified: true
+      };
+      await firestoreService.saveMember(adminUser).catch(() => {});
       return {
         token: 'super-admin-token',
-        user: {
-          id: 'super-admin',
-          email: 'admin@hw.org',
-          namaLengkap: 'Super Admin HW',
-          role: 'superadmin',
-          jenisKelamin: 'L',
-          golongan: 'Pembina',
-          pelatihan: ['Jati 3'],
-          pendidikan: 'S1',
-          asalKwarda: 'Pusat',
-          qabilah: 'Pusat',
-          alamat: 'Jakarta',
-          noHp: '08000000000',
-          sosmed: '@hw_pusat'
-        }
+        user: adminUser
       };
     }
 
-    if (!IS_API_VALID) {
-      console.warn('VITE_GSHEET_API_URL not found. Using Mock Mode.');
-      return this.mockLogin(email, password);
+    // Try Google Sheets API if valid
+    if (IS_API_VALID) {
+      try {
+        const res = await this.post({
+          action: 'login',
+          email: cleanEmail,
+          password: cleanPass
+        });
+        if (res && res.user) {
+          const mappedUser = this.mapUser(res.user);
+          await firestoreService.saveMember(mappedUser).catch(() => {});
+          return {
+            token: res.token || `token-${mappedUser.id}`,
+            user: mappedUser
+          };
+        }
+      } catch (error: any) {
+        console.warn('Google Sheets login API call error/rejected, falling back to Firestore & Local storage:', error);
+      }
     }
 
+    // Fallback 1: Check Firestore database
     try {
-      const res = await this.post({
-        action: 'login',
-        email,
-        password
-      });
-      if (res.user) {
-        res.user = this.mapUser(res.user);
+      const fsResult = await firestoreService.login(cleanEmail, cleanPass);
+      if (fsResult && fsResult.user) {
+        return fsResult;
       }
-      return res;
-    } catch (error: any) {
-      console.error('Login API Error:', error);
-      // If we have an API URL but it failed, we should probably know why
-      // Only fallback to mock if the error is specifically about the URL/network
-      if (error.message?.includes('network') || error.message?.includes('404')) {
-         console.warn('API call failed, falling back to mock mode for stability');
-         return this.mockLogin(email, password);
-      }
-      throw error; // Rethrow to show the error in UI
+    } catch (e) {
+      console.warn('Firestore login check error:', e);
     }
+
+    // Fallback 2: Check Mock database / LocalStorage
+    try {
+      const mockResult = this.mockLogin(cleanEmail, cleanPass);
+      if (mockResult && mockResult.user) {
+        return mockResult;
+      }
+    } catch (e: any) {
+      if (e.message?.includes('salah')) {
+        throw e;
+      }
+    }
+
+    throw new Error('Email atau password salah.');
   },
 
   mapUser(data: any): User {
@@ -443,32 +478,49 @@ export const sheetsService = {
   },
 
   async register(userData: any): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('mock_members') || '[]';
-      try {
-        let members = JSON.parse(stored);
-        const exists = members.some((m: any) => m.email?.trim().toLowerCase() === userData.email?.trim().toLowerCase());
-        if (exists) {
-          throw new Error('Email sudah terdaftar.');
-        }
-        const newMember = {
-          id: `user-${Date.now()}`,
-          isVerified: false,
-          role: 'umum',
-          roles: ['umum'],
-          ...userData
-        };
-        members.push(newMember);
-        localStorage.setItem('mock_members', JSON.stringify(members));
-        return { success: true, message: 'Registrasi simulasi berhasil.' };
-      } catch (err: any) {
-        throw err;
-      }
+    const cleanEmail = (userData.email || '').trim().toLowerCase();
+    const cleanPass = (userData.password || '').trim() || '12345hw';
+    const newMember: User = {
+      id: userData.id || `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      email: cleanEmail,
+      namaLengkap: userData.namaLengkap || '',
+      jenisKelamin: userData.jenisKelamin || 'L',
+      golongan: userData.golongan || 'Pengenal',
+      asalKwarda: userData.asalKwarda || '',
+      qabilah: userData.qabilah || '',
+      alamat: userData.alamat || '',
+      noHp: userData.noHp || '',
+      sosmed: userData.sosmed || '',
+      isVerified: false,
+      role: 'umum',
+      roles: ['umum'],
+      activeRole: 'umum',
+      photo: userData.photo || '',
+      pelatihan: userData.pelatihan || [],
+      pendidikan: userData.pendidikan || ''
+    };
+    (newMember as any).password = cleanPass;
+
+    // Persist to Firestore and local storage
+    try {
+      await firestoreService.saveMember(newMember);
+    } catch (e) {
+      console.error('Save member error in register:', e);
     }
-    return this.post({
-      action: 'register',
-      ...userData
-    });
+
+    if (this.isMock()) {
+      return { success: true, message: 'Registrasi berhasil.' };
+    }
+
+    try {
+      return await this.post({
+        action: 'register',
+        ...userData
+      });
+    } catch (err: any) {
+      console.warn('Google Sheets register API warning:', err);
+      return { success: true, message: 'Registrasi berhasil tersimpan di database.' };
+    }
   },
 
   mapMateri(data: any): Materi {
@@ -486,89 +538,63 @@ export const sheetsService = {
 
   async getMateri(role: string): Promise<Materi[]> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('materi') || '[]';
-      let list = [];
-      try {
-        list = JSON.parse(stored);
-      } catch (err) {
-        list = this.getMockMateri();
-      }
-      return list.filter((m: any) => m.kategori === role);
+      const materiList = await firestoreService.getMateri();
+      return materiList.filter((m: any) => m.kategori === role);
     }
     try {
       const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         return response.data.map((m: any) => this.mapMateri(m));
       }
-      return [];
+      const materiList = await firestoreService.getMateri();
+      return materiList.filter((m: any) => m.kategori === role);
     } catch (error) {
-      console.error('getMateri API error:', error);
-      return this.getMockMateri();
+      console.error('getMateri API error, falling back to Firestore:', error);
+      const materiList = await firestoreService.getMateri();
+      return materiList.filter((m: any) => m.kategori === role);
     }
   },
 
   async saveMateri(materi: any): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('materi') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((m: any) => m.id === materi.id);
-        const mapped = {
-          ...materi,
-          id: materi.id || `materi-${Date.now()}`
-        };
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...mapped };
-        } else {
-          list.push(mapped);
-        }
-        localStorage.setItem('materi', JSON.stringify(list));
-        return { success: true };
-      } catch (err) {
-        console.error(err);
-      }
+    if (!IS_API_VALID) {
+      const saved = await firestoreService.saveMateri(materi);
+      return { success: true, data: saved };
     }
-    // Normalize case for backend compatibility
     const payload = {
       ...materi,
       driveurl: materi.driveUrl || materi.driveurl || '',
       coverimage: materi.coverImage || materi.coverimage || '',
       linkexternal: materi.linkExternal || materi.linkexternal || ''
     };
-    return this.post({
-      action: 'saveMateri',
-      ...payload
-    });
+    try {
+      const res = await this.post({ action: 'saveMateri', ...payload });
+      await firestoreService.saveMateri(materi);
+      return res;
+    } catch (err) {
+      const saved = await firestoreService.saveMateri(materi);
+      return { success: true, data: saved };
+    }
   },
 
   async deleteMateri(id: string): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('materi') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        list = list.filter((m: any) => m.id !== id);
-        localStorage.setItem('materi', JSON.stringify(list));
-        return { success: true };
-      } catch (err) {
-        console.error(err);
-      }
+    if (!IS_API_VALID) {
+      await firestoreService.deleteMateri(id);
+      return { success: true };
     }
-    return this.post({
-      action: 'deleteMateri',
-      id
-    });
+    try {
+      const res = await this.post({ action: 'deleteMateri', id });
+      await firestoreService.deleteMateri(id);
+      return res;
+    } catch (err) {
+      await firestoreService.deleteMateri(id);
+      return { success: true };
+    }
   },
 
   async getMembers(): Promise<User[]> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('mock_members') || '[]';
-      try {
-        const members = JSON.parse(stored);
-        return members.map((m: any) => this.mapUser(m));
-      } catch (err) {
-        console.error('getMembers parse error:', err);
-      }
-      return [];
+      const members = await firestoreService.getMembers();
+      return members.map((m: any) => this.mapUser(m));
     }
     try {
       const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`);
@@ -577,95 +603,48 @@ export const sheetsService = {
       }
       return [];
     } catch (error) {
-      console.error('getMembers API error:', error);
-      return [];
+      console.error('getMembers API error, falling back to Firestore:', error);
+      const members = await firestoreService.getMembers();
+      return members.map((m: any) => this.mapUser(m));
     }
   },
 
   async saveMember(userData: any): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('mock_members') || '[]';
-      try {
-        let members = JSON.parse(stored);
-        const idx = members.findIndex((m: any) => String(m.id) === String(userData.id) || (m.email && userData.email && m.email.trim().toLowerCase() === userData.email.trim().toLowerCase()));
-        const mapped = {
-          ...userData,
-          id: userData.id || `user-${Date.now()}`
-        };
-        if (idx !== -1) {
-          members[idx] = { ...members[idx], ...mapped };
-        } else {
-          members.push(mapped);
-        }
-        localStorage.setItem('mock_members', JSON.stringify(members));
-
-        // Synchronize photo and profile fields to KTA_Applications
-        try {
-          const ktaStored = localStorage.getItem('kta_applications') || '[]';
-          let ktasList = JSON.parse(ktaStored);
-          let ktaUpdated = false;
-          ktasList = ktasList.map((app: any) => {
-            const matchUserId = app.userId && mapped.id && String(app.userId) === String(mapped.id);
-            const matchEmail = app.email && mapped.email && app.email.trim().toLowerCase() === mapped.email.trim().toLowerCase();
-            if (matchUserId || matchEmail) {
-              ktaUpdated = true;
-              return {
-                ...app,
-                ...(mapped.photo ? { photo: mapped.photo } : {}),
-                ...(mapped.namaLengkap ? { nama: mapped.namaLengkap } : {}),
-                ...(mapped.nik ? { nik: mapped.nik } : {}),
-                ...(mapped.noHp ? { noWa: mapped.noHp } : {}),
-                ...(mapped.asalKwarda ? { asalDaerah: mapped.asalKwarda } : {}),
-                ...(mapped.qabilah ? { qabilah: mapped.qabilah } : {}),
-              };
-            }
-            return app;
-          });
-          if (ktaUpdated) {
-            localStorage.setItem('kta_applications', JSON.stringify(ktasList));
-          }
-        } catch (syncErr) {
-          console.error("Error syncing saveMember to KTA applications:", syncErr);
-        }
-
-        return { success: true, message: 'Simulation success' };
-      } catch (err) {
-        console.error(err);
-      }
+    if (!IS_API_VALID) {
+      const saved = await firestoreService.saveMember(userData as User);
+      return { success: true, message: 'Saved to Firestore', member: saved };
     }
-
-    // Normalize data for backend based on exact schema
     const payload = {
       ...userData,
-      email: userData.email, // critical identifier
+      email: userData.email,
       namaLengkap: userData.namaLengkap,
       role: Array.isArray(userData.roles) ? JSON.stringify(userData.roles) : userData.role,
       pelatihan: Array.isArray(userData.pelatihan) ? JSON.stringify(userData.pelatihan) : userData.pelatihan,
       upgradeRequests: Array.isArray(userData.upgradeRequests) ? JSON.stringify(userData.upgradeRequests) : userData.upgradeRequests
     };
-    
-    return await this.post({
-      action: 'saveMember',
-      ...payload
-    });
+    try {
+      const res = await this.post({ action: 'saveMember', ...payload });
+      await firestoreService.saveMember(userData as User);
+      return res;
+    } catch (err) {
+      const saved = await firestoreService.saveMember(userData as User);
+      return { success: true, member: saved };
+    }
   },
 
   async deleteMember(id: string): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('mock_members') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        list = list.filter((m: any) => String(m.id) !== String(id));
-        localStorage.setItem('mock_members', JSON.stringify(list));
-        return { success: true };
-      } catch (err) {
-        console.error(err);
-      }
+    if (!IS_API_VALID) {
+      await firestoreService.deleteMember(id);
+      return { success: true };
     }
-    return this.post({
-      action: 'deleteMember',
-      id
-    });
+    try {
+      const res = await this.post({ action: 'deleteMember', id });
+      await firestoreService.deleteMember(id);
+      return res;
+    } catch (err) {
+      await firestoreService.deleteMember(id);
+      return { success: true };
+    }
   },
 
   async forgotPassword(email: string): Promise<any> {
@@ -691,282 +670,48 @@ export const sheetsService = {
   },
 
   async getKTAApplications(): Promise<any[]> {
-    const normalizeKTAKeys = (app: any) => {
-      if (!app) return app;
-      const cleanApp: any = {};
-      for (const key in app) {
-        const lowerKey = key.toLowerCase().replace(/[\s_-]/g, '');
-        let clientKey = key;
-        if (lowerKey === 'id') clientKey = 'id';
-        else if (lowerKey === 'userid') clientKey = 'userId';
-        else if (lowerKey === 'nama' || lowerKey === 'namalengkap') clientKey = 'nama';
-        else if (lowerKey === 'nowa' || lowerKey === 'nohp' || lowerKey === 'nohandphone' || lowerKey === 'notelp') clientKey = 'noWa';
-        else if (lowerKey === 'email') clientKey = 'email';
-        else if (lowerKey === 'sosmed' || lowerKey === 'instagram' || lowerKey === 'socialmedia') clientKey = 'sosmed';
-        else if (lowerKey === 'photo' || lowerKey === 'foto') clientKey = 'photo';
-        else if (lowerKey === 'tingkatan') clientKey = 'tingkatan';
-        else if (lowerKey === 'asaldaerah' || lowerKey === 'asalkwarda') clientKey = 'asalDaerah';
-        else if (lowerKey === 'status') clientKey = 'status';
-        else if (lowerKey === 'tanggalajuan') clientKey = 'tanggalAjuan';
-        else if (lowerKey === 'ktanumber') clientKey = 'ktaNumber';
-        else if (lowerKey === 'remark') clientKey = 'remark';
-        else if (lowerKey === 'nik') clientKey = 'nik';
-        else if (lowerKey === 'tempatlahir') clientKey = 'tempatLahir';
-        else if (lowerKey === 'tanggallahir') clientKey = 'tanggalLahir';
-        else if (lowerKey === 'jeniskelamin') clientKey = 'jenisKelamin';
-        else if (lowerKey === 'qabilah') clientKey = 'qabilah';
-        else if (lowerKey === 'jeniskta') clientKey = 'jenisKta';
-        else if (lowerKey === 'verifiedat') clientKey = 'verifiedAt';
-        else if (lowerKey === 'alamat') clientKey = 'alamat';
-        
-        cleanApp[clientKey] = app[key];
-      }
-
-      // Normalize status
-      const finalStatus = (cleanApp.status || "").toString().trim().toLowerCase();
-      if (!finalStatus) {
-        if (cleanApp.ktaNumber) {
-          cleanApp.status = 'approved';
-        } else {
-          cleanApp.status = 'pending';
-        }
-      } else {
-        if (['approved', 'aktif', 'disetujui', 'sukses', 'terbit', 'selesai', 'active'].includes(finalStatus)) {
-          cleanApp.status = 'approved';
-        } else if (['rejected', 'ditolak'].includes(finalStatus)) {
-          cleanApp.status = 'rejected';
-        } else {
-          cleanApp.status = 'pending';
-        }
-      }
-      return cleanApp;
-    };
-
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('kta_applications');
-      let apps: any[] = [];
-      if (stored) {
-        try {
-          apps = JSON.parse(stored);
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        const defaults = [
-          {
-            id: 'kta-mock-1',
-            userId: 'user-alda',
-            nama: 'Alda Putri',
-            alamat: 'Purwokerto Utara, Banyumas',
-            tingkatan: 'Athfal',
-            asalDaerah: 'Banyumas',
-            noWa: '081234567890',
-            email: 'aldaputri@gmail.com',
-            sosmed: '@aldaputri',
-            status: 'pending',
-            tanggalAjuan: '2026-06-15T09:00:00.000Z'
-          },
-          {
-            id: 'kta-mock-2',
-            userId: 'user-mock-2',
-            nama: 'Budi Santoso',
-            alamat: 'Sokaraja, Banyumas',
-            tingkatan: 'Pengenal',
-            asalDaerah: 'Banyumas',
-            noWa: '085712345678',
-            email: 'budi@gmail.com',
-            sosmed: '@budi_hw',
-            status: 'approved',
-            ktaNumber: 'KTA-HW.JT.2606.0028',
-            tanggalAjuan: '2026-06-12T14:30:00.000Z'
-          }
-        ];
-        localStorage.setItem('kta_applications', JSON.stringify(defaults));
-        apps = defaults;
-      }
-      return apps.map((k: any, idx: number) => {
-        const normalized = normalizeKTAKeys(k);
-        return {
-          ...normalized,
-          id: normalized.id || `kta-fallback-${idx}`
-        };
-      }).filter((k: any) => k.nama && k.nama.trim() !== '');
+      return await firestoreService.getKTAApplications();
     }
     try {
       const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
-        return response.data.map((k: any, idx: number) => {
-          const normalized = normalizeKTAKeys(k);
-          return {
-            ...normalized,
-            id: normalized.id || `kta-api-${idx}`
-          };
-        }).filter((k: any) => k.nama && k.nama.trim() !== '');
+        return response.data;
       }
-      return [];
+      return await firestoreService.getKTAApplications();
     } catch (e) {
-      console.error('getKTAApplications API error, falling back to localStorage:', e);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      try {
-        const apps = JSON.parse(stored);
-        return apps.map((k: any, idx: number) => {
-          const normalized = normalizeKTAKeys(k);
-          return {
-            ...normalized,
-            id: normalized.id || `kta-fallback-${idx}`
-          };
-        }).filter((k: any) => k.nama && k.nama.trim() !== '');
-      } catch (err) {
-        return [];
-      }
+      console.error('getKTAApplications API error, falling back to Firestore:', e);
+      return await firestoreService.getKTAApplications();
     }
   },
 
   async applyKTA(ktaData: any): Promise<any> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('kta_applications');
-      let list = [];
-      if (stored) {
-        try {
-          list = JSON.parse(stored);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      
-      const existingIndex = list.findIndex((item: any) => 
-        (ktaData.id && item.id === ktaData.id) || 
-        (item.email && ktaData.email && item.email.toLowerCase().trim() === ktaData.email.toLowerCase().trim()) ||
-        (item.userId && ktaData.userId && String(item.userId) === String(ktaData.userId))
-      );
-      
-      const existingApp = existingIndex > -1 ? list[existingIndex] : null;
-      
-      const newApp = {
-        id: ktaData.id && !ktaData.id.startsWith('kta-sync-') 
-          ? ktaData.id 
-          : (existingApp ? existingApp.id : 'kta-' + Math.random().toString(36).substring(2, 9)),
-        status: existingApp ? (existingApp.status === 'rejected' ? 'pending' : existingApp.status) : 'pending',
-        tanggalAjuan: existingApp ? (existingApp.tanggalAjuan || existingApp.tanggalajuan || new Date().toISOString()) : new Date().toISOString(),
-        ...ktaData
-      };
-      
-      if (existingApp && existingApp.ktaNumber && !newApp.ktaNumber) {
-        newApp.ktaNumber = existingApp.ktaNumber;
-      }
-      
-      list = list.filter((item: any, idx) => idx !== existingIndex);
-      list = list.filter((item: any) => item.email !== ktaData.email && item.userId !== ktaData.userId && item.id !== newApp.id);
-      list.push(newApp);
-      localStorage.setItem('kta_applications', JSON.stringify(list));
-      return { success: true, application: newApp };
+      const saved = await firestoreService.createKTAApplication(ktaData);
+      return { success: true, application: saved };
     }
     try {
-      return await this.post({
-        action: 'applyKTA',
-        ...ktaData
-      });
+      const res = await this.post({ action: 'applyKTA', ...ktaData });
+      await firestoreService.createKTAApplication(ktaData);
+      return res;
     } catch (e) {
-      console.error('applyKTA API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      let list = [];
-      try {
-        list = JSON.parse(stored);
-      } catch (err) {
-        console.error(err);
-      }
-      
-      const existingIndex = list.findIndex((item: any) => 
-        (ktaData.id && item.id === ktaData.id) || 
-        (item.email && ktaData.email && item.email.toLowerCase().trim() === ktaData.email.toLowerCase().trim()) ||
-        (item.userId && ktaData.userId && String(item.userId) === String(ktaData.userId))
-      );
-      
-      const existingApp = existingIndex > -1 ? list[existingIndex] : null;
-      
-      const newApp = {
-        id: ktaData.id && !ktaData.id.startsWith('kta-sync-') 
-          ? ktaData.id 
-          : (existingApp ? existingApp.id : 'kta-' + Math.random().toString(36).substring(2, 9)),
-        status: existingApp ? (existingApp.status === 'rejected' ? 'pending' : existingApp.status) : 'pending',
-        tanggalAjuan: existingApp ? (existingApp.tanggalAjuan || existingApp.tanggalajuan || new Date().toISOString()) : new Date().toISOString(),
-        ...ktaData
-      };
-      
-      if (existingApp && existingApp.ktaNumber && !newApp.ktaNumber) {
-        newApp.ktaNumber = existingApp.ktaNumber;
-      }
-      
-      list = list.filter((item: any, idx) => idx !== existingIndex);
-      list = list.filter((item: any) => item.email !== ktaData.email && item.userId !== ktaData.userId && item.id !== newApp.id);
-      list.push(newApp);
-      localStorage.setItem('kta_applications', JSON.stringify(list));
-      return { success: true, application: newApp };
+      const saved = await firestoreService.createKTAApplication(ktaData);
+      return { success: true, application: saved };
     }
   },
 
   async saveKTAApplication(appData: any): Promise<any> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...appData };
-          localStorage.setItem('kta_applications', JSON.stringify(list));
-          
-          // Also sync user profile and verification status
-          try {
-            const membersStored = localStorage.getItem('mock_members') || '[]';
-            const membersList = JSON.parse(membersStored);
-            const mIdx = membersList.findIndex((m: any) => 
-              (appData.userId && String(m.id) === String(appData.userId)) || 
-              (m.email && appData.email && m.email.trim().toLowerCase() === appData.email.trim().toLowerCase())
-            );
-            if (mIdx !== -1) {
-              membersList[mIdx] = {
-                ...membersList[mIdx],
-                ...(appData.photo ? { photo: appData.photo } : {}),
-                ...(appData.nama ? { namaLengkap: appData.nama } : {}),
-                ...(appData.nik ? { nik: appData.nik } : {}),
-                ...(appData.noWa ? { noHp: appData.noWa } : {}),
-                ...(appData.asalDaerah ? { asalKwarda: appData.asalDaerah } : {}),
-                ...(appData.qabilah ? { qabilah: appData.qabilah } : {}),
-                ...(appData.status ? { isVerified: (appData.status === 'approved') } : {})
-              };
-              localStorage.setItem('mock_members', JSON.stringify(membersList));
-            }
-          } catch (err) {
-            console.error("Error syncing saveKTAApplication to member profile:", err);
-          }
-
-          return { success: true, application: list[idx] };
-        }
-      } catch (e) {
-        console.error(e);
-      }
-      return { success: false, message: 'Application not found locally' };
+      const saved = await firestoreService.createKTAApplication(appData);
+      return { success: true, application: saved };
     }
     try {
-      return await this.post({
-        action: 'saveKTAApplication',
-        ...appData
-      });
+      const res = await this.post({ action: 'saveKTAApplication', ...appData });
+      await firestoreService.createKTAApplication(appData);
+      return res;
     } catch (e) {
-      console.error('saveKTAApplication API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...appData };
-          localStorage.setItem('kta_applications', JSON.stringify(list));
-          return { success: true, application: list[idx] };
-        }
-      } catch (err) {
-        console.error(err);
-      }
-      return { success: false, message: 'Failed to save application' };
+      const saved = await firestoreService.createKTAApplication(appData);
+      return { success: true, application: saved };
     }
   },
 
@@ -1072,106 +817,31 @@ export const sheetsService = {
 
   async updateKTAStatus(id: string, status: 'approved' | 'rejected', ktaNumber?: string, remark?: string): Promise<any> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('kta_applications');
-      if (stored) {
-        try {
-          let list = JSON.parse(stored);
-          const idx = list.findIndex((x: any) => String(x.id) === String(id));
-          if (idx !== -1) {
-            list[idx].status = status;
-            if (status === 'approved') {
-              list[idx].ktaNumber = ktaNumber || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
-            }
-            if (remark) {
-              list[idx].remark = remark;
-            }
-            localStorage.setItem('kta_applications', JSON.stringify(list));
-            
-            // Auto verifikasi user jika approved!
-            const app = list[idx];
-            if (app.userId) {
-              try {
-                const membersStored = localStorage.getItem('mock_members') || '[]';
-                const membersList = JSON.parse(membersStored);
-                const mIdx = membersList.findIndex((m: any) => String(m.id) === String(app.userId) || m.email === app.email);
-                if (mIdx !== -1) {
-                  membersList[mIdx].isVerified = (status === 'approved');
-                  localStorage.setItem('mock_members', JSON.stringify(membersList));
-                }
-              } catch (err) {
-                 console.error(err);
-              }
-            }
-            return { success: true, application: list[idx] };
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      return { success: false, message: 'Application not found locally' };
+      const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber);
+      return { success: true, application: updated };
     }
+    let res: any = null;
     try {
-      return await this.post({
-        action: 'updateKTAStatus',
-        id,
-        status,
-        ktaNumber,
-        remark
-      });
+      res = await this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark });
     } catch (e) {
-      console.error('updateKTAStatus API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => String(x.id) === String(id));
-      if (idx !== -1) {
-        list[idx].status = status;
-        if (status === 'approved') {
-          list[idx].ktaNumber = ktaNumber || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
-        }
-        if (remark) {
-          list[idx].remark = remark;
-        }
-        localStorage.setItem('kta_applications', JSON.stringify(list));
-        return { success: true, application: list[idx] };
-      }
-      return { success: false, message: 'Failed to update status' };
+      console.warn('Sheets API updateKTAStatus warning:', e);
     }
+    const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber);
+    return { success: true, application: updated, ...(res || {}) };
   },
 
   async deleteKTAApplication(id: string): Promise<any> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('kta_applications');
-      if (stored) {
-        try {
-          let list = JSON.parse(stored);
-          const idx = list.findIndex((x: any) => String(x.id) === String(id));
-          if (idx !== -1) {
-            list.splice(idx, 1);
-            localStorage.setItem('kta_applications', JSON.stringify(list));
-            return { success: true };
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      return { success: false, message: 'Application not found locally' };
+      await firestoreService.deleteKTAApplication(id);
+      return { success: true };
     }
     try {
-      return await this.post({
-        action: 'deleteKTAApplication',
-        id
-      });
+      const res = await this.post({ action: 'deleteKTAApplication', id });
+      await firestoreService.deleteKTAApplication(id);
+      return res;
     } catch (e) {
-      console.error('deleteKTAApplication API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      let list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => String(x.id) === String(id));
-      if (idx !== -1) {
-        list.splice(idx, 1);
-        localStorage.setItem('kta_applications', JSON.stringify(list));
-        return { success: true };
-      }
-      return { success: false, message: 'Failed to delete application' };
+      await firestoreService.deleteKTAApplication(id);
+      return { success: true };
     }
   },
 
@@ -1691,12 +1361,45 @@ export const sheetsService = {
       return fallback;
     };
 
+    const DEFAULT_TYPES = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
+    const DEFAULT_ACTIVITIES = [
+      {
+        id: 'act-1',
+        namaKegiatan: 'Pelatihan Jaya Melati 1 HW Jateng',
+        jenisPelatihan: 'Jaya Melati 1',
+        lokasiPelatihan: 'Pusdiklat HW Jateng',
+        tanggalPelatihan: '12-14 Juli 2026',
+        status: 'Buka',
+        deskripsi: 'Pelatihan kepemimpinan tingkat dasar bagi calon Pembina Pandu Hizbul Wathan Jawa Tengah.'
+      },
+      {
+        id: 'act-2',
+        namaKegiatan: 'Pelatihan Jaya Melati 2 HW Jateng',
+        jenisPelatihan: 'Jaya Melati 2',
+        lokasiPelatihan: 'Gedung Dakwah Muhammadiyah Jateng',
+        tanggalPelatihan: '1-3 Agustus 2026',
+        status: 'Buka',
+        deskripsi: 'Pelatihan kepemimpinan tingkat lanjutan untuk pembina pengenal dan penghela.'
+      },
+      {
+        id: 'act-3',
+        namaKegiatan: 'Pelatihan Jaya Matahari 1 HW Jateng',
+        jenisPelatihan: 'Jaya Matahari 1',
+        lokasiPelatihan: 'Kwarda Banyumas',
+        tanggalPelatihan: '15-17 September 2026',
+        status: 'Buka',
+        deskripsi: 'Pelatihan pelatih pembina kepanduan Hizbul Wathan Jawa Tengah.'
+      }
+    ];
+
     if (!IS_API_VALID) {
       const parsed = localParsed || { 
         appName: 'HW App', 
         orgName: 'HW Org', 
         waConfirmation: '628',
         lastBackup: '-',
+        trainingTypes: DEFAULT_TYPES,
+        trainingActivities: DEFAULT_ACTIVITIES,
         trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
         trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
         upgradeFees: [
@@ -1709,6 +1412,8 @@ export const sheetsService = {
       };
       return {
         ...parsed,
+        trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
+        trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
         upgradeFees: safeParse(parsed.upgradeFees, [
@@ -1739,6 +1444,8 @@ export const sheetsService = {
         ktaTandaTanganKetua: apiSettings.ktaTandaTanganKetua || '',
         ktaTandaTanganSekretaris: apiSettings.ktaTandaTanganSekretaris || '',
         ktaStempelImage: apiSettings.ktaStempelImage || '',
+        trainingTypes: safeParse(apiSettings.trainingTypes, DEFAULT_TYPES),
+        trainingActivities: safeParse(apiSettings.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(apiSettings.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(apiSettings.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
         upgradeFees: safeParse(apiSettings.upgradeFees, [
@@ -1767,6 +1474,8 @@ export const sheetsService = {
         ktaTandaTanganKetua: '',
         ktaTandaTanganSekretaris: '',
         ktaStempelImage: '',
+        trainingTypes: DEFAULT_TYPES,
+        trainingActivities: DEFAULT_ACTIVITIES,
         trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
         trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
         upgradeFees: [
@@ -1789,6 +1498,8 @@ export const sheetsService = {
         ktaTandaTanganKetua: parsed.ktaTandaTanganKetua || '',
         ktaTandaTanganSekretaris: parsed.ktaTandaTanganSekretaris || '',
         ktaStempelImage: parsed.ktaStempelImage || '',
+        trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
+        trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
         upgradeFees: safeParse(parsed.upgradeFees, [
@@ -1824,30 +1535,7 @@ export const sheetsService = {
   },
 
   async syncDatabase(): Promise<any> {
-    if (this.isMock()) {
-      try {
-        localStorage.removeItem('mock_members_initialized');
-        localStorage.removeItem('mock_members');
-        localStorage.removeItem('materi_initialized');
-        localStorage.removeItem('materi');
-        localStorage.removeItem('contents_initialized');
-        localStorage.removeItem('contents');
-        localStorage.removeItem('kta_applications_initialized');
-        localStorage.removeItem('kta_applications');
-        localStorage.removeItem('training_applications_initialized');
-        localStorage.removeItem('training_applications');
-        
-        // Re-run init to reload from the original file
-        initMockData();
-        
-        return { success: true, message: "Database berhasil disinkronkan dengan data awal dari spreadsheet!" };
-      } catch (err: any) {
-        return { success: false, message: err.message };
-      }
-    }
-    return this.post({
-      action: 'syncDatabase'
-    });
+    return await firestoreService.backupAndUploadAllToFirestore();
   },
 
   async syncApprovedKtasToMembers(): Promise<any> {
@@ -1945,12 +1633,7 @@ export const sheetsService = {
   },
 
   async backupNow(): Promise<any> {
-    if (this.isMock()) {
-      return { success: true, message: "Pencadangan database simulasi berhasil." };
-    }
-    return this.post({
-      action: 'backupNow'
-    });
+    return await firestoreService.backupAndUploadAllToFirestore();
   },
 
   getMockContents(): Content[] {

@@ -1,0 +1,942 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { User, UserRole, Materi, Content } from '../types';
+import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
+
+// Helper to remove undefined fields before saving to Firestore
+const cleanData = <T extends Record<string, any>>(obj: T): T => {
+  const result: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+};
+
+export const firestoreService = {
+  // Sync state flag
+  isInitialized: false,
+
+  /**
+   * Initialize Firestore with initial data if collections are empty,
+   * and upload any local backup data to Firestore.
+   */
+  async initAndSyncWithFirestore(): Promise<{ success: boolean; message: string }> {
+    try {
+      let uploadedCount = 0;
+
+      // 1. Members
+      const membersSnap = await getDocs(collection(db, 'members'));
+      if (membersSnap.empty) {
+        const localMembersStr = localStorage.getItem('mock_members');
+        let initialMembers: any[] = [];
+        if (localMembersStr) {
+          initialMembers = JSON.parse(localMembersStr);
+        } else {
+          initialMembers = INITIAL_SPREADSHEET_DATA.users.map((u: any, idx: number) => ({
+            ...u,
+            id: u.id || `user-${1000 + idx}`,
+            isVerified: true
+          }));
+        }
+
+        const batch = writeBatch(db);
+        for (let idx = 0; idx < initialMembers.length; idx++) {
+          const m = initialMembers[idx];
+          const docId = String(m.id || m.email || `user-${1000 + idx}`).trim();
+          if (!docId) continue;
+          m.id = docId;
+          const docRef = doc(db, 'members', docId);
+          batch.set(docRef, cleanData(m));
+          uploadedCount++;
+        }
+        await batch.commit();
+        localStorage.setItem('mock_members', JSON.stringify(initialMembers));
+        localStorage.setItem('mock_members_initialized', 'true');
+      }
+
+      // 2. Materi
+      const materiSnap = await getDocs(collection(db, 'materi'));
+      if (materiSnap.empty) {
+        const localMateriStr = localStorage.getItem('materi');
+        let initialMateri: any[] = [];
+        if (localMateriStr) {
+          initialMateri = JSON.parse(localMateriStr);
+        } else {
+          initialMateri = INITIAL_SPREADSHEET_DATA.materi.map((m: any, idx: number) => ({
+            id: m.id || `materi-${1000 + idx}`,
+            judul: m.judul || '',
+            konten: m.konten || '',
+            kategori: m.kategori || 'umum',
+            tanggal: m.tanggal || new Date().toISOString(),
+            coverImage: m.coverImage || m.coverimage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+            driveUrl: m.driveUrl || m.driveurl || '',
+            linkExternal: m.linkExternal || m.linkexternal || ''
+          }));
+        }
+
+        const batch = writeBatch(db);
+        for (let idx = 0; idx < initialMateri.length; idx++) {
+          const mat = initialMateri[idx];
+          const docId = String(mat.id || `materi-${1000 + idx}`).trim();
+          if (!docId) continue;
+          mat.id = docId;
+          const docRef = doc(db, 'materi', docId);
+          batch.set(docRef, cleanData(mat));
+          uploadedCount++;
+        }
+        await batch.commit();
+        localStorage.setItem('materi', JSON.stringify(initialMateri));
+        localStorage.setItem('materi_initialized', 'true');
+      }
+
+      // 3. KTA Applications
+      const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+      if (ktaSnap.empty) {
+        const localKtaStr = localStorage.getItem('kta_applications');
+        let initialKta: any[] = [];
+        if (localKtaStr) {
+          initialKta = JSON.parse(localKtaStr);
+        } else {
+          initialKta = ((INITIAL_SPREADSHEET_DATA as any).kta || []).map((k: any, idx: number) => ({
+            ...k,
+            id: String(k.id || `kta-${1000 + idx}`)
+          }));
+        }
+
+        const batch = writeBatch(db);
+        for (let idx = 0; idx < initialKta.length; idx++) {
+          const k = initialKta[idx];
+          const docId = String(k.id || `kta-${1000 + idx}`).trim();
+          if (!docId) continue;
+          k.id = docId;
+          const docRef = doc(db, 'kta_applications', docId);
+          batch.set(docRef, cleanData(k));
+          uploadedCount++;
+        }
+        await batch.commit();
+        localStorage.setItem('kta_applications', JSON.stringify(initialKta));
+        localStorage.setItem('kta_applications_initialized', 'true');
+      }
+
+      // 4. Training Applications
+      const trainingSnap = await getDocs(collection(db, 'training_applications'));
+      if (trainingSnap.empty) {
+        const localTrainingStr = localStorage.getItem('training_applications');
+        let initialTraining: any[] = [];
+        if (localTrainingStr) {
+          initialTraining = JSON.parse(localTrainingStr);
+        } else {
+          initialTraining = ((INITIAL_SPREADSHEET_DATA as any).pelatihan || []).map((p: any, idx: number) => ({
+            ...p,
+            id: String(p.id || `training-${1000 + idx}`)
+          }));
+        }
+
+        const batch = writeBatch(db);
+        for (let idx = 0; idx < initialTraining.length; idx++) {
+          const tr = initialTraining[idx];
+          const docId = String(tr.id || `training-${1000 + idx}`).trim();
+          if (!docId) continue;
+          tr.id = docId;
+          const docRef = doc(db, 'training_applications', docId);
+          batch.set(docRef, cleanData(tr));
+          uploadedCount++;
+        }
+        await batch.commit();
+        localStorage.setItem('training_applications', JSON.stringify(initialTraining));
+        localStorage.setItem('training_applications_initialized', 'true');
+      }
+
+      // 5. Contents
+      const contentsSnap = await getDocs(collection(db, 'contents'));
+      if (contentsSnap.empty) {
+        const localContentsStr = localStorage.getItem('contents');
+        let initialContents: any[] = [];
+        if (localContentsStr) {
+          initialContents = JSON.parse(localContentsStr);
+        } else {
+          initialContents = INITIAL_SPREADSHEET_DATA.contents || [
+            {
+              id: 'content-profil-1',
+              section: 'profil',
+              field1: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=800',
+              field2: 'Gerakan Kepanduan Hizbul Wathan (HW) merupakan organisasi otonom Muhammadiyah...'
+            }
+          ];
+        }
+
+        const batch = writeBatch(db);
+        for (let idx = 0; idx < initialContents.length; idx++) {
+          const c = initialContents[idx];
+          const docId = String(c.id || (c.section ? `content-${c.section}` : '') || `content-${1000 + idx}`).trim();
+          if (!docId) continue;
+          c.id = docId;
+          const docRef = doc(db, 'contents', docId);
+          batch.set(docRef, cleanData(c));
+          uploadedCount++;
+        }
+        await batch.commit();
+        localStorage.setItem('contents', JSON.stringify(initialContents));
+        localStorage.setItem('contents_initialized', 'true');
+      }
+
+      // 6. Settings
+      const settingsDoc = await getDoc(doc(db, 'settings', 'app_settings'));
+      if (!settingsDoc.exists()) {
+        const localSettingsStr = localStorage.getItem('hw_settings');
+        const defaultSettings = localSettingsStr
+          ? JSON.parse(localSettingsStr)
+          : {
+              id: 'app_settings',
+              ktaPrefix: '11.',
+              ktaCounter: 100,
+              ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+              ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
+              ktaKetuaNama: 'TAUFIQ',
+              ktaKetuaNbm: 'NBM 1015096',
+              ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+              ktaSekretarisNbm: 'NBM 1029863',
+              ktaKotaPenerbit: 'Semarang',
+              ktaTandaTanganKetua: '',
+              ktaTandaTanganSekretaris: ''
+            };
+
+        await setDoc(doc(db, 'settings', 'app_settings'), cleanData(defaultSettings));
+        localStorage.setItem('hw_settings', JSON.stringify(defaultSettings));
+      }
+
+      this.isInitialized = true;
+      return {
+        success: true,
+        message: `Firestore successfully initialized and updated (${uploadedCount} items synced).`
+      };
+    } catch (error: any) {
+      console.error('Firestore init error:', error);
+      return { success: false, message: error.message };
+    }
+  },
+
+  // --- MEMBERS ---
+  async getMembers(): Promise<User[]> {
+    try {
+      const snap = await getDocs(collection(db, 'members'));
+      if (!snap.empty) {
+        let members = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        const ktaStored = localStorage.getItem('kta_applications');
+        if (ktaStored) {
+          try {
+            const ktas = JSON.parse(ktaStored);
+            members = members.map((m: any) => {
+              if (!m.photo) {
+                const kMatch = ktas.find((k: any) => 
+                  (k.email && m.email && k.email.trim().toLowerCase() === m.email.trim().toLowerCase()) ||
+                  (k.userId && m.id && String(k.userId) === String(m.id))
+                );
+                if (kMatch?.photo) {
+                  return { ...m, photo: kMatch.photo };
+                }
+              }
+              return m;
+            });
+          } catch (e) {}
+        }
+        localStorage.setItem('mock_members', JSON.stringify(members));
+        return members;
+      }
+    } catch (err) {
+      console.error('Firestore getMembers error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('mock_members') || '[]';
+    return JSON.parse(stored);
+  },
+
+  async login(email: string, password: string): Promise<{ user: User; token: string } | null> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+
+    try {
+      const members = await this.getMembers();
+      const found = members.find((m: any) => m.email && m.email.trim().toLowerCase() === cleanEmail);
+      if (found) {
+        const expectedPass = (found as any).password || '12345hw';
+        // Allow exact password match or dev fallback passwords
+        if (cleanPass === expectedPass || cleanPass === '12345hw' || cleanPass === 'admin' || cleanPass === 'alda' || cleanPass === '123456' || cleanPass === 'password123') {
+          let roles: UserRole[] = found.roles || [];
+          if (typeof found.role === 'string' && found.role.startsWith('[')) {
+            try { roles = JSON.parse(found.role); } catch(e) {}
+          } else if (typeof found.role === 'string') {
+            roles = [found.role as UserRole];
+          }
+          if (roles.length === 0) roles = ['umum'];
+
+          const userObj: User = {
+            ...found,
+            roles,
+            activeRole: found.activeRole || roles[0] || 'umum'
+          };
+
+          return {
+            token: `fs-token-${userObj.id || Date.now()}`,
+            user: userObj
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Firestore login method error:', e);
+    }
+    return null;
+  },
+
+  async saveMember(member: User): Promise<User> {
+    const memberId = member.id || `user-${Date.now()}`;
+    const dataToSave = cleanData({ ...member, id: memberId });
+    try {
+      await setDoc(doc(db, 'members', memberId), dataToSave);
+    } catch (err) {
+      console.error('Firestore saveMember error:', err);
+    }
+    // Sync local cache
+    const current = await this.getMembers();
+    const idx = current.findIndex(m => m.id === memberId);
+    if (idx >= 0) {
+      current[idx] = dataToSave as User;
+    } else {
+      current.push(dataToSave as User);
+    }
+    localStorage.setItem('mock_members', JSON.stringify(current));
+
+    // Sync photo and profile updates to KTA Applications collection
+    try {
+      const ktas = await this.getKTAApplications();
+      const matched = ktas.find(k => 
+        (k.userId && String(k.userId) === String(memberId)) ||
+        (k.email && member.email && k.email.trim().toLowerCase() === member.email.trim().toLowerCase())
+      );
+      if (matched) {
+        const ktaSync: any = {};
+        if (member.photo) ktaSync.photo = member.photo;
+        if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
+        if (member.nik) ktaSync.nik = member.nik;
+        if (member.noHp) ktaSync.noWa = member.noHp;
+        if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
+        if (member.qabilah) ktaSync.qabilah = member.qabilah;
+        if (Object.keys(ktaSync).length > 0) {
+          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true });
+        }
+      }
+    } catch (syncErr) {
+      console.error('Error syncing member to KTA application:', syncErr);
+    }
+
+    return dataToSave as User;
+  },
+
+  async updateMember(id: string, updates: Partial<User>): Promise<User> {
+    try {
+      await setDoc(doc(db, 'members', id), cleanData(updates), { merge: true });
+    } catch (err) {
+      console.error('Firestore updateMember error:', err);
+    }
+    const current = await this.getMembers();
+    const idx = current.findIndex(m => m.id === id);
+    let updatedMember: any = {};
+    if (idx >= 0) {
+      updatedMember = { ...current[idx], ...updates };
+      current[idx] = updatedMember;
+      localStorage.setItem('mock_members', JSON.stringify(current));
+    }
+
+    // Sync photo and profile updates to KTA Applications collection
+    try {
+      const ktas = await this.getKTAApplications();
+      const matched = ktas.find(k => 
+        (k.userId && String(k.userId) === String(id)) ||
+        (k.email && updatedMember.email && k.email.trim().toLowerCase() === updatedMember.email.trim().toLowerCase())
+      );
+      if (matched) {
+        const ktaSync: any = {};
+        if (updates.photo) ktaSync.photo = updates.photo;
+        if (updates.namaLengkap) ktaSync.nama = updates.namaLengkap;
+        if (updates.nik) ktaSync.nik = updates.nik;
+        if (updates.noHp) ktaSync.noWa = updates.noHp;
+        if (updates.asalKwarda) ktaSync.asalDaerah = updates.asalKwarda;
+        if (updates.qabilah) ktaSync.qabilah = updates.qabilah;
+        if (Object.keys(ktaSync).length > 0) {
+          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true });
+        }
+      }
+    } catch (syncErr) {
+      console.error('Error syncing member updates to KTA application:', syncErr);
+    }
+
+    return updatedMember;
+  },
+
+  async deleteMember(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'members', id));
+    } catch (err) {
+      console.error('Firestore deleteMember error:', err);
+    }
+    const current = await this.getMembers();
+    const filtered = current.filter(m => m.id !== id);
+    localStorage.setItem('mock_members', JSON.stringify(filtered));
+    return true;
+  },
+
+  async saveAllMembers(members: User[]): Promise<boolean> {
+    try {
+      const batch = writeBatch(db);
+      for (const m of members) {
+        if (!m.id) continue;
+        const ref = doc(db, 'members', String(m.id));
+        batch.set(ref, cleanData(m), { merge: true });
+      }
+      await batch.commit();
+      localStorage.setItem('mock_members', JSON.stringify(members));
+      return true;
+    } catch (err) {
+      console.error('Firestore saveAllMembers error:', err);
+      localStorage.setItem('mock_members', JSON.stringify(members));
+      return false;
+    }
+  },
+
+  // --- MATERI ---
+  async getMateri(): Promise<Materi[]> {
+    try {
+      const snap = await getDocs(collection(db, 'materi'));
+      if (!snap.empty) {
+        const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
+        localStorage.setItem('materi', JSON.stringify(materi));
+        return materi;
+      }
+    } catch (err) {
+      console.error('Firestore getMateri error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('materi') || '[]';
+    return JSON.parse(stored);
+  },
+
+  async saveMateri(item: Materi): Promise<Materi> {
+    const itemData = cleanData({
+      ...item,
+      id: item.id || `materi-${Date.now()}`
+    });
+    try {
+      await setDoc(doc(db, 'materi', itemData.id), itemData);
+    } catch (err) {
+      console.error('Firestore saveMateri error:', err);
+    }
+    const list = await this.getMateri();
+    const idx = list.findIndex(m => m.id === itemData.id);
+    if (idx >= 0) {
+      list[idx] = itemData as Materi;
+    } else {
+      list.unshift(itemData as Materi);
+    }
+    localStorage.setItem('materi', JSON.stringify(list));
+    return itemData as Materi;
+  },
+
+  async deleteMateri(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'materi', id));
+    } catch (err) {
+      console.error('Firestore deleteMateri error:', err);
+    }
+    const list = await this.getMateri();
+    const filtered = list.filter(m => m.id !== id);
+    localStorage.setItem('materi', JSON.stringify(filtered));
+    return true;
+  },
+
+  // --- KTA APPLICATIONS ---
+  async getKTAApplications(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, 'kta_applications'));
+      if (!snap.empty) {
+        let ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const membersStored = localStorage.getItem('mock_members');
+        if (membersStored) {
+          try {
+            const members = JSON.parse(membersStored);
+            ktas = ktas.map((k: any) => {
+              if (!k.photo) {
+                const match = members.find((m: any) => 
+                  (m.email && k.email && m.email.trim().toLowerCase() === k.email.trim().toLowerCase()) ||
+                  (m.id && k.userId && String(m.id) === String(k.userId))
+                );
+                if (match?.photo) {
+                  return { ...k, photo: match.photo };
+                }
+              }
+              return k;
+            });
+          } catch (e) {}
+        }
+        localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        return ktas;
+      }
+    } catch (err) {
+      console.error('Firestore getKTAApplications error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('kta_applications') || '[]';
+    return JSON.parse(stored);
+  },
+
+  async createKTAApplication(appData: any): Promise<any> {
+    const newApp = cleanData({
+      ...appData,
+      id: appData.id || `kta-${Date.now()}`,
+      status: appData.status || 'pending',
+      tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
+    });
+    try {
+      await setDoc(doc(db, 'kta_applications', newApp.id), newApp);
+    } catch (err) {
+      console.error('Firestore createKTAApplication error:', err);
+    }
+    const list = await this.getKTAApplications();
+    list.unshift(newApp);
+    localStorage.setItem('kta_applications', JSON.stringify(list));
+
+    // Sync photo and profile to member profile if match found
+    try {
+      if (newApp.email || newApp.userId) {
+        const members = await this.getMembers();
+        const matched = members.find(m => 
+          (m.email && newApp.email && m.email.trim().toLowerCase() === newApp.email.trim().toLowerCase()) ||
+          (m.id && newApp.userId && String(m.id) === String(newApp.userId))
+        );
+        if (matched) {
+          const memberSync: Partial<User> = {};
+          if (newApp.photo) memberSync.photo = newApp.photo;
+          if (newApp.nama) memberSync.namaLengkap = newApp.nama;
+          if (newApp.status === 'approved') memberSync.isVerified = true;
+          if (newApp.ktaNumber) memberSync.ktaNumber = newApp.ktaNumber;
+          if (newApp.verifiedAt) memberSync.verifiedAt = newApp.verifiedAt;
+          if (Object.keys(memberSync).length > 0) {
+            await this.updateMember(matched.id, memberSync);
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.error('Error syncing KTA application to member:', syncErr);
+    }
+
+    return newApp;
+  },
+
+  async updateKTAStatus(
+    id: string,
+    status: string,
+    remark?: string,
+    verifiedAt?: string,
+    ktaNumber?: string,
+    qrCode?: string
+  ): Promise<any> {
+    const list = await this.getKTAApplications();
+    let idx = list.findIndex(k => String(k.id) === String(id));
+    if (idx === -1) {
+      idx = list.findIndex(k => 
+        (k.userId && String(k.userId) === String(id)) ||
+        (k.email && id && String(k.email).trim().toLowerCase() === String(id).trim().toLowerCase())
+      );
+    }
+
+    const updates: any = { status };
+    if (remark !== undefined) updates.remark = remark;
+    if (verifiedAt !== undefined) updates.verifiedAt = verifiedAt;
+    if (ktaNumber !== undefined) updates.ktaNumber = ktaNumber;
+    if (qrCode !== undefined) updates.qrCode = qrCode;
+
+    if (status === 'approved') {
+      if (!updates.ktaNumber) {
+        const existingNum = idx >= 0 ? list[idx].ktaNumber : undefined;
+        updates.ktaNumber = existingNum || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+      if (!updates.verifiedAt) {
+        updates.verifiedAt = new Date().toISOString();
+      }
+    } else if (status === 'rejected') {
+      if (!updates.verifiedAt) {
+        updates.verifiedAt = new Date().toISOString();
+      }
+    }
+
+    let targetDocId = id;
+    let updatedObj: any = null;
+
+    if (idx >= 0) {
+      targetDocId = list[idx].id || id;
+      list[idx] = { ...list[idx], ...updates };
+      updatedObj = list[idx];
+    } else {
+      targetDocId = id || `kta-${Date.now()}`;
+      updatedObj = { id: targetDocId, ...updates };
+      list.unshift(updatedObj);
+    }
+
+    localStorage.setItem('kta_applications', JSON.stringify(list));
+
+    try {
+      await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
+    } catch (err) {
+      console.error('Firestore updateKTAStatus error:', err);
+    }
+
+    // Sync approval, photo, and ktaNumber to members collection
+    if (updatedObj) {
+      try {
+        const members = await this.getMembers();
+        const matched = members.find(m => 
+          (m.email && updatedObj.email && m.email.trim().toLowerCase() === updatedObj.email.trim().toLowerCase()) ||
+          (m.id && updatedObj.userId && String(m.id) === String(updatedObj.userId))
+        );
+        if (matched) {
+          const memberSync: Partial<User> = {
+            isVerified: status === 'approved'
+          };
+          if (updatedObj.ktaNumber) memberSync.ktaNumber = updatedObj.ktaNumber;
+          if (updatedObj.verifiedAt) memberSync.verifiedAt = updatedObj.verifiedAt;
+          if (updatedObj.photo) memberSync.photo = updatedObj.photo;
+          await this.updateMember(matched.id, memberSync);
+        } else if (status === 'approved') {
+          const kEmail = (updatedObj.email || '').trim().toLowerCase();
+          const newMemberData: User = {
+            id: updatedObj.userId || ('user-' + (kEmail ? kEmail.replace(/[^a-zA-Z0-9]/g, '_') : Date.now())),
+            email: kEmail,
+            namaLengkap: updatedObj.nama || updatedObj.namaLengkap || 'Anggota HW',
+            jenisKelamin: updatedObj.jenisKelamin === 'Perempuan' || updatedObj.jenisKelamin === 'P' ? 'P' : 'L',
+            golongan: updatedObj.tingkatan || 'Dewasa',
+            asalKwarda: updatedObj.asalDaerah || '',
+            qabilah: updatedObj.qabilah || '',
+            noHp: updatedObj.noWa || '',
+            isVerified: true,
+            role: 'umum',
+            roles: ['umum'],
+            activeRole: 'umum',
+            photo: updatedObj.photo || '',
+            ktaNumber: updatedObj.ktaNumber,
+            verifiedAt: updatedObj.verifiedAt,
+            alamat: updatedObj.alamat || '',
+            sosmed: updatedObj.sosmed || '',
+            pelatihan: [],
+            pendidikan: ''
+          };
+          await this.saveMember(newMemberData);
+        }
+      } catch (syncErr) {
+        console.error('Error syncing KTA status update to member:', syncErr);
+      }
+    }
+
+    return updatedObj;
+  },
+
+  async deleteKTAApplication(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'kta_applications', id));
+    } catch (err) {
+      console.error('Firestore deleteKTAApplication error:', err);
+    }
+    const list = await this.getKTAApplications();
+    const filtered = list.filter(k => k.id !== id);
+    localStorage.setItem('kta_applications', JSON.stringify(filtered));
+    return true;
+  },
+
+  // --- TRAINING APPLICATIONS ---
+  async getTrainingApplications(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, 'training_applications'));
+      if (!snap.empty) {
+        const trainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        localStorage.setItem('training_applications', JSON.stringify(trainings));
+        return trainings;
+      }
+    } catch (err) {
+      console.error('Firestore getTrainingApplications error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('training_applications') || '[]';
+    return JSON.parse(stored);
+  },
+
+  async createTrainingApplication(appData: any): Promise<any> {
+    const newApp = cleanData({
+      ...appData,
+      id: appData.id || `training-${Date.now()}`,
+      status: appData.status || 'pending',
+      tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
+    });
+    try {
+      await setDoc(doc(db, 'training_applications', newApp.id), newApp);
+    } catch (err) {
+      console.error('Firestore createTrainingApplication error:', err);
+    }
+    const list = await this.getTrainingApplications();
+    list.unshift(newApp);
+    localStorage.setItem('training_applications', JSON.stringify(list));
+    return newApp;
+  },
+
+  async updateTrainingStatus(id: string, status: string, remark?: string): Promise<any> {
+    const updates: any = { status };
+    if (remark !== undefined) updates.remark = remark;
+    try {
+      await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+    } catch (err) {
+      console.error('Firestore updateTrainingStatus error:', err);
+    }
+    const list = await this.getTrainingApplications();
+    const idx = list.findIndex(t => t.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...updates };
+      localStorage.setItem('training_applications', JSON.stringify(list));
+    }
+    return list[idx];
+  },
+
+  async updateAttendance(id: string, kehadiranStr: string): Promise<any> {
+    try {
+      await setDoc(doc(db, 'training_applications', id), { kehadiran: kehadiranStr }, { merge: true });
+    } catch (err) {
+      console.error('Firestore updateAttendance error:', err);
+    }
+    const list = await this.getTrainingApplications();
+    const idx = list.findIndex(t => t.id === id);
+    if (idx >= 0) {
+      list[idx].kehadiran = kehadiranStr;
+      localStorage.setItem('training_applications', JSON.stringify(list));
+    }
+    return list[idx];
+  },
+
+  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string): Promise<any> {
+    const updates: any = {};
+    if (tugasStr !== undefined) updates.tugas = tugasStr;
+    if (nilaiStr !== undefined) updates.nilai = nilaiStr;
+    try {
+      await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+    } catch (err) {
+      console.error('Firestore updateAssignmentGrade error:', err);
+    }
+    const list = await this.getTrainingApplications();
+    const idx = list.findIndex(t => t.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...updates };
+      localStorage.setItem('training_applications', JSON.stringify(list));
+    }
+    return list[idx];
+  },
+
+  async deleteTrainingApplication(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'training_applications', id));
+    } catch (err) {
+      console.error('Firestore deleteTrainingApplication error:', err);
+    }
+    const list = await this.getTrainingApplications();
+    const filtered = list.filter(t => t.id !== id);
+    localStorage.setItem('training_applications', JSON.stringify(filtered));
+    return true;
+  },
+
+  // --- CONTENTS ---
+  async getContents(): Promise<Content[]> {
+    try {
+      const snap = await getDocs(collection(db, 'contents'));
+      if (!snap.empty) {
+        const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
+        localStorage.setItem('contents', JSON.stringify(contents));
+        return contents;
+      }
+    } catch (err) {
+      console.error('Firestore getContents error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('contents') || '[]';
+    return JSON.parse(stored);
+  },
+
+  async saveContent(item: Content): Promise<Content> {
+    const itemData = cleanData({
+      ...item,
+      id: item.id || `content-${Date.now()}`
+    });
+    try {
+      await setDoc(doc(db, 'contents', itemData.id), itemData);
+    } catch (err) {
+      console.error('Firestore saveContent error:', err);
+    }
+    const list = await this.getContents();
+    const idx = list.findIndex(c => c.id === itemData.id);
+    if (idx >= 0) {
+      list[idx] = itemData as Content;
+    } else {
+      list.push(itemData as Content);
+    }
+    localStorage.setItem('contents', JSON.stringify(list));
+    return itemData as Content;
+  },
+
+  async deleteContent(id: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'contents', id));
+    } catch (err) {
+      console.error('Firestore deleteContent error:', err);
+    }
+    const list = await this.getContents();
+    const filtered = list.filter(c => c.id !== id);
+    localStorage.setItem('contents', JSON.stringify(filtered));
+    return true;
+  },
+
+  // --- SETTINGS ---
+  async getSettings(): Promise<any> {
+    try {
+      const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
+      if (docSnap.exists()) {
+        const settings = docSnap.data();
+        localStorage.setItem('hw_settings', JSON.stringify(settings));
+        return settings;
+      }
+    } catch (err) {
+      console.error('Firestore getSettings error, fallback to cache:', err);
+    }
+    const stored = localStorage.getItem('hw_settings');
+    if (stored) return JSON.parse(stored);
+    return {
+      ktaPrefix: '11.',
+      ktaCounter: 100,
+      ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+      ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
+      ktaKetuaNama: 'TAUFIQ',
+      ktaKetuaNbm: 'NBM 1015096',
+      ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+      ktaSekretarisNbm: 'NBM 1029863',
+      ktaKotaPenerbit: 'Semarang'
+    };
+  },
+
+  async saveSettings(settings: any): Promise<any> {
+    const dataToSave = cleanData({ ...settings, id: 'app_settings' });
+    try {
+      await setDoc(doc(db, 'settings', 'app_settings'), dataToSave, { merge: true });
+    } catch (err) {
+      console.error('Firestore saveSettings error:', err);
+    }
+    localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
+    return dataToSave;
+  },
+
+  /**
+   * Complete Backup & Upload of ALL local data to Firestore
+   */
+  async backupAndUploadAllToFirestore(): Promise<{ success: boolean; message: string; details: any }> {
+    try {
+      const details = { members: 0, materi: 0, kta: 0, training: 0, contents: 0, settings: false };
+
+      // Members
+      const membersStr = localStorage.getItem('mock_members') || '[]';
+      const members: User[] = JSON.parse(membersStr);
+      if (members.length > 0) {
+        const batch = writeBatch(db);
+        members.forEach(m => {
+          if (m.id) {
+            batch.set(doc(db, 'members', String(m.id)), cleanData(m), { merge: true });
+            details.members++;
+          }
+        });
+        await batch.commit();
+      }
+
+      // Materi
+      const materiStr = localStorage.getItem('materi') || '[]';
+      const materiList: Materi[] = JSON.parse(materiStr);
+      if (materiList.length > 0) {
+        const batch = writeBatch(db);
+        materiList.forEach(m => {
+          if (m.id) {
+            batch.set(doc(db, 'materi', String(m.id)), cleanData(m), { merge: true });
+            details.materi++;
+          }
+        });
+        await batch.commit();
+      }
+
+      // KTA
+      const ktaStr = localStorage.getItem('kta_applications') || '[]';
+      const ktas: any[] = JSON.parse(ktaStr);
+      if (ktas.length > 0) {
+        const batch = writeBatch(db);
+        ktas.forEach(k => {
+          if (k.id) {
+            batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
+            details.kta++;
+          }
+        });
+        await batch.commit();
+      }
+
+      // Training
+      const trainingStr = localStorage.getItem('training_applications') || '[]';
+      const trainings: any[] = JSON.parse(trainingStr);
+      if (trainings.length > 0) {
+        const batch = writeBatch(db);
+        trainings.forEach(t => {
+          if (t.id) {
+            batch.set(doc(db, 'training_applications', String(t.id)), cleanData(t), { merge: true });
+            details.training++;
+          }
+        });
+        await batch.commit();
+      }
+
+      // Contents
+      const contentsStr = localStorage.getItem('contents') || '[]';
+      const contents: Content[] = JSON.parse(contentsStr);
+      if (contents.length > 0) {
+        const batch = writeBatch(db);
+        contents.forEach(c => {
+          if (c.id) {
+            batch.set(doc(db, 'contents', String(c.id)), cleanData(c), { merge: true });
+            details.contents++;
+          }
+        });
+        await batch.commit();
+      }
+
+      // Settings
+      const settingsStr = localStorage.getItem('hw_settings');
+      if (settingsStr) {
+        const settings = JSON.parse(settingsStr);
+        await setDoc(doc(db, 'settings', 'app_settings'), cleanData({ ...settings, id: 'app_settings' }), { merge: true });
+        details.settings = true;
+      }
+
+      return {
+        success: true,
+        message: 'Seluruh data lokal dan cadangan berhasil diunggah & disinkronkan ke Firestore!',
+        details
+      };
+    } catch (err: any) {
+      console.error('backupAndUploadAllToFirestore error:', err);
+      return {
+        success: false,
+        message: 'Gagal mengunggah data ke Firestore: ' + err.message,
+        details: null
+      };
+    }
+  }
+};
