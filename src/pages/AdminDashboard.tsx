@@ -442,7 +442,7 @@ export default function AdminDashboard() {
       return s !== '' && s !== 'null' && s !== 'undefined' && s !== 'nan' && s !== '0' && s !== 'false';
     };
 
-    ktaApps.filter(app => app.status === 'approved').forEach(app => {
+    ktaApps.filter(app => app && app.status === 'approved' && (app.nama || app.namaLengkap || app.email)).forEach(app => {
       // Find matching member by email or userId AND matching name
       const member = members.find(m => {
         const hasValidUserId = isValidId(app.userId) && isValidId(m.id);
@@ -3194,6 +3194,27 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-gray-400 font-medium">Tinjau, setujui secara instan, atau cetak KTA yang siap terbit langsung dari panel ini.</p>
                         </div>
                       </div>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Apakah Anda yakin ingin membersihkan antrean KTA dari data kosong/tidak valid?')) {
+                            try {
+                              setLoading(true);
+                              const validKtas = ktaApps.filter(k => k && (k.nama || k.namaLengkap) && k.tingkatan);
+                              localStorage.setItem('kta_applications', JSON.stringify(validKtas));
+                              setKtaApps(validKtas);
+                              alert('Berhasil membersihkan data kosong dari antrean!');
+                              await fetchData();
+                            } catch (e: any) {
+                              alert('Gagal membersihkan data: ' + e.message);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                      >
+                        Bersihkan Data Kosong
+                      </button>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -5174,7 +5195,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                       {/* JENIS PELATIHAN CARD */}
                       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
@@ -5210,7 +5231,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
 
-                        <div className="pt-2 border-t border-gray-100 flex gap-2">
+                        <div className="pt-2 border-t border-gray-100 flex gap-2 max-w-md">
                           <input
                             type="text"
                             placeholder="Contoh: Jaya Melati 3..."
@@ -5231,134 +5252,6 @@ export default function AdminDashboard() {
                                 trainingTypes: [...(prev.trainingTypes || []), newTypeInput.trim()]
                               }));
                               setNewTypeInput('');
-                            }}
-                            className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                          >
-                            Tambah
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* LOKASI CARD */}
-                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest">
-                            📍 Daftar Lokasi
-                          </h5>
-                          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-black">
-                            {(settings.trainingLocations || []).length} Lokasi
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                          {(settings.trainingLocations || []).length === 0 ? (
-                            <p className="text-xs font-bold text-gray-400 py-6 text-center">
-                              Belum ada lokasi pelatihan.
-                            </p>
-                          ) : (
-                            (settings.trainingLocations || []).map((loc, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
-                                <span className="text-xs font-bold text-gray-750">{loc}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const filtered = (settings.trainingLocations || []).filter((_, i) => i !== idx);
-                                    setSettings(prev => ({ ...prev, trainingLocations: filtered }));
-                                  }}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-gray-100 flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Ketik lokasi baru..."
-                            value={newLocationInput}
-                            onChange={(e) => setNewLocationInput(e.target.value)}
-                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!newLocationInput.trim()) return;
-                              if ((settings.trainingLocations || []).includes(newLocationInput.trim())) {
-                                alert('Lokasi sudah terdaftar.');
-                                return;
-                              }
-                              setSettings(prev => ({
-                                ...prev,
-                                trainingLocations: [...(prev.trainingLocations || []), newLocationInput.trim()]
-                              }));
-                              setNewLocationInput('');
-                            }}
-                            className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                          >
-                            Tambah
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* TANGGAL CARD */}
-                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest">
-                            📅 Daftar Tanggal
-                          </h5>
-                          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-black">
-                            {(settings.trainingDates || []).length} Jadwal
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                          {(settings.trainingDates || []).length === 0 ? (
-                            <p className="text-xs font-bold text-gray-400 py-6 text-center">
-                              Belum ada tanggal pelaksanaan.
-                            </p>
-                          ) : (
-                            (settings.trainingDates || []).map((dt, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
-                                <span className="text-xs font-bold text-gray-750">{dt}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const filtered = (settings.trainingDates || []).filter((_, i) => i !== idx);
-                                    setSettings(prev => ({ ...prev, trainingDates: filtered }));
-                                  }}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-gray-100 flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Contoh: 12-14 Juli 2026..."
-                            value={newDateInput}
-                            onChange={(e) => setNewDateInput(e.target.value)}
-                            className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!newDateInput.trim()) return;
-                              if ((settings.trainingDates || []).includes(newDateInput.trim())) {
-                                alert('Tanggal ini sudah terdaftar.');
-                                return;
-                              }
-                              setSettings(prev => ({
-                                ...prev,
-                                trainingDates: [...(prev.trainingDates || []), newDateInput.trim()]
-                              }));
-                              setNewDateInput('');
                             }}
                             className="px-3 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                           >

@@ -145,30 +145,17 @@ export const initMockData = () => {
   }
 
   if (!localStorage.getItem('kta_applications_initialized') || !localStorage.getItem('kta_applications')) {
-    const parsedKta = (INITIAL_SPREADSHEET_DATA.kta || []).map((k: any, idx: number) => {
-      const id = k.id || `kta-${1000 + idx}`;
-      return {
-        ...k,
-        id: String(id)
-      };
-    });
-    localStorage.setItem('kta_applications', JSON.stringify(parsedKta));
+    localStorage.setItem('kta_applications', '[]');
     localStorage.setItem('kta_applications_initialized', 'true');
   } else {
     try {
       const stored = localStorage.getItem('kta_applications');
       if (stored) {
         const parsed = JSON.parse(stored);
-        let changed = false;
-        const repaired = parsed.map((k: any, idx: number) => {
-          if (!k.id) {
-            changed = true;
-            return { ...k, id: `kta-repaired-${1000 + idx}` };
-          }
-          return k;
-        });
-        if (changed) {
-          localStorage.setItem('kta_applications', JSON.stringify(repaired));
+        // Clean out invalid old dummy records (e.g. items missing 'nama' or 'status')
+        const valid = parsed.filter((k: any) => k && (k.nama || k.namaLengkap) && (k.status === 'pending' || k.status === 'approved' || k.status === 'rejected') && k.tingkatan);
+        if (valid.length !== parsed.length) {
+          localStorage.setItem('kta_applications', JSON.stringify(valid));
         }
       }
     } catch (e) {
@@ -816,33 +803,27 @@ export const sheetsService = {
   },
 
   async updateKTAStatus(id: string, status: 'approved' | 'rejected', ktaNumber?: string, remark?: string): Promise<any> {
-    if (!IS_API_VALID) {
-      const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber);
-      return { success: true, application: updated };
-    }
-    let res: any = null;
     try {
-      res = await this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark });
+      if (IS_API_VALID) {
+        await this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark }).catch(() => {});
+      }
     } catch (e) {
       console.warn('Sheets API updateKTAStatus warning:', e);
     }
     const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber);
-    return { success: true, application: updated, ...(res || {}) };
+    return { success: true, application: updated };
   },
 
   async deleteKTAApplication(id: string): Promise<any> {
-    if (!IS_API_VALID) {
-      await firestoreService.deleteKTAApplication(id);
-      return { success: true };
-    }
     try {
-      const res = await this.post({ action: 'deleteKTAApplication', id });
-      await firestoreService.deleteKTAApplication(id);
-      return res;
+      if (IS_API_VALID) {
+        await this.post({ action: 'deleteKTAApplication', id }).catch(() => {});
+      }
     } catch (e) {
-      await firestoreService.deleteKTAApplication(id);
-      return { success: true };
+      console.warn('Sheets API deleteKTAApplication warning:', e);
     }
+    await firestoreService.deleteKTAApplication(id);
+    return { success: true };
   },
 
   async getTrainingApplications(): Promise<any[]> {

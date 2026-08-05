@@ -465,34 +465,32 @@ export const firestoreService = {
   async getKTAApplications(): Promise<any[]> {
     try {
       const snap = await getDocs(collection(db, 'kta_applications'));
-      if (!snap.empty) {
-        let ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const membersStored = localStorage.getItem('mock_members');
-        if (membersStored) {
-          try {
-            const members = JSON.parse(membersStored);
-            ktas = ktas.map((k: any) => {
-              if (!k.photo) {
-                const match = members.find((m: any) => 
-                  (m.email && k.email && m.email.trim().toLowerCase() === k.email.trim().toLowerCase()) ||
-                  (m.id && k.userId && String(m.id) === String(k.userId))
-                );
-                if (match?.photo) {
-                  return { ...k, photo: match.photo };
-                }
+      let ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const membersStored = localStorage.getItem('mock_members');
+      if (membersStored && ktas.length > 0) {
+        try {
+          const members = JSON.parse(membersStored);
+          ktas = ktas.map((k: any) => {
+            if (!k.photo) {
+              const match = members.find((m: any) => 
+                (m.email && k.email && m.email.trim().toLowerCase() === k.email.trim().toLowerCase()) ||
+                (m.id && k.userId && String(m.id) === String(k.userId))
+              );
+              if (match?.photo) {
+                return { ...k, photo: match.photo };
               }
-              return k;
-            });
-          } catch (e) {}
-        }
-        localStorage.setItem('kta_applications', JSON.stringify(ktas));
-        return ktas;
+            }
+            return k;
+          });
+        } catch (e) {}
       }
+      localStorage.setItem('kta_applications', JSON.stringify(ktas));
+      return ktas;
     } catch (err) {
       console.error('Firestore getKTAApplications error, fallback to cache:', err);
+      const stored = localStorage.getItem('kta_applications') || '[]';
+      return JSON.parse(stored);
     }
-    const stored = localStorage.getItem('kta_applications') || '[]';
-    return JSON.parse(stored);
   },
 
   async createKTAApplication(appData: any): Promise<any> {
@@ -646,13 +644,41 @@ export const firestoreService = {
   },
 
   async deleteKTAApplication(id: string): Promise<boolean> {
+    const targetId = String(id || '').trim();
+    if (!targetId) return false;
+
+    // Get current list
+    const list = await this.getKTAApplications();
+    const match = list.find(k => 
+      String(k.id || '').trim() === targetId ||
+      String(k.Id || '').trim() === targetId ||
+      (k.userId && String(k.userId).trim() === targetId) ||
+      (k.email && String(k.email).trim().toLowerCase() === targetId.toLowerCase())
+    );
+
+    const docIdToDelete = match?.id || targetId;
+
     try {
-      await deleteDoc(doc(db, 'kta_applications', id));
+      await deleteDoc(doc(db, 'kta_applications', docIdToDelete));
     } catch (err) {
       console.error('Firestore deleteKTAApplication error:', err);
     }
-    const list = await this.getKTAApplications();
-    const filtered = list.filter(k => k.id !== id);
+
+    const filtered = list.filter(k => {
+      const kId = String(k.id || '').trim();
+      const kIdAlt = String(k.Id || '').trim();
+      const kUserId = String(k.userId || '').trim();
+      const kEmail = String(k.email || '').trim().toLowerCase();
+
+      if (kId === docIdToDelete || kId === targetId || kIdAlt === targetId || kUserId === targetId) {
+        return false;
+      }
+      if (kEmail && targetId.toLowerCase() === kEmail) {
+        return false;
+      }
+      return true;
+    });
+
     localStorage.setItem('kta_applications', JSON.stringify(filtered));
     return true;
   },
