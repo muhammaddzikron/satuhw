@@ -149,7 +149,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
       
       <div className="text-center mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-800">
-          {showForgotModal ? 'Reset Password' : 'Selamat Datang'}
+          {showForgotModal ? 'Reset Password' : 'Login Area'}
         </h2>
         <p className="text-gray-500 text-sm px-4">
           {showForgotModal 
@@ -299,6 +299,14 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
         </form>
       ) : (
         <form onSubmit={handleLogin} className="w-full space-y-4">
+          <div className="border-b border-gray-100 pb-2.5 mb-2 text-center">
+            <h3 className="text-base font-extrabold font-display text-gray-800 flex items-center justify-center gap-2">
+              <Lock size={18} className="text-hw-green" />
+              Login Area
+            </h3>
+            <p className="text-xs text-gray-500 font-medium">Masukkan email/username dan password Anda di bawah ini</p>
+          </div>
+
           {error && (
             <div className="bg-red-50 text-red-500 text-xs p-3 rounded-xl border border-red-100 mb-4">
               {error}
