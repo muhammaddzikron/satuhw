@@ -122,7 +122,7 @@ export default function MateriPage() {
     if (!user) return;
     try {
       setLoading(true);
-      await sheetsService.requestUpgrade(user.id, cat);
+      await sheetsService.requestUpgrade(user.id, cat, user);
       alert('Permohonan upgrade telah dikirim. Silakan tunggu verifikasi admin.');
     } catch (error) {
       alert('Gagal mengirim permohonan upgrade');

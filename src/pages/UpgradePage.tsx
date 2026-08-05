@@ -55,7 +55,7 @@ export default function UpgradePage() {
     setMessage(null);
     
     try {
-      const res = await sheetsService.requestUpgrade(user.id, roleId);
+      const res = await sheetsService.requestUpgrade(user.id, roleId, user);
       
       if (res.success) {
         setMessage({ 
@@ -64,8 +64,9 @@ export default function UpgradePage() {
         });
         
         // Update local state to reflect the request
-        const updatedRequests = [...(user.upgradeRequests || []), roleId];
-        updateUser({ upgradeRequests: updatedRequests });
+        const currentRequests = Array.isArray(user.upgradeRequests) ? user.upgradeRequests : [];
+        const updatedRequests = currentRequests.includes(roleId) ? currentRequests : [...currentRequests, roleId];
+        updateUser({ ...user, upgradeRequests: updatedRequests });
       } else {
         setMessage({ type: 'error', text: res.message || 'Gagal mengirim permintaan.' });
       }

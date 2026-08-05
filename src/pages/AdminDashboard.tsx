@@ -1072,10 +1072,10 @@ export default function AdminDashboard() {
       if (Array.isArray(m.roles)) {
         currentRoles = [...m.roles];
       } else if (m.role) {
-        if (m.role.startsWith('[')) {
+        if (typeof m.role === 'string' && m.role.startsWith('[')) {
           try { currentRoles = JSON.parse(m.role); } catch { currentRoles = [m.role]; }
         } else {
-          currentRoles = m.role.split(',').map((s: string) => s.trim()).filter(Boolean);
+          currentRoles = String(m.role).split(',').map((s: string) => s.trim()).filter(Boolean);
         }
       }
       if (!currentRoles.includes(roleToApprove)) {
@@ -1088,8 +1088,14 @@ export default function AdminDashboard() {
         roles: currentRoles,
         upgradeRequests: remainingRequests
       };
+      await firestoreService.saveMember(updatedMember as User);
+      await firestoreService.updateMember(m.id, updatedMember);
       await sheetsService.saveMember(updatedMember);
-      alert(`Permohonan upgrade ${ROLE_LABELS[roleToApprove] || roleToApprove} untuk ${m.namaLengkap} berhasil disetujui!`);
+
+      // Instantly update local members state
+      setMembers(prev => prev.map(mem => mem.id === m.id ? updatedMember : mem));
+
+      alert(`Permohonan upgrade ${ROLE_LABELS[roleToApprove] || roleToApprove} untuk ${m.namaLengkap || 'Anggota'} berhasil disetujui!`);
       const refreshed = await sheetsService.getMembers();
       setMembers(refreshed || []);
     } catch (err: any) {
@@ -1108,8 +1114,14 @@ export default function AdminDashboard() {
         ...m,
         upgradeRequests: remainingRequests
       };
+      await firestoreService.saveMember(updatedMember as User);
+      await firestoreService.updateMember(m.id, updatedMember);
       await sheetsService.saveMember(updatedMember);
-      alert(`Permohonan upgrade ${ROLE_LABELS[roleToReject] || roleToReject} untuk ${m.namaLengkap} ditolak.`);
+
+      // Instantly update local members state
+      setMembers(prev => prev.map(mem => mem.id === m.id ? updatedMember : mem));
+
+      alert(`Permohonan upgrade ${ROLE_LABELS[roleToReject] || roleToReject} untuk ${m.namaLengkap || 'Anggota'} ditolak.`);
       const refreshed = await sheetsService.getMembers();
       setMembers(refreshed || []);
     } catch (err: any) {

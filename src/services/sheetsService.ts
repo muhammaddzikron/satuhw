@@ -716,12 +716,54 @@ export const sheetsService = {
     });
   },
 
-  async requestUpgrade(userId: string, category: string): Promise<any> {
-    return this.post({
-      action: 'requestUpgrade',
-      userId,
-      category
-    });
+  async requestUpgrade(userId: string, category: string, userObj?: any): Promise<any> {
+    try {
+      let memberToUpdate: any = null;
+      const members = await firestoreService.getMembers();
+      
+      memberToUpdate = members.find((m: any) => 
+        (m.id && String(m.id) === String(userId)) || 
+        (userObj?.email && m.email && String(m.email).trim().toLowerCase() === String(userObj.email).trim().toLowerCase())
+      );
+
+      if (!memberToUpdate && userObj) {
+        memberToUpdate = { ...userObj, id: userId };
+      }
+
+      if (memberToUpdate) {
+        const currentRequests = Array.isArray(memberToUpdate.upgradeRequests) ? [...memberToUpdate.upgradeRequests] : [];
+        if (!currentRequests.includes(category)) {
+          currentRequests.push(category);
+        }
+        
+        const updatedMember = {
+          ...memberToUpdate,
+          ...(userObj || {}),
+          id: memberToUpdate.id || userId,
+          upgradeRequests: currentRequests
+        };
+
+        await firestoreService.saveMember(updatedMember);
+        await firestoreService.updateMember(updatedMember.id, { upgradeRequests: currentRequests });
+      }
+
+      if (IS_API_VALID) {
+        try {
+          await this.post({
+            action: 'requestUpgrade',
+            userId,
+            category
+          });
+        } catch (e) {
+          console.error('requestUpgrade API error:', e);
+        }
+      }
+
+      return { success: true, message: 'Permintaan upgrade berhasil dikirim!' };
+    } catch (e: any) {
+      console.error('requestUpgrade error:', e);
+      return { success: false, message: e.message || 'Gagal mengajukan upgrade' };
+    }
   },
 
   async getKTAApplications(): Promise<any[]> {

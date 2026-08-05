@@ -215,6 +215,7 @@ export const firestoreService = {
         localStorage.setItem('hw_settings', JSON.stringify(defaultSettings));
       }
 
+      await this.purgeEmptyData();
       this.isInitialized = true;
       return {
         success: true,
@@ -226,13 +227,69 @@ export const firestoreService = {
     }
   },
 
+  async purgeEmptyData(): Promise<void> {
+    try {
+      // 1. Purge empty KTA Applications from Firestore
+      const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+      if (!ktaSnap.empty) {
+        for (const d of ktaSnap.docs) {
+          const data = d.data();
+          const name = (data.nama || data.namaLengkap || '').trim();
+          const email = (data.email || '').trim();
+          if (!name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW')) {
+            await deleteDoc(doc(db, 'kta_applications', d.id)).catch(() => {});
+          }
+        }
+      }
+
+      // 2. Purge empty Members from Firestore
+      const membersSnap = await getDocs(collection(db, 'members'));
+      if (!membersSnap.empty) {
+        for (const d of membersSnap.docs) {
+          const data = d.data();
+          const name = (data.namaLengkap || data.nama || '').trim();
+          const email = (data.email || '').trim();
+          if (!name || name === 'Tanpa Nama' || name === '-' || (!email && !data.noHp && !data.id?.includes('user-'))) {
+            await deleteDoc(doc(db, 'members', d.id)).catch(() => {});
+          }
+        }
+      }
+
+      // 3. Purge empty Training Applications from Firestore
+      const trainSnap = await getDocs(collection(db, 'training_applications'));
+      if (!trainSnap.empty) {
+        for (const d of trainSnap.docs) {
+          const data = d.data();
+          const name = (data.nama || data.namaLengkap || '').trim();
+          if (!name || name === 'Tanpa Nama' || name === '-') {
+            await deleteDoc(doc(db, 'training_applications', d.id)).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error purging empty data:', e);
+    }
+  },
+
   // --- MEMBERS ---
   async getMembers(): Promise<User[]> {
     let members: User[] = [];
     try {
       const snap = await getDocs(collection(db, 'members'));
       if (!snap.empty) {
-        members = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        const validMembers: User[] = [];
+        for (const m of rawMembers) {
+          const name = (m.namaLengkap || m.nama || '').trim();
+          const email = (m.email || '').trim();
+          const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
+          if (isInvalid) {
+            deleteDoc(doc(db, 'members', m.id)).catch(() => {});
+          } else {
+            validMembers.push(m);
+          }
+        }
+        members = validMembers;
       }
     } catch (err) {
       console.error('Firestore getMembers error, fallback to cache:', err);
@@ -241,25 +298,24 @@ export const firestoreService = {
     if (members.length === 0) {
       const stored = localStorage.getItem('mock_members') || '[]';
       try {
-        members = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        members = parsed.filter((m: any) => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
       } catch (e) {
         members = [];
       }
     }
 
-    // Synchronize KTA Applications into members list automatically
+    // Synchronize valid KTA Applications into members list automatically
     try {
       const ktaStored = localStorage.getItem('kta_applications');
       let ktas: any[] = [];
       if (ktaStored) {
         try { ktas = JSON.parse(ktaStored); } catch(e) {}
       }
-      // Also fetch from Firestore if possible
       try {
         const ktaSnap = await getDocs(collection(db, 'kta_applications'));
         if (!ktaSnap.empty) {
           const fsKtas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          // Merge with ktaStored
           fsKtas.forEach((fk: any) => {
             if (!ktas.some((k: any) => k.id === fk.id || (k.email && fk.email && String(k.email).trim().toLowerCase() === String(fk.email).trim().toLowerCase()))) {
               ktas.push(fk);
@@ -271,6 +327,9 @@ export const firestoreService = {
       if (Array.isArray(ktas) && ktas.length > 0) {
         ktas.forEach((k: any) => {
           if (!k) return;
+          const kName = (k.nama || k.namaLengkap || '').trim();
+          if (!kName || kName === 'Tanpa Nama' || kName === '-') return;
+
           const kEmail = (k.email || '').trim().toLowerCase();
           const kUserId = k.userId ? String(k.userId).trim() : '';
           const kId = k.id ? String(k.id).trim() : '';
@@ -291,7 +350,7 @@ export const firestoreService = {
 
             members[matchedIdx] = {
               ...m,
-              namaLengkap: m.namaLengkap || k.nama || k.namaLengkap || 'Anggota HW',
+              namaLengkap: m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' ? m.namaLengkap : (kName || 'Anggota HW'),
               nik: m.nik || k.nik || '',
               noHp: m.noHp || k.noWa || k.noHp || '',
               alamat: m.alamat || k.alamat || '',
@@ -303,11 +362,11 @@ export const firestoreService = {
               ktaNumber: m.ktaNumber || k.ktaNumber || '',
               password: isAdmin ? (m.password || 'adnimku') : (m.password || '12345hw')
             };
-          } else if (kEmail) {
+          } else if (kEmail && kName && kName !== 'Tanpa Nama') {
             const newMember: User = {
               id: kUserId || kId || `user-${kEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
               email: kEmail,
-              namaLengkap: k.nama || k.namaLengkap || 'Anggota HW',
+              namaLengkap: kName,
               jenisKelamin: k.jenisKelamin === 'Perempuan' || k.jenisKelamin === 'P' ? 'P' : 'L',
               golongan: k.tingkatan || 'Dewasa',
               pelatihan: [],
@@ -334,8 +393,9 @@ export const firestoreService = {
       console.error('Error syncing KTA apps in getMembers:', e);
     }
 
-    localStorage.setItem('mock_members', JSON.stringify(members));
-    return members;
+    const filteredMembers = members.filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
+    localStorage.setItem('mock_members', JSON.stringify(filteredMembers));
+    return filteredMembers;
   },
 
   async login(email: string, password: string): Promise<{ user: User; token: string } | null> {
@@ -577,7 +637,21 @@ export const firestoreService = {
   async getKTAApplications(): Promise<any[]> {
     try {
       const snap = await getDocs(collection(db, 'kta_applications'));
-      let ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const cleanKtas: any[] = [];
+      for (const k of rawKtas) {
+        const name = (k.nama || k.namaLengkap || '').trim();
+        const email = (k.email || '').trim();
+        const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW');
+        if (isInvalid) {
+          deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
+        } else {
+          cleanKtas.push(k);
+        }
+      }
+      let ktas = cleanKtas;
+
       const membersStored = localStorage.getItem('mock_members');
       if (membersStored && ktas.length > 0) {
         try {
@@ -587,8 +661,16 @@ export const firestoreService = {
               (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
               (m.id && k.userId && String(m.id) === String(k.userId))
             );
-            if (match?.photo) {
-              return { ...k, photo: match.photo };
+            if (match) {
+              return { 
+                ...k, 
+                nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
+                email: k.email || match.email || '',
+                photo: match.photo || k.photo || '',
+                noWa: k.noWa || match.noHp || '',
+                asalDaerah: k.asalDaerah || match.asalKwarda || '',
+                qabilah: k.qabilah || match.qabilah || ''
+              };
             }
             return k;
           });
@@ -599,7 +681,12 @@ export const firestoreService = {
     } catch (err) {
       console.error('Firestore getKTAApplications error, fallback to cache:', err);
       const stored = localStorage.getItem('kta_applications') || '[]';
-      return JSON.parse(stored);
+      try {
+        const parsed = JSON.parse(stored);
+        return parsed.filter((k: any) => k && k.nama && k.nama !== 'Tanpa Nama' && k.nama !== '-');
+      } catch (e) {
+        return [];
+      }
     }
   },
 
@@ -798,15 +885,29 @@ export const firestoreService = {
     try {
       const snap = await getDocs(collection(db, 'training_applications'));
       if (!snap.empty) {
-        const trainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        localStorage.setItem('training_applications', JSON.stringify(trainings));
-        return trainings;
+        const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const cleanTrainings: any[] = [];
+        for (const t of rawTrainings) {
+          const name = (t.nama || t.namaLengkap || '').trim();
+          if (!name || name === 'Tanpa Nama' || name === '-') {
+            deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
+          } else {
+            cleanTrainings.push(t);
+          }
+        }
+        localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
+        return cleanTrainings;
       }
     } catch (err) {
       console.error('Firestore getTrainingApplications error, fallback to cache:', err);
     }
     const stored = localStorage.getItem('training_applications') || '[]';
-    return JSON.parse(stored);
+    try {
+      const parsed = JSON.parse(stored);
+      return parsed.filter((t: any) => t && t.nama && t.nama !== 'Tanpa Nama' && t.nama !== '-');
+    } catch (e) {
+      return [];
+    }
   },
 
   async createTrainingApplication(appData: any): Promise<any> {
