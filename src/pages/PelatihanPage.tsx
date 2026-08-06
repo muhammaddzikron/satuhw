@@ -1482,8 +1482,17 @@ export default function PelatihanPage() {
                     placeholder="Cari nama, email, asal kwarda..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white border border-gray-100 rounded-2xl pl-10 pr-4 py-3 text-xs placeholder-gray-400 shadow-sm"
+                    className="w-full bg-white border border-gray-100 rounded-2xl pl-10 pr-9 py-3 text-xs placeholder-gray-400 shadow-sm"
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 

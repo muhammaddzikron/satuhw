@@ -2545,8 +2545,17 @@ export default function AdminDashboard() {
                         placeholder="Cari nama, email, atau kwarda..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold shadow-sm outline-none" 
+                        className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-semibold shadow-sm outline-none" 
                       />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 px-1">
                       <div className="flex items-center gap-1.5 py-1 px-2.5 bg-hw-green/10 text-hw-green rounded-full">
@@ -2776,8 +2785,17 @@ export default function AdminDashboard() {
                     placeholder="Cari judul materi..." 
                     value={materiSearch}
                     onChange={(e) => setMateriSearch(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-4 text-xs font-medium" 
+                    className="w-full bg-gray-50 border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-medium" 
                   />
+                  {materiSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMateriSearch('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3631,8 +3649,17 @@ export default function AdminDashboard() {
                           placeholder="Cari berdasarkan nama, email, asal daerah..." 
                           value={ktaSearchQuery}
                           onChange={(e) => setKtaSearchQuery(e.target.value)}
-                          className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold shadow-sm"
+                          className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold shadow-sm"
                         />
+                        {ktaSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setKtaSearchQuery('')}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
                       </div>
                       
                       <div className="flex gap-1.5 overflow-x-auto">
@@ -3836,8 +3863,17 @@ export default function AdminDashboard() {
                       placeholder="Cari berdasarkan nama Kwarda atau Qabilah..." 
                       value={ktaSearchQuery}
                       onChange={(e) => setKtaSearchQuery(e.target.value)}
-                      className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
+                      className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                     />
+                    {ktaSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setKtaSearchQuery('')}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -4363,8 +4399,17 @@ export default function AdminDashboard() {
                           placeholder="Cari berdasarkan nama, WhatsApp, asal daerah..." 
                           value={trainingSearchQuery}
                           onChange={(e) => setTrainingSearchQuery(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold"
                         />
+                        {trainingSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setTrainingSearchQuery('')}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
                       </div>
                       
                       <div className="flex gap-1.5 overflow-x-auto">
@@ -7395,8 +7440,17 @@ export default function AdminDashboard() {
                           placeholder="Ketik nama, email, atau NIK anggota..."
                           value={addParticipantSearchQuery}
                           onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10" 
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10" 
                         />
+                        {addParticipantSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAddParticipantSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
 

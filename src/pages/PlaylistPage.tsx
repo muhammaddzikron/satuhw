@@ -9,7 +9,8 @@ import {
   ArrowLeft, 
   Search,
   RefreshCw,
-  Layout
+  Layout,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -132,8 +133,17 @@ const PlaylistPage: React.FC = () => {
             placeholder="Cari lagu atau mars..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold placeholder:text-gray-300 focus:ring-2 focus:ring-hw-green/20 outline-none"
+            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3.5 pl-12 pr-10 text-sm font-bold placeholder:text-gray-300 focus:ring-2 focus:ring-hw-green/20 outline-none"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 

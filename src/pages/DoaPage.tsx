@@ -53,8 +53,17 @@ export default function DoaPage() {
           placeholder="Cari doa harian..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 outline-none text-sm shadow-sm"
+          className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-12 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-sm shadow-sm"
         />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3">

@@ -13,7 +13,8 @@ import {
   Search, 
   CheckCircle2, 
   XCircle, 
-  UserPlus 
+  UserPlus,
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -187,8 +188,20 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
                 }}
                 placeholder="nama@email.com"
                 required
-                className="w-full bg-white border border-emerald-200 rounded-xl py-3 pl-10 pr-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none transition-all"
+                className="w-full bg-white border border-emerald-200 rounded-xl py-3 pl-10 pr-8 text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none transition-all"
               />
+              {checkEmailInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheckEmailInput('');
+                    if (checkResult) setCheckResult(null);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-700 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <button
               type="submit"

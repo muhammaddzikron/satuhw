@@ -178,8 +178,17 @@ export default function KegiatanPage() {
             placeholder="Cari kegiatan atau lokasi..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-hw-green/20 outline-none shadow-xs"
+            className="w-full pl-11 pr-10 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-hw-green/20 outline-none shadow-xs"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
