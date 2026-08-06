@@ -325,10 +325,18 @@ export default function RegisterPage() {
         </div>
 
         <button 
-          onClick={() => navigate('/login')}
-          className="w-full py-4 rounded-2xl bg-hw-dark text-white font-bold shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          onClick={() => {
+            const redirectUrl = (location.state as any)?.redirectTo;
+            const activityState = (location.state as any)?.activity;
+            if (redirectUrl) {
+              navigate('/login', { state: { redirectTo: redirectUrl, activity: activityState } });
+            } else {
+              navigate('/login');
+            }
+          }}
+          className="w-full py-4 rounded-2xl bg-hw-dark text-white font-bold shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
         >
-          Masuk ke Akun Aplikasi <ChevronRight size={18} />
+          {(location.state as any)?.redirectTo ? 'Lanjut Login & Daftar Pelatihan' : 'Masuk ke Akun Aplikasi'} <ChevronRight size={18} />
         </button>
       </motion.div>
     );

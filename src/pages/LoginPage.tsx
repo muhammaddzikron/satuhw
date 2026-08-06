@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
   Lock, 
@@ -91,6 +91,8 @@ export default function LoginPage() {
     }
   };
 
+  const location = useLocation();
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -99,8 +101,13 @@ export default function LoginPage() {
     try {
       const { user, token } = await sheetsService.login(email, password);
       setAuth(user, token);
+      const redirectUrl = (location.state as any)?.redirectTo;
+      const activityState = (location.state as any)?.activity;
+
       if (user.role === 'superadmin' || user.role === 'admin') {
         navigate('/admin');
+      } else if (redirectUrl) {
+        navigate(redirectUrl, { state: { activity: activityState } });
       } else {
         navigate('/');
       }
@@ -128,7 +135,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
   };
 
   return (
-    <div className="pt-4 flex flex-col items-center">
+    <div className="pt-4 pb-28 flex flex-col items-center max-w-md mx-auto px-4">
       <div className="w-full flex justify-start mb-6">
         <button 
           onClick={() => navigate(-1)}
@@ -372,10 +379,10 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
         </form>
       )}
 
-      <div className="mt-8 text-center flex flex-col gap-3">
-        <p className="text-gray-500 text-sm">
+      <div className="mt-8 mb-6 text-center flex flex-col gap-3 pt-5 border-t border-gray-100 w-full">
+        <p className="text-gray-600 text-sm font-medium">
           Belum punya akun?{' '}
-          <Link to="/register" className="text-hw-green font-bold hover:underline">
+          <Link to="/register" className="text-hw-green font-extrabold hover:underline">
             Daftar Sekarang
           </Link>
         </p>
@@ -383,7 +390,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           <button 
             type="button"
             onClick={() => setShowForgotModal(true)}
-            className="text-xs font-bold text-hw-green hover:underline uppercase tracking-wider cursor-pointer"
+            className="text-xs font-bold text-hw-green hover:text-emerald-800 hover:underline uppercase tracking-wider cursor-pointer py-1.5 px-3 bg-emerald-50/60 hover:bg-emerald-50 rounded-xl border border-emerald-100 transition-all inline-block mx-auto"
           >
             Lupa Password / Hubungi Admin
           </button>

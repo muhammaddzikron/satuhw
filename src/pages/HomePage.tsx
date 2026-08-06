@@ -134,6 +134,13 @@ export default function HomePage() {
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
+  // Training Banner & Modal States
+  const [trainingActivities, setTrainingActivities] = useState<any[]>([]);
+  const [trainingLocations, setTrainingLocations] = useState<string[]>([]);
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [selectedTrainingForReg, setSelectedTrainingForReg] = useState<any | null>(null);
+  const [showRequirementModal, setShowRequirementModal] = useState(false);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     
@@ -177,6 +184,31 @@ export default function HomePage() {
         const uniqueMateri = Array.from(new Map(flatMateri.map(item => [item.id, item])).values());
         // Extra safety filter to ensure only 'umum' or 'umum_pandu' materi is shown on home search
         setMateriList(uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu')));
+
+        // Fetch Training Settings
+        try {
+          const sData = await sheetsService.getSettings().catch(() => ({} as any));
+          if (sData) {
+            if (sData.trainingActivities) {
+              const acts = Array.isArray(sData.trainingActivities)
+                ? sData.trainingActivities
+                : typeof sData.trainingActivities === 'string'
+                  ? JSON.parse(sData.trainingActivities || '[]')
+                  : [];
+              setTrainingActivities(acts);
+            }
+            if (sData.trainingLocations) {
+              const locs = Array.isArray(sData.trainingLocations)
+                ? sData.trainingLocations
+                : typeof sData.trainingLocations === 'string'
+                  ? JSON.parse(sData.trainingLocations || '[]')
+                  : [];
+              setTrainingLocations(locs);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch training settings:', e);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -371,6 +403,54 @@ export default function HomePage() {
       setSearchResults([]);
     }
   }, [searchQuery, materiList, galleryItems, playlistItems]);
+
+  const defaultTrainingList = [
+    {
+      id: 'Jati 1',
+      namaKegiatan: 'Pelatihan Jaya Melati 1 (Jati 1)',
+      jenisPelatihan: 'Jati 1',
+      tingkatan: 'Pembina Penghela & Penuntun',
+      deskripsi: 'Pelatihan kepemimpinan tingkat dasar pembina HW untuk membekali manajemen qabilah & kepanduan Islami.',
+      lokasiPelatihan: (trainingLocations && trainingLocations[0]) || 'Pusdiklat HW Jawa Tengah',
+      tanggalPelatihan: 'Jadwal Aktif 2026',
+      biaya: 'Rp 50.000',
+      kuota: 'Terbuka'
+    },
+    {
+      id: 'Jati 2',
+      namaKegiatan: 'Pelatihan Jaya Melati 2 (Jati 2)',
+      jenisPelatihan: 'Jati 2',
+      tingkatan: 'Pembina Lanjutan',
+      deskripsi: 'Pelatihan kepemimpinan tingkat lanjutan pembina HW untuk pengembangan manajerial kwarda & kwarwil.',
+      lokasiPelatihan: (trainingLocations && trainingLocations[1]) || 'Gedung Dakwah Muhammadiyah Jateng',
+      tanggalPelatihan: 'Jadwal Aktif 2026',
+      biaya: 'Rp 75.000',
+      kuota: 'Terbuka'
+    },
+    {
+      id: 'Jari 1',
+      namaKegiatan: 'Pelatihan Jaya Melati Utama (Jari 1)',
+      jenisPelatihan: 'Jari 1',
+      tingkatan: 'Pelatih & Korps Instruktur',
+      deskripsi: 'Kursus pelatih instruktur kepanduan Hizbul Wathan tingkat utama wilayah Jawa Tengah.',
+      lokasiPelatihan: (trainingLocations && trainingLocations[2]) || 'Kwarda Banyumas / Wilayah',
+      tanggalPelatihan: 'Jadwal Aktif 2026',
+      biaya: 'Rp 100.000',
+      kuota: 'Terbuka'
+    }
+  ];
+
+  const activeTrainings = (trainingActivities && trainingActivities.length > 0) ? trainingActivities : defaultTrainingList;
+
+  const handleSelectTrainingForRegistration = (act: any) => {
+    setShowTrainingModal(false);
+    if (isAuthenticated) {
+      navigate('/daftar-pelatihan', { state: { activity: act } });
+    } else {
+      setSelectedTrainingForReg(act);
+      setShowRequirementModal(true);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-20">
@@ -668,166 +748,92 @@ export default function HomePage() {
         <PlaylistPreview />
       </section>
 
-      {/* Conditional KTA & Training Banners based on authentication */}
+      {/* Banner Section - Semarak HW Jateng */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <UserPlus size={18} className="text-hw-green" />
-          <h3 className="font-display font-bold text-gray-800">Pendaftaran Akun & Pelatihan</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-amber-500" />
+            <h3 className="font-display font-bold text-gray-800">Semarak HW Jateng</h3>
+          </div>
+          <button 
+            onClick={() => setShowTrainingModal(true)}
+            className="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-1 hover:underline cursor-pointer"
+          >
+            Lihat Jenis Pelatihan <ChevronRight size={12} />
+          </button>
         </div>
-        {!isAuthenticated ? (
-          <div className="px-1">
-            <div className="bg-slate-50 rounded-[2rem] border border-slate-200/60 p-6 shadow-sm space-y-5">
-              <div className="space-y-4">
-                {/* Option 1: Already has account */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
-                  <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-2xl shadow-md shadow-orange-500/20 mt-0.5 shrink-0">
-                    <LogIn size={18} />
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Pendaftaran Pelatihan</h4>
-                    <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                      Sudah punya akun? Silahkan <Link to="/login" className="text-orange-600 hover:underline font-black">login</Link> dan Daftar Pelatihannya
-                    </p>
-                    <Link 
-                      to="/login" 
-                      className="inline-flex items-center gap-1 text-[10px] text-orange-600 font-extrabold hover:underline uppercase tracking-wider mt-1.5"
-                    >
-                      Masuk & Daftar Pelatihan <ChevronRight size={10} />
-                    </Link>
-                  </div>
-                </div>
 
-                {/* Option 2: No account yet */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-start gap-3.5">
-                  <div className="p-3 bg-gradient-to-br from-hw-green to-emerald-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 mt-0.5 shrink-0">
-                    <UserPlus size={18} />
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-display">Belum Punya Akun?</h4>
-                    <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                      Jika belum punya akun, daftar dulu dengan membuat Kartu Anggota dibawah ini
-                    </p>
-                  </div>
-                </div>
+        <div className="space-y-2.5 px-1">
+          {/* 1. Banner Kegiatan HW Jateng */}
+          <Link 
+            to="/kegiatan" 
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300 shrink-0">
+                <Calendar size={20} />
               </div>
-
-              {/* Attached KTA Banner */}
-              <Link 
-                to="/register" 
-                className="relative overflow-hidden flex items-center justify-between bg-gradient-to-r from-hw-green via-emerald-700 to-emerald-800 text-white p-5 rounded-[1.75rem] shadow-md shadow-emerald-950/10 hover:shadow-lg hover:shadow-emerald-950/15 transition-all duration-300 border border-emerald-600/30 hover:scale-[1.01] active:scale-[0.99]"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
-                <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
-                
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="p-3 bg-white/10 backdrop-blur-sm rounded-2xl text-white border border-white/10 shadow-inner shrink-0">
-                    <CreditCard size={22} className="animate-pulse" />
-                  </div>
-                  <div className="text-left space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-sm font-black uppercase tracking-wider font-display">Buat KTA HW Jateng</h4>
-                      <span className="bg-amber-400 text-slate-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
-                        Wajib
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-emerald-100/90 font-medium leading-relaxed max-w-[210px]">
-                      Daftar akun baru & dapatkan Kartu Anggota resmi
-                    </p>
-                  </div>
+              <div className="text-left space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
+                  <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                    Terbaru
+                  </span>
                 </div>
-                <div className="p-1.5 bg-white/10 rounded-full hover:bg-white/20 transition-colors shrink-0">
-                  <ChevronRight size={18} className="text-white" />
-                </div>
-              </Link>
-
-              {/* Banner Kegiatan HW Jateng for Guests */}
-              <Link 
-                to="/kegiatan" 
-                className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200 mt-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300">
-                    <Calendar size={20} />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
-                      <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
-                        Terbaru
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-amber-300" />
-              </Link>
+                <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* Elongated KTA Banner Button for Authenticated Users */}
-            <div className="px-1">
-              <Link 
-                to="/kta" 
-                className="flex items-center justify-between bg-gradient-to-r from-hw-green to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-700/50 hover:scale-[1.01] active:scale-[0.99] duration-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/10 rounded-2xl text-white">
-                    <CreditCard size={20} />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <h4 className="text-xs font-black uppercase tracking-wider">Buat KTA HW Jateng</h4>
-                    <p className="text-[9px] text-emerald-100 font-semibold leading-none">Ajukan & cetak Kartu Tanda Anggota Digital resmi sekarang</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-emerald-200" />
-              </Link>
-            </div>
+            <ChevronRight size={16} className="text-amber-300 shrink-0" />
+          </Link>
 
-            {/* Elongated Training Banner Button for Authenticated Users */}
-            <div className="px-1">
-              <Link 
-                to="/daftar-pelatihan" 
-                className="flex items-center justify-between bg-gradient-to-r from-orange-600 to-yellow-500 text-white p-4 rounded-3xl shadow-md shadow-orange-600/20 hover:shadow-lg transition-all border border-orange-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/20 rounded-2xl text-white">
-                    <GraduationCap size={20} />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <h4 className="text-xs font-black uppercase tracking-wider">Pelatihan Jaya Melati 1/2 HW Jateng</h4>
-                    <p className="text-[9px] text-orange-50 font-semibold leading-none">Daftar & ikuti kegiatan pelatihan resmi HW Jateng</p>
-                  </div>
+          {/* 2. Banner Pelatihan HW Jateng (Orange - Kuning) */}
+          <button 
+            onClick={() => setShowTrainingModal(true)}
+            className="w-full text-left relative overflow-hidden flex items-center justify-between bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 text-white p-5 rounded-[2rem] shadow-lg shadow-orange-500/20 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 border border-amber-300/40 cursor-pointer"
+          >
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-yellow-300/20 rounded-full blur-xl pointer-events-none"></div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white border border-white/20 shadow-inner shrink-0">
+                <GraduationCap size={28} className="animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm md:text-base font-black uppercase tracking-wider font-display text-white drop-shadow-xs">
+                    Pelatihan HW Jateng
+                  </h4>
+                  <span className="bg-white text-orange-600 text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs tracking-wider">
+                    Resmi
+                  </span>
                 </div>
-                <ChevronRight size={16} className="text-orange-100" />
-              </Link>
+                <p className="text-[10px] md:text-xs text-orange-50 font-medium leading-relaxed">
+                  Jaya Melati 1, 2, Jaya Matahari 1 dan Jaya Pertiwi
+                </p>
+              </div>
             </div>
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white shrink-0 hover:bg-white/30 transition-colors">
+              <ChevronRight size={20} />
+            </div>
+          </button>
 
-            {/* Banner Kegiatan HW Jateng */}
-            <div className="px-1">
-              <Link 
-                to="/kegiatan" 
-                className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300">
-                    <Calendar size={20} />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
-                      <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
-                        Terbaru
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-amber-300" />
-              </Link>
+          {/* 3. Banner KTA Digital HW Jateng */}
+          <Link 
+            to={isAuthenticated ? "/kta" : "/register"} 
+            className="flex items-center justify-between bg-gradient-to-r from-hw-green via-emerald-700 to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-600/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white/10 rounded-2xl text-white border border-white/10 shrink-0">
+                <CreditCard size={20} />
+              </div>
+              <div className="text-left space-y-0.5">
+                <h4 className="text-xs font-black uppercase tracking-wider">KTA Digital HW Jateng</h4>
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Syarat Utama mengakses Materi Umum HW</p>
+              </div>
             </div>
-          </div>
-        )}
+            <ChevronRight size={16} className="text-emerald-200 shrink-0" />
+          </Link>
+        </div>
       </section>
 
       {/* Tools Section */}
@@ -1062,6 +1068,155 @@ export default function HomePage() {
               >
                 Mengerti & Selesai
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Jenis Pelatihan HW Jateng */}
+      <AnimatePresence>
+        {showTrainingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white flex items-center justify-between relative">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/20 rounded-2xl text-white backdrop-blur-md">
+                    <GraduationCap size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-black text-base uppercase tracking-wider">Jenis Pelatihan HW Jateng</h3>
+                    <p className="text-[10px] text-orange-100 font-medium">Diatur & dikelola resmi dari Dasbor Admin HW Jateng</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowTrainingModal(false)}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-start gap-3">
+                  <CreditCard size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-900 leading-relaxed">
+                    <span className="font-black block uppercase tracking-wider text-[10px] text-amber-700">Persyaratan Utama</span>
+                    Peserta wajib memiliki <strong>KTA Digital HW Jateng</strong>. Jika belum punya akun, sistem akan otomatis mengarahkan ke pembuatan KTA terlebih dahulu.
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {activeTrainings.map((act: any, idx: number) => {
+                    const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
+                    const loc = act.lokasiPelatihan || 'Pusdiklat HW Jateng';
+                    const date = act.tanggalPelatihan || 'Jadwal Aktif 2026';
+                    const fee = act.biaya || 'Rp 50.000';
+
+                    return (
+                      <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
+                              {act.jenisPelatihan || act.tingkatan || 'Jaya Melati'}
+                            </span>
+                            <h4 className="text-sm font-black text-gray-800 leading-snug font-display">{title}</h4>
+                          </div>
+                          <span className="text-xs font-black text-hw-green bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100 shrink-0">
+                            {fee}
+                          </span>
+                        </div>
+
+                        {act.deskripsi && (
+                          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 font-medium">
+                            {act.deskripsi}
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-white p-2.5 rounded-xl border border-gray-100">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <MapPin size={13} className="text-amber-600 shrink-0" />
+                            <span className="truncate">{loc}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Calendar size={13} className="text-emerald-600 shrink-0" />
+                            <span className="truncate">{date}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleSelectTrainingForRegistration(act)}
+                          className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-orange-500/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
+                        >
+                          <GraduationCap size={16} /> Daftar Pelatihan Ini <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Syarat KTA Otomatis */}
+      <AnimatePresence>
+        {showRequirementModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 p-6 space-y-5 text-center relative"
+            >
+              <button
+                onClick={() => setShowRequirementModal(false)}
+                className="absolute top-4 right-4 p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20 border border-amber-300/30">
+                <CreditCard size={30} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-gray-800 font-display">
+                  Persyaratan KTA HW Digital
+                </h3>
+                <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                  Untuk mendaftar <strong className="text-gray-900">{selectedTrainingForReg?.namaKegiatan || selectedTrainingForReg?.jenisPelatihan || 'Pelatihan HW'}</strong>, Anda wajib memiliki Kartu Tanda Anggota (KTA) Digital HW Jateng terlebih dahulu.
+                </p>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                <button
+                  onClick={() => {
+                    setShowRequirementModal(false);
+                    navigate('/register', { state: { redirectTo: '/daftar-pelatihan', activity: selectedTrainingForReg } });
+                  }}
+                  className="w-full py-3.5 bg-gradient-to-r from-hw-green to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
+                >
+                  <UserPlus size={16} /> Belum Punya Akun? Buat KTA & Akun
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowRequirementModal(false);
+                    navigate('/login', { state: { redirectTo: '/daftar-pelatihan', activity: selectedTrainingForReg } });
+                  }}
+                  className="w-full py-3.5 bg-white hover:bg-orange-50/50 text-orange-600 border border-orange-200 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <LogIn size={16} className="text-orange-500" /> Sudah Punya Akun? Login & Daftar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
