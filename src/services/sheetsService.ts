@@ -315,22 +315,26 @@ export const sheetsService = {
     const user = {
       id: stableId,
       email: emailValue,
-      namaLengkap: data.namaLengkap || data.namalengkap || '',
+      namaLengkap: data.namaLengkap || data.namalengkap || data.nama || '',
+      nik: data.nik || '',
       jenisKelamin: data.jenisKelamin || data.jeniskelamin || 'L',
       golongan: data.golongan || '',
+      golonganPelatih: data.golonganPelatih || data.golonganpelatih || '',
       pelatihan: parseArrayField(data.pelatihan),
       pendidikan: data.pendidikan || '',
-      asalKwarda: data.asalKwarda || data.asalkwarda || '',
+      asalKwarda: data.asalKwarda || data.asalkwarda || data.kwarda || data.asalDaerah || '',
       qabilah: data.qabilah || '',
       alamat: data.alamat || '',
-      noHp: data.noHp || data.nohp || '',
+      noHp: data.noHp || data.nohp || data.noWa || data.phone || '',
       sosmed: data.sosmed || '',
       role: 'umum' as UserRole,
       roles: [] as UserRole[],
       activeRole: 'umum' as UserRole,
       isVerified: data.isVerified !== undefined ? data.isVerified : (data.isverified !== undefined ? data.isverified : false),
+      ktaNumber: data.ktaNumber || data.ktanumber || data.noKta || '',
       upgradeRequests: parseArrayField(data.upgradeRequests || data.upgraderequests),
-      photo: data.photo || data.foto || data.Photo || data.Foto || ''
+      photo: data.photo || data.foto || data.Photo || data.Foto || '',
+      password: data.password || ''
     };
 
     const rolesRaw = data.role || data.roles || 'umum';
@@ -659,36 +663,79 @@ export const sheetsService = {
       const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
         const sheetMembers = response.data.map((m: any) => this.mapUser(m));
-        // Merge Firestore photos if missing/empty in Google Sheets response
+        // Merge Firestore & Local Storage member updates
         try {
           const fsMembers = await firestoreService.getMembers();
           const fsKtas = await firestoreService.getKTAApplications();
+          let localMocks: any[] = [];
+          try {
+            localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
+          } catch(e) {}
+
+          const cachedMembers = [...fsMembers, ...localMocks];
+
           sheetMembers.forEach(sm => {
-            if (!sm.photo) {
-              const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
-              const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
-              
-              const match = fsMembers.find(fm => 
-                (fm.id && sm.id && String(fm.id) === String(sm.id)) ||
-                (smEmail && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
-                (smName && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
+            const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
+            const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
+            const smId = sm.id ? String(sm.id) : '';
+
+            const match = cachedMembers.find(fm => 
+              (fm && fm.id && smId && String(fm.id) === smId) ||
+              (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
+              (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
+            );
+
+            if (match) {
+              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
+              if (!sm.photo && match.photo) sm.photo = match.photo;
+              if (!(sm as any).golonganPelatih && (match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
+              if (!sm.nik && match.nik) sm.nik = match.nik;
+              if (!sm.ktaNumber && match.ktaNumber) sm.ktaNumber = match.ktaNumber;
+              if (!sm.noHp && match.noHp) sm.noHp = match.noHp;
+              if (!sm.alamat && match.alamat) sm.alamat = match.alamat;
+              if (!sm.asalKwarda && match.asalKwarda) sm.asalKwarda = match.asalKwarda;
+              if (!sm.qabilah && match.qabilah) sm.qabilah = match.qabilah;
+              if (!sm.sosmed && match.sosmed) sm.sosmed = match.sosmed;
+              if (!sm.pendidikan && match.pendidikan) sm.pendidikan = match.pendidikan;
+              if (!sm.golongan && match.golongan) sm.golongan = match.golongan;
+              if ((!sm.roles || sm.roles.length === 0 || (sm.roles.length === 1 && sm.roles[0] === 'umum')) && match.roles && match.roles.length > 0) {
+                sm.roles = match.roles;
+                sm.role = match.roles[0] || match.role || 'umum';
+              }
+            } else {
+              const ktaMatch = fsKtas.find(fk =>
+                (fk.userId && smId && String(fk.userId) === smId) ||
+                (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
+                (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
               );
-              if (match && match.photo) {
-                sm.photo = match.photo;
-              } else {
-                const ktaMatch = fsKtas.find(fk =>
-                  (fk.userId && sm.id && String(fk.userId) === String(sm.id)) ||
-                  (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
-                  (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
-                );
-                if (ktaMatch && ktaMatch.photo) {
-                  sm.photo = ktaMatch.photo;
-                }
+              if (ktaMatch) {
+                if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
+                if (!sm.nik && ktaMatch.nik) sm.nik = ktaMatch.nik;
+                if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
+                if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
+                if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
               }
             }
           });
+
+          // Add any cached member missing from sheetMembers
+          cachedMembers.forEach(fm => {
+            if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
+            const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
+            const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
+            const fmId = fm.id ? String(fm.id) : '';
+
+            const existsInSheet = sheetMembers.some(sm => 
+              (sm.id && fmId && String(sm.id) === fmId) ||
+              (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
+              (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
+            );
+            if (!existsInSheet) {
+              sheetMembers.push(this.mapUser(fm));
+            }
+          });
         } catch (e) {
-          console.warn('Error merging Firestore photos into getMembers:', e);
+          console.warn('Error merging Firestore photos and member data into getMembers:', e);
         }
         return sheetMembers;
       }

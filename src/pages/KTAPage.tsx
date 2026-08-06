@@ -205,7 +205,23 @@ export default function KTAPage() {
             (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
           );
           if (freshUser) {
-            updateUser(freshUser);
+            const currentUser = useAuthStore.getState().user || user;
+            const mergedUser = {
+              ...currentUser,
+              ...freshUser,
+              namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
+              nik: freshUser.nik || currentUser.nik,
+              noHp: freshUser.noHp || currentUser.noHp,
+              alamat: freshUser.alamat || currentUser.alamat,
+              asalKwarda: freshUser.asalKwarda || currentUser.asalKwarda,
+              qabilah: freshUser.qabilah || currentUser.qabilah,
+              sosmed: freshUser.sosmed || currentUser.sosmed,
+              pendidikan: freshUser.pendidikan || currentUser.pendidikan,
+              golongan: freshUser.golongan || currentUser.golongan,
+              golonganPelatih: (freshUser as any).golonganPelatih || (currentUser as any).golonganPelatih,
+              photo: freshUser.photo || currentUser.photo || ''
+            };
+            updateUser(mergedUser);
             // Pre-fill form fields with latest profile details
             setFormData(prev => ({
               ...prev,

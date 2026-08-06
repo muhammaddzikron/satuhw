@@ -364,15 +364,29 @@ export const firestoreService = {
       }
     }
 
-    if (members.length === 0) {
+    // Merge localStorage mock_members to ensure instant offline/local edits are never lost
+    try {
       const stored = localStorage.getItem('mock_members') || '[]';
-      try {
-        const parsed = JSON.parse(stored);
-        members = parsed.filter((m: any) => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
-      } catch (e) {
-        members = [];
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((lm: any) => {
+          if (!lm || !lm.namaLengkap || lm.namaLengkap === 'Tanpa Nama' || lm.namaLengkap === '-') return;
+          const lmEmail = lm.email ? lm.email.toLowerCase().trim() : '';
+          const lmId = lm.id ? String(lm.id) : '';
+
+          const idx = members.findIndex(m => 
+            (m.id && lmId && String(m.id) === lmId) ||
+            (lmEmail && m.email && m.email.toLowerCase().trim() === lmEmail)
+          );
+
+          if (idx >= 0) {
+            members[idx] = { ...members[idx], ...lm };
+          } else {
+            members.push(lm);
+          }
+        });
       }
-    }
+    } catch (e) {}
 
     // Synchronize valid KTA Applications into members list automatically
     try {

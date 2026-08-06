@@ -194,14 +194,26 @@ export default function ProfilePage() {
     try {
       const members = await sheetsService.getMembers();
       const freshUser = members.find(
-        (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
+        (m) => m.id === user.id || (m.email && user.email && m.email.toLowerCase().trim() === user.email.toLowerCase().trim())
       );
       if (freshUser) {
-        // Prevent wiping out newly uploaded photo if freshUser from Sheets has empty photo
-        if (!freshUser.photo && user.photo) {
-          freshUser.photo = user.photo;
-        }
-        updateUser(freshUser);
+        const currentUser = useAuthStore.getState().user || user;
+        const mergedUser: User = {
+          ...currentUser,
+          ...freshUser,
+          namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
+          nik: freshUser.nik || currentUser.nik,
+          noHp: freshUser.noHp || currentUser.noHp,
+          alamat: freshUser.alamat || currentUser.alamat,
+          asalKwarda: freshUser.asalKwarda || currentUser.asalKwarda,
+          qabilah: freshUser.qabilah || currentUser.qabilah,
+          sosmed: freshUser.sosmed || currentUser.sosmed,
+          pendidikan: freshUser.pendidikan || currentUser.pendidikan,
+          golongan: freshUser.golongan || currentUser.golongan,
+          golonganPelatih: (freshUser as any).golonganPelatih || (currentUser as any).golonganPelatih,
+          photo: freshUser.photo || currentUser.photo || ''
+        };
+        updateUser(mergedUser);
       }
     } catch (e) {
       console.error('Error fetching fresh profile info:', e);
