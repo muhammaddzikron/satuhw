@@ -543,10 +543,13 @@ export const firestoreService = {
   async saveMember(member: User): Promise<User> {
     const memberId = member.id || `user-${Date.now()}`;
     const dataToSave = cleanData({ ...member, id: memberId });
-    try {
-      await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
-    } catch (err) {
-      console.error('Firestore saveMember error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.error('Firestore saveMember error:', err);
+      }
     }
     // Sync local cache
     const current = await this.getMembers();
@@ -577,22 +580,24 @@ export const firestoreService = {
       });
       localStorage.setItem('kta_applications', JSON.stringify(localKtas));
 
-      const ktas = await this.getKTAApplications();
-      ktas.forEach((k: any) => {
-        if ((k.userId && String(k.userId) === String(memberId)) ||
-            (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
-          const ktaSync: any = {};
-          if (member.photo) ktaSync.photo = member.photo;
-          if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
-          if (member.nik) ktaSync.nik = member.nik;
-          if (member.noHp) ktaSync.noWa = member.noHp;
-          if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
-          if (member.qabilah) ktaSync.qabilah = member.qabilah;
-          if (Object.keys(ktaSync).length > 0) {
-            setDoc(doc(db, 'kta_applications', k.id), cleanData(ktaSync), { merge: true }).catch(() => {});
+      if (!this.isQuotaExceeded) {
+        const ktas = await this.getKTAApplications();
+        ktas.forEach((k: any) => {
+          if ((k.userId && String(k.userId) === String(memberId)) ||
+              (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
+            const ktaSync: any = {};
+            if (member.photo) ktaSync.photo = member.photo;
+            if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
+            if (member.nik) ktaSync.nik = member.nik;
+            if (member.noHp) ktaSync.noWa = member.noHp;
+            if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
+            if (member.qabilah) ktaSync.qabilah = member.qabilah;
+            if (Object.keys(ktaSync).length > 0) {
+              setDoc(doc(db, 'kta_applications', k.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
+            }
           }
-        }
-      });
+        });
+      }
     } catch (syncErr) {
       console.error('Error syncing member to KTA application:', syncErr);
     }
@@ -601,10 +606,13 @@ export const firestoreService = {
   },
 
   async updateMember(id: string, updates: Partial<User>): Promise<User> {
-    try {
-      await setDoc(doc(db, 'members', id), cleanData(updates), { merge: true });
-    } catch (err) {
-      console.error('Firestore updateMember error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await setDoc(doc(db, 'members', id), cleanData(updates), { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.error('Firestore updateMember error:', err);
+      }
     }
     const current = await this.getMembers();
     const idx = current.findIndex(m => m.id === id);
@@ -630,8 +638,8 @@ export const firestoreService = {
         if (updates.noHp) ktaSync.noWa = updates.noHp;
         if (updates.asalKwarda) ktaSync.asalDaerah = updates.asalKwarda;
         if (updates.qabilah) ktaSync.qabilah = updates.qabilah;
-        if (Object.keys(ktaSync).length > 0) {
-          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true });
+        if (Object.keys(ktaSync).length > 0 && !this.isQuotaExceeded) {
+          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
         }
       }
     } catch (syncErr) {
@@ -642,10 +650,13 @@ export const firestoreService = {
   },
 
   async deleteMember(id: string): Promise<boolean> {
-    try {
-      await deleteDoc(doc(db, 'members', id));
-    } catch (err) {
-      console.error('Firestore deleteMember error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await deleteDoc(doc(db, 'members', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.error('Firestore deleteMember error:', err);
+      }
     }
     const current = await this.getMembers();
     const filtered = current.filter(m => m.id !== id);
