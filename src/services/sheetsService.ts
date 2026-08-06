@@ -231,53 +231,72 @@ export const sheetsService = {
         sosmed: '@hw_pusat',
         isVerified: true
       };
-      await firestoreService.saveMember(adminUser).catch(() => {});
+      // Non-blocking background save
+      firestoreService.saveMember(adminUser).catch(() => {});
       return {
         token: 'super-admin-token',
         user: adminUser
       };
     }
 
-    // Try Google Sheets API if valid
-    if (IS_API_VALID) {
-      try {
-        const res = await this.post({
-          action: 'login',
-          email: cleanEmail,
-          password: cleanPass
-        });
-        if (res && res.user) {
-          const mappedUser = this.mapUser(res.user);
-          await firestoreService.saveMember(mappedUser).catch(() => {});
-          return {
-            token: res.token || `token-${mappedUser.id}`,
-            user: mappedUser
-          };
+    // Step 1: Fast local cache login (instant < 20ms)
+    try {
+      const localResult = this.mockLogin(cleanEmail, cleanPass);
+      if (localResult && localResult.user) {
+        // Sync in background if online API is active
+        if (IS_API_VALID) {
+          this.post({
+            action: 'login',
+            email: cleanEmail,
+            password: cleanPass
+          }).then(res => {
+            if (res && res.user) {
+              const mappedUser = this.mapUser(res.user);
+              firestoreService.saveMember(mappedUser).catch(() => {});
+            }
+          }).catch(() => {});
         }
-      } catch (error: any) {
-        console.warn('Google Sheets login API call error/rejected, falling back to Firestore & Local storage:', error);
+        return localResult;
+      }
+    } catch (e: any) {
+      if (e.message?.includes('salah')) {
+        throw e;
       }
     }
 
-    // Fallback 1: Check Firestore database
+    // Step 2: Fast Firestore cache login
     try {
       const fsResult = await firestoreService.login(cleanEmail, cleanPass);
       if (fsResult && fsResult.user) {
+        if (IS_API_VALID) {
+          this.post({ action: 'login', email: cleanEmail, password: cleanPass }).catch(() => {});
+        }
         return fsResult;
       }
     } catch (e) {
       console.warn('Firestore login check error:', e);
     }
 
-    // Fallback 2: Check Mock database / LocalStorage
-    try {
-      const mockResult = this.mockLogin(cleanEmail, cleanPass);
-      if (mockResult && mockResult.user) {
-        return mockResult;
-      }
-    } catch (e: any) {
-      if (e.message?.includes('salah')) {
-        throw e;
+    // Step 3: Try Google Sheets API with timeout if user wasn't in local cache
+    if (IS_API_VALID) {
+      try {
+        const apiPromise = this.post({
+          action: 'login',
+          email: cleanEmail,
+          password: cleanPass
+        });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), 2500));
+        const res: any = await Promise.race([apiPromise, timeoutPromise]);
+        if (res && res.user) {
+          const mappedUser = this.mapUser(res.user);
+          firestoreService.saveMember(mappedUser).catch(() => {});
+          return {
+            token: res.token || `token-${mappedUser.id}`,
+            user: mappedUser
+          };
+        }
+      } catch (error: any) {
+        console.warn('Google Sheets login API call error or timeout, falling back:', error);
       }
     }
 
