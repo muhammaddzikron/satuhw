@@ -662,14 +662,28 @@ export const sheetsService = {
         // Merge Firestore photos if missing/empty in Google Sheets response
         try {
           const fsMembers = await firestoreService.getMembers();
+          const fsKtas = await firestoreService.getKTAApplications();
           sheetMembers.forEach(sm => {
-            if (!sm.photo && sm.email) {
+            if (!sm.photo) {
+              const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
+              const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
+              
               const match = fsMembers.find(fm => 
                 (fm.id && sm.id && String(fm.id) === String(sm.id)) ||
-                (fm.email && sm.email && fm.email.toLowerCase().trim() === sm.email.toLowerCase().trim())
+                (smEmail && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
+                (smName && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
               );
               if (match && match.photo) {
                 sm.photo = match.photo;
+              } else {
+                const ktaMatch = fsKtas.find(fk =>
+                  (fk.userId && sm.id && String(fk.userId) === String(sm.id)) ||
+                  (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
+                  (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
+                );
+                if (ktaMatch && ktaMatch.photo) {
+                  sm.photo = ktaMatch.photo;
+                }
               }
             }
           });

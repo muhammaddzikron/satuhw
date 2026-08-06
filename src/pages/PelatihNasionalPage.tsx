@@ -234,34 +234,90 @@ export default function PelatihNasionalPage() {
     return m.golongan || 'Jaya Matahari';
   };
 
+  // Helper to extract Ahli Pandu golongan string (Athfal / Pengenal / Penghela / Penuntun)
+  const getAhliPanduGolongan = (m: User): string => {
+    const golP = (m as any).golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(m.golongan) ? m.golongan : '');
+    if (golP) {
+      const cleanGol = golP.replace(/^ahli\s+pandu\s+/i, '').trim();
+      const capitalized = cleanGol.charAt(0).toUpperCase() + cleanGol.slice(1);
+      return `Ahli Pandu ${capitalized}`;
+    }
+    const g = m.golongan || '';
+    if (g.includes('Athfal')) return 'Ahli Pandu Athfal';
+    if (g.includes('Pengenal')) return 'Ahli Pandu Pengenal';
+    if (g.includes('Penuntun')) return 'Ahli Pandu Penuntun';
+    return 'Ahli Pandu Penghela';
+  };
+
   // Helper to extract and resolve member profile photo safely
   const getPelatihPhoto = (m: User): string => {
     if (!m) return '';
     let raw = m.photo || (m as any).foto || (m as any).fotoUrl || (m as any).avatar || (m as any).imageUrl || (m as any).Photo || (m as any).Foto || '';
 
-    // Check localStorage mock_kta_applications or mock_members if empty
-    if (!raw && m.email) {
+    // Check localStorage (kta_applications, mock_kta_applications, mock_members, auth user) if empty
+    if (!raw) {
+      const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+      const mName = m.namaLengkap ? m.namaLengkap.toLowerCase().trim() : '';
+      const mId = m.id ? String(m.id).trim() : '';
+
+      const isMatch = (item: any) => {
+        if (!item) return false;
+        const iEmail = item.email ? String(item.email).toLowerCase().trim() : '';
+        const iName = (item.namaLengkap || item.nama || '').toLowerCase().trim();
+        const iId = item.id || item.userId ? String(item.id || item.userId).trim() : '';
+        return Boolean(
+          (mId && iId && mId === iId) || 
+          (mEmail && iEmail && mEmail === iEmail) || 
+          (mName && iName && mName === iName)
+        );
+      };
+
       try {
-        const cachedKta = localStorage.getItem('mock_kta_applications');
-        if (cachedKta) {
-          const ktaList = safeJsonParse(cachedKta, []);
+        const ktaStr = localStorage.getItem('kta_applications') || localStorage.getItem('mock_kta_applications');
+        if (ktaStr) {
+          const ktaList = safeJsonParse(ktaStr, []);
           if (Array.isArray(ktaList)) {
-            const match = ktaList.find((k: any) => 
-              (k.email && k.email.toLowerCase().trim() === m.email?.toLowerCase().trim()) ||
-              (k.userId && String(k.userId) === String(m.id))
-            );
-            if (match && match.photo) {
-              raw = match.photo;
+            const match = ktaList.find(isMatch);
+            if (match && (match.photo || match.foto)) {
+              raw = match.photo || match.foto;
             }
           }
         }
-      } catch (e) {
-        // ignore
+      } catch (e) {}
+
+      if (!raw) {
+        try {
+          const memStr = localStorage.getItem('mock_members');
+          if (memStr) {
+            const memList = safeJsonParse(memStr, []);
+            if (Array.isArray(memList)) {
+              const match = memList.find(isMatch);
+              if (match && (match.photo || match.foto)) {
+                raw = match.photo || match.foto;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (!raw) {
+        try {
+          const userStr = localStorage.getItem('auth_user') || localStorage.getItem('user');
+          if (userStr) {
+            const u = safeJsonParse(userStr, null);
+            if (u && isMatch(u) && (u.photo || u.foto)) {
+              raw = u.photo || u.foto;
+            }
+          }
+        } catch (e) {}
       }
     }
 
     if (!raw) return '';
     if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+    if (raw.includes('drive.google.com') || raw.includes('googleusercontent.com')) {
+      return getDriveDirectLink(raw);
+    }
     return getCorsSafeUrl(raw);
   };
 
@@ -293,41 +349,18 @@ export default function PelatihNasionalPage() {
     });
   }, [members]);
 
-  // Extract unique Kwarda & Qabilah options for filter dropdown, sorted by official rank order
-  const kwardaQabilahOptions = useMemo(() => {
-    const optionsMap = new Map<string, number>();
-
-    pelatihList.forEach(m => {
-      const rank = getSortRank(m);
-      if (m.asalKwarda && m.asalKwarda.trim()) {
-        const k = m.asalKwarda.trim();
-        if (!optionsMap.has(k)) {
-          optionsMap.set(k, rank.codeIndex);
-        }
-      }
-      if (m.qabilah && m.qabilah.trim()) {
-        const q = m.qabilah.trim();
-        if (!optionsMap.has(q)) {
-          optionsMap.set(q, rank.codeIndex);
-        }
-      }
-    });
-
-    return Array.from(optionsMap.entries())
-      .sort((a, b) => {
-        if (a[1] !== b[1]) return a[1] - b[1];
-        return a[0].localeCompare(b[0]);
-      })
-      .map(entry => entry[0]);
-  }, [pelatihList]);
-
   // Apply search & dropdown filters
   const filteredPelatih = useMemo(() => {
     return pelatihList.filter(m => {
       // Filter Kwarda / Qabilah
       if (selectedKwardaQabilah !== 'semua') {
-        const matchKwarda = m.asalKwarda && m.asalKwarda.trim().toLowerCase() === selectedKwardaQabilah.toLowerCase();
-        const matchQabilah = m.qabilah && m.qabilah.trim().toLowerCase() === selectedKwardaQabilah.toLowerCase();
+        const selLower = selectedKwardaQabilah.toLowerCase().trim();
+        const mKwarda = (m.asalKwarda || '').toLowerCase().trim();
+        const mQabilah = (m.qabilah || '').toLowerCase().trim();
+
+        const matchKwarda = Boolean(mKwarda && (mKwarda === selLower || selLower.includes(mKwarda) || mKwarda.includes(selLower)));
+        const matchQabilah = Boolean(mQabilah && (mQabilah === selLower || selLower.includes(mQabilah) || mQabilah.includes(selLower)));
+
         if (!matchKwarda && !matchQabilah) return false;
       }
 
@@ -454,11 +487,20 @@ export default function PelatihNasionalPage() {
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-10 pr-8 text-xs font-bold text-gray-700 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="semua">Semua Kwarda / Qabilah PTMA</option>
-              {kwardaQabilahOptions.map((opt, idx) => (
-                <option key={`kwarda-opt-${idx}`} value={opt}>
-                  {opt}
-                </option>
-              ))}
+              <optgroup label="--- KWARDA (KABUPATEN / KOTA) ---">
+                {KWARDA_QABILAH_JATENG.slice(0, 35).map((item) => (
+                  <option key={`kwarda-opt-${item.code}`} value={item.name}>
+                    {item.code}. {item.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="--- QABILAH PTMA (UNIVERSITAS / STIKES / POLITEKNIK) ---">
+                {KWARDA_QABILAH_JATENG.slice(35).map((item) => (
+                  <option key={`kwarda-opt-${item.code}`} value={item.name}>
+                    {item.code}. {item.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">
               ▼
@@ -534,7 +576,7 @@ export default function PelatihNasionalPage() {
                 >
                   <div className="flex items-start gap-3.5">
                     {/* Avatar / Profile Image */}
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0 w-12 h-14">
                       {photoUrl ? (
                         <img 
                           src={photoUrl} 
@@ -542,11 +584,10 @@ export default function PelatihNasionalPage() {
                           className="w-12 h-14 object-cover rounded-2xl border-2 border-amber-400 shadow-xs" 
                           referrerPolicy="no-referrer" 
                           onError={(e) => {
-                            // If photo fails to load, try raw drive link before hiding
                             const raw = m.photo || (m as any).foto || '';
                             if (raw && !e.currentTarget.dataset.retried) {
                               e.currentTarget.dataset.retried = 'true';
-                              const directLink = getDriveDirectLink(raw);
+                              const directLink = getCorsSafeUrl(raw);
                               if (directLink && directLink !== photoUrl) {
                                 e.currentTarget.src = directLink;
                                 return;
@@ -556,21 +597,20 @@ export default function PelatihNasionalPage() {
                             const parent = e.currentTarget.parentElement;
                             if (parent) {
                               const fallback = parent.querySelector('.photo-fallback') as HTMLElement;
-                              if (fallback) fallback.classList.remove('hidden');
+                              if (fallback) fallback.style.display = 'flex';
                             }
                           }}
                         />
                       ) : null}
                       
                       <div 
-                        className={`photo-fallback w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-amber-950 items-center justify-center font-black text-lg shadow-sm border border-yellow-300 ${
-                          photoUrl ? 'hidden flex' : 'flex'
-                        }`}
+                        className="photo-fallback w-12 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-amber-950 items-center justify-center font-black text-lg shadow-sm border border-yellow-300"
+                        style={{ display: photoUrl ? 'none' : 'flex' }}
                       >
                         {m.namaLengkap ? m.namaLengkap.trim().charAt(0).toUpperCase() : 'P'}
                       </div>
                       
-                      <div className="absolute -bottom-1 -right-1 bg-amber-950 text-amber-300 p-0.5 rounded-full border border-yellow-300">
+                      <div className="absolute -bottom-1 -right-1 bg-amber-950 text-amber-300 p-0.5 rounded-full border border-yellow-300 z-10">
                         <Award size={10} />
                       </div>
                     </div>
@@ -605,7 +645,7 @@ export default function PelatihNasionalPage() {
                       {/* Additional Tags (Golongan / Gender / Verified) */}
                       <div className="flex items-center gap-2 pt-1 flex-wrap text-[10px] text-gray-600 font-medium">
                         <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border border-amber-200/80">
-                          <GraduationCap size={11} className="text-amber-700" /> Golongan: {level}
+                          <GraduationCap size={11} className="text-amber-700" /> Golongan: {getAhliPanduGolongan(m)}
                         </span>
 
                         {m.jenisKelamin && (

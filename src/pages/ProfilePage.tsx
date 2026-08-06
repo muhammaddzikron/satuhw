@@ -8,6 +8,7 @@ import {
   GraduationCap, 
   ShieldCheck, 
   ShieldAlert,
+  Shield,
   Award,
   LogOut,
   ChevronRight,
@@ -18,14 +19,16 @@ import {
   Lock,
   Info,
   CreditCard,
-  Camera
+  Camera,
+  Check
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
 import { User } from '../types';
 import { Navigate, Link } from 'react-router-dom';
-import { cn } from '../lib/utils';
+import { cn, safeJsonParse } from '../lib/utils';
+import { KWARDA_QABILAH_JATENG } from './KTAPage';
 
 const ProfileItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string }) => (
   <div className="flex items-center gap-4 p-4">
@@ -41,11 +44,13 @@ const ProfileItem = ({ icon: Icon, label, value }: { icon: any, label: string, v
 
 const ROLE_LABELS: Record<string, string> = {
   umum: 'Umum',
-  kwarda: 'Kwartir Daerah',
   sugli: 'Dewan Sugli',
-  jati1: 'Jati 1',
-  jati2: 'Jati 2',
-  jari1: 'Jari 1',
+  kwarda: 'Admin Kwarda',
+  jati1: 'Jaya Melati 1',
+  jati2: 'Jaya Melati 2',
+  jari1: 'Jaya Matahari 1',
+  jari2: 'Jaya Matahari 2',
+  admin: 'Admin Petugas',
   superadmin: 'Super Admin'
 };
 
@@ -145,8 +150,9 @@ export default function ProfilePage() {
   // Form state
   const [formData, setFormData] = React.useState({
     namaLengkap: user?.namaLengkap || '',
-    golongan: user?.golongan || '',
-    pendidikan: user?.pendidikan || '',
+    golongan: user?.golongan || 'Penghela',
+    golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user?.golongan || '') ? user?.golongan : 'Penghela'),
+    pendidikan: user?.pendidikan || 'SMA/SMK/MA',
     noHp: user?.noHp || '',
     alamat: user?.alamat || '',
     sosmed: user?.sosmed || '',
@@ -154,6 +160,7 @@ export default function ProfilePage() {
     qabilah: user?.qabilah || '',
     pelatihan: user?.pelatihan || [],
     role: user?.role || 'umum',
+    roles: Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : ['umum']),
     password: '', // New password field
     photo: user?.photo || '',
   });
@@ -161,10 +168,12 @@ export default function ProfilePage() {
   // Update formData when user changes
   React.useEffect(() => {
     if (user && !isEditing) {
+      const rolesArr = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : ['umum']);
       setFormData({
         namaLengkap: user.namaLengkap || '',
-        golongan: user.golongan || '',
-        pendidikan: user.pendidikan || '',
+        golongan: user.golongan || 'Penghela',
+        golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user.golongan || '') ? user.golongan : 'Penghela'),
+        pendidikan: user.pendidikan || 'SMA/SMK/MA',
         noHp: user.noHp || '',
         alamat: user.alamat || '',
         sosmed: user.sosmed || '',
@@ -172,6 +181,7 @@ export default function ProfilePage() {
         qabilah: user.qabilah || '',
         pelatihan: user.pelatihan || [],
         role: user.role || 'umum',
+        roles: rolesArr,
         password: '',
         photo: user.photo || '',
       });
@@ -248,10 +258,18 @@ export default function ProfilePage() {
         throw new Error('Akun Super Admin (Demo) tidak dapat diubah datanya.');
       }
       
+      const isJM1 = formData.roles.includes('jari1') || formData.roles.includes('jaya_matahari_1') || formData.role === 'jari1';
+
       // Ensure we have a payload that includes identifier
       const payload = {
         ...user,
-        ...formData
+        ...formData,
+        role: formData.roles[0] || formData.role || 'umum',
+        roles: formData.roles,
+        activeRole: formData.roles[0] || formData.role || 'umum',
+        golongan: isJM1 ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
+        golonganPelatih: isJM1 ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
+        photo: formData.photo || user.photo || ''
       };
       
       // Only include password in payload if it is not empty
@@ -272,6 +290,25 @@ export default function ProfilePage() {
       if (res && res.error) {
         throw new Error(res.error);
       }
+
+      // Update mock_members in localStorage for instant local lookup
+      try {
+        const mockMemStr = localStorage.getItem('mock_members');
+        const mockList = safeJsonParse(mockMemStr, []);
+        if (Array.isArray(mockList)) {
+          const idx = mockList.findIndex((m: any) => 
+            (user.id && m.id === user.id) || 
+            (user.email && m.email?.toLowerCase() === user.email.toLowerCase())
+          );
+          const updatedMem = { ...(idx >= 0 ? mockList[idx] : {}), ...payload, photo: formData.photo || user.photo || '' };
+          if (idx >= 0) {
+            mockList[idx] = updatedMem;
+          } else {
+            mockList.push(updatedMem);
+          }
+          localStorage.setItem('mock_members', JSON.stringify(mockList));
+        }
+      } catch (e) {}
 
       // Also explicitly sync KTA Application in Firestore if it exists for this user
       if (formData.photo || formData.namaLengkap) {
@@ -298,7 +335,15 @@ export default function ProfilePage() {
 
       // Update local state - Merge with current user to keep fields not in formData
       const { password, ...formDataWithoutPassword } = formData;
-      updateUser(formDataWithoutPassword);
+      updateUser({
+        ...formDataWithoutPassword,
+        role: formData.roles[0] || formData.role || 'umum',
+        roles: formData.roles,
+        activeRole: formData.roles[0] || formData.role || 'umum',
+        golongan: isJM1 ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
+        golonganPelatih: isJM1 ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
+        photo: formData.photo || user.photo || ''
+      });
       
       // Fetch fresh profile immediately from backend to ensure perfect sync
       await fetchFreshProfile(false);
@@ -508,26 +553,96 @@ export default function ProfilePage() {
         /* Edit Form Body */
         <div className="space-y-4">
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
-            {/* 
-            Role selection hidden from normal editing as per user request.
-            Role should only be updated through upgrade process.
-            */}
-            {/* <div className="space-y-1">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+              <input 
+                type="text"
+                value={formData.namaLengkap}
+                onChange={(e) => setFormData({...formData, namaLengkap: e.target.value})}
+                className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
+              />
+            </div>
+
+            {/* Hak Akses / Role Selection */}
+            <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hak Akses (Role)</label>
-              <select 
-                value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
-                className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all outline-none"
-              >
-                {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div> */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Object.entries(ROLE_LABELS).map(([key, label]) => {
+                  if ((key === 'admin' || key === 'superadmin') && user?.role !== 'superadmin' && user?.role !== 'admin') return null;
+
+                  const isSelected = formData.roles.includes(key);
+                  return (
+                    <button
+                      key={`prof-role-${key}`}
+                      type="button"
+                      onClick={() => {
+                        const current = [...formData.roles];
+                        let next;
+                        if (isSelected) {
+                          if (current.length > 1) {
+                            next = current.filter(k => k !== key);
+                          } else {
+                            return;
+                          }
+                        } else {
+                          next = [...current, key];
+                        }
+                        setFormData({ ...formData, roles: next, role: next[0] });
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left",
+                        isSelected
+                          ? "bg-hw-green/10 border-hw-green/20 text-hw-green"
+                          : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-4 h-4 rounded flex items-center justify-center border shrink-0",
+                        isSelected ? "bg-hw-green border-hw-green text-white" : "border-gray-200 bg-white"
+                      )}>
+                        {isSelected && <Check size={10} />}
+                      </div>
+                      <span className="leading-tight">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 */}
+            {(formData.roles.includes('jari1') || formData.roles.includes('jaya_matahari_1') || formData.role === 'jari1') && (
+              <div className="space-y-2 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 animate-fade-in">
+                <label className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-1.5">
+                  <Award size={14} className="text-amber-600" />
+                  Golongan Pelatih Ahli Pandu (Jaya Matahari 1)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map((gol) => {
+                    const isSelected = formData.golonganPelatih === gol || formData.golongan === gol;
+                    return (
+                      <button
+                        key={`prof-gol-pelatih-${gol}`}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, golonganPelatih: gol, golongan: gol })}
+                        className={cn(
+                          "py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                          isSelected
+                            ? "bg-amber-500 border-amber-600 text-amber-950 font-black shadow-sm"
+                            : "bg-white border-amber-200 text-gray-600 hover:bg-amber-100/50"
+                        )}
+                      >
+                        {isSelected && <Check size={12} />}
+                        {gol}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan HW</label>
                 <select 
                   value={formData.golongan}
                   onChange={(e) => setFormData({...formData, golongan: e.target.value})}
@@ -552,6 +667,47 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {/* Asal Kwarda / Qabilah PTMA Select Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                Asal Kwarda / Qabilah PTMA
+              </label>
+              <select
+                value={formData.asalKwarda || formData.qabilah || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const found = KWARDA_QABILAH_JATENG.find(k => k.name === val);
+                  if (found) {
+                    const codeNum = parseInt(found.code, 10);
+                    if (codeNum >= 36) {
+                      setFormData({ ...formData, asalKwarda: val, qabilah: val });
+                    } else {
+                      setFormData({ ...formData, asalKwarda: val });
+                    }
+                  } else {
+                    setFormData({ ...formData, asalKwarda: val, qabilah: val });
+                  }
+                }}
+                className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all outline-none"
+              >
+                <option value="">-- Pilih Asal Kwarda / Qabilah PTMA --</option>
+                <optgroup label="--- KWARDA (KABUPATEN / KOTA) ---">
+                  {KWARDA_QABILAH_JATENG.slice(0, 35).map((item) => (
+                    <option key={item.code} value={item.name}>
+                      {item.code}. {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="--- QABILAH PTMA (UNIVERSITAS / STIKES / POLITEKNIK) ---">
+                  {KWARDA_QABILAH_JATENG.slice(35).map((item) => (
+                    <option key={item.code} value={item.name}>
+                      {item.code}. {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp</label>
               <input 
@@ -563,7 +719,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alamat</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alamat Lengkap</label>
               <textarea 
                 value={formData.alamat}
                 onChange={(e) => setFormData({...formData, alamat: e.target.value})}
@@ -612,27 +768,6 @@ export default function ProfilePage() {
                     {p}
                   </button>
                 ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asal Kwarda</label>
-                <input 
-                  type="text"
-                  value={formData.asalKwarda}
-                  onChange={(e) => setFormData({...formData, asalKwarda: e.target.value})}
-                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah</label>
-                <input 
-                  type="text"
-                  value={formData.qabilah}
-                  onChange={(e) => setFormData({...formData, qabilah: e.target.value})}
-                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
-                />
               </div>
             </div>
 
