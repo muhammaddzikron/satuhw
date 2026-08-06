@@ -404,9 +404,9 @@ export default function HomePage() {
       const q = searchQuery.toLowerCase();
       
     const filteredMateri = (materiList || []).filter(m => 
-      m && m.kategori === 'umum' && (
+      m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
         m.judul.toLowerCase().includes(q) ||
-        m.konten.toLowerCase().includes(q)
+        (m.konten && m.konten.toLowerCase().includes(q))
       )
     ).map(item => ({ ...item, type: 'materi' }));
 
@@ -590,7 +590,7 @@ export default function HomePage() {
                       {isMateri && (
                         <Link 
                           to="/materi" 
-                          state={{ searchQuery: m.judul }}
+                          state={{ searchQuery: m.judul, selectedMateriId: m.id, filter: 'umum' }}
                           className="flex items-center gap-3 p-3 hover:bg-gray-50 bg-white"
                         >
                           <div className="w-9 h-9 rounded-xl bg-hw-green/10 flex items-center justify-center text-hw-green shrink-0">
@@ -598,7 +598,16 @@ export default function HomePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.judul}</h4>
-                            <p className="text-[9px] text-gray-400 line-clamp-1 italic uppercase font-black tracking-tighter">Materi Pelatihan / Umum</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded ${m.kategori === 'umum_pandu' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {m.kategori === 'umum_pandu' ? 'Umum Pandu' : 'Umum'}
+                              </span>
+                              {m.kategori === 'umum_pandu' && !isAuthenticated && (
+                                <span className="text-[8px] text-amber-600 font-bold flex items-center gap-0.5">
+                                  <Lock size={10} /> Perlu Login
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <ChevronRight size={14} className="text-gray-300" />
                         </Link>

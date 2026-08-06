@@ -11,12 +11,19 @@ import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 
-// Helper to remove undefined fields before saving to Firestore
+// Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
 const cleanData = <T extends Record<string, any>>(obj: T): T => {
-  const result: any = {};
+  if (!obj || typeof obj !== 'object') return obj;
+  const result: any = Array.isArray(obj) ? [] : {};
   for (const key in obj) {
-    if (obj[key] !== undefined) {
-      result[key] = obj[key];
+    if (obj[key] !== undefined && typeof obj[key] !== 'function') {
+      if (key === 'id' && obj[key] !== null && obj[key] !== undefined) {
+        result[key] = String(obj[key]);
+      } else if (typeof obj[key] === 'object' && obj[key] !== null && !((obj[key] as any) instanceof Date)) {
+        result[key] = cleanData(obj[key]);
+      } else {
+        result[key] = obj[key];
+      }
     }
   }
   return result;
@@ -665,20 +672,21 @@ export const firestoreService = {
   },
 
   async saveMateri(item: Materi): Promise<Materi> {
+    const rawId = item.id ? String(item.id) : `materi-${Date.now()}`;
     const itemData = cleanData({
       ...item,
-      id: item.id || `materi-${Date.now()}`
+      id: rawId
     });
     if (!this.isQuotaExceeded) {
       try {
-        await setDoc(doc(db, 'materi', itemData.id), itemData);
+        await setDoc(doc(db, 'materi', String(itemData.id)), itemData);
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.isQuotaExceeded) console.error('Firestore saveMateri error:', err);
       }
     }
     const list = await this.getMateri();
-    const idx = list.findIndex(m => m.id === itemData.id);
+    const idx = list.findIndex(m => String(m.id) === String(itemData.id));
     if (idx >= 0) {
       list[idx] = itemData as Materi;
     } else {
@@ -689,16 +697,17 @@ export const firestoreService = {
   },
 
   async deleteMateri(id: string): Promise<boolean> {
+    const strId = String(id);
     if (!this.isQuotaExceeded) {
       try {
-        await deleteDoc(doc(db, 'materi', id));
+        await deleteDoc(doc(db, 'materi', strId));
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.isQuotaExceeded) console.error('Firestore deleteMateri error:', err);
       }
     }
     const list = await this.getMateri();
-    const filtered = list.filter(m => m.id !== id);
+    const filtered = list.filter(m => String(m.id) !== strId);
     localStorage.setItem('materi', JSON.stringify(filtered));
     return true;
   },
@@ -1335,6 +1344,282 @@ export const firestoreService = {
     }
 
     return cleanReg;
+  },
+
+  /**
+   * Delete all pending KTA applications
+   */
+  async deletePendingKtaApplications(): Promise<{ success: boolean; deletedCount: number }> {
+    try {
+      let deletedCount = 0;
+      let ktas: any[] = [];
+      try {
+        const snap = await getDocs(collection(db, 'kta_applications'));
+        if (!snap.empty) {
+          ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+      } catch (e) {}
+
+      if (ktas.length === 0) {
+        const stored = localStorage.getItem('kta_applications') || '[]';
+        try { ktas = JSON.parse(stored); } catch (e) {}
+      }
+
+      const pendingIds: string[] = [];
+      const remainingKtas: any[] = [];
+
+      ktas.forEach(k => {
+        if (!k) return;
+        const status = (k.status || '').toString().trim().toLowerCase();
+        if (status === 'pending' || !status) {
+          if (k.id) pendingIds.push(String(k.id));
+          deletedCount++;
+        } else {
+          remainingKtas.push(k);
+        }
+      });
+
+      if (pendingIds.length > 0) {
+        const batch = writeBatch(db);
+        pendingIds.forEach(id => {
+          batch.delete(doc(db, 'kta_applications', id));
+        });
+        await batch.commit().catch(err => console.warn('Error deleting pending KTAs batch:', err));
+      }
+
+      localStorage.setItem('kta_applications', JSON.stringify(remainingKtas));
+      return { success: true, deletedCount };
+    } catch (err: any) {
+      console.error('deletePendingKtaApplications error:', err);
+      return { success: false, deletedCount: 0 };
+    }
+  },
+
+  /**
+   * Synchronize all approved KTA Applications to Members & vice versa, and purge pending data
+   */
+  async syncApprovedKtasToMembers(): Promise<{ success: boolean; addedCount: number; updatedCount: number; deletedPendingCount: number; message?: string }> {
+    try {
+      let addedCount = 0;
+      let updatedCount = 0;
+      let deletedPendingCount = 0;
+
+      // 1. Fetch current members and KTA applications
+      let members: User[] = [];
+      let ktas: any[] = [];
+
+      try {
+        const memberSnap = await getDocs(collection(db, 'members'));
+        if (!memberSnap.empty) {
+          members = memberSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        }
+      } catch (e) {
+        console.warn('Sync: Failed to fetch members from Firestore:', e);
+      }
+
+      if (members.length === 0) {
+        const storedMembers = localStorage.getItem('mock_members') || '[]';
+        try { members = JSON.parse(storedMembers); } catch (e) {}
+      }
+
+      try {
+        const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+        if (!ktaSnap.empty) {
+          ktas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+      } catch (e) {
+        console.warn('Sync: Failed to fetch ktas from Firestore:', e);
+      }
+
+      if (ktas.length === 0) {
+        const storedKtas = localStorage.getItem('kta_applications') || '[]';
+        try { ktas = JSON.parse(storedKtas); } catch (e) {}
+      }
+
+      // 2. Delete pending KTA applications ("jika masih ada data terpending hapus saja")
+      const validKtas: any[] = [];
+      const pendingKtaIdsToDelete: string[] = [];
+
+      ktas.forEach(k => {
+        if (!k) return;
+        const st = (k.status || '').toString().trim().toLowerCase();
+        if (st === 'pending' || !st) {
+          if (k.id) pendingKtaIdsToDelete.push(String(k.id));
+          deletedPendingCount++;
+        } else {
+          validKtas.push(k);
+        }
+      });
+
+      if (pendingKtaIdsToDelete.length > 0) {
+        const batch = writeBatch(db);
+        pendingKtaIdsToDelete.forEach(id => {
+          batch.delete(doc(db, 'kta_applications', id));
+        });
+        await batch.commit().catch(err => console.warn('Failed to delete pending KTAs batch:', err));
+      }
+
+      ktas = validKtas;
+
+      // 3. Synchronize Approved KTAs -> Members
+      const newMembers = [...members];
+      const memberBatch = writeBatch(db);
+      const ktaBatch = writeBatch(db);
+
+      for (const k of ktas) {
+        const kStatus = (k.status || '').toString().toLowerCase();
+        const ktaNum = (k.ktaNumber || k.KtaNumber || k.ktanumber || '').toString().trim();
+
+        if (ktaNum !== '' && kStatus !== 'approved') {
+          k.status = 'approved';
+        }
+
+        if (k.status?.toLowerCase() !== 'approved') continue;
+
+        const kEmail = (k.email || '').toString().trim().toLowerCase();
+        const kName = (k.nama || k.namaLengkap || '').toString().trim();
+        const kUserId = k.userId ? String(k.userId).trim() : '';
+        const kId = k.id ? String(k.id).trim() : '';
+
+        if (!kEmail && !kName) continue;
+
+        let assignedKtaNumber = ktaNum;
+        if (!assignedKtaNumber) {
+          assignedKtaNumber = `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+          k.ktaNumber = assignedKtaNumber;
+          ktaBatch.set(doc(db, 'kta_applications', String(kId || `kta-${Date.now()}`)), cleanData({ ...k, ktaNumber: assignedKtaNumber }), { merge: true });
+        }
+
+        const kGender = k.jenisKelamin === 'Perempuan' || k.jenisKelamin === 'P' ? 'P' : 'L';
+        const kKwarda = k.asalDaerah || k.asalKwarda || '';
+        const kQabilah = k.qabilah || '';
+        const kNoHp = k.noWa || k.noHp || '';
+        const kPhoto = k.photo || '';
+        const kGolongan = k.tingkatan || k.golongan || 'Dewasa';
+        const kAlamat = k.alamat || '';
+
+        const existingIdx = newMembers.findIndex((m: any) => {
+          const mEmail = (m.email || '').toString().trim().toLowerCase();
+          const mId = m.id ? String(m.id).trim() : '';
+          return (kEmail && mEmail && kEmail === mEmail) || (kUserId && mId && kUserId === mId) || (kId && mId && kId === mId);
+        });
+
+        if (existingIdx === -1) {
+          const memberId = kUserId || kId || ('user-' + (kEmail ? kEmail.replace(/[^a-zA-Z0-9]/g, '_') : Date.now()));
+          const newMemberObj: User = {
+            id: memberId,
+            email: kEmail || `${memberId}@hw.or.id`,
+            namaLengkap: kName || 'Anggota HW',
+            jenisKelamin: kGender,
+            golongan: kGolongan,
+            pelatihan: [],
+            pendidikan: '',
+            asalKwarda: kKwarda,
+            qabilah: kQabilah,
+            alamat: kAlamat,
+            noHp: kNoHp,
+            sosmed: '',
+            isVerified: true,
+            role: 'umum',
+            roles: ['umum'],
+            activeRole: 'umum',
+            photo: kPhoto,
+            ktaNumber: assignedKtaNumber,
+            password: '12345hw'
+          };
+          newMembers.push(newMemberObj);
+          memberBatch.set(doc(db, 'members', String(memberId)), cleanData(newMemberObj), { merge: true });
+          addedCount++;
+        } else {
+          const m = newMembers[existingIdx];
+          let updated = false;
+
+          if (kName && m.namaLengkap !== kName) { m.namaLengkap = kName; updated = true; }
+          if (m.jenisKelamin !== kGender) { m.jenisKelamin = kGender; updated = true; }
+          if (!m.asalKwarda || m.asalKwarda === '') { m.asalKwarda = kKwarda; updated = true; }
+          if (!m.qabilah || m.qabilah === '') { m.qabilah = kQabilah; updated = true; }
+          if (!m.noHp || m.noHp === '') { m.noHp = kNoHp; updated = true; }
+          if (!m.alamat || m.alamat === '') { m.alamat = kAlamat; updated = true; }
+          if (!m.isVerified) { m.isVerified = true; updated = true; }
+          if (assignedKtaNumber && (!m.ktaNumber || m.ktaNumber !== assignedKtaNumber)) {
+            m.ktaNumber = assignedKtaNumber;
+            updated = true;
+          }
+          if (kPhoto) {
+            if (m.photo !== kPhoto) { m.photo = kPhoto; updated = true; }
+          } else if (m.photo) {
+            k.photo = m.photo;
+            ktaBatch.set(doc(db, 'kta_applications', String(k.id)), cleanData({ ...k, photo: m.photo }), { merge: true });
+          }
+
+          if (updated) {
+            newMembers[existingIdx] = m;
+            memberBatch.set(doc(db, 'members', String(m.id)), cleanData(m), { merge: true });
+            updatedCount++;
+          }
+        }
+      }
+
+      // 4. Reverse Sync: For every verified member without a KTA app, create one
+      for (const m of newMembers) {
+        if (!m || !m.isVerified) continue;
+        const mEmail = (m.email || '').toString().trim().toLowerCase();
+        const mId = m.id ? String(m.id).trim() : '';
+
+        const hasKta = ktas.some((k: any) => {
+          const kEmail = (k.email || '').toString().trim().toLowerCase();
+          const kUserId = k.userId ? String(k.userId).trim() : '';
+          const kId = k.id ? String(k.id).trim() : '';
+          return (mEmail && kEmail && mEmail === kEmail) || (mId && kUserId && mId === kUserId) || (mId && kId && mId === kId);
+        });
+
+        if (!hasKta) {
+          const ktaId = `kta-${mId || Date.now()}`;
+          const ktaNum = m.ktaNumber || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+          const newKtaApp = {
+            id: ktaId,
+            userId: mId,
+            email: mEmail,
+            nama: m.namaLengkap,
+            jenisKelamin: m.jenisKelamin,
+            tingkatan: m.golongan || 'Dewasa',
+            asalDaerah: m.asalKwarda || '',
+            qabilah: m.qabilah || '',
+            noWa: m.noHp || '',
+            alamat: m.alamat || '',
+            photo: m.photo || '',
+            status: 'approved',
+            ktaNumber: ktaNum,
+            verifiedAt: new Date().toISOString()
+          };
+          ktas.push(newKtaApp);
+          ktaBatch.set(doc(db, 'kta_applications', String(ktaId)), cleanData(newKtaApp), { merge: true });
+        }
+      }
+
+      await memberBatch.commit().catch(e => console.warn('Member batch commit warn:', e));
+      await ktaBatch.commit().catch(e => console.warn('KTA batch commit warn:', e));
+
+      const cleanMembers = newMembers.filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
+      localStorage.setItem('mock_members', JSON.stringify(cleanMembers));
+      localStorage.setItem('kta_applications', JSON.stringify(ktas));
+
+      return {
+        success: true,
+        addedCount,
+        updatedCount,
+        deletedPendingCount
+      };
+    } catch (err: any) {
+      console.error('firestoreService.syncApprovedKtasToMembers error:', err);
+      return {
+        success: false,
+        addedCount: 0,
+        updatedCount: 0,
+        deletedPendingCount: 0,
+        message: err.message
+      };
+    }
   },
 
   /**

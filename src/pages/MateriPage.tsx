@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   BookOpen, 
   Search, 
@@ -14,7 +14,9 @@ import {
   ArrowLeft,
   X,
   Award,
-  Download
+  Download,
+  LogIn,
+  ExternalLink
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -50,6 +52,8 @@ export default function MateriPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('umum');
   const [search, setSearch] = useState('');
+  const [selectedMateri, setSelectedMateri] = useState<Materi | null>(null);
+  const [showLoginPromptModal, setShowLoginPromptModal] = useState<Materi | null>(null);
 
   useEffect(() => {
     if (location.state?.searchQuery) {
@@ -96,6 +100,19 @@ export default function MateriPage() {
     fetchMateri();
   }, [activeRole, user?.roles, isAuthenticated, user?.role]);
 
+  useEffect(() => {
+    if (location.state?.selectedMateriId && materi.length > 0) {
+      const found = materi.find(m => String(m.id) === String(location.state.selectedMateriId));
+      if (found) {
+        if (found.kategori === 'umum_pandu' && !isAuthenticated) {
+          setShowLoginPromptModal(found);
+        } else {
+          setSelectedMateri(found);
+        }
+      }
+    }
+  }, [location.state?.selectedMateriId, materi, isAuthenticated]);
+
   const hasAccess = (cat: string) => {
     if (cat === 'umum_pandu') return isAuthenticated;
     if (!isAuthenticated) return cat === 'umum';
@@ -110,13 +127,21 @@ export default function MateriPage() {
   };
 
   const filteredMateri = materi.filter(m => {
-    const matchFilter = filter === 'semua' || m.kategori === filter || (filter === 'umum' && m.kategori === 'umum_pandu');
+    const matchFilter = filter === 'semua' || m.kategori === filter || (filter === 'umum' && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
     const matchSearch = m.judul.toLowerCase().includes(search.toLowerCase()) || 
-                       m.konten.toLowerCase().includes(search.toLowerCase());
+                       (m.konten && m.konten.toLowerCase().includes(search.toLowerCase()));
     // 'umum_pandu' is visible inline in 'umum' list even to guests, but lock/download is restricted
     const isAccessible = m.kategori === 'umum_pandu' ? true : hasAccess(m.kategori);
     return matchFilter && matchSearch && isAccessible;
   });
+
+  const handleItemClick = (item: Materi) => {
+    if (item.kategori === 'umum_pandu' && !isAuthenticated) {
+      setShowLoginPromptModal(item);
+    } else {
+      setSelectedMateri(item);
+    }
+  };
 
   const handleUpgradeRequest = async (cat: string) => {
     if (!user) return;
@@ -156,8 +181,6 @@ export default function MateriPage() {
           </div>
         )}
       </div>
-
-
 
       {/* Search & Filter */}
       <div className="space-y-3">
@@ -233,7 +256,8 @@ export default function MateriPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all group flex items-center gap-4"
+              onClick={() => handleItemClick(item)}
+              className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all group flex items-center gap-4 cursor-pointer"
             >
               <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
                 <img 
@@ -244,40 +268,51 @@ export default function MateriPage() {
               </div>
               
               <div className="flex-1 min-w-0 py-1">
-                <div className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter mb-1 ${KATEGORI_COLORS[item.kategori] || 'bg-gray-100 text-gray-600'}`}>
-                  {ROLE_DISPLAY[item.kategori] || item.kategori}
+                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                  <div className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${KATEGORI_COLORS[item.kategori] || 'bg-gray-100 text-gray-600'}`}>
+                    {ROLE_DISPLAY[item.kategori] || item.kategori}
+                  </div>
+                  {item.kategori === 'umum_pandu' && !isAuthenticated && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200">
+                      <Lock size={9} /> Perlu Login
+                    </span>
+                  )}
                 </div>
                 <h3 className="font-display font-bold text-gray-800 text-sm leading-tight break-words group-hover:text-hw-green transition-colors">
                   {item.judul}
                 </h3>
                 <p className="text-gray-400 text-[10px] font-medium mt-1">
-                  {new Date(item.tanggal).toLocaleDateString('id-ID')}
+                  {item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : 'Materi HW'}
                 </p>
               </div>
 
-              <div className="flex items-center shrink-0 ml-auto mr-2">
+              <div className="flex items-center shrink-0 ml-auto mr-1">
                 {item.kategori === 'umum_pandu' && !isAuthenticated ? (
-                  <Link
-                    to="/login"
-                    className="flex flex-col items-center justify-center gap-1 p-3 bg-amber-50 text-amber-600 rounded-2xl hover:bg-amber-100 transition-all border border-amber-200 min-w-[80px]"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLoginPromptModal(item);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-amber-50 text-amber-700 rounded-2xl hover:bg-amber-100 transition-all border border-amber-200 min-w-[76px]"
                     title="Login untuk mengakses materi ini"
-                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Lock size={20} />
-                    <span className="text-[9px] font-black uppercase tracking-tighter">Log In</span>
-                  </Link>
-                ) : item.driveUrl && (
-                  <a 
-                    href={item.driveUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center gap-1 p-3 bg-hw-green/10 text-hw-green rounded-2xl hover:bg-hw-green hover:text-white transition-all border border-hw-green/20 min-w-[80px]"
-                    title="Download / Buka Materi"
-                    onClick={(e) => e.stopPropagation()}
+                    <Lock size={18} />
+                    <span className="text-[8px] font-black uppercase tracking-tighter">Log In</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMateri(item);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-hw-green/10 text-hw-green rounded-2xl hover:bg-hw-green hover:text-white transition-all border border-hw-green/20 min-w-[76px]"
+                    title="Buka / Baca Materi"
                   >
-                    <Download size={20} />
-                    <span className="text-[9px] font-black uppercase tracking-tighter">Materi</span>
-                  </a>
+                    <BookOpen size={18} />
+                    <span className="text-[8px] font-black uppercase tracking-tighter">Buka</span>
+                  </button>
                 )}
               </div>
             </motion.div>
@@ -305,6 +340,128 @@ export default function MateriPage() {
           </div>
         </div>
       )}
+
+      {/* Lock Prompt Modal for 'umum_pandu' when guest */}
+      <AnimatePresence>
+        {showLoginPromptModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 border border-amber-100 relative text-center"
+            >
+              <button 
+                onClick={() => setShowLoginPromptModal(null)}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 bg-gray-50 rounded-full"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-100 shadow-sm mt-2">
+                <Lock size={32} />
+              </div>
+
+              <div className="space-y-2">
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-widest bg-teal-100 text-teal-700">
+                  Kategori: Umum Pandu
+                </span>
+                <h3 className="text-base font-display font-bold text-gray-900 leading-snug">
+                  {showLoginPromptModal.judul}
+                </h3>
+                <p className="text-xs text-gray-600 leading-relaxed pt-1">
+                  Materi <span className="font-bold text-teal-700">Umum Pandu</span> hanya dapat dibuka dan dibaca setelah Anda melakukan login sebagai Anggota SATU HW JATENG.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPromptModal(null)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-600 text-xs font-bold rounded-2xl hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLoginPromptModal(null);
+                    navigate('/login');
+                  }}
+                  className="flex-1 py-3 bg-amber-500 text-white text-xs font-bold rounded-2xl hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5"
+                >
+                  <LogIn size={16} />
+                  Login Sekarang
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Detail Materi Modal */}
+      <AnimatePresence>
+        {selectedMateri && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl space-y-4 relative border border-gray-100"
+            >
+              <button 
+                onClick={() => setSelectedMateri(null)}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 bg-gray-50 rounded-full"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${KATEGORI_COLORS[selectedMateri.kategori] || 'bg-gray-100 text-gray-700'}`}>
+                  {ROLE_DISPLAY[selectedMateri.kategori] || selectedMateri.kategori}
+                </span>
+                {selectedMateri.tanggal && (
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {new Date(selectedMateri.tanggal).toLocaleDateString('id-ID')}
+                  </span>
+                )}
+              </div>
+
+              <h3 className="text-lg font-display font-bold text-gray-900 leading-snug">
+                {selectedMateri.judul}
+              </h3>
+
+              {selectedMateri.coverImage && (
+                <div className="rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 max-h-56">
+                  <img 
+                    src={selectedMateri.coverImage} 
+                    alt={selectedMateri.judul} 
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
+              )}
+
+              <div className="text-xs text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-4 rounded-2xl border border-gray-100/60 max-h-60 overflow-y-auto">
+                {selectedMateri.konten || 'Tidak ada uraian ringkas untuk materi ini.'}
+              </div>
+
+              {selectedMateri.driveUrl && (
+                <a
+                  href={selectedMateri.driveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 bg-hw-green text-white text-xs font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2"
+                >
+                  <Download size={18} />
+                  Buka File / Google Drive
+                  <ExternalLink size={14} className="opacity-70" />
+                </a>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

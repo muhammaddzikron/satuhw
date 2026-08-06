@@ -1629,98 +1629,24 @@ export const sheetsService = {
     return await firestoreService.backupAndUploadAllToFirestore();
   },
 
+  async deletePendingKtaApplications(): Promise<any> {
+    return await firestoreService.deletePendingKtaApplications();
+  },
+
   async syncApprovedKtasToMembers(): Promise<any> {
     if (this.isMock()) {
-      try {
-        const ktasStr = localStorage.getItem('kta_applications') || '[]';
-        const ktas = JSON.parse(ktasStr);
-        const membersStr = localStorage.getItem('mock_members') || '[]';
-        const members = JSON.parse(membersStr);
-        
-        let addedCount = 0;
-        let updatedCount = 0;
-        let ktasChanged = false;
-        
-        const newMembers = [...members];
-        
-        ktas.forEach((k: any) => {
-          const kStatus = k.status?.toLowerCase();
-          const ktaNum = (k.ktaNumber || k.KtaNumber || k.Ktanumber || k.ktanumber || '').toString().trim();
-          
-          if (ktaNum !== '' && kStatus !== 'approved') {
-            k.status = 'approved';
-            ktasChanged = true;
-          }
-          
-          if (k.status?.toLowerCase() !== 'approved') return;
-          const kEmail = k.email?.trim().toLowerCase();
-          if (!kEmail) return;
-          
-          const kName = k.nama || k.namaLengkap;
-          const kGender = k.jenisKelamin === 'Perempuan' || k.jenisKelamin === 'P' ? 'P' : 'L';
-          const kKwarda = k.asalDaerah || '';
-          const kQabilah = k.qabilah || '';
-          const kNoHp = k.noWa || '';
-          const kPhoto = k.photo || '';
-          const kGolongan = k.tingkatan || 'Dewasa';
-          
-          const existingIdx = newMembers.findIndex((m: any) => m.email?.trim().toLowerCase() === kEmail);
-          if (existingIdx === -1) {
-            const id = 'user-' + kEmail.replace(/[^a-zA-Z0-9]/g, '_');
-            const newMemberObj = {
-              id,
-              email: kEmail,
-              namaLengkap: kName,
-              jenisKelamin: kGender,
-              golongan: kGolongan,
-              asalKwarda: kKwarda,
-              qabilah: kQabilah,
-              alamat: '',
-              noHp: kNoHp,
-              isVerified: true,
-              role: '[\"umum\"]',
-              roles: ['umum'],
-              activeRole: 'umum',
-              photo: kPhoto,
-              upgradeRequests: '[]',
-              password: '12345hw'
-            };
-            newMembers.push(newMemberObj);
-            addedCount++;
-          } else {
-            const m = newMembers[existingIdx];
-            let updated = false;
-            if (m.namaLengkap !== kName) { m.namaLengkap = kName; updated = true; }
-            if (m.jenisKelamin !== kGender) { m.jenisKelamin = kGender; updated = true; }
-            if (!m.asalKwarda || m.asalKwarda === '') { m.asalKwarda = kKwarda; updated = true; }
-            if (!m.qabilah || m.qabilah === '') { m.qabilah = kQabilah; updated = true; }
-            if (!m.noHp || m.noHp === '') { m.noHp = kNoHp; updated = true; }
-            if (!m.isVerified) { m.isVerified = true; updated = true; }
-            if (kPhoto) {
-              if (m.photo !== kPhoto) { m.photo = kPhoto; updated = true; }
-            } else if (m.photo) {
-              k.photo = m.photo;
-              ktasChanged = true;
-            }
-            if (updated) {
-              updatedCount++;
-            }
-          }
-        });
-        
-        localStorage.setItem('mock_members', JSON.stringify(newMembers));
-        if (ktasChanged) {
-          localStorage.setItem('kta_applications', JSON.stringify(ktas));
-        }
-        return { success: true, addedCount, updatedCount };
-      } catch (err: any) {
-        return { success: false, message: err.message };
-      }
+      return await firestoreService.syncApprovedKtasToMembers();
     }
     
-    return this.post({
-      action: 'syncApprovedKtasToMembers'
-    });
+    try {
+      const res = await this.post({
+        action: 'syncApprovedKtasToMembers'
+      });
+      await firestoreService.syncApprovedKtasToMembers();
+      return res;
+    } catch (e) {
+      return await firestoreService.syncApprovedKtasToMembers();
+    }
   },
 
   async backupNow(): Promise<any> {

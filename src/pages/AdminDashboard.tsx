@@ -2447,12 +2447,16 @@ export default function AdminDashboard() {
                       </div>
                       <button 
                         onClick={async () => {
-                          if (window.confirm(`Apakah Anda yakin ingin menyinkronkan semua (${unsyncedApprovedRegistrants.length}) data pendaftar ini secara otomatis?`)) {
+                          if (window.confirm(`Apakah Anda yakin ingin menyinkronkan semua (${unsyncedApprovedRegistrants.length}) data pendaftar ini secara otomatis? Data pengajuan KTA terpending juga akan dibersihkan.`)) {
                             try {
                               setLoading(true);
                               const res = await sheetsService.syncApprovedKtasToMembers();
                               if (res.success || !res.error) {
-                                alert(`Berhasil menyinkronkan data pendaftar! ${res.addedCount || 0} akun baru dibuat, ${res.updatedCount || 0} akun diperbarui.`);
+                                let msg = `Berhasil menyinkronkan data pendaftar & anggota! ${res.addedCount || 0} akun baru dibuat, ${res.updatedCount || 0} akun diperbarui.`;
+                                if (res.deletedPendingCount && res.deletedPendingCount > 0) {
+                                  msg += ` ${res.deletedPendingCount} data pengajuan KTA terpending telah dibersihkan.`;
+                                }
+                                alert(msg);
                               } else {
                                 throw new Error(res.message || 'Error');
                               }
@@ -3553,6 +3557,30 @@ export default function AdminDashboard() {
                       >
                         Bersihkan Data Kosong
                       </button>
+                      <button
+                        onClick={async () => {
+                          const pendingCount = ktaApps.filter(k => k && k.status === 'pending').length;
+                          if (pendingCount === 0) {
+                            alert('Tidak ada data pengajuan KTA yang terpending.');
+                            return;
+                          }
+                          if (window.confirm(`Apakah Anda yakin ingin menghapus ${pendingCount} data pengajuan KTA yang terpending?`)) {
+                            try {
+                              setLoading(true);
+                              const res = await sheetsService.deletePendingKtaApplications();
+                              alert(`Berhasil menghapus ${res.deletedCount || pendingCount} data pengajuan KTA terpending.`);
+                              await fetchData();
+                            } catch (e: any) {
+                              alert('Gagal menghapus data terpending: ' + (e.message || 'Error'));
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                      >
+                        Hapus Data Terpending
+                      </button>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -3906,8 +3934,8 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left Panel: Daftar Kwarda */}
+                  <div className="flex flex-col gap-6">
+                    {/* Top Panel: Daftar Kwarda */}
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                       <div className="p-4 border-b border-gray-50 bg-gray-50/20 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -3918,7 +3946,7 @@ export default function AdminDashboard() {
                           {kwardaStats.length} Kwarda
                         </span>
                       </div>
-                      <div className="max-h-[400px] overflow-y-auto">
+                      <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
@@ -3964,7 +3992,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* Right Panel: Daftar Asal Qabilah PTMA */}
+                    {/* Bottom Panel: Daftar Asal Qabilah PTMA */}
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                       <div className="p-4 border-b border-gray-50 bg-gray-50/20 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -3975,14 +4003,14 @@ export default function AdminDashboard() {
                           {qabilahStats.length} Qabilah
                         </span>
                       </div>
-                      <div className="max-h-[400px] overflow-y-auto">
+                      <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
                               <th className="p-3 pl-5">Nama Qabilah/Pangkalan</th>
-                              <th className="p-3 text-center">Approved</th>
-                              <th className="p-3 text-center">Pending</th>
-                              <th className="p-3 text-right pr-5">Total</th>
+                              <th className="p-3 text-center whitespace-nowrap">Approved</th>
+                              <th className="p-3 text-center whitespace-nowrap">Pending</th>
+                              <th className="p-3 text-right pr-5 whitespace-nowrap">Total</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
@@ -3998,20 +4026,20 @@ export default function AdminDashboard() {
                                 const codeNum = foundItem ? parseInt(foundItem.code, 10) : '';
                                 return (
                                   <tr key={item.name} className="hover:bg-gray-50/40 transition-colors">
-                                    <td className="p-3 pl-5 font-extrabold text-gray-800 max-w-[180px] truncate" title={item.name}>
+                                    <td className="p-3 pl-5 font-extrabold text-gray-800">
                                       {codeNum ? `${codeNum}. ` : ''}{item.name}
                                     </td>
-                                    <td className="p-3 text-center">
+                                    <td className="p-3 text-center whitespace-nowrap">
                                       <span className="px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100 font-mono text-[10px]">
                                         {item.approved}
                                       </span>
                                     </td>
-                                    <td className="p-3 text-center">
+                                    <td className="p-3 text-center whitespace-nowrap">
                                       <span className="px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-100 font-mono text-[10px]">
                                         {item.pending}
                                       </span>
                                     </td>
-                                    <td className="p-3 text-right pr-5 font-black text-gray-800 font-mono">{item.total}</td>
+                                    <td className="p-3 text-right pr-5 font-black text-gray-800 font-mono whitespace-nowrap">{item.total}</td>
                                   </tr>
                                 );
                               })
