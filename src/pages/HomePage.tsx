@@ -424,40 +424,7 @@ export default function HomePage() {
     }
   }, [searchQuery, materiList, galleryItems, playlistItems]);
 
-  const defaultTrainingList = [
-    {
-      id: 'Jati 1',
-      namaKegiatan: 'Pelatihan Jaya Melati 1 (Jati 1)',
-      jenisPelatihan: 'Jati 1',
-      tingkatan: 'Pembina Penghela & Penuntun',
-      deskripsi: 'Pelatihan kepemimpinan tingkat dasar pembina HW untuk membekali manajemen qabilah & kepanduan Islami.',
-      lokasiPelatihan: (trainingLocations && trainingLocations[0]) || 'Pusdiklat HW Jawa Tengah',
-      tanggalPelatihan: 'Jadwal Aktif 2026',
-      kuota: 'Terbuka'
-    },
-    {
-      id: 'Jati 2',
-      namaKegiatan: 'Pelatihan Jaya Melati 2 (Jati 2)',
-      jenisPelatihan: 'Jati 2',
-      tingkatan: 'Pembina Lanjutan',
-      deskripsi: 'Pelatihan kepemimpinan tingkat lanjutan pembina HW untuk pengembangan manajerial kwarda & kwarwil.',
-      lokasiPelatihan: (trainingLocations && trainingLocations[1]) || 'Gedung Dakwah Muhammadiyah Jateng',
-      tanggalPelatihan: 'Jadwal Aktif 2026',
-      kuota: 'Terbuka'
-    },
-    {
-      id: 'Jari 1',
-      namaKegiatan: 'Pelatihan Jaya Melati Utama (Jari 1)',
-      jenisPelatihan: 'Jari 1',
-      tingkatan: 'Pelatih & Korps Instruktur',
-      deskripsi: 'Kursus pelatih instruktur kepanduan Hizbul Wathan tingkat utama wilayah Jawa Tengah.',
-      lokasiPelatihan: (trainingLocations && trainingLocations[2]) || 'Kwarda Banyumas / Wilayah',
-      tanggalPelatihan: 'Jadwal Aktif 2026',
-      kuota: 'Terbuka'
-    }
-  ];
-
-  const activeTrainings = (trainingActivities && trainingActivities.length > 0) ? trainingActivities : defaultTrainingList;
+  const activeTrainings = trainingActivities || [];
 
   const handleSelectTrainingForRegistration = (act: any) => {
     setShowTrainingModal(false);
@@ -1128,48 +1095,58 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-3">
-                  {activeTrainings.map((act: any, idx: number) => {
-                    const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
-                    const loc = act.lokasiPelatihan || 'Pusdiklat HW Jateng';
-                    const date = act.tanggalPelatihan || 'Jadwal Aktif 2026';
+                  {activeTrainings.length > 0 ? (
+                    activeTrainings.map((act: any, idx: number) => {
+                      const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
+                      const loc = act.lokasiPelatihan || 'Pusdiklat HW Jateng';
+                      const date = act.tanggalPelatihan || 'Jadwal Aktif';
 
-                    return (
-                      <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-0.5">
-                            <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
-                              {act.jenisPelatihan || act.tingkatan || 'Jaya Melati'}
-                            </span>
-                            <h4 className="text-sm font-black text-gray-800 leading-snug font-display">{title}</h4>
+                      return (
+                        <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
+                                {act.jenisPelatihan || act.tingkatan || 'Jaya Melati'}
+                              </span>
+                              <h4 className="text-sm font-black text-gray-800 leading-snug font-display">{title}</h4>
+                            </div>
                           </div>
+
+                          {act.deskripsi && (
+                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 font-medium">
+                              {act.deskripsi}
+                            </p>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-white p-2.5 rounded-xl border border-gray-100">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <MapPin size={13} className="text-amber-600 shrink-0" />
+                              <span className="truncate">{loc}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 truncate">
+                              <Calendar size={13} className="text-emerald-600 shrink-0" />
+                              <span className="truncate">{date}</span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleSelectTrainingForRegistration(act)}
+                            className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-orange-500/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
+                          >
+                            <GraduationCap size={16} /> Daftar Pelatihan Ini <ChevronRight size={14} />
+                          </button>
                         </div>
-
-                        {act.deskripsi && (
-                          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 font-medium">
-                            {act.deskripsi}
-                          </p>
-                        )}
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-white p-2.5 rounded-xl border border-gray-100">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <MapPin size={13} className="text-amber-600 shrink-0" />
-                            <span className="truncate">{loc}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 truncate">
-                            <Calendar size={13} className="text-emerald-600 shrink-0" />
-                            <span className="truncate">{date}</span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleSelectTrainingForRegistration(act)}
-                          className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-orange-500/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
-                        >
-                          <GraduationCap size={16} /> Daftar Pelatihan Ini <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
+                      <GraduationCap className="mx-auto text-gray-300" size={40} />
+                      <p className="text-xs font-bold text-gray-700">Belum Ada Pelatihan Aktif</p>
+                      <p className="text-[11px] text-gray-500 max-w-xs mx-auto">
+                        Saat ini belum ada data kegiatan pelatihan yang dibuka. Silakan tunggu informasi pembukaan pendaftaran dari Admin HW Jateng.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

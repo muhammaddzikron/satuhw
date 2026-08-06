@@ -225,9 +225,9 @@ export default function KegiatanPage() {
             <motion.div
               key={activity.id}
               whileHover={{ y: -2 }}
-              className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row"
+              className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col"
             >
-              <div className="w-full md:w-2/5 h-48 md:h-auto relative bg-gray-100 shrink-0 overflow-hidden">
+              <div className="w-full h-48 sm:h-56 relative bg-gray-100 shrink-0 overflow-hidden">
                 <img 
                   src={activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={activity.namaKegiatan} 

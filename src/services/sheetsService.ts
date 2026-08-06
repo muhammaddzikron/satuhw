@@ -1481,35 +1481,7 @@ export const sheetsService = {
     };
 
     const DEFAULT_TYPES = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
-    const DEFAULT_ACTIVITIES = [
-      {
-        id: 'act-1',
-        namaKegiatan: 'Pelatihan Jaya Melati 1 HW Jateng',
-        jenisPelatihan: 'Jaya Melati 1',
-        lokasiPelatihan: 'Pusdiklat HW Jateng',
-        tanggalPelatihan: '12-14 Juli 2026',
-        status: 'Buka',
-        deskripsi: 'Pelatihan kepemimpinan tingkat dasar bagi calon Pembina Pandu Hizbul Wathan Jawa Tengah.'
-      },
-      {
-        id: 'act-2',
-        namaKegiatan: 'Pelatihan Jaya Melati 2 HW Jateng',
-        jenisPelatihan: 'Jaya Melati 2',
-        lokasiPelatihan: 'Gedung Dakwah Muhammadiyah Jateng',
-        tanggalPelatihan: '1-3 Agustus 2026',
-        status: 'Buka',
-        deskripsi: 'Pelatihan kepemimpinan tingkat lanjutan untuk pembina pengenal dan penghela.'
-      },
-      {
-        id: 'act-3',
-        namaKegiatan: 'Pelatihan Jaya Matahari 1 HW Jateng',
-        jenisPelatihan: 'Jaya Matahari 1',
-        lokasiPelatihan: 'Kwarda Banyumas',
-        tanggalPelatihan: '15-17 September 2026',
-        status: 'Buka',
-        deskripsi: 'Pelatihan pelatih pembina kepanduan Hizbul Wathan Jawa Tengah.'
-      }
-    ];
+    const DEFAULT_ACTIVITIES: any[] = [];
 
     if (!IS_API_VALID) {
       const parsed = localParsed || { 

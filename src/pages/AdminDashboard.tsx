@@ -5702,19 +5702,31 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                          <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
                             <button
-                              onClick={() => handleOpenActivityModal(act)}
-                              className="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                              onClick={() => {
+                                setSelectedActivityForParticipants(act.id);
+                                setActivitySubTab('peserta');
+                              }}
+                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                              title="Lihat pendaftar kegiatan ini"
                             >
-                              <Edit size={14} /> Edit
+                              <Users size={14} /> Cek Peserta ({activityApplicationsList.filter(app => app.activityId === act.id).length})
                             </button>
-                            <button
-                              onClick={() => handleDeleteActivity(act.id)}
-                              className="px-3.5 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Trash2 size={14} /> Hapus
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenActivityModal(act)}
+                                className="px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit size={14} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteActivity(act.id)}
+                                className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

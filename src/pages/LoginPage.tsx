@@ -198,19 +198,7 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           </div>
 
           <div className="space-y-1">
-            <div className="ml-1 flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Password</label>
-              <button 
-                type="button"
-                onClick={() => {
-                  setShowForgotModal(true);
-                  if (email) setResetEmail(email);
-                }}
-                className="text-xs font-bold text-hw-green hover:underline cursor-pointer"
-              >
-                Lupa Password?
-              </button>
-            </div>
+            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
