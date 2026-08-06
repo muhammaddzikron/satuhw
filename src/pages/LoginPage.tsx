@@ -219,6 +219,14 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
             </div>
           </div>
 
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
+          </button>
+
           {/* Card Cek Status Akun / Email */}
           <div className="w-full bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/50 border border-emerald-200/90 rounded-3xl p-4 my-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-emerald-900">
@@ -324,14 +332,6 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
               </motion.div>
             )}
           </div>
-
-          <button 
-            type="submit"
-            disabled={isLoading}
-            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
-          </button>
         </form>
       ) : (
         <form onSubmit={handleWhatsAppReset} className="w-full space-y-4">

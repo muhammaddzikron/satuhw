@@ -456,142 +456,6 @@ export default function AdminDashboard() {
   const [flippedAdmin, setFlippedAdmin] = useState(false);
   const [isGeneratingPdfAdmin, setIsGeneratingPdfAdmin] = useState(false);
 
-  // Filter out approved KTA applications whose names or accounts are not fully synchronized with the user/member profiles
-  const unsyncedApprovedRegistrants = React.useMemo(() => {
-    const list: any[] = [];
-    const isValidId = (id: any): boolean => {
-      if (!id) return false;
-      const s = String(id).trim().toLowerCase();
-      return s !== '' && s !== 'null' && s !== 'undefined' && s !== 'nan' && s !== '0' && s !== 'false';
-    };
-
-    ktaApps.filter(app => app && app.status === 'approved' && (app.nama || app.namaLengkap || app.email)).forEach(app => {
-      // Find matching member by email or userId AND matching name
-      const member = members.find(m => {
-        const hasValidUserId = isValidId(app.userId) && isValidId(m.id);
-        const matchesUserId = hasValidUserId && String(m.id).trim() === String(app.userId).trim();
-        const matchesEmail = app.email && m.email && m.email.trim().toLowerCase() === app.email.trim().toLowerCase();
-        
-        const isNameMatch = (m.namaLengkap || '').trim().toLowerCase() === (app.nama || '').trim().toLowerCase();
-        const isNameEmpty = !(m.namaLengkap || '').trim();
-        
-        return (matchesUserId || matchesEmail) && (isNameMatch || isNameEmpty);
-      });
-
-      // Find any clashing member with same email to check for email collisions (e.g. parent/sibling)
-      const clashingMember = members.find(m => 
-        app.email && m.email && m.email.trim().toLowerCase() === app.email.trim().toLowerCase()
-      );
-
-      if (!member) {
-        list.push({
-          type: 'no_account',
-          ktaApp: app,
-          email: app.email,
-          namaKta: app.nama,
-          clashingMember,
-          message: clashingMember 
-            ? `Email bentrok dengan "${clashingMember.namaLengkap || 'Tanpa Nama'}"`
-            : 'Belum memiliki akun anggota'
-        });
-      } else if (!member.namaLengkap || member.namaLengkap.trim() === '' || member.namaLengkap.trim().toLowerCase() !== app.nama.trim().toLowerCase() || !member.isVerified) {
-        list.push({
-          type: 'mismatched_name',
-          ktaApp: app,
-          member,
-          email: app.email,
-          namaKta: app.nama,
-          namaAnggota: member.namaLengkap || '(Kosong)',
-          message: !member.namaLengkap ? 'Nama anggota kosong' : (!member.isVerified ? 'Status verifikasi pending' : 'Nama tidak sinkron dengan KTA')
-        });
-      }
-    });
-    return list;
-  }, [ktaApps, members]);
-
-  const handleSyncRegistrant = async (item: any) => {
-    try {
-      setLoading(true);
-      if (item.type === 'no_account') {
-        // Create new member account
-        const newMember = {
-          email: item.ktaApp.email,
-          namaLengkap: item.ktaApp.nama,
-          jenisKelamin: item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L',
-          golongan: item.ktaApp.tingkatan || 'Umum',
-          asalKwarda: item.ktaApp.asalDaerah || '',
-          qabilah: item.ktaApp.qabilah || '',
-          alamat: item.ktaApp.alamat || '',
-          noHp: item.ktaApp.noWa || '',
-          isVerified: true,
-          role: 'umum',
-          roles: ['umum'],
-          activeRole: 'umum'
-        };
-        const res = await sheetsService.saveMember(newMember);
-        if (res.success || !res.error) {
-          alert(`Berhasil membuat akun anggota untuk ${item.ktaApp.nama} (${item.ktaApp.email}) dan langsung aktif.`);
-        } else {
-          alert('Gagal membuat akun anggota: ' + (res.message || 'Error'));
-        }
-      } else {
-        // Update existing member
-        const updated = {
-          ...item.member,
-          namaLengkap: item.ktaApp.nama,
-          isVerified: true,
-          jenisKelamin: item.member.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
-          asalKwarda: item.member.asalKwarda || item.ktaApp.asalDaerah || '',
-          qabilah: item.member.qabilah || item.ktaApp.qabilah || '',
-          alamat: item.member.alamat || item.ktaApp.alamat || '',
-          noHp: item.member.noHp || item.ktaApp.noWa || ''
-        };
-        const res = await sheetsService.saveMember(updated);
-        if (res.success || !res.error) {
-          alert(`Berhasil menyinkronkan nama anggota ${item.member.namaLengkap || 'Anggota'} menjadi ${item.ktaApp.nama} dan status terverifikasi.`);
-        } else {
-          alert('Gagal memperbarui nama anggota: ' + (res.message || 'Error'));
-        }
-      }
-      await fetchData();
-    } catch (e: any) {
-      console.error(e);
-      alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForceSyncRegistrant = async (item: any, targetMember: any) => {
-    if (window.confirm(`Apakah Anda yakin ingin memaksa sinkronisasi dengan menimpa nama anggota "${targetMember.namaLengkap || 'Kosong'}" menjadi "${item.ktaApp.nama}"?`)) {
-      try {
-        setLoading(true);
-        const updated = {
-          ...targetMember,
-          namaLengkap: item.ktaApp.nama,
-          isVerified: true,
-          jenisKelamin: targetMember.jenisKelamin || (item.ktaApp.jenisKelamin === 'Perempuan' || item.ktaApp.jenisKelamin === 'P' ? 'P' : 'L'),
-          asalKwarda: targetMember.asalKwarda || item.ktaApp.asalDaerah || '',
-          qabilah: targetMember.qabilah || item.ktaApp.qabilah || '',
-          alamat: targetMember.alamat || item.ktaApp.alamat || '',
-          noHp: targetMember.noHp || item.ktaApp.noWa || ''
-        };
-        const res = await sheetsService.saveMember(updated);
-        if (res.success || !res.error) {
-          alert(`Berhasil memperbarui nama anggota menjadi ${item.ktaApp.nama} dan status terverifikasi.`);
-        } else {
-          alert('Gagal memperbarui nama anggota: ' + (res.message || 'Error'));
-        }
-        await fetchData();
-      } catch (e: any) {
-        console.error(e);
-        alert('Gagal sinkronisasi data: ' + (e.message || 'Error'));
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   const handleDeleteKtaApp = async (id: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pengajuan KTA untuk ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
       try {
@@ -2215,45 +2079,104 @@ export default function AdminDashboard() {
     doc.save(`Daftar_Hadir_Peserta_${activityNameFile}_${dateStr}.pdf`);
   };
 
-  const filteredMembers = React.useMemo(() => {
-    return members.filter(m => {
-      const matchesSearch = (
-        (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      
-      const isInternal = m.role === 'superadmin' || m.role === 'admin';
-      if (isInternal) return false;
+  const getMemberRegionalCodeIndex = (m: any): number => {
+    const kwardaStr = (m.asalKwarda || '').trim().toLowerCase();
+    const qabilahStr = (m.qabilah || '').trim().toLowerCase();
 
-      if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
-      
-      return matchesSearch && selectedFilters.some(filter => {
-        if (filter === 'Pending Verifikasi') return !m.isVerified;
-        if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
-        if (filter === 'Perempuan') return m.jenisKelamin === 'P';
-        if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
-        if (filter === 'Pengenal') return m.golongan === 'Pengenal';
-        if (filter === 'Penghela') return m.golongan === 'Penghela';
-        if (filter === 'Penuntun') return m.golongan === 'Penuntun';
-        if (filter === 'Dewan Sugli') return (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah');
-        if (filter === 'Kwarda') return (m.role === 'kwarda' || m.role === 'admin_kwarda');
+    for (let i = 0; i < 35; i++) {
+      const item = KWARDA_QABILAH_JATENG[i];
+      const itemName = item.name.toLowerCase();
+      const cleanItemName = itemName.replace('kabupaten ', '').replace('kota ', '');
+
+      if (kwardaStr) {
+        if (
+          kwardaStr === itemName ||
+          kwardaStr === cleanItemName ||
+          itemName.includes(kwardaStr) ||
+          kwardaStr.includes(cleanItemName)
+        ) {
+          return parseInt(item.code, 10);
+        }
+      }
+    }
+
+    for (let i = 35; i < KWARDA_QABILAH_JATENG.length; i++) {
+      const item = KWARDA_QABILAH_JATENG[i];
+      const itemName = item.name.toLowerCase();
+      const matchParen = item.name.match(/\(([^)]+)\)/);
+      const acronym = matchParen ? matchParen[1].toLowerCase() : '';
+
+      const checkStr = (val: string) => {
+        if (!val) return false;
+        return (
+          val === itemName ||
+          itemName.includes(val) ||
+          val.includes(itemName) ||
+          (acronym && val.includes(acronym)) ||
+          (acronym && acronym.includes(val))
+        );
+      };
+
+      if (checkStr(qabilahStr) || checkStr(kwardaStr)) {
+        return parseInt(item.code, 10);
+      }
+    }
+
+    return 999;
+  };
+
+  const filteredMembers = React.useMemo(() => {
+    return members
+      .filter(m => {
+        const matchesSearch = (
+          (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
         
-        if (filter === 'Jaya Melati 1') {
-          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-          return p.includes('Jati 1');
+        const isInternal = m.role === 'superadmin' || m.role === 'admin';
+        if (isInternal) return false;
+
+        if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
+        
+        return matchesSearch && selectedFilters.some(filter => {
+          if (filter === 'Pending Verifikasi') return !m.isVerified;
+          if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
+          if (filter === 'Perempuan') return m.jenisKelamin === 'P';
+          if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
+          if (filter === 'Pengenal') return m.golongan === 'Pengenal';
+          if (filter === 'Penghela') return m.golongan === 'Penghela';
+          if (filter === 'Penuntun') return m.golongan === 'Penuntun';
+          if (filter === 'Dewan Sugli') return (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah');
+          if (filter === 'Kwarda') return (m.role === 'kwarda' || m.role === 'admin_kwarda');
+          
+          if (filter === 'Jaya Melati 1') {
+            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+            return p.includes('Jati 1');
+          }
+          if (filter === 'Jaya Melati 2') {
+            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+            return p.includes('Jati 2');
+          }
+          if (filter === 'Jaya Matahari 1') {
+            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+            return p.includes('Jari 1');
+          }
+          return false;
+        });
+      })
+      .sort((a, b) => {
+        const codeA = getMemberRegionalCodeIndex(a);
+        const codeB = getMemberRegionalCodeIndex(b);
+
+        if (codeA !== codeB) {
+          return codeA - codeB;
         }
-        if (filter === 'Jaya Melati 2') {
-          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-          return p.includes('Jati 2');
-        }
-        if (filter === 'Jaya Matahari 1') {
-          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-          return p.includes('Jari 1');
-        }
-        return false;
+
+        const nameA = (a.namaLengkap || '').trim();
+        const nameB = (b.namaLengkap || '').trim();
+        return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
       });
-    });
   }, [members, searchQuery, selectedFilters]);
 
   const stats = React.useMemo(() => {
@@ -2430,137 +2353,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="p-6 border-b border-gray-50 bg-gray-50/30 space-y-4">
-                {/* Unsynced Approved Registrants Warning Alert */}
-                {unsyncedApprovedRegistrants.length > 0 && (
-                  <div className="p-5 bg-amber-50/60 border border-amber-200/60 rounded-3xl space-y-3 shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
-                          <AlertTriangle size={18} className="animate-pulse" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-black text-amber-900 font-display">Data Pendaftar Belum Sinkron ({unsyncedApprovedRegistrants.length})</h4>
-                          <p className="text-xs text-amber-700 leading-relaxed font-medium mt-0.5">
-                            Terdapat data pendaftar yang pengajuan KTA-nya sudah disetujui (Approved), namun namanya belum diperbarui di daftar anggota atau belum dibuatkan akun anggota.
-                          </p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={async () => {
-                          if (window.confirm(`Apakah Anda yakin ingin menyinkronkan semua (${unsyncedApprovedRegistrants.length}) data pendaftar ini secara otomatis? Data pengajuan KTA terpending juga akan dibersihkan.`)) {
-                            try {
-                              setLoading(true);
-                              const res = await sheetsService.syncApprovedKtasToMembers();
-                              if (res.success || !res.error) {
-                                let msg = `Berhasil menyinkronkan data pendaftar & anggota! ${res.addedCount || 0} akun baru dibuat, ${res.updatedCount || 0} akun diperbarui.`;
-                                if (res.deletedPendingCount && res.deletedPendingCount > 0) {
-                                  msg += ` ${res.deletedPendingCount} data pengajuan KTA terpending telah dibersihkan.`;
-                                }
-                                alert(msg);
-                              } else {
-                                throw new Error(res.message || 'Error');
-                              }
-                              await fetchData();
-                            } catch (err: any) {
-                              console.error(err);
-                              alert('Gagal menyinkronkan data: ' + err.message);
-                            } finally {
-                              setLoading(false);
-                            }
-                          }
-                        }}
-                        className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-600/10 cursor-pointer shrink-0 self-end md:self-start"
-                      >
-                        Sinkronkan Semua
-                      </button>
-                    </div>
-
-                    {/* Detailed List */}
-                    <div className="max-h-64 overflow-y-auto divide-y divide-amber-200/30 bg-white/70 rounded-2xl p-3 border border-amber-200/30">
-                      {unsyncedApprovedRegistrants.map((item, idx) => {
-                        const appId = item.ktaApp.id || item.ktaApp.Id;
-                        return (
-                          <div key={`unsynced-${idx}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between text-xs font-semibold gap-3">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-black text-gray-800 block truncate">{item.namaKta}</span>
-                              <span className="text-[10px] text-gray-500 block truncate font-medium">
-                                {item.email} • <span className="text-amber-700 font-bold">{item.message}</span>
-                                {item.type === 'mismatched_name' && ` (Nama anggota saat ini: ${item.namaAnggota})`}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 self-end md:self-center">
-                              {/* If clashing member exists, offer overwrite option */}
-                              {item.type === 'no_account' && item.clashingMember && (
-                                <>
-                                  <button
-                                    onClick={() => handleSyncRegistrant(item)}
-                                    title="Membuat akun anggota baru yang terpisah dengan email yang sama"
-                                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    Buat Baru
-                                  </button>
-                                  <button
-                                    onClick={() => handleForceSyncRegistrant(item, item.clashingMember)}
-                                    title={`Menimpa nama "${item.clashingMember.namaLengkap}" menjadi "${item.namaKta}"`}
-                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    Timpa Nama
-                                  </button>
-                                </>
-                              )}
-
-                              {/* Normal no_account (no clashing member) */}
-                              {item.type === 'no_account' && !item.clashingMember && (
-                                <button
-                                  onClick={() => handleSyncRegistrant(item)}
-                                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  Sinkronkan
-                                </button>
-                              )}
-
-                              {/* Mismatched name option */}
-                              {item.type === 'mismatched_name' && (
-                                <>
-                                  <button
-                                    onClick={() => handleSyncRegistrant(item)}
-                                    title="Perbarui nama pada akun yang ada"
-                                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    Perbarui Akun
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      // Force creating a separate account instead of updating existing
-                                      const forcedItem = { ...item, type: 'no_account' };
-                                      handleSyncRegistrant(forcedItem);
-                                    }}
-                                    title="Buat akun terpisah dengan email yang sama"
-                                    className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    Buat Baru
-                                  </button>
-                                </>
-                              )}
-
-                              {/* Always allow deletion of the KTA application */}
-                              {appId && (
-                                <button
-                                  onClick={() => handleDeleteKtaApp(appId, item.namaKta)}
-                                  title="Hapus pengajuan KTA ini dari sistem"
-                                  className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  Hapus
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
                     <div className="relative">
@@ -2597,7 +2389,33 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          setLoading(true);
+                          const res = await sheetsService.syncApprovedKtasToMembers();
+                          if (res.success || !res.error) {
+                            let msg = `Berhasil menyinkronkan data anggota & KTA! ${res.addedCount || 0} akun baru dibuat, ${res.updatedCount || 0} akun diperbarui.`;
+                            if (res.deletedPendingCount && res.deletedPendingCount > 0) {
+                              msg += ` ${res.deletedPendingCount} data pengajuan KTA terpending telah dibersihkan.`;
+                            }
+                            alert(msg);
+                          } else {
+                            throw new Error(res.message || 'Gagal sinkronisasi');
+                          }
+                          await fetchData();
+                        } catch (err: any) {
+                          alert('Gagal menyinkronkan data: ' + (err.message || 'Error'));
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                      title="Sinkronkan otomatis semua data pendaftar KTA dengan daftar anggota"
+                    >
+                      <RefreshCw size={14} /> Sinkronkan Data
+                    </button>
                     <button 
                       onClick={exportToCSV}
                       className="px-4 py-2 bg-white border border-gray-100 text-gray-600 rounded-xl flex items-center gap-2 text-[10px] font-bold hover:bg-gray-50 transition-all"

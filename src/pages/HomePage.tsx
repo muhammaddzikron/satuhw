@@ -824,6 +824,32 @@ export default function HomePage() {
             </div>
             <ChevronRight size={16} className="text-emerald-200 shrink-0" />
           </Link>
+
+          {/* 4. Banner Pelatih Nasional HW Jateng (Emas Gradasi) */}
+          <Link 
+            to="/pelatih-nasional" 
+            className="flex items-center justify-between bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-500 text-amber-950 p-4 rounded-3xl shadow-md shadow-amber-500/20 hover:shadow-lg transition-all border border-yellow-300/60 hover:scale-[1.01] active:scale-[0.99] duration-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-950 text-amber-300 rounded-2xl shadow-xs shrink-0">
+                <Award size={20} />
+              </div>
+              <div className="text-left space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-amber-950">
+                    Pelatih Nasional HW Jateng
+                  </h4>
+                  <span className="bg-amber-950 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                    Direktori
+                  </span>
+                </div>
+                <p className="text-[9px] text-amber-950/80 font-bold leading-none">
+                  Data Pelatih Kategori Jaya Matahari 1 & 2
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-amber-950 shrink-0" />
+          </Link>
         </div>
       </section>
 

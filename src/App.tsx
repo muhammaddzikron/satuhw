@@ -50,6 +50,7 @@ import KTAPage from './pages/KTAPage';
 import DaftarPelatihanPage from './pages/DaftarPelatihanPage';
 import PelatihanPage from './pages/PelatihanPage';
 import KegiatanPage from './pages/KegiatanPage';
+import PelatihNasionalPage from './pages/PelatihNasionalPage';
 
 const Header = () => {
   const location = useLocation();
@@ -279,6 +280,7 @@ export default function App() {
               <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
               <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
               <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+              <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
               <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
