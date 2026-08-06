@@ -119,8 +119,10 @@ export default function MateriPage() {
         const results = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
         const flatResults = results.flat().filter(Boolean);
         
-        // Remove duplicates
-        const uniqueResults = Array.from(new Map(flatResults.map(item => [item.id, item])).values());
+        // Remove duplicates safely
+        const uniqueResults = Array.from(
+          new Map(flatResults.map(item => [item?.id || item?.judul || String(Math.random()), item])).values()
+        ).filter(Boolean);
         
         setMateri(uniqueResults);
       } catch (error) {
@@ -134,7 +136,7 @@ export default function MateriPage() {
 
   useEffect(() => {
     if (location.state?.selectedMateriId && materi.length > 0) {
-      const found = materi.find(m => String(m.id) === String(location.state.selectedMateriId));
+      const found = materi.find(m => m && String(m.id) === String(location.state.selectedMateriId));
       if (found) {
         if (found.kategori === 'umum_pandu' && !isAuthenticated) {
           setShowLoginPromptModal(found);
@@ -146,6 +148,7 @@ export default function MateriPage() {
   }, [location.state?.selectedMateriId, materi, isAuthenticated]);
 
   const hasAccess = (cat: string) => {
+    if (!cat) return true;
     if (cat === 'umum_pandu') return isAuthenticated;
     if (!isAuthenticated) return cat === 'umum';
     const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin';
@@ -158,14 +161,24 @@ export default function MateriPage() {
     return activeRole === cat;
   };
 
-  const filteredMateri = materi.filter(m => {
-    const matchFilter = filter === 'semua' || m.kategori === filter || (filter === 'umum' && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
-    const matchSearch = m.judul.toLowerCase().includes(search.toLowerCase()) || 
-                       (m.konten && m.konten.toLowerCase().includes(search.toLowerCase()));
-    // 'umum_pandu' is visible inline in 'umum' list even to guests, but lock/download is restricted
-    const isAccessible = m.kategori === 'umum_pandu' ? true : hasAccess(m.kategori);
-    return matchFilter && matchSearch && isAccessible;
-  });
+  const filteredMateri = useMemo(() => {
+    return (materi || []).filter(m => {
+      if (!m) return false;
+      const searchStr = String(search || '').toLowerCase().trim();
+      const kat = String(m.kategori || 'umum').toLowerCase();
+      
+      const matchFilter = searchStr
+        ? (filter === 'semua' || kat === filter || (filter === 'umum' && (kat === 'umum' || kat === 'umum_pandu')) || hasAccess(kat))
+        : (filter === 'semua' || kat === filter || (filter === 'umum' && (kat === 'umum' || kat === 'umum_pandu')));
+
+      const judul = String(m.judul || '').toLowerCase();
+      const konten = String(m.konten || '').toLowerCase();
+      const matchSearch = !searchStr || judul.includes(searchStr) || konten.includes(searchStr);
+
+      const isAccessible = kat === 'umum_pandu' ? true : hasAccess(kat);
+      return matchFilter && matchSearch && isAccessible;
+    });
+  }, [materi, filter, search, isAuthenticated, activeRole, user?.roles, user?.role]);
 
   const handleItemClick = (item: Materi) => {
     if (item.kategori === 'umum_pandu' && !isAuthenticated) {

@@ -405,8 +405,8 @@ export default function HomePage() {
       
     const filteredMateri = (materiList || []).filter(m => 
       m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
-        m.judul.toLowerCase().includes(q) ||
-        (m.konten && m.konten.toLowerCase().includes(q))
+        String(m.judul || '').toLowerCase().includes(q) ||
+        String(m.konten || '').toLowerCase().includes(q)
       )
     ).map(item => ({ ...item, type: 'materi' }));
 
@@ -590,7 +590,7 @@ export default function HomePage() {
                       {isMateri && (
                         <Link 
                           to="/materi" 
-                          state={{ searchQuery: m.judul, selectedMateriId: m.id, filter: 'umum' }}
+                          state={{ searchQuery: m.judul, selectedMateriId: m.id, filter: m.kategori || 'umum' }}
                           className="flex items-center gap-3 p-3 hover:bg-gray-50 bg-white"
                         >
                           <div className="w-9 h-9 rounded-xl bg-hw-green/10 flex items-center justify-center text-hw-green shrink-0">

@@ -209,274 +209,43 @@ export function replaceOklchWithFallback(cssText: string): string {
 }
 
 export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): Promise<HTMLCanvasElement> {
-  const stylesBackup: { element: HTMLStyleElement | HTMLLinkElement; textContent?: string }[] = [];
-  const tempStyles: HTMLStyleElement[] = [];
-  const inlineStyleBackup: { element: HTMLElement; originalStyle: string }[] = [];
+  const userOnClone = options.onclone;
 
-  // Backup descriptors/methods to bypass dynamic CSS parser limitations
-  const originalGetComputedStyle = window.getComputedStyle;
-  const ruleProto = typeof CSSRule !== 'undefined' ? CSSRule.prototype : CSSStyleRule.prototype;
-  const originalRuleCssTextDesc = Object.getOwnPropertyDescriptor(ruleProto, 'cssText');
-  const styleDeclProto = CSSStyleDeclaration.prototype;
-  const originalDeclCssTextDesc = Object.getOwnPropertyDescriptor(styleDeclProto, 'cssText');
-  const originalGetPropertyValue = styleDeclProto.getPropertyValue;
+  const canvas = await html2canvas(element, {
+    ...options,
+    onclone: (clonedDoc, clonedEl) => {
+      // 1. Clean style tags in cloned document
+      const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
+      for (const style of styleElements) {
+        if (style.textContent) {
+          const lower = style.textContent.toLowerCase();
+          if (lower.includes('oklch(') || lower.includes('oklab(')) {
+            style.textContent = replaceOklchWithFallback(style.textContent);
+          }
+        }
+      }
 
-  let ruleCssTextOverridden = false;
-  let declCssTextOverridden = false;
-  let getPropertyValueOverridden = false;
-  let getComputedStyleOverridden = false;
-  let documentStyleSheetsOverridden = false;
-
-  // Track original descriptor of document.styleSheets
-  const originalStyleSheets = document.styleSheets;
-  const originalStyleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'styleSheets') || 
-                                         Object.getOwnPropertyDescriptor(Document.prototype, 'styleSheets');
-
-  try {
-    // 1. Install prototype overrides to catch dynamically added rules or browser computed styles
-    if (originalRuleCssTextDesc && originalRuleCssTextDesc.configurable) {
-      try {
-        Object.defineProperty(ruleProto, 'cssText', {
-          configurable: true,
-          get() {
-            const val = originalRuleCssTextDesc.get ? originalRuleCssTextDesc.get.call(this) : '';
-            if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
-              return replaceOklchWithFallback(val);
-            }
-            return val;
-          },
-          set(v) {
-            if (originalRuleCssTextDesc.set) {
-              originalRuleCssTextDesc.set.call(this, v);
+      // 2. Clean inline style attributes in cloned elements
+      const allElements = [clonedEl, ...Array.from(clonedEl.querySelectorAll('*'))] as HTMLElement[];
+      for (const el of allElements) {
+        if (el && el.getAttribute) {
+          const styleAttr = el.getAttribute('style');
+          if (styleAttr) {
+            const lowerAttr = styleAttr.toLowerCase();
+            if (lowerAttr.includes('oklch(') || lowerAttr.includes('oklab(')) {
+              el.setAttribute('style', replaceOklchWithFallback(styleAttr));
             }
           }
-        });
-        ruleCssTextOverridden = true;
-      } catch (err) {
-        console.warn('Failed to override CSSRule.prototype.cssText:', err);
-      }
-    }
-
-    if (originalDeclCssTextDesc && originalDeclCssTextDesc.configurable) {
-      try {
-        Object.defineProperty(styleDeclProto, 'cssText', {
-          configurable: true,
-          get() {
-            const val = originalDeclCssTextDesc.get ? originalDeclCssTextDesc.get.call(this) : '';
-            if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
-              return replaceOklchWithFallback(val);
-            }
-            return val;
-          },
-          set(v) {
-            if (originalDeclCssTextDesc.set) {
-              originalDeclCssTextDesc.set.call(this, v);
-            }
-          }
-        });
-        declCssTextOverridden = true;
-      } catch (err) {
-        console.warn('Failed to override CSSStyleDeclaration.prototype.cssText:', err);
-      }
-    }
-
-    try {
-      styleDeclProto.getPropertyValue = function (property: string) {
-        const val = originalGetPropertyValue.call(this, property);
-        if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
-          return replaceOklchWithFallback(val);
-        }
-        return val;
-      };
-      getPropertyValueOverridden = true;
-    } catch (err) {
-      console.warn('Failed to override CSSStyleDeclaration.prototype.getPropertyValue:', err);
-    }
-
-    try {
-      window.getComputedStyle = function (elt, pseudoElt) {
-        const style = originalGetComputedStyle(elt, pseudoElt);
-        return new Proxy(style, {
-          get(target, prop, receiver) {
-            if (prop === 'getPropertyValue') {
-              return function (propertyName: string) {
-                const val = target.getPropertyValue(propertyName);
-                if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
-                  return replaceOklchWithFallback(val);
-                }
-                return val;
-              };
-            }
-            const val = Reflect.get(target, prop);
-            if (typeof val === 'string' && (val.includes('oklch(') || val.includes('oklab('))) {
-              return replaceOklchWithFallback(val);
-            }
-            if (typeof val === 'function') {
-              return val.bind(target);
-            }
-            return val;
-          }
-        });
-      };
-      getComputedStyleOverridden = true;
-    } catch (err) {
-      console.warn('Failed to override window.getComputedStyle:', err);
-    }
-
-    // 2. Process all style and link tags safely WITHOUT disabling them!
-    const styleElements = Array.from(document.querySelectorAll('style'));
-    const linkElements = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
-
-    // Handle inline style tags by preparing clones and marking the original ones to be ignored by html2canvas
-    for (const style of styleElements) {
-      const originalText = style.textContent || '';
-      const lowerText = originalText.toLowerCase();
-      if (lowerText.includes('oklch(') || lowerText.includes('oklab(')) {
-        // Mark original style as ignore
-        style.setAttribute('data-html2canvas-ignore-sheet', 'true');
-        stylesBackup.push({ element: style });
-
-        // Inject clone style with fallbacks
-        const tempStyle = document.createElement('style');
-        tempStyle.textContent = replaceOklchWithFallback(originalText);
-        document.head.appendChild(tempStyle);
-        tempStyles.push(tempStyle);
-      }
-    }
-
-    // Handle external link stylesheets by fetching and injecting clones with fallbacks,
-    // and marking the original link as ignored by html2canvas WITHOUT disabling it!
-    for (const link of linkElements) {
-      if (link.href) {
-        if (
-          link.href.includes('fonts.googleapis.com') ||
-          link.href.includes('fonts.gstatic.com') ||
-          link.href.includes('cdnjs.cloudflare.com') ||
-          link.href.includes('jsdelivr.net') ||
-          link.href.includes('unpkg.com')
-        ) {
-          continue;
-        }
-
-        const isSameOrigin = link.href.startsWith(window.location.origin) || link.href.startsWith('/') || (!link.href.startsWith('http://') && !link.href.startsWith('https://'));
-        if (!isSameOrigin) {
-          continue;
-        }
-
-        try {
-          const response = await fetch(link.href);
-          if (response.ok) {
-            const cssText = await response.text();
-            const lowerCss = cssText.toLowerCase();
-            if (lowerCss.includes('oklch(') || lowerCss.includes('oklab(')) {
-              // Mark link as ignored
-              link.setAttribute('data-html2canvas-ignore-sheet', 'true');
-              stylesBackup.push({ element: link });
-
-              // Inject clone style with fallbacks
-              const tempStyle = document.createElement('style');
-              tempStyle.textContent = replaceOklchWithFallback(cssText);
-              document.head.appendChild(tempStyle);
-              tempStyles.push(tempStyle);
-            }
-          }
-        } catch (e) {
-          console.warn("Could not fetch external stylesheet for oklch/oklab replacement:", link.href, e);
         }
       }
-    }
 
-    // Intercept document.styleSheets so html2canvas ignores the original marked sheets!
-    try {
-      Object.defineProperty(document, 'styleSheets', {
-        configurable: true,
-        get() {
-          const filtered = Array.from(originalStyleSheets).filter(sheet => {
-            const owner = sheet.ownerNode as HTMLElement | null;
-            if (owner && owner.getAttribute('data-html2canvas-ignore-sheet') === 'true') {
-              return false;
-            }
-            return true;
-          });
-          // Match StyleSheetList interface
-          (filtered as any).item = function(index: number) {
-            return this[index];
-          };
-          return filtered as unknown as StyleSheetList;
-        }
-      });
-      documentStyleSheetsOverridden = true;
-    } catch (err) {
-      console.warn('Failed to intercept document.styleSheets:', err);
-    }
-
-    // Temporarily replace inline oklch/oklab styles on elements
-    const allElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
-    for (const el of allElements) {
-      if (el.style) {
-        const originalStyle = el.getAttribute('style') || '';
-        const lowerStyle = originalStyle.toLowerCase();
-        if (lowerStyle.includes('oklch(') || lowerStyle.includes('oklab(')) {
-          inlineStyleBackup.push({ element: el, originalStyle });
-          el.setAttribute('style', replaceOklchWithFallback(originalStyle));
-        }
+      // 3. Call user's custom onclone if provided
+      if (typeof userOnClone === 'function') {
+        userOnClone(clonedDoc, clonedEl);
       }
     }
+  });
 
-    // 3. Call the original html2canvas with the prepared document
-    const canvas = await html2canvas(element, options);
-
-    return canvas;
-  } finally {
-    // Restore inline styles
-    for (const backup of inlineStyleBackup) {
-      backup.element.setAttribute('style', backup.originalStyle);
-    }
-
-    // Restore original document.styleSheets getter
-    if (documentStyleSheetsOverridden) {
-      try {
-        if (originalStyleSheetsDescriptor) {
-          Object.defineProperty(document, 'styleSheets', originalStyleSheetsDescriptor);
-        } else {
-          delete (document as any).styleSheets;
-        }
-      } catch (err) {
-        console.warn('Failed to restore document.styleSheets descriptor:', err);
-      }
-    }
-
-    // Clean up ignore attributes on original elements
-    for (const backup of stylesBackup) {
-      backup.element.removeAttribute('data-html2canvas-ignore-sheet');
-    }
-
-    // Remove temporary style tags
-    for (const tempStyle of tempStyles) {
-      tempStyle.remove();
-    }
-
-    // Restore prototype overrides
-    if (getPropertyValueOverridden) {
-      styleDeclProto.getPropertyValue = originalGetPropertyValue;
-    }
-    if (getComputedStyleOverridden) {
-      window.getComputedStyle = originalGetComputedStyle;
-    }
-    if (ruleCssTextOverridden && originalRuleCssTextDesc) {
-      try {
-        Object.defineProperty(ruleProto, 'cssText', originalRuleCssTextDesc);
-      } catch (err) {
-        console.warn('Failed to restore CSSRule.prototype.cssText:', err);
-      }
-    }
-    if (declCssTextOverridden && originalDeclCssTextDesc) {
-      try {
-        Object.defineProperty(styleDeclProto, 'cssText', originalDeclCssTextDesc);
-      } catch (err) {
-        console.warn('Failed to restore CSSStyleDeclaration.prototype.cssText:', err);
-      }
-    }
-  }
+  return canvas;
 }
 

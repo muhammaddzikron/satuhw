@@ -86,6 +86,7 @@ export default function DaftarPelatihanPage() {
         let locations: string[] = [];
         let dates: string[] = [];
         let activities: any[] = [];
+        let types: string[] = [];
 
         if (s) {
           locations = Array.isArray(s.trainingLocations) ? s.trainingLocations : [];
@@ -95,18 +96,28 @@ export default function DaftarPelatihanPage() {
             : typeof s.trainingActivities === 'string'
               ? JSON.parse(s.trainingActivities || '[]')
               : [];
-
-          setSettings({
-            ...s,
-            trainingLocations: locations,
-            trainingDates: dates,
-            trainingActivities: activities
-          });
+          types = Array.isArray(s.trainingTypes)
+            ? s.trainingTypes
+            : typeof s.trainingTypes === 'string'
+              ? JSON.parse(s.trainingTypes || '[]')
+              : [];
         }
+
+        const defaultTypes = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
+        const activityTypes = activities.map((a: any) => a.jenisPelatihan).filter(Boolean);
+        const mergedTypes = Array.from(new Set([...types, ...activityTypes, ...defaultTypes])).filter(Boolean);
+
+        setSettings({
+          ...s,
+          trainingLocations: locations,
+          trainingDates: dates,
+          trainingActivities: activities,
+          trainingTypes: mergedTypes
+        });
 
         let prefillLocation = activityFromState?.lokasiPelatihan || locations[0] || '';
         let prefillDate = activityFromState?.tanggalPelatihan || dates[0] || '';
-        let prefillTraining = activityFromState?.jenisPelatihan || activityFromState?.namaKegiatan || 'Jati 1';
+        let prefillTraining = activityFromState?.jenisPelatihan || activityFromState?.namaKegiatan || mergedTypes[0] || 'Jaya Melati 1';
 
         if (activityFromState?.id) {
           setSelectedActivityId(activityFromState.id);
@@ -175,9 +186,57 @@ export default function DaftarPelatihanPage() {
     }));
   };
 
-  const handleSelectTraining = (lvl: string) => {
-    setFormData(prev => ({ ...prev, pelatihanAkanDiikuti: lvl }));
+  const handleSelectJenisPelatihan = (jenis: string) => {
+    const matchingAct = (settings.trainingActivities || []).find(
+      (a: any) => (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim() && a.status !== 'Tutup'
+    ) || (settings.trainingActivities || []).find(
+      (a: any) => (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim()
+    );
+
+    if (matchingAct) {
+      setSelectedActivityId(matchingAct.id);
+      setFormData(prev => ({
+        ...prev,
+        pelatihanAkanDiikuti: jenis,
+        lokasiPelatihan: matchingAct.lokasiPelatihan || prev.lokasiPelatihan,
+        tanggalPelatihan: matchingAct.tanggalPelatihan || prev.tanggalPelatihan
+      }));
+    } else {
+      setSelectedActivityId(null);
+      setFormData(prev => ({
+        ...prev,
+        pelatihanAkanDiikuti: jenis
+      }));
+    }
   };
+
+  const handleSelectTraining = (lvl: string) => {
+    handleSelectJenisPelatihan(lvl);
+  };
+
+  const availableLocations = React.useMemo(() => {
+    const fromActivities = (settings.trainingActivities || [])
+      .map((a: any) => a.lokasiPelatihan)
+      .filter(Boolean);
+    const fromSettings = settings.trainingLocations || [];
+    const list = Array.from(new Set([...fromActivities, ...fromSettings])).filter(Boolean);
+    if (formData.lokasiPelatihan && !list.includes(formData.lokasiPelatihan)) {
+      list.push(formData.lokasiPelatihan);
+    }
+    return list;
+  }, [settings, formData.lokasiPelatihan]);
+
+  const availableDates = React.useMemo(() => {
+    const fromActivities = (settings.trainingActivities || [])
+      .map((a: any) => a.tanggalPelatihan)
+      .filter(Boolean);
+    const fromSettings = settings.trainingDates || [];
+    const list = Array.from(new Set([...fromActivities, ...fromSettings])).filter(Boolean);
+    if (formData.tanggalPelatihan && !list.includes(formData.tanggalPelatihan)) {
+      list.push(formData.tanggalPelatihan);
+    }
+    return list;
+  }, [settings, formData.tanggalPelatihan]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -460,47 +519,68 @@ export default function DaftarPelatihanPage() {
                 </select>
               </div>
 
-              {/* Pelatihan Yang Akan Diikuti Selection */}
+              {/* Pelatihan Yang Akan Diikuti Selection (Jenis Pelatihan dari Admin) */}
               <div className="space-y-2 pt-1">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tingkat Pelatihan</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'Jati 1', label: 'Jati 1', desc: 'Jaya Melati 1' },
-                    { id: 'Jati 2', label: 'Jati 2', desc: 'Jaya Melati 2' },
-                    { id: 'Jari 1', label: 'Jari 1', desc: 'Jaya Matahari 1' }
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSelectTraining(p.id)}
-                      className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer ${
-                        formData.pelatihanAkanDiikuti === p.id 
-                          ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm' 
-                          : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'
-                      }`}
-                    >
-                      <GraduationCap size={16} className={formData.pelatihanAkanDiikuti === p.id ? 'text-hw-green' : 'text-gray-400'} />
-                      <span className="text-xs font-bold leading-none">{p.label}</span>
-                      <span className="text-[8px] opacity-75 leading-none">{p.desc}</span>
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                    Jenis Pelatihan (Diatur Admin)
+                  </label>
+                  <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-full">
+                    {(settings.trainingTypes || []).length} Pilihan
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2']).map((jenis: string) => {
+                    const isSelected = formData.pelatihanAkanDiikuti === jenis || 
+                      formData.pelatihanAkanDiikuti?.toLowerCase().trim() === jenis.toLowerCase().trim();
+
+                    const actCount = (settings.trainingActivities || []).filter((a: any) => 
+                      (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim()
+                    ).length;
+
+                    return (
+                      <button
+                        key={jenis}
+                        type="button"
+                        onClick={() => handleSelectJenisPelatihan(jenis)}
+                        className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer relative ${
+                          isSelected 
+                            ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm ring-1 ring-hw-green/20' 
+                            : 'border-transparent bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {actCount > 0 && (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={`${actCount} Agenda Pelatihan`} />
+                        )}
+                        <GraduationCap size={18} className={isSelected ? 'text-hw-green' : 'text-gray-400'} />
+                        <span className="text-xs font-bold leading-tight">{jenis}</span>
+                        {actCount > 0 ? (
+                          <span className="text-[8px] font-semibold text-emerald-700 leading-none bg-emerald-100/70 px-1.5 py-0.5 rounded-full mt-0.5">
+                            {actCount} Agenda
+                          </span>
+                        ) : (
+                          <span className="text-[8px] opacity-50 leading-none">Reguler</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Admin */}
+              {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Admin (Manajemen Pelatihan) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📍 Lokasi Pelatihan (Input Admin)
+                    📍 Tempat / Lokasi Pelatihan (Manajemen Admin)
                   </label>
-                  {Array.isArray(settings.trainingLocations) && settings.trainingLocations.length > 0 ? (
+                  {availableLocations.length > 0 ? (
                     <select 
                       name="lokasiPelatihan" 
                       value={formData.lokasiPelatihan} 
                       onChange={handleChange} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                     >
-                      {settings.trainingLocations.map((loc: string) => (
+                      {availableLocations.map((loc: string) => (
                         <option key={loc} value={loc}>{loc}</option>
                       ))}
                     </select>
@@ -511,23 +591,23 @@ export default function DaftarPelatihanPage() {
                       value={formData.lokasiPelatihan}
                       onChange={handleChange}
                       placeholder="Contoh: Pusdiklat HW Jateng"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                     />
                   )}
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📅 Tanggal Pelaksanaan (Input Admin)
+                    📅 Tanggal Pelaksanaan (Manajemen Admin)
                   </label>
-                  {Array.isArray(settings.trainingDates) && settings.trainingDates.length > 0 ? (
+                  {availableDates.length > 0 ? (
                     <select 
                       name="tanggalPelatihan" 
                       value={formData.tanggalPelatihan} 
                       onChange={handleChange} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                     >
-                      {settings.trainingDates.map((dt: string) => (
+                      {availableDates.map((dt: string) => (
                         <option key={dt} value={dt}>{dt}</option>
                       ))}
                     </select>
@@ -538,7 +618,7 @@ export default function DaftarPelatihanPage() {
                       value={formData.tanggalPelatihan}
                       onChange={handleChange}
                       placeholder="Contoh: 12-14 Juli 2026"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                     />
                   )}
                 </div>
@@ -779,47 +859,68 @@ export default function DaftarPelatihanPage() {
                     </select>
                   </div>
 
-                  {/* Pelatihan Yang Akan Diikuti Selection */}
+                  {/* Pelatihan Yang Akan Diikuti Selection (Jenis Pelatihan dari Admin) */}
                   <div className="space-y-2 pt-2">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatihan Yang Akan Diikuti</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'Jati 1', label: 'Jati 1', desc: 'Jaya Melati 1' },
-                        { id: 'Jati 2', label: 'Jati 2', desc: 'Jaya Melati 2' },
-                        { id: 'Jari 1', label: 'Jari 1', desc: 'Jaya Matahari 1' }
-                      ].map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => handleSelectTraining(p.id)}
-                          className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer ${
-                            formData.pelatihanAkanDiikuti === p.id 
-                              ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm' 
-                              : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          <GraduationCap size={16} className={formData.pelatihanAkanDiikuti === p.id ? 'text-hw-green' : 'text-gray-400'} />
-                          <span className="text-xs font-bold leading-none">{p.label}</span>
-                          <span className="text-[8px] opacity-75 leading-none">{p.desc}</span>
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                        Jenis Pelatihan (Diatur Admin)
+                      </label>
+                      <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-full">
+                        {(settings.trainingTypes || []).length} Pilihan
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2']).map((jenis: string) => {
+                        const isSelected = formData.pelatihanAkanDiikuti === jenis || 
+                          formData.pelatihanAkanDiikuti?.toLowerCase().trim() === jenis.toLowerCase().trim();
+
+                        const actCount = (settings.trainingActivities || []).filter((a: any) => 
+                          (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim()
+                        ).length;
+
+                        return (
+                          <button
+                            key={jenis}
+                            type="button"
+                            onClick={() => handleSelectJenisPelatihan(jenis)}
+                            className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer relative ${
+                              isSelected 
+                                ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm ring-1 ring-hw-green/20' 
+                                : 'border-transparent bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {actCount > 0 && (
+                              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={`${actCount} Agenda Pelatihan`} />
+                            )}
+                            <GraduationCap size={18} className={isSelected ? 'text-hw-green' : 'text-gray-400'} />
+                            <span className="text-xs font-bold leading-tight">{jenis}</span>
+                            {actCount > 0 ? (
+                              <span className="text-[8px] font-semibold text-emerald-700 leading-none bg-emerald-100/70 px-1.5 py-0.5 rounded-full mt-0.5">
+                                {actCount} Agenda
+                              </span>
+                            ) : (
+                              <span className="text-[8px] opacity-50 leading-none">Reguler</span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Pilihan Lokasi & Tanggal Pelaksanaan */}
+                  {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Manajemen Admin */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                        📍 Pilih Lokasi Pelatihan
+                        📍 Tempat / Lokasi Pelatihan (Manajemen Admin)
                       </label>
-                      {Array.isArray(settings.trainingLocations) && settings.trainingLocations.length > 0 ? (
+                      {availableLocations.length > 0 ? (
                         <select 
                           name="lokasiPelatihan" 
                           value={formData.lokasiPelatihan} 
                           onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                         >
-                          {settings.trainingLocations.map((loc: string) => (
+                          {availableLocations.map((loc: string) => (
                             <option key={loc} value={loc}>{loc}</option>
                           ))}
                         </select>
@@ -830,23 +931,23 @@ export default function DaftarPelatihanPage() {
                           value={formData.lokasiPelatihan}
                           onChange={handleChange}
                           placeholder="Pusdiklat HW Jateng"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                         />
                       )}
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                        📅 Pilih Tanggal Pelaksanaan
+                        📅 Tanggal / Pelaksanaan (Manajemen Admin)
                       </label>
-                      {Array.isArray(settings.trainingDates) && settings.trainingDates.length > 0 ? (
+                      {availableDates.length > 0 ? (
                         <select 
                           name="tanggalPelatihan" 
                           value={formData.tanggalPelatihan} 
                           onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                         >
-                          {settings.trainingDates.map((dt: string) => (
+                          {availableDates.map((dt: string) => (
                             <option key={dt} value={dt}>{dt}</option>
                           ))}
                         </select>
@@ -857,7 +958,7 @@ export default function DaftarPelatihanPage() {
                           value={formData.tanggalPelatihan}
                           onChange={handleChange}
                           placeholder="12-14 Juli 2026"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-700"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
                         />
                       )}
                     </div>

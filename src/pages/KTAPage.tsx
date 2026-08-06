@@ -911,7 +911,7 @@ export default function KTAPage() {
 
               {/* Custom Date above pre-printed Sekretaris text on template background */}
               {ktaFrontBg && (
-                <div className="absolute bottom-[72px] right-[20px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
+                <div className="absolute bottom-[58px] right-[20px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
                   <p 
                     className="text-[5.5px] font-bold text-gray-800 leading-none"
                     style={{ color: '#1f2937', position: 'relative', zIndex: 30 }}
@@ -1322,7 +1322,7 @@ export default function KTAPage() {
 
                   {/* Custom Date above pre-printed Sekretaris text on template background */}
                   {ktaFrontBg && (
-                    <div className="absolute bottom-[72px] right-[20px] z-20 text-right pointer-events-none">
+                    <div className="absolute bottom-[58px] right-[20px] z-20 text-right pointer-events-none">
                       <p className="text-[5.5px] font-bold text-gray-800 leading-none" style={{ color: '#1f2937' }}>
                         {'\u00A0\u00A0\u00A0\u00A0'}{settings.ktaKotaPenerbit || 'Semarang'}, {formatIndonesianDate(myApplication.verifiedAt)}
                       </p>

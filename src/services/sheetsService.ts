@@ -621,34 +621,53 @@ export const sheetsService = {
   },
 
   mapMateri(data: any): Materi {
+    if (!data || typeof data !== 'object') {
+      return { id: String(Date.now()), judul: '', konten: '', kategori: 'umum', tanggal: '' };
+    }
     return {
-      id: data.id || '',
-      judul: data.judul || '',
-      konten: data.konten || '',
-      kategori: data.kategori || '',
-      tanggal: data.tanggal || '',
-      coverImage: data.coverImage || data.coverimage || '',
-      linkExternal: data.linkExternal || data.linkexternal || '',
-      driveUrl: data.driveUrl || data.driveurl || ''
+      id: String(data.id || data.ID || data._id || Math.random()),
+      judul: String(data.judul || data.Judul || data.title || data.nama || ''),
+      konten: String(data.konten || data.Konten || data.description || data.deskripsi || ''),
+      kategori: String(data.kategori || data.Kategori || data.category || 'umum').toLowerCase(),
+      tanggal: String(data.tanggal || data.Tanggal || data.date || ''),
+      coverImage: String(data.coverImage || data.coverimage || data.CoverImage || data.image || ''),
+      linkExternal: String(data.linkExternal || data.linkexternal || data.LinkExternal || ''),
+      driveUrl: String(data.driveUrl || data.driveurl || data.DriveUrl || '')
     };
   },
 
   async getMateri(role: string): Promise<Materi[]> {
     if (!IS_API_VALID) {
       const materiList = await firestoreService.getMateri();
-      return materiList.filter((m: any) => m.kategori === role);
+      return (materiList || [])
+        .map((m: any) => this.mapMateri(m))
+        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
     }
     try {
       const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`);
+      let listData: any[] = [];
       if (Array.isArray(response.data)) {
-        return response.data.map((m: any) => this.mapMateri(m));
+        listData = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        listData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.materi)) {
+        listData = response.data.materi;
       }
+
+      if (listData.length > 0) {
+        return listData.map((m: any) => this.mapMateri(m));
+      }
+
       const materiList = await firestoreService.getMateri();
-      return materiList.filter((m: any) => m.kategori === role);
+      return (materiList || [])
+        .map((m: any) => this.mapMateri(m))
+        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
     } catch (error) {
       console.warn('getMateri API error, falling back to Firestore:', (error as any)?.message || error);
       const materiList = await firestoreService.getMateri();
-      return materiList.filter((m: any) => m.kategori === role);
+      return (materiList || [])
+        .map((m: any) => this.mapMateri(m))
+        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
     }
   },
 
@@ -947,103 +966,49 @@ export const sheetsService = {
   },
 
   async saveTrainingApplicationAndSyncMember(appData: any): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications') || '[]';
+    if (IS_API_VALID) {
       try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
-        if (idx !== -1) {
-          // Update training app
-          list[idx] = { ...list[idx], ...appData };
-          localStorage.setItem('training_applications', JSON.stringify(list));
-          
-          // Also sync with mock_members
-          const userId = appData.userId || list[idx].userId;
-          const email = appData.email || list[idx].email;
-          
-          if (userId || email) {
-            const membersStored = localStorage.getItem('mock_members') || '[]';
-            const membersList = JSON.parse(membersStored);
-            const mIdx = membersList.findIndex((m: any) => 
-              String(m.id) === String(userId) || 
-              (email && String(m.email).toLowerCase().trim() === String(email).toLowerCase().trim())
-            );
-            
-            if (mIdx !== -1) {
-              const m = membersList[mIdx];
-              membersList[mIdx] = {
-                ...m,
-                namaLengkap: appData.nama || m.namaLengkap,
-                email: appData.email || m.email,
-                noHp: appData.noWa || m.noHp,
-                nik: appData.nik || m.nik,
-                tempatLahir: appData.tempatLahir || m.tempatLahir,
-                tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
-                jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
-                qabilah: appData.qabilah || m.qabilah,
-                asalKwarda: appData.asalDaerah || m.asalKwarda,
-                golongan: appData.golonganAnggota || m.golongan
-              };
-              localStorage.setItem('mock_members', JSON.stringify(membersList));
-            }
-          }
-          return { success: true, application: list[idx] };
-        }
+        await this.post({
+          action: 'saveTrainingApplication',
+          ...appData
+        });
       } catch (e) {
-        console.error(e);
+        console.warn('saveTrainingApplication API warning:', e);
       }
-      return { success: false, message: 'Training Application not found locally' };
     }
-    try {
-      return await this.post({
-        action: 'saveTrainingApplication',
-        ...appData
-      });
-    } catch (e) {
-      console.error('saveTrainingApplication API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('training_applications') || '[]';
+    const savedApp = await firestoreService.createTrainingApplication(appData);
+    
+    // Sync to member in Firestore as well
+    const userId = appData.userId;
+    const email = appData.email;
+    if (userId || email) {
       try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((x: any) => String(x.id) === String(appData.id));
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...appData };
-          localStorage.setItem('training_applications', JSON.stringify(list));
-          
-          // Sync to local mock_members as well
-          const userId = appData.userId || list[idx].userId;
-          const email = appData.email || list[idx].email;
-          if (userId || email) {
-            const membersStored = localStorage.getItem('mock_members') || '[]';
-            const membersList = JSON.parse(membersStored);
-            const mIdx = membersList.findIndex((m: any) => 
-              String(m.id) === String(userId) || 
-              (email && String(m.email).toLowerCase().trim() === String(email).toLowerCase().trim())
-            );
-            if (mIdx !== -1) {
-              const m = membersList[mIdx];
-              membersList[mIdx] = {
-                ...m,
-                namaLengkap: appData.nama || m.namaLengkap,
-                email: appData.email || m.email,
-                noHp: appData.noWa || m.noHp,
-                nik: appData.nik || m.nik,
-                tempatLahir: appData.tempatLahir || m.tempatLahir,
-                tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
-                jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
-                qabilah: appData.qabilah || m.qabilah,
-                asalKwarda: appData.asalDaerah || m.asalKwarda,
-                golongan: appData.golonganAnggota || m.golongan
-              };
-              localStorage.setItem('mock_members', JSON.stringify(membersList));
-            }
-          }
-          return { success: true, application: list[idx] };
+        const members = await firestoreService.getMembers();
+        const m = members.find((x: any) => 
+          (userId && String(x.id) === String(userId)) || 
+          (email && String(x.email).toLowerCase().trim() === String(email).toLowerCase().trim())
+        );
+        if (m) {
+          const updated = {
+            ...m,
+            namaLengkap: appData.nama || m.namaLengkap,
+            email: appData.email || m.email,
+            noHp: appData.noWa || m.noHp,
+            nik: appData.nik || m.nik,
+            tempatLahir: appData.tempatLahir || m.tempatLahir,
+            tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
+            jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
+            qabilah: appData.qabilah || m.qabilah,
+            asalKwarda: appData.asalDaerah || m.asalKwarda,
+            golongan: appData.golonganAnggota || m.golongan
+          };
+          await firestoreService.saveMember(updated);
         }
       } catch (err) {
-        console.error(err);
+        console.error('Error syncing member in Firestore:', err);
       }
-      return { success: false, message: 'Failed to save training application' };
     }
+    return { success: true, application: savedApp };
   },
 
   async updateKTAStatus(id: string, status: 'approved' | 'rejected' | 'pending', param3?: string, param4?: string): Promise<any> {
@@ -1085,380 +1050,159 @@ export const sheetsService = {
 
   async getTrainingApplications(): Promise<any[]> {
     if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications');
-      let apps: any[] = [];
-      if (stored) {
-        try {
-          apps = JSON.parse(stored);
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        const defaults = [
-          {
-            id: 'train-mock-1',
-            userId: 'user-alda',
-            nama: 'Alda Putri',
-            tingkatan: 'Athfal',
-            asalDaerah: 'Banyumas',
-            noWa: '081234567890',
-            email: 'aldaputri@gmail.com',
-            sosmed: '@aldaputri',
-            status: 'pending',
-            tanggalAjuan: '2026-06-15T09:00:00.000Z',
-            pelatihanAkanDiikuti: 'Jati 1',
-            nik: '3302011506990001',
-            tempatLahir: 'Banyumas',
-            tanggalLahir: '1999-06-15',
-            jenisKelamin: 'P',
-            qabilah: 'Qabilah KH Ahmad Dahlan',
-            kehadiran: '{"Sesi 1": "hadir", "Sesi 2": "hadir"}',
-            tugas: '[]',
-            nilai: '85',
-            remark: ''
-          }
-        ];
-        localStorage.setItem('training_applications', JSON.stringify(defaults));
-        apps = defaults;
-      }
-      return apps.map((t: any, idx: number) => ({
-        ...t,
-        id: t.id || `train-fallback-${idx}`
-      })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
+      return await firestoreService.getTrainingApplications();
     }
     try {
       const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
-      if (Array.isArray(response.data)) {
-        return response.data.map((t: any, idx: number) => ({
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const apiTrainings = response.data.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-api-${idx}`
         })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
+        
+        apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
+        return apiTrainings;
       }
-      return [];
+      return await firestoreService.getTrainingApplications();
     } catch (e) {
-      console.warn('getTrainingApplications API error, falling back to localStorage:', (e as any)?.message || e);
-      const stored = localStorage.getItem('training_applications') || '[]';
-      try {
-        const apps = JSON.parse(stored);
-        return apps.map((t: any, idx: number) => ({
-          ...t,
-          id: t.id || `train-fallback-${idx}`
-        })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
-      } catch (err) {
-        return [];
-      }
+      console.warn('getTrainingApplications API error, falling back to Firestore:', (e as any)?.message || e);
+      return await firestoreService.getTrainingApplications();
     }
   },
 
   async applyTraining(trainingData: any): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications');
-      let list = [];
-      if (stored) {
-        try {
-          list = JSON.parse(stored);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      const newApp = {
-        id: 'train-' + Math.random().toString(36).substring(2, 9),
-        status: 'pending',
-        tanggalAjuan: new Date().toISOString(),
-        kehadiran: '{}',
-        tugas: '[]',
-        nilai: '',
-        remark: '',
-        ...trainingData
-      };
+    const existingApps = await firestoreService.getTrainingApplications();
+    const duplicate = existingApps.find((item: any) => {
+      if (item.status === 'rejected' || item.status === 'deleted') return false;
+      const samePelatihan = item.pelatihanAkanDiikuti && 
+        String(item.pelatihanAkanDiikuti).toLowerCase().trim() === String(trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
+      if (!samePelatihan) return false;
       
-      const duplicate = list.find((item: any) => {
-        if (item.status === 'rejected' || item.status === 'deleted') return false;
-        const samePelatihan = item.pelatihanAkanDiikuti && 
-          String(item.pelatihanAkanDiikuti).toLowerCase().trim() === String(trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
-        if (!samePelatihan) return false;
-        
-        const itemUserId = String(item.userId || '');
-        const dataUserId = String(trainingData.userId || '');
-        const isUserMatch = dataUserId && itemUserId && dataUserId === itemUserId && !dataUserId.startsWith('guest-') && !itemUserId.startsWith('guest-');
-        
-        const itemEmail = String(item.email || '').trim().toLowerCase();
-        const dataEmail = String(trainingData.email || '').trim().toLowerCase();
-        const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
-        
-        const itemNik = String(item.nik || '').trim();
-        const dataNik = String(trainingData.nik || '').trim();
-        const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
-        
-        const itemWa = String(item.noWa || item.noHp || '').trim();
-        const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
-        const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
-        
-        return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
-      });
+      const itemUserId = String(item.userId || '');
+      const dataUserId = String(trainingData.userId || '');
+      const isUserMatch = dataUserId && itemUserId && dataUserId === itemUserId && !dataUserId.startsWith('guest-') && !itemUserId.startsWith('guest-');
       
-      if (duplicate) {
-        throw new Error('Anda sudah mendaftar di pelatihan ini dan statusnya masih aktif/proses.');
-      }
-
-      list.push(newApp);
-      localStorage.setItem('training_applications', JSON.stringify(list));
-      return { success: true, application: newApp };
+      const itemEmail = String(item.email || '').trim().toLowerCase();
+      const dataEmail = String(trainingData.email || '').trim().toLowerCase();
+      const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
+      
+      const itemNik = String(item.nik || '').trim();
+      const dataNik = String(trainingData.nik || '').trim();
+      const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
+      
+      const itemWa = String(item.noWa || item.noHp || '').trim();
+      const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
+      const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
+      
+      return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
+    });
+    
+    if (duplicate) {
+      throw new Error('Anda sudah mendaftar di pelatihan ini dan statusnya masih aktif/proses.');
     }
-    try {
-      return await this.post({
-        action: 'applyTraining',
-        ...trainingData
-      });
-    } catch (e) {
-      console.error('applyTraining API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      
-      const duplicate = list.find((item: any) => {
-        if (item.status === 'rejected' || item.status === 'deleted') return false;
-        const samePelatihan = item.pelatihanAkanDiikuti && 
-          String(item.pelatihanAkanDiikuti).toLowerCase().trim() === String(trainingData.pelatihanAkanDiikuti || '').toLowerCase().trim();
-        if (!samePelatihan) return false;
-        
-        const itemUserId = String(item.userId || '');
-        const dataUserId = String(trainingData.userId || '');
-        const isUserMatch = dataUserId && itemUserId && dataUserId === itemUserId && !dataUserId.startsWith('guest-') && !itemUserId.startsWith('guest-');
-        
-        const itemEmail = String(item.email || '').trim().toLowerCase();
-        const dataEmail = String(trainingData.email || '').trim().toLowerCase();
-        const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
-        
-        const itemNik = String(item.nik || '').trim();
-        const dataNik = String(trainingData.nik || '').trim();
-        const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
-        
-        const itemWa = String(item.noWa || item.noHp || '').trim();
-        const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
-        const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
-        
-        return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
-      });
-      
-      if (duplicate) {
-        throw new Error('Anda sudah mendaftar di pelatihan ini dan statusnya masih aktif/proses.');
-      }
 
-      const newApp = {
-        id: 'train-' + Math.random().toString(36).substring(2, 9),
-        status: 'pending',
-        tanggalAjuan: new Date().toISOString(),
-        kehadiran: '{}',
-        tugas: '[]',
-        nilai: '',
-        remark: '',
-        ...trainingData
-      };
-      list.push(newApp);
-      localStorage.setItem('training_applications', JSON.stringify(list));
-      return { success: true, application: newApp };
+    if (IS_API_VALID) {
+      try {
+        await this.post({
+          action: 'applyTraining',
+          ...trainingData
+        });
+      } catch (e) {
+        console.warn('applyTraining API error:', e);
+      }
     }
+    const savedApp = await firestoreService.createTrainingApplication(trainingData);
+    return { success: true, application: savedApp };
   },
 
   async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', param3?: string, param4?: string): Promise<any> {
     const remark = param3 || param4;
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications');
-      if (stored) {
-        try {
-          let list = JSON.parse(stored);
-          const idx = list.findIndex((x: any) => x.id === id);
-          if (idx !== -1) {
-            if (status === 'deleted') {
-              const deletedItem = list[idx];
-              list.splice(idx, 1);
-              localStorage.setItem('training_applications', JSON.stringify(list));
-              return { success: true, application: deletedItem };
-            }
-            list[idx].status = status;
-            if (remark) {
-              list[idx].remark = remark;
-            }
-            localStorage.setItem('training_applications', JSON.stringify(list));
-            
-            const app = list[idx];
-            if (status === 'approved' && app.userId) {
-              try {
-                const membersStored = localStorage.getItem('mock_members') || '[]';
-                const membersList = JSON.parse(membersStored);
-                const mIdx = membersList.findIndex((m: any) => m.id === app.userId || m.email === app.email);
-                if (mIdx !== -1) {
-                  membersList[mIdx].isVerified = true;
-                  
-                  const roleName = app.pelatihanAkanDiikuti.toLowerCase().replace(/\s+/g, '');
-                  let currentRoles = [];
-                  try {
-                    const rVal = membersList[mIdx].role || 'umum';
-                    if (rVal.indexOf('[') === 0) {
-                      currentRoles = JSON.parse(rVal);
-                    } else {
-                      currentRoles = rVal.split(',').map((s: string) => s.trim()).filter(Boolean);
-                    }
-                  } catch (err) {
-                    currentRoles = [membersList[mIdx].role || 'umum'];
-                  }
-                  if (!currentRoles.includes(roleName)) {
-                    currentRoles.push(roleName);
-                  }
-                  membersList[mIdx].roles = currentRoles;
-                  membersList[mIdx].role = JSON.stringify(currentRoles);
-
-                  let currentPel = [];
-                  try {
-                    const pVal = membersList[mIdx].pelatihan || '[]';
-                    currentPel = JSON.parse(pVal);
-                  } catch (err) {
-                    currentPel = [];
-                  }
-                  if (!currentPel.includes(app.pelatihanAkanDiikuti)) {
-                    currentPel.push(app.pelatihanAkanDiikuti);
-                  }
-                  membersList[mIdx].pelatihan = JSON.stringify(currentPel);
-
-                  localStorage.setItem('mock_members', JSON.stringify(membersList));
-                }
-              } catch (err) {
-                console.error(err);
-              }
-            }
-            try {
-              await firestoreService.updateTrainingStatus(id, status, remark);
-            } catch (err) {
-              console.error('Error syncing training status to Firestore:', err);
-            }
-            return { success: true, application: list[idx] };
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
+    if (IS_API_VALID) {
       try {
-        await firestoreService.updateTrainingStatus(id, status, remark);
+        await this.post({ action: 'updateTrainingStatus', id, status, remark }).catch(() => {});
+      } catch (e) {
+        console.warn('updateTrainingStatus API warning:', e);
+      }
+    }
+    if (status === 'deleted') {
+      await firestoreService.deleteTrainingApplication(id);
+      return { success: true };
+    }
+    const updated = await firestoreService.updateTrainingStatus(id, status, remark);
+    
+    // If approved, update member role/isVerified in Firestore as well
+    if (status === 'approved' && updated && (updated.userId || updated.email)) {
+      try {
+        const members = await firestoreService.getMembers();
+        const m = members.find((x: any) => 
+          (updated.userId && String(x.id) === String(updated.userId)) ||
+          (updated.email && String(x.email).toLowerCase().trim() === String(updated.email).toLowerCase().trim())
+        );
+        if (m) {
+          m.isVerified = true;
+          if (updated.pelatihanAkanDiikuti) {
+            const roleName = updated.pelatihanAkanDiikuti.toLowerCase().replace(/\s+/g, '');
+            let roles: string[] = Array.isArray(m.roles) ? [...m.roles] : [m.role || 'umum'];
+            if (!roles.includes(roleName as any)) {
+              roles.push(roleName);
+            }
+            m.roles = roles as any;
+            let pelatihanList: string[] = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
+            if (!pelatihanList.includes(updated.pelatihanAkanDiikuti)) {
+              pelatihanList.push(updated.pelatihanAkanDiikuti);
+            }
+            m.pelatihan = pelatihanList;
+          }
+          await firestoreService.saveMember(m);
+        }
       } catch (err) {
-        console.error('Error updating training status in Firestore fallback:', err);
+        console.error('Error updating member on training approval:', err);
       }
-      return { success: true, application: { id, status, remark } };
     }
-    try {
-      return await this.post({
-        action: 'updateTrainingStatus',
-        id,
-        status,
-        remark
-      });
-    } catch (e) {
-      console.error('updateTrainingStatus API error, falling back to local storage:', e);
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
-      if (idx !== -1) {
-        if (status === 'deleted') {
-          const deletedItem = list[idx];
-          list.splice(idx, 1);
-          localStorage.setItem('training_applications', JSON.stringify(list));
-          return { success: true, application: deletedItem };
-        }
-        list[idx].status = status;
-        if (remark) {
-          list[idx].remark = remark;
-        }
-        localStorage.setItem('training_applications', JSON.stringify(list));
-        return { success: true, application: list[idx] };
-      }
-      return { success: false, message: 'Failed to update status' };
-    }
+    return { success: true, application: updated };
   },
 
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
-      if (idx !== -1) {
-        list[idx].kehadiran = kehadiran;
-        localStorage.setItem('training_applications', JSON.stringify(list));
-        return { success: true };
-      }
-      return { success: false };
+    if (IS_API_VALID) {
+      this.post({ action: 'updateAttendance', id, kehadiran }).catch(() => {});
     }
-    return this.post({
-      action: 'updateAttendance',
-      id,
-      kehadiran
-    });
+    await firestoreService.updateAttendance(id, kehadiran);
+    return { success: true };
   },
 
   async submitAssignment(id: string, tugas: string): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
-      if (idx !== -1) {
-        list[idx].tugas = tugas;
-        localStorage.setItem('training_applications', JSON.stringify(list));
-        return { success: true };
-      }
-      return { success: false };
+    if (IS_API_VALID) {
+      this.post({ action: 'submitAssignment', id, tugas }).catch(() => {});
     }
-    return this.post({
-      action: 'submitAssignment',
-      id,
-      tugas
-    });
+    await firestoreService.updateAssignmentGrade(id, tugas, undefined);
+    return { success: true };
   },
 
   async updateGrade(id: string, nilai: any): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
-      if (idx !== -1) {
-        if (nilai && typeof nilai === 'object') {
-          list[idx].nilai = nilai.grade || '';
-          list[idx].remark = nilai.remark || '';
-          list[idx].statusKelulusan = nilai.statusKelulusan || '';
-        } else {
-          list[idx].nilai = nilai;
-        }
-        localStorage.setItem('training_applications', JSON.stringify(list));
-        return { success: true };
-      }
-      return { success: false };
-    }
     const isObj = nilai && typeof nilai === 'object';
-    return this.post({
-      action: 'updateGrade',
-      id,
-      nilai: isObj ? (nilai.grade || '') : nilai,
-      remark: isObj ? (nilai.remark || '') : undefined,
-      statusKelulusan: isObj ? (nilai.statusKelulusan || '') : undefined
-    });
+    const gradeStr = isObj ? (nilai.grade || '') : String(nilai || '');
+    if (IS_API_VALID) {
+      this.post({
+        action: 'updateGrade',
+        id,
+        nilai: gradeStr,
+        remark: isObj ? (nilai.remark || '') : undefined,
+        statusKelulusan: isObj ? (nilai.statusKelulusan || '') : undefined
+      }).catch(() => {});
+    }
+    await firestoreService.updateAssignmentGrade(id, undefined, gradeStr);
+    if (isObj && (nilai.remark || nilai.statusKelulusan)) {
+      await firestoreService.updateTrainingStatus(id, 'approved', nilai.remark);
+    }
+    return { success: true };
   },
 
   async updateTrainingSchedule(id: string, lokasiPelatihan: string, tanggalPelatihan: string): Promise<any> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const list = JSON.parse(stored);
-      const idx = list.findIndex((x: any) => x.id === id);
-      if (idx !== -1) {
-        list[idx].lokasiPelatihan = lokasiPelatihan;
-        list[idx].tanggalPelatihan = tanggalPelatihan;
-        localStorage.setItem('training_applications', JSON.stringify(list));
-        return { success: true };
-      }
-      return { success: false };
+    if (IS_API_VALID) {
+      this.post({ action: 'updateTrainingSchedule', id, lokasiPelatihan, tanggalPelatihan }).catch(() => {});
     }
-    return this.post({
-      action: 'updateTrainingSchedule',
-      id,
-      lokasiPelatihan,
-      tanggalPelatihan
-    });
+    await firestoreService.createTrainingApplication({ id, lokasiPelatihan, tanggalPelatihan });
+    return { success: true };
   },
 
   getMockMateri(): Materi[] {
@@ -1491,75 +1235,40 @@ export const sheetsService = {
   },
 
   async getContents(section?: string): Promise<Content[]> {
-    if (!IS_API_VALID) {
-      const stored = localStorage.getItem('contents') || '[]';
-      let list = [];
+    if (IS_API_VALID) {
       try {
-        list = JSON.parse(stored);
-      } catch (err) {
-        list = this.getMockContents();
+        const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          return response.data;
+        } else if (response.data && Array.isArray(response.data.contents) && response.data.contents.length > 0) {
+          return response.data.contents;
+        }
+      } catch (error) {
+        console.warn('getContents API error, falling back to Firestore:', (error as any)?.message || error);
       }
-      return section ? list.filter((c: any) => c.section === section) : list;
     }
-    try {
-      const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
-      // Ensure we always return an array
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data && Array.isArray(response.data.contents)) {
-        return response.data.contents;
-      }
-      return [];
-    } catch (error) {
-      console.warn('getContents API error:', (error as any)?.message || error);
-      const mockData = this.getMockContents();
-      return section ? mockData.filter(c => c.section === section) : mockData;
+    const fsContents = await firestoreService.getContents();
+    if (fsContents && fsContents.length > 0) {
+      return section ? fsContents.filter((c: any) => c.section === section) : fsContents;
     }
+    const mockData = this.getMockContents();
+    return section ? mockData.filter(c => c.section === section) : mockData;
   },
 
   async saveContent(content: any): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('contents') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        const idx = list.findIndex((c: any) => c.id === content.id);
-        const mapped = {
-          ...content,
-          id: content.id || `content-${Date.now()}`
-        };
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...mapped };
-        } else {
-          list.push(mapped);
-        }
-        localStorage.setItem('contents', JSON.stringify(list));
-        return { success: true };
-      } catch (err) {
-        console.error(err);
-      }
+    if (IS_API_VALID) {
+      this.post({ action: 'saveContent', ...content }).catch(() => {});
     }
-    return this.post({
-      action: 'saveContent',
-      ...content
-    });
+    const saved = await firestoreService.saveContent(content);
+    return { success: true, content: saved };
   },
 
   async deleteContent(id: string): Promise<any> {
-    if (this.isMock()) {
-      const stored = localStorage.getItem('contents') || '[]';
-      try {
-        let list = JSON.parse(stored);
-        list = list.filter((c: any) => c.id !== id);
-        localStorage.setItem('contents', JSON.stringify(list));
-        return { success: true };
-      } catch (err) {
-        console.error(err);
-      }
+    if (IS_API_VALID) {
+      this.post({ action: 'deleteContent', id }).catch(() => {});
     }
-    return this.post({
-      action: 'deleteContent',
-      id
-    });
+    await firestoreService.deleteContent(id);
+    return { success: true };
   },
   
   async getSettings(): Promise<any> {
