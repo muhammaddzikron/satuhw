@@ -916,7 +916,20 @@ export const sheetsService = {
     }
   },
 
-  async updateKTAStatus(id: string, status: 'approved' | 'rejected', ktaNumber?: string, remark?: string): Promise<any> {
+  async updateKTAStatus(id: string, status: 'approved' | 'rejected' | 'pending', param3?: string, param4?: string): Promise<any> {
+    let remark = param4;
+    let ktaNumber = param3;
+
+    if (status === 'rejected') {
+      remark = param3 || param4 || 'Pengajuan KTA ditolak';
+      ktaNumber = undefined;
+    } else if (status === 'approved') {
+      if (param3 && !param3.startsWith('KTA-') && !param4) {
+        remark = param3;
+        ktaNumber = undefined;
+      }
+    }
+
     try {
       if (IS_API_VALID) {
         await this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark }).catch(() => {});
@@ -1117,7 +1130,8 @@ export const sheetsService = {
     }
   },
 
-  async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', remark?: string): Promise<any> {
+  async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', param3?: string, param4?: string): Promise<any> {
+    const remark = param3 || param4;
     if (!IS_API_VALID) {
       const stored = localStorage.getItem('training_applications');
       if (stored) {

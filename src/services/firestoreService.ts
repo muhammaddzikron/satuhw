@@ -253,6 +253,36 @@ export const firestoreService = {
   },
 
   async purgeEmptyData(): Promise<void> {
+    const isValidName = (n?: string) => {
+      if (!n) return false;
+      const lower = n.trim().toLowerCase();
+      return lower !== '' && lower !== 'tanpa nama' && lower !== '-' && lower !== 'null' && lower !== 'undefined';
+    };
+
+    // Clean local storage cache
+    try {
+      const localMembers = localStorage.getItem('mock_members');
+      if (localMembers) {
+        const parsed = JSON.parse(localMembers);
+        const cleaned = parsed.filter((m: any) => isValidName(m?.namaLengkap || m?.nama));
+        localStorage.setItem('mock_members', JSON.stringify(cleaned));
+      }
+      const localKta = localStorage.getItem('kta_applications');
+      if (localKta) {
+        const parsed = JSON.parse(localKta);
+        const cleaned = parsed.filter((k: any) => isValidName(k?.nama || k?.namaLengkap));
+        localStorage.setItem('kta_applications', JSON.stringify(cleaned));
+      }
+      const localTrain = localStorage.getItem('training_applications');
+      if (localTrain) {
+        const parsed = JSON.parse(localTrain);
+        const cleaned = parsed.filter((t: any) => isValidName(t?.nama || t?.namaLengkap));
+        localStorage.setItem('training_applications', JSON.stringify(cleaned));
+      }
+    } catch (e) {}
+
+    if (this.isQuotaExceeded) return;
+
     try {
       // 1. Purge empty KTA Applications from Firestore
       const ktaSnap = await getDocs(collection(db, 'kta_applications'));
@@ -261,7 +291,7 @@ export const firestoreService = {
           const data = d.data();
           const name = (data.nama || data.namaLengkap || '').trim();
           const email = (data.email || '').trim();
-          if (!name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW')) {
+          if (!isValidName(name) || (!email && name === 'Anggota HW')) {
             await deleteDoc(doc(db, 'kta_applications', d.id)).catch(() => {});
           }
         }
@@ -274,7 +304,7 @@ export const firestoreService = {
           const data = d.data();
           const name = (data.namaLengkap || data.nama || '').trim();
           const email = (data.email || '').trim();
-          if (!name || name === 'Tanpa Nama' || name === '-' || (!email && !data.noHp && !data.id?.includes('user-'))) {
+          if (!isValidName(name) || (!email && !data.noHp && !data.id?.includes('user-'))) {
             await deleteDoc(doc(db, 'members', d.id)).catch(() => {});
           }
         }
@@ -286,7 +316,7 @@ export const firestoreService = {
         for (const d of trainSnap.docs) {
           const data = d.data();
           const name = (data.nama || data.namaLengkap || '').trim();
-          if (!name || name === 'Tanpa Nama' || name === '-') {
+          if (!isValidName(name)) {
             await deleteDoc(doc(db, 'training_applications', d.id)).catch(() => {});
           }
         }

@@ -884,12 +884,13 @@ export default function AdminDashboard() {
     if (!rejectId) return;
     try {
       setLoading(true);
-      const res = await sheetsService.updateKTAStatus(rejectId, 'rejected', undefined, rejectReason);
+      const res = await sheetsService.updateKTAStatus(rejectId, 'rejected', rejectReason);
       if (res.success || res.application) {
         alert('Pengajuan KTA berhasil ditolak.');
         setIsRejectModalOpen(false);
         setRejectId(null);
         setRejectReason('');
+        setKtaApps(prev => prev.map(k => String(k.id) === String(rejectId) ? { ...k, status: 'rejected', remark: rejectReason } : k));
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
@@ -1255,12 +1256,13 @@ export default function AdminDashboard() {
     if (!trainingRejectId) return;
     try {
       setLoading(true);
-      const res = await sheetsService.updateTrainingStatus(trainingRejectId, 'rejected', undefined, trainingRejectReason);
+      const res = await sheetsService.updateTrainingStatus(trainingRejectId, 'rejected', trainingRejectReason);
       if (res.success || res.application) {
         alert('Pendaftaran pelatihan berhasil ditolak.');
         setIsTrainingRejectModalOpen(false);
         setTrainingRejectId(null);
         setTrainingRejectReason('');
+        setTrainingApps(prev => prev.map(t => String(t.id) === String(trainingRejectId) ? { ...t, status: 'rejected', remark: trainingRejectReason } : t));
         const tApps = await sheetsService.getTrainingApplications();
         setTrainingApps(tApps || []);
       } else {
@@ -1478,6 +1480,10 @@ export default function AdminDashboard() {
         console.warn('Silent auto-sync failed:', err);
       }
 
+      try {
+        await firestoreService.purgeEmptyData();
+      } catch (e) {}
+
       const [materi, membersData, contentsData, settingsData, ktaData, trainingData, activitiesData, actRegData] = await Promise.all([
         sheetsService.getMateri('admin'),
         sheetsService.getMembers(),
@@ -1488,11 +1494,18 @@ export default function AdminDashboard() {
         sheetsService.getActivities(),
         sheetsService.getActivityApplications()
       ]);
+
+      const isValidName = (name?: string) => {
+        if (!name) return false;
+        const trimmed = name.trim().toLowerCase();
+        return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
+      };
+
       setMateriList(materi || []);
-      setMembers(membersData || []);
+      setMembers((membersData || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama)));
       setContents(contentsData || []);
-      setKtaApps(ktaData || []);
-      setTrainingApps(trainingData || []);
+      setKtaApps((ktaData || []).filter(k => isValidName(k?.nama || k?.namaLengkap)));
+      setTrainingApps((trainingData || []).filter(t => isValidName(t?.nama || t?.namaLengkap)));
       setActivitiesList(activitiesData || []);
       setActivityApplicationsList(actRegData || []);
       if (settingsData) {
@@ -2254,10 +2267,16 @@ export default function AdminDashboard() {
     }).length
   };
 
-  const membersWithUpgradeRequests = members.filter(m => m.upgradeRequests && m.upgradeRequests.length > 0);
-  const pendingMembers = members.filter(m => !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
-  const pendingKtaApps = ktaApps.filter(k => k.status === 'pending');
-  const pendingTrainingApps = trainingApps.filter(t => t.status === 'pending');
+  const isValidName = (name?: string) => {
+    if (!name) return false;
+    const trimmed = name.trim().toLowerCase();
+    return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
+  };
+
+  const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && m.upgradeRequests && m.upgradeRequests.length > 0);
+  const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
+  const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
+  const pendingTrainingApps = trainingApps.filter(t => t && t.status === 'pending' && isValidName(t.nama || t.namaLengkap));
   const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length + pendingTrainingApps.length;
 
   if (loading) return <LoadingPage />;
