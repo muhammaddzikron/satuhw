@@ -25,12 +25,32 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
 export const firestoreService = {
   // Sync state flag
   isInitialized: false,
+  isQuotaExceeded: false,
+
+  checkQuotaError(err: any): boolean {
+    if (!err) return false;
+    const errMsg = String(err?.message || err?.code || err || '');
+    if (
+      errMsg.includes('Quota limit exceeded') ||
+      errMsg.includes('quota') ||
+      errMsg.includes('resource-exhausted') ||
+      errMsg.includes('429') ||
+      err?.code === 'resource-exhausted'
+    ) {
+      this.isQuotaExceeded = true;
+      return true;
+    }
+    return false;
+  },
 
   /**
    * Initialize Firestore with initial data if collections are empty,
    * and upload any local backup data to Firestore.
    */
   async initAndSyncWithFirestore(): Promise<{ success: boolean; message: string }> {
+    if (this.isQuotaExceeded) {
+      return { success: false, message: 'Firestore daily quota limit reached. Local cache mode active.' };
+    }
     try {
       let uploadedCount = 0;
 
@@ -222,7 +242,12 @@ export const firestoreService = {
         message: `Firestore successfully initialized and updated (${uploadedCount} items synced).`
       };
     } catch (error: any) {
-      console.error('Firestore init error:', error);
+      this.checkQuotaError(error);
+      if (this.isQuotaExceeded) {
+        console.warn('[FIRESTORE] Daily quota limit reached. App running in local cache mode.');
+      } else {
+        console.error('Firestore init error:', error);
+      }
       return { success: false, message: error.message };
     }
   },
@@ -274,25 +299,29 @@ export const firestoreService = {
   // --- MEMBERS ---
   async getMembers(): Promise<User[]> {
     let members: User[] = [];
-    try {
-      const snap = await getDocs(collection(db, 'members'));
-      if (!snap.empty) {
-        const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
-        const validMembers: User[] = [];
-        for (const m of rawMembers) {
-          const name = (m.namaLengkap || (m as any).nama || '').trim();
-          const email = (m.email || '').trim();
-          const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
-          if (isInvalid) {
-            deleteDoc(doc(db, 'members', m.id)).catch(() => {});
-          } else {
-            validMembers.push(m);
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'members'));
+        if (!snap.empty) {
+          const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+          const validMembers: User[] = [];
+          for (const m of rawMembers) {
+            const name = (m.namaLengkap || (m as any).nama || '').trim();
+            const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
+            if (isInvalid) {
+              deleteDoc(doc(db, 'members', m.id)).catch(() => {});
+            } else {
+              validMembers.push(m);
+            }
           }
+          members = validMembers;
         }
-        members = validMembers;
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) {
+          console.error('Firestore getMembers error, fallback to cache:', err);
+        }
       }
-    } catch (err) {
-      console.error('Firestore getMembers error, fallback to cache:', err);
     }
 
     if (members.length === 0) {
@@ -586,15 +615,20 @@ export const firestoreService = {
 
   // --- MATERI ---
   async getMateri(): Promise<Materi[]> {
-    try {
-      const snap = await getDocs(collection(db, 'materi'));
-      if (!snap.empty) {
-        const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
-        localStorage.setItem('materi', JSON.stringify(materi));
-        return materi;
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'materi'));
+        if (!snap.empty) {
+          const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
+          localStorage.setItem('materi', JSON.stringify(materi));
+          return materi;
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) {
+          console.error('Firestore getMateri error, fallback to cache:', err);
+        }
       }
-    } catch (err) {
-      console.error('Firestore getMateri error, fallback to cache:', err);
     }
     const stored = localStorage.getItem('materi') || '[]';
     return JSON.parse(stored);
@@ -605,10 +639,13 @@ export const firestoreService = {
       ...item,
       id: item.id || `materi-${Date.now()}`
     });
-    try {
-      await setDoc(doc(db, 'materi', itemData.id), itemData);
-    } catch (err) {
-      console.error('Firestore saveMateri error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await setDoc(doc(db, 'materi', itemData.id), itemData);
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore saveMateri error:', err);
+      }
     }
     const list = await this.getMateri();
     const idx = list.findIndex(m => m.id === itemData.id);
@@ -622,10 +659,13 @@ export const firestoreService = {
   },
 
   async deleteMateri(id: string): Promise<boolean> {
-    try {
-      await deleteDoc(doc(db, 'materi', id));
-    } catch (err) {
-      console.error('Firestore deleteMateri error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await deleteDoc(doc(db, 'materi', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore deleteMateri error:', err);
+      }
     }
     const list = await this.getMateri();
     const filtered = list.filter(m => m.id !== id);
@@ -635,59 +675,64 @@ export const firestoreService = {
 
   // --- KTA APPLICATIONS ---
   async getKTAApplications(): Promise<any[]> {
-    try {
-      const snap = await getDocs(collection(db, 'kta_applications'));
-      let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'kta_applications'));
+        let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      const cleanKtas: any[] = [];
-      for (const k of rawKtas) {
-        const item = k as any;
-        const name = (item.nama || item.namaLengkap || '').trim();
-        const email = (item.email || '').trim();
-        const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW');
-        if (isInvalid) {
-          deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
-        } else {
-          cleanKtas.push(k);
+        const cleanKtas: any[] = [];
+        for (const k of rawKtas) {
+          const item = k as any;
+          const name = (item.nama || item.namaLengkap || '').trim();
+          const email = (item.email || '').trim();
+          const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW');
+          if (isInvalid) {
+            deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
+          } else {
+            cleanKtas.push(k);
+          }
+        }
+        let ktas = cleanKtas;
+
+        const membersStored = localStorage.getItem('mock_members');
+        if (membersStored && ktas.length > 0) {
+          try {
+            const members = JSON.parse(membersStored);
+            ktas = ktas.map((k: any) => {
+              const match = members.find((m: any) => 
+                (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
+                (m.id && k.userId && String(m.id) === String(k.userId))
+              );
+              if (match) {
+                return { 
+                  ...k, 
+                  nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
+                  email: k.email || match.email || '',
+                  photo: match.photo || k.photo || '',
+                  noWa: k.noWa || match.noHp || '',
+                  asalDaerah: k.asalDaerah || match.asalKwarda || '',
+                  qabilah: k.qabilah || match.qabilah || ''
+                };
+              }
+              return k;
+            });
+          } catch (e) {}
+        }
+        localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        return ktas;
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) {
+          console.error('Firestore getKTAApplications error, fallback to cache:', err);
         }
       }
-      let ktas = cleanKtas;
-
-      const membersStored = localStorage.getItem('mock_members');
-      if (membersStored && ktas.length > 0) {
-        try {
-          const members = JSON.parse(membersStored);
-          ktas = ktas.map((k: any) => {
-            const match = members.find((m: any) => 
-              (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
-              (m.id && k.userId && String(m.id) === String(k.userId))
-            );
-            if (match) {
-              return { 
-                ...k, 
-                nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
-                email: k.email || match.email || '',
-                photo: match.photo || k.photo || '',
-                noWa: k.noWa || match.noHp || '',
-                asalDaerah: k.asalDaerah || match.asalKwarda || '',
-                qabilah: k.qabilah || match.qabilah || ''
-              };
-            }
-            return k;
-          });
-        } catch (e) {}
-      }
-      localStorage.setItem('kta_applications', JSON.stringify(ktas));
-      return ktas;
-    } catch (err) {
-      console.error('Firestore getKTAApplications error, fallback to cache:', err);
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      try {
-        const parsed = JSON.parse(stored);
-        return parsed.filter((k: any) => k && k.nama && k.nama !== 'Tanpa Nama' && k.nama !== '-');
-      } catch (e) {
-        return [];
-      }
+    }
+    const stored = localStorage.getItem('kta_applications') || '[]';
+    try {
+      const parsed = JSON.parse(stored);
+      return parsed.filter((k: any) => k && k.nama && k.nama !== 'Tanpa Nama' && k.nama !== '-');
+    } catch (e) {
+      return [];
     }
   },
 
@@ -883,25 +928,30 @@ export const firestoreService = {
 
   // --- TRAINING APPLICATIONS ---
   async getTrainingApplications(): Promise<any[]> {
-    try {
-      const snap = await getDocs(collection(db, 'training_applications'));
-      if (!snap.empty) {
-        const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const cleanTrainings: any[] = [];
-        for (const t of rawTrainings) {
-          const item = t as any;
-          const name = (item.nama || item.namaLengkap || '').trim();
-          if (!name || name === 'Tanpa Nama' || name === '-') {
-            deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
-          } else {
-            cleanTrainings.push(t);
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'training_applications'));
+        if (!snap.empty) {
+          const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const cleanTrainings: any[] = [];
+          for (const t of rawTrainings) {
+            const item = t as any;
+            const name = (item.nama || item.namaLengkap || '').trim();
+            if (!name || name === 'Tanpa Nama' || name === '-') {
+              deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
+            } else {
+              cleanTrainings.push(t);
+            }
           }
+          localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
+          return cleanTrainings;
         }
-        localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
-        return cleanTrainings;
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) {
+          console.error('Firestore getTrainingApplications error, fallback to cache:', err);
+        }
       }
-    } catch (err) {
-      console.error('Firestore getTrainingApplications error, fallback to cache:', err);
     }
     const stored = localStorage.getItem('training_applications') || '[]';
     try {
@@ -994,15 +1044,18 @@ export const firestoreService = {
 
   // --- CONTENTS ---
   async getContents(): Promise<Content[]> {
-    try {
-      const snap = await getDocs(collection(db, 'contents'));
-      if (!snap.empty) {
-        const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-        localStorage.setItem('contents', JSON.stringify(contents));
-        return contents;
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'contents'));
+        if (!snap.empty) {
+          const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
+          localStorage.setItem('contents', JSON.stringify(contents));
+          return contents;
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore getContents error, fallback to cache:', err);
       }
-    } catch (err) {
-      console.error('Firestore getContents error, fallback to cache:', err);
     }
     const stored = localStorage.getItem('contents') || '[]';
     return JSON.parse(stored);
@@ -1013,10 +1066,13 @@ export const firestoreService = {
       ...item,
       id: item.id || `content-${Date.now()}`
     });
-    try {
-      await setDoc(doc(db, 'contents', itemData.id), itemData);
-    } catch (err) {
-      console.error('Firestore saveContent error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await setDoc(doc(db, 'contents', itemData.id), itemData);
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore saveContent error:', err);
+      }
     }
     const list = await this.getContents();
     const idx = list.findIndex(c => c.id === itemData.id);
@@ -1030,10 +1086,13 @@ export const firestoreService = {
   },
 
   async deleteContent(id: string): Promise<boolean> {
-    try {
-      await deleteDoc(doc(db, 'contents', id));
-    } catch (err) {
-      console.error('Firestore deleteContent error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await deleteDoc(doc(db, 'contents', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore deleteContent error:', err);
+      }
     }
     const list = await this.getContents();
     const filtered = list.filter(c => c.id !== id);
@@ -1043,15 +1102,18 @@ export const firestoreService = {
 
   // --- SETTINGS ---
   async getSettings(): Promise<any> {
-    try {
-      const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
-      if (docSnap.exists()) {
-        const settings = docSnap.data();
-        localStorage.setItem('hw_settings', JSON.stringify(settings));
-        return settings;
+    if (!this.isQuotaExceeded) {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
+        if (docSnap.exists()) {
+          const settings = docSnap.data();
+          localStorage.setItem('hw_settings', JSON.stringify(settings));
+          return settings;
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore getSettings error, fallback to cache:', err);
       }
-    } catch (err) {
-      console.error('Firestore getSettings error, fallback to cache:', err);
     }
     const stored = localStorage.getItem('hw_settings');
     if (stored) return JSON.parse(stored);
@@ -1070,10 +1132,13 @@ export const firestoreService = {
 
   async saveSettings(settings: any): Promise<any> {
     const dataToSave = cleanData({ ...settings, id: 'app_settings' });
-    try {
-      await setDoc(doc(db, 'settings', 'app_settings'), dataToSave, { merge: true });
-    } catch (err) {
-      console.error('Firestore saveSettings error:', err);
+    if (!this.isQuotaExceeded) {
+      try {
+        await setDoc(doc(db, 'settings', 'app_settings'), dataToSave, { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore saveSettings error:', err);
+      }
     }
     localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
     return dataToSave;
@@ -1081,15 +1146,18 @@ export const firestoreService = {
 
   // --- KEGIATAN HW JATENG ---
   async getActivities(): Promise<any[]> {
-    try {
-      const snap = await getDocs(collection(db, 'hw_activities'));
-      if (!snap.empty) {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        localStorage.setItem('hw_activities', JSON.stringify(list));
-        return list;
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'hw_activities'));
+        if (!snap.empty) {
+          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          localStorage.setItem('hw_activities', JSON.stringify(list));
+          return list;
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore getActivities error:', err);
       }
-    } catch (err) {
-      console.error('Firestore getActivities error:', err);
     }
     const stored = localStorage.getItem('hw_activities');
     if (stored) {
@@ -1174,15 +1242,18 @@ export const firestoreService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
-    try {
-      const snap = await getDocs(collection(db, 'activity_applications'));
-      if (!snap.empty) {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        localStorage.setItem('activity_applications', JSON.stringify(list));
-        return list;
+    if (!this.isQuotaExceeded) {
+      try {
+        const snap = await getDocs(collection(db, 'activity_applications'));
+        if (!snap.empty) {
+          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          localStorage.setItem('activity_applications', JSON.stringify(list));
+          return list;
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.isQuotaExceeded) console.error('Firestore getActivityApplications error:', err);
       }
-    } catch (err) {
-      console.error('Firestore getActivityApplications error:', err);
     }
     const stored = localStorage.getItem('activity_applications');
     if (stored) {

@@ -30,9 +30,13 @@ export const initMockData = () => {
 
   // Sync and backup with Firestore on boot
   firestoreService.initAndSyncWithFirestore().then((res) => {
-    console.log('[FIRESTORE] Sync status:', res.message);
+    if (res.success) {
+      console.log('[FIRESTORE] Sync status:', res.message);
+    } else {
+      console.warn('[FIRESTORE] Cache active:', res.message);
+    }
   }).catch((err) => {
-    console.error('[FIRESTORE] Sync error:', err);
+    console.warn('[FIRESTORE] Sync status:', err?.message || err);
   });
   
   if (!localStorage.getItem('mock_members_initialized') || !localStorage.getItem('mock_members')) {

@@ -22,7 +22,8 @@ import {
   Shield,
   ShieldCheck,
   GraduationCap,
-  CreditCard
+  CreditCard,
+  Calendar
 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
@@ -142,16 +143,16 @@ const Navigation = () => {
               active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'pelatihan'} 
             />
             <NavigationLink 
+              to="/admin?tab=kegiatan" 
+              icon={Calendar} 
+              label="Kegiatan" 
+              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kegiatan'} 
+            />
+            <NavigationLink 
               to="/admin?tab=materi" 
               icon={BookOpen} 
               label="Materi" 
               active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
-            />
-            <NavigationLink 
-              to="/admin?tab=konten" 
-              icon={Layout} 
-              label="Konten" 
-              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'konten'} 
             />
             <button 
               onClick={logout}

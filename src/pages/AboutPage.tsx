@@ -77,9 +77,9 @@ export default function AboutPage() {
       {/* Main Content */}
       <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
         <h3 className="text-2xl font-display font-bold text-gray-800">Profil Gerakan Kepanduan</h3>
-        <div className="prose prose-sm text-gray-500 leading-relaxed space-y-4">
+        <div className="prose prose-sm text-gray-600 leading-relaxed space-y-4 text-justify">
           {profilText.split('\n').map((p, i) => (
-            <p key={`p-${i}`}>{p}</p>
+            <p key={`p-${i}`} className="text-justify">{p}</p>
           ))}
         </div>
       </div>
