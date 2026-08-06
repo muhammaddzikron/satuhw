@@ -608,7 +608,7 @@ export const sheetsService = {
       const materiList = await firestoreService.getMateri();
       return materiList.filter((m: any) => m.kategori === role);
     } catch (error) {
-      console.error('getMateri API error, falling back to Firestore:', error);
+      console.warn('getMateri API error, falling back to Firestore:', (error as any)?.message || error);
       const materiList = await firestoreService.getMateri();
       return materiList.filter((m: any) => m.kategori === role);
     }
@@ -694,7 +694,7 @@ export const sheetsService = {
       }
       return [];
     } catch (error) {
-      console.error('getMembers API error, falling back to Firestore:', error);
+      console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
       const members = await firestoreService.getMembers();
       return members.map((m: any) => this.mapUser(m));
     }
@@ -830,7 +830,7 @@ export const sheetsService = {
       }
       return await firestoreService.getKTAApplications();
     } catch (e) {
-      console.error('getKTAApplications API error, falling back to Firestore:', e);
+      console.warn('getKTAApplications API error, falling back to Firestore:', (e as any)?.message || e);
       return await firestoreService.getKTAApplications();
     }
   },
@@ -1055,7 +1055,7 @@ export const sheetsService = {
       }
       return [];
     } catch (e) {
-      console.error('getTrainingApplications API error, falling back to localStorage:', e);
+      console.warn('getTrainingApplications API error, falling back to localStorage:', (e as any)?.message || e);
       const stored = localStorage.getItem('training_applications') || '[]';
       try {
         const apps = JSON.parse(stored);
@@ -1430,7 +1430,7 @@ export const sheetsService = {
       }
       return [];
     } catch (error) {
-      console.error('getContents API error:', error);
+      console.warn('getContents API error:', (error as any)?.message || error);
       const mockData = this.getMockContents();
       return section ? mockData.filter(c => c.section === section) : mockData;
     }
@@ -1599,7 +1599,7 @@ export const sheetsService = {
       localStorage.setItem('hw_settings', JSON.stringify(merged));
       return merged;
     } catch (error) {
-      console.error('getSettings API error:', error);
+      console.warn('getSettings API error, falling back to local settings:', (error as any)?.message || error);
       const parsed = localParsed || { 
         appName: 'HW App', 
         orgName: 'HW Org', 

@@ -6572,27 +6572,55 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kwarda</label>
-                      <input 
-                        type="text" 
-                        value={formData.asalKwarda}
-                        onChange={(e) => setFormData({...formData, asalKwarda: e.target.value})}
-                        placeholder="Banyumas"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah</label>
-                      <input 
-                        type="text" 
-                        value={formData.qabilah}
-                        onChange={(e) => setFormData({...formData, qabilah: e.target.value})}
-                        placeholder="Nama Qabilah"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
-                      />
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Asal Kwarda / Qabilah PTMA
+                    </label>
+                    <select
+                      value={formData.asalKwarda || formData.qabilah || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const found = KWARDA_QABILAH_JATENG.find(k => k.name === val);
+                        if (found) {
+                          const codeNum = parseInt(found.code, 10);
+                          if (codeNum >= 36) {
+                            setFormData({ ...formData, asalKwarda: val, qabilah: val });
+                          } else {
+                            setFormData({ ...formData, asalKwarda: val });
+                          }
+                        } else {
+                          setFormData({ ...formData, asalKwarda: val, qabilah: val });
+                        }
+                      }}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none cursor-pointer"
+                    >
+                      <option value="">-- Pilih Asal Kwarda / Qabilah PTMA --</option>
+                      <optgroup label="--- KWARDA (KABUPATEN / KOTA) ---">
+                        {KWARDA_QABILAH_JATENG.slice(0, 35).map((item) => (
+                          <option key={item.code} value={item.name}>
+                            {item.code}. {item.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="--- QABILAH PTMA (UNIVERSITAS / STIKES / POLITEKNIK) ---">
+                        {KWARDA_QABILAH_JATENG.slice(35).map((item) => (
+                          <option key={item.code} value={item.name}>
+                            {item.code}. {item.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah / Tempat Latihan (Opsional)</label>
+                    <input 
+                      type="text" 
+                      value={formData.qabilah}
+                      onChange={(e) => setFormData({...formData, qabilah: e.target.value})}
+                      placeholder="Contoh: Qabilah Ahmad Dahlan"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
+                    />
                   </div>
 
                   <div className="space-y-1">

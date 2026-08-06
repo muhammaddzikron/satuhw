@@ -299,7 +299,7 @@ export const firestoreService = {
           const name = (data.nama || data.namaLengkap || '').trim();
           const email = (data.email || '').trim();
           if (!isValidName(name) || (!email && name === 'Anggota HW')) {
-            await deleteDoc(doc(db, 'kta_applications', d.id)).catch(() => {});
+            await deleteDoc(doc(db, 'kta_applications', d.id)).catch((err) => this.checkQuotaError(err));
           }
         }
       }
@@ -312,7 +312,7 @@ export const firestoreService = {
           const name = (data.namaLengkap || data.nama || '').trim();
           const email = (data.email || '').trim();
           if (!isValidName(name) || (!email && !data.noHp && !data.id?.includes('user-'))) {
-            await deleteDoc(doc(db, 'members', d.id)).catch(() => {});
+            await deleteDoc(doc(db, 'members', d.id)).catch((err) => this.checkQuotaError(err));
           }
         }
       }
@@ -324,12 +324,15 @@ export const firestoreService = {
           const data = d.data();
           const name = (data.nama || data.namaLengkap || '').trim();
           if (!isValidName(name)) {
-            await deleteDoc(doc(db, 'training_applications', d.id)).catch(() => {});
+            await deleteDoc(doc(db, 'training_applications', d.id)).catch((err) => this.checkQuotaError(err));
           }
         }
       }
     } catch (e) {
-      console.error('Error purging empty data:', e);
+      this.checkQuotaError(e);
+      if (!this.isQuotaExceeded) {
+        console.error('Error purging empty data:', e);
+      }
     }
   },
 
@@ -346,7 +349,7 @@ export const firestoreService = {
             const name = (m.namaLengkap || (m as any).nama || '').trim();
             const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
             if (isInvalid) {
-              deleteDoc(doc(db, 'members', m.id)).catch(() => {});
+              deleteDoc(doc(db, 'members', m.id)).catch((err) => this.checkQuotaError(err));
             } else {
               validMembers.push(m);
             }
