@@ -51,16 +51,30 @@ import { sheetsService } from '../services/sheetsService';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime } from '../lib/utils';
 
-const MenuCard = ({ to, icon: Icon, label, color, description, state }: { to: string, icon: any, label: string, color: string, description?: string, state?: any }) => (
-  <Link to={to} state={state} className="group">
-    <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 h-full flex flex-col items-center text-center gap-2">
-      <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-300", color)}>
-        <Icon className="text-white" size={18} />
+const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="group w-full text-left cursor-pointer">
+        <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 h-full flex flex-col items-center text-center gap-2">
+          <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-300", color)}>
+            <Icon className="text-white" size={18} />
+          </div>
+          <h3 className="font-display font-bold text-[10px] text-hw-dark leading-tight uppercase tracking-tight">{label}</h3>
+        </div>
+      </button>
+    );
+  }
+  return (
+    <Link to={to || '#'} state={state} className="group">
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 h-full flex flex-col items-center text-center gap-2">
+        <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-300", color)}>
+          <Icon className="text-white" size={18} />
+        </div>
+        <h3 className="font-display font-bold text-[10px] text-hw-dark leading-tight uppercase tracking-tight">{label}</h3>
       </div>
-      <h3 className="font-display font-bold text-[10px] text-hw-dark leading-tight uppercase tracking-tight">{label}</h3>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+};
 
 const FeatureCard = ({ to, icon: Icon, label, delay = 0 }: { to: string, icon: any, label: string, delay?: number }) => (
   <motion.div
@@ -688,6 +702,9 @@ export default function HomePage() {
           <MenuCard to="/sosmed" icon={Share2} label="Sosmed" color="bg-blue-600" />
           <MenuCard to="/doa" icon={Heart} label="Doa" color="bg-red-500" />
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
+          <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-amber-600" />
+          <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
+          <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-emerald-600" />
           <MenuCard to="/contact" icon={Phone} label="Kontak" color="bg-slate-700" />
         </div>
       </section>
