@@ -1471,18 +1471,33 @@ export default function AdminDashboard() {
   };
 
   const fetchData = async () => {
-    setLoading(true);
+    // Instant cache pre-fill to render UI immediately without blank/spinner delay
     try {
-      // Auto-sync approved/migrated KTAs to members on dashboard load
-      try {
-        await sheetsService.syncApprovedKtasToMembers();
-      } catch (err) {
-        console.warn('Silent auto-sync failed:', err);
-      }
+      const cachedMembers = localStorage.getItem('mock_members');
+      const cachedKtas = localStorage.getItem('kta_applications');
+      const cachedTrainings = localStorage.getItem('training_applications');
+      const cachedMateri = localStorage.getItem('materi');
+      const cachedContents = localStorage.getItem('contents');
+      const cachedActivities = localStorage.getItem('hw_activities');
+      const cachedActRegs = localStorage.getItem('activity_applications');
 
-      try {
-        await firestoreService.purgeEmptyData();
-      } catch (e) {}
+      if (cachedMembers) setMembers(safeJsonParse(cachedMembers, []));
+      if (cachedKtas) setKtaApps(safeJsonParse(cachedKtas, []));
+      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []));
+      if (cachedMateri) setMateriList(safeJsonParse(cachedMateri, []));
+      if (cachedContents) setContents(safeJsonParse(cachedContents, []));
+      if (cachedActivities) setActivitiesList(safeJsonParse(cachedActivities, []));
+      if (cachedActRegs) setActivityApplicationsList(safeJsonParse(cachedActRegs, []));
+    } catch (e) {
+      console.warn('Cache prefill warning:', e);
+    }
+
+    try {
+      // Non-blocking background sync tasks
+      setTimeout(() => {
+        sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
+        firestoreService.purgeEmptyData().catch(() => {});
+      }, 500);
 
       const [materi, membersData, contentsData, settingsData, ktaData, trainingData, activitiesData, actRegData] = await Promise.all([
         sheetsService.getMateri('admin'),
@@ -2200,72 +2215,76 @@ export default function AdminDashboard() {
     doc.save(`Daftar_Hadir_Peserta_${activityNameFile}_${dateStr}.pdf`);
   };
 
-  const filteredMembers = members.filter(m => {
-    const matchesSearch = (
-      (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    
-    const isInternal = m.role === 'superadmin' || m.role === 'admin';
-    if (isInternal) return false;
-
-    if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
-    
-    return matchesSearch && selectedFilters.some(filter => {
-      if (filter === 'Pending Verifikasi') return !m.isVerified;
-      if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
-      if (filter === 'Perempuan') return m.jenisKelamin === 'P';
-      if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
-      if (filter === 'Pengenal') return m.golongan === 'Pengenal';
-      if (filter === 'Penghela') return m.golongan === 'Penghela';
-      if (filter === 'Penuntun') return m.golongan === 'Penuntun';
-      if (filter === 'Dewan Sugli') return (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah');
-      if (filter === 'Kwarda') return (m.role === 'kwarda' || m.role === 'admin_kwarda');
+  const filteredMembers = React.useMemo(() => {
+    return members.filter(m => {
+      const matchesSearch = (
+        (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+      );
       
-      if (filter === 'Jaya Melati 1') {
+      const isInternal = m.role === 'superadmin' || m.role === 'admin';
+      if (isInternal) return false;
+
+      if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
+      
+      return matchesSearch && selectedFilters.some(filter => {
+        if (filter === 'Pending Verifikasi') return !m.isVerified;
+        if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
+        if (filter === 'Perempuan') return m.jenisKelamin === 'P';
+        if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
+        if (filter === 'Pengenal') return m.golongan === 'Pengenal';
+        if (filter === 'Penghela') return m.golongan === 'Penghela';
+        if (filter === 'Penuntun') return m.golongan === 'Penuntun';
+        if (filter === 'Dewan Sugli') return (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah');
+        if (filter === 'Kwarda') return (m.role === 'kwarda' || m.role === 'admin_kwarda');
+        
+        if (filter === 'Jaya Melati 1') {
+          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+          return p.includes('Jati 1');
+        }
+        if (filter === 'Jaya Melati 2') {
+          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+          return p.includes('Jati 2');
+        }
+        if (filter === 'Jaya Matahari 1') {
+          const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
+          return p.includes('Jari 1');
+        }
+        return false;
+      });
+    });
+  }, [members, searchQuery, selectedFilters]);
+
+  const stats = React.useMemo(() => {
+    return {
+      total: members.filter(m => m.role !== 'superadmin' && m.role !== 'admin').length,
+      laki: members.filter(m => m.jenisKelamin === 'L' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      perempuan: members.filter(m => m.jenisKelamin === 'P' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      verified: members.filter(m => m.isVerified && m.role !== 'superadmin' && m.role !== 'admin').length,
+      athfal: members.filter(m => (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal') && m.role !== 'superadmin' && m.role !== 'admin').length,
+      pengenal: members.filter(m => m.golongan === 'Pengenal' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      penghela: members.filter(m => m.golongan === 'Penghela' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      penuntun: members.filter(m => m.golongan === 'Penuntun' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      sugli: members.filter(m => (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah') && m.role !== 'superadmin' && m.role !== 'admin').length,
+      kwarda: members.filter(m => (m.role === 'kwarda' || m.role === 'admin_kwarda') && m.role !== 'superadmin' && m.role !== 'admin').length,
+      jm1: members.filter(m => {
+        if (m.role === 'superadmin' || m.role === 'admin') return false;
         const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
         return p.includes('Jati 1');
-      }
-      if (filter === 'Jaya Melati 2') {
+      }).length,
+      jm2: members.filter(m => {
+        if (m.role === 'superadmin' || m.role === 'admin') return false;
         const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
         return p.includes('Jati 2');
-      }
-      if (filter === 'Jaya Matahari 1') {
+      }).length,
+      jm3: members.filter(m => {
+        if (m.role === 'superadmin' || m.role === 'admin') return false;
         const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
         return p.includes('Jari 1');
-      }
-      return false;
-    });
-  });
-
-  const stats = {
-    total: members.filter(m => m.role !== 'superadmin' && m.role !== 'admin').length,
-    laki: members.filter(m => m.jenisKelamin === 'L' && m.role !== 'superadmin' && m.role !== 'admin').length,
-    perempuan: members.filter(m => m.jenisKelamin === 'P' && m.role !== 'superadmin' && m.role !== 'admin').length,
-    verified: members.filter(m => m.isVerified && m.role !== 'superadmin' && m.role !== 'admin').length,
-    athfal: members.filter(m => (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal') && m.role !== 'superadmin' && m.role !== 'admin').length,
-    pengenal: members.filter(m => m.golongan === 'Pengenal' && m.role !== 'superadmin' && m.role !== 'admin').length,
-    penghela: members.filter(m => m.golongan === 'Penghela' && m.role !== 'superadmin' && m.role !== 'admin').length,
-    penuntun: members.filter(m => m.golongan === 'Penuntun' && m.role !== 'superadmin' && m.role !== 'admin').length,
-    sugli: members.filter(m => (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah') && m.role !== 'superadmin' && m.role !== 'admin').length,
-    kwarda: members.filter(m => (m.role === 'kwarda' || m.role === 'admin_kwarda') && m.role !== 'superadmin' && m.role !== 'admin').length,
-    jm1: members.filter(m => {
-      if (m.role === 'superadmin' || m.role === 'admin') return false;
-      const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-      return p.includes('Jati 1');
-    }).length,
-    jm2: members.filter(m => {
-      if (m.role === 'superadmin' || m.role === 'admin') return false;
-      const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-      return p.includes('Jati 2');
-    }).length,
-    jm3: members.filter(m => {
-      if (m.role === 'superadmin' || m.role === 'admin') return false;
-      const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-      return p.includes('Jari 1');
-    }).length
-  };
+      }).length
+    };
+  }, [members]);
 
   const isValidName = (name?: string) => {
     if (!name) return false;
@@ -2273,7 +2292,7 @@ export default function AdminDashboard() {
     return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
   };
 
-  const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && m.upgradeRequests && m.upgradeRequests.length > 0);
+  const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0);
   const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
   const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
   const pendingTrainingApps = trainingApps.filter(t => t && t.status === 'pending' && isValidName(t.nama || t.namaLengkap));
@@ -2342,7 +2361,7 @@ export default function AdminDashboard() {
       {/* Navigation Tabs */}
       <div className="flex flex-wrap gap-2 pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60">
         {[
-          { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-600', hoverClass: 'hover:border-blue-300 hover:text-blue-600' },
+          { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-sky-400 text-white shadow-lg shadow-sky-400/25 ring-2 ring-sky-400', hoverClass: 'hover:border-sky-300 hover:text-sky-500' },
           { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-600', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
           { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500', hoverClass: 'hover:border-orange-300 hover:text-orange-600' },
           { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-600', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
@@ -2382,7 +2401,7 @@ export default function AdminDashboard() {
               {/* Stats & Demographic Section specifically for Anggota Tab */}
               <div className="p-6 border-b border-gray-100 bg-gray-50/50 space-y-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-hw-blue" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
+                  <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-sky-500" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
                   <StatCard label="Terverifikasi" value={stats.verified} icon={CheckCircle} color="bg-hw-green" subValue={`${Math.round((stats.verified/(stats.total || 1))*100)}% dari total`} />
                   <StatCard label="Total Materi" value={materiList.length} icon={BookOpen} color="bg-hw-dark" subValue="Aktif di aplikasi" />
                   <StatCard label="Admin Aktif" value={members.filter(m => m.role === 'admin' || m.role === 'superadmin').length} icon={Shield} color="bg-orange-500" subValue="Super & Petugas" />
@@ -2649,11 +2668,18 @@ export default function AdminDashboard() {
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-gray-800">{row.namaLengkap}</span>
                               <span className="text-[10px] text-gray-400 font-medium">{row.asalKwarda}, {row.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
-                              {row.upgradeRequests && row.upgradeRequests.length > 0 && (
-                                <span className="flex items-center gap-1 mt-1 text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100 w-fit">
-                                  <ArrowUpRight size={8} /> Permohonan: {row.upgradeRequests.join(', ')}
-                                </span>
-                              )}
+                              {(() => {
+                                const reqs = Array.isArray(row.upgradeRequests) 
+                                  ? row.upgradeRequests 
+                                  : (typeof row.upgradeRequests === 'string' && row.upgradeRequests) 
+                                  ? [row.upgradeRequests] 
+                                  : [];
+                                return reqs.length > 0 ? (
+                                  <span className="flex items-center gap-1 mt-1 text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100 w-fit">
+                                    <ArrowUpRight size={8} /> Permohonan: {reqs.join(', ')}
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                         </td>
@@ -6522,42 +6548,49 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  {formData.upgradeRequests && formData.upgradeRequests.length > 0 && (
-                    <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 space-y-3">
-                       <h5 className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Permohonan Upgrade Akses:</h5>
-                       <div className="flex flex-col gap-2">
-                         {formData.upgradeRequests.map((req, idx) => (
-                           <div key={`upgrade-${req}-${idx}`} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-rose-200 shadow-sm">
-                             <div className="flex items-center gap-2">
-                               <Award size={14} className="text-rose-500" />
-                               <span className="text-xs font-bold text-gray-700 uppercase">{req}</span>
+                  {(() => {
+                    const reqs = Array.isArray(formData.upgradeRequests) 
+                      ? formData.upgradeRequests 
+                      : (typeof formData.upgradeRequests === 'string' && formData.upgradeRequests) 
+                      ? [formData.upgradeRequests] 
+                      : [];
+                    return reqs.length > 0 ? (
+                      <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 space-y-3">
+                         <h5 className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Permohonan Upgrade Akses:</h5>
+                         <div className="flex flex-col gap-2">
+                           {reqs.map((req, idx) => (
+                             <div key={`upgrade-${req}-${idx}`} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-rose-200 shadow-sm">
+                               <div className="flex items-center gap-2">
+                                 <Award size={14} className="text-rose-500" />
+                                 <span className="text-xs font-bold text-gray-700 uppercase">{req}</span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <button 
+                                   onClick={() => {
+                                     setFormData({
+                                       ...formData, 
+                                       role: req as any,
+                                       upgradeRequests: reqs.filter(r => r !== req)
+                                     });
+                                   }}
+                                   className="px-3 py-1 bg-hw-green text-white text-[10px] font-black rounded-lg hover:bg-hw-green-dark transition-colors flex items-center gap-1 cursor-pointer"
+                                 >
+                                   <Check size={10} /> APPROVE
+                                 </button>
+                                 <button 
+                                   onClick={() => setFormData({...formData, upgradeRequests: reqs.filter(r => r !== req)})}
+                                   className="p-1 text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                                   title="Reject/Remove"
+                                 >
+                                   <X size={14} />
+                                 </button>
+                               </div>
                              </div>
-                             <div className="flex items-center gap-2">
-                               <button 
-                                 onClick={() => {
-                                   setFormData({
-                                     ...formData, 
-                                     role: req as any,
-                                     upgradeRequests: formData.upgradeRequests.filter(r => r !== req)
-                                   });
-                                 }}
-                                 className="px-3 py-1 bg-hw-green text-white text-[10px] font-black rounded-lg hover:bg-hw-green-dark transition-colors flex items-center gap-1"
-                               >
-                                 <Check size={10} /> APPROVE
-                               </button>
-                               <button 
-                                 onClick={() => setFormData({...formData, upgradeRequests: formData.upgradeRequests.filter(r => r !== req)})}
-                                 className="p-1 text-gray-400 hover:text-rose-500 transition-colors"
-                                 title="Reject/Remove"
-                               >
-                                 <X size={14} />
-                               </button>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                    </div>
-                  )}
+                           ))}
+                         </div>
+                      </div>
+                    ) : null;
+                  })()}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>

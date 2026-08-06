@@ -144,7 +144,7 @@ export default function UpgradePage() {
           const isInRolesList = user?.roles?.includes(option.id as any);
           return !isCurrentRole && !isInRolesList;
         }).map((option) => {
-          const isRequested = user?.upgradeRequests?.includes(option.id);
+          const isRequested = Array.isArray(user?.upgradeRequests) && user.upgradeRequests.includes(option.id);
           
           return (
             <div 
