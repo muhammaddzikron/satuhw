@@ -382,14 +382,14 @@ export default function DaftarPelatihanPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 font-medium mt-2 pt-2 border-t border-gray-200/50">
-                    <div className="flex items-center gap-1">
-                      <MapPin size={12} className="text-hw-green shrink-0" />
-                      <span className="truncate">{act.lokasiPelatihan || '-'}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-gray-600 font-medium mt-2 pt-2 border-t border-gray-200/50">
+                    <div className="flex items-start gap-1">
+                      <MapPin size={12} className="text-hw-green shrink-0 mt-0.5" />
+                      <span className="break-words leading-tight">{act.lokasiPelatihan || '-'}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} className="text-hw-green shrink-0" />
-                      <span className="truncate">{act.tanggalPelatihan || '-'}</span>
+                    <div className="flex items-start gap-1">
+                      <Calendar size={12} className="text-hw-green shrink-0 mt-0.5" />
+                      <span className="break-words leading-tight">{act.tanggalPelatihan || '-'}</span>
                     </div>
                   </div>
                 </div>

@@ -86,7 +86,7 @@ export default function KegiatanPage() {
     }
   }, [user]);
 
-  const categories = ['Semua', 'Kemah Bakti', 'Jambore', 'Muswil', 'Pelatihan Khusus', 'Silaturahmi'];
+  const categories = ['Semua', 'Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan'];
 
   const filteredActivities = activities.filter(act => {
     const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,7 +164,7 @@ export default function KegiatanPage() {
             Agenda & Kegiatan Pandu Hizbul Wathan
           </h1>
           <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
-            Ikuti berbagai kegiatan resmi HW Jateng seperti Kemah Bakti, Jambore Wilayah, dan Musyawarah. Dapatkan KTA Digital resmi sebagai identitas peserta!
+            Ikuti berbagai kegiatan resmi HW Jateng seperti Rapat HW, Silaturahmi, Pelatihan, dan Perkemahan. Dapatkan KTA Digital resmi sebagai identitas peserta!
           </p>
         </div>
       </div>
@@ -216,9 +216,9 @@ export default function KegiatanPage() {
             <motion.div
               key={activity.id}
               whileHover={{ y: -2 }}
-              className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col sm:flex-row"
+              className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row"
             >
-              <div className="sm:w-2/5 h-44 sm:h-auto relative bg-gray-100 shrink-0 overflow-hidden">
+              <div className="w-full md:w-2/5 h-48 md:h-auto relative bg-gray-100 shrink-0 overflow-hidden">
                 <img 
                   src={activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={activity.namaKegiatan} 
@@ -234,42 +234,42 @@ export default function KegiatanPage() {
                 </div>
               </div>
 
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+              <div className="p-5 flex-1 flex flex-col justify-between space-y-3.5">
                 <div className="space-y-2">
-                  <h3 className="text-sm font-black text-hw-dark font-display leading-snug">
+                  <h3 className="text-sm md:text-base font-black text-hw-dark font-display leading-snug">
                     {activity.namaKegiatan}
                   </h3>
                   <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
                     {activity.deskripsi}
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 pt-1">
-                    <div className="flex items-center gap-1.5 text-emerald-700">
-                      <Calendar size={14} className="shrink-0" />
-                      <span className="truncate">{activity.tanggal}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 pt-1">
+                    <div className="flex items-start gap-1.5 text-emerald-700">
+                      <Calendar size={14} className="shrink-0 mt-0.5" />
+                      <span className="leading-snug break-words">{activity.tanggal}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-hw-dark">
-                      <MapPin size={14} className="shrink-0 text-amber-600" />
-                      <span className="truncate">{activity.lokasi}</span>
+                    <div className="flex items-start gap-1.5 text-hw-dark">
+                      <MapPin size={14} className="shrink-0 text-amber-600 mt-0.5" />
+                      <span className="leading-snug break-words font-extrabold">{activity.lokasi}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-purple-700">
-                      <Tag size={14} className="shrink-0" />
-                      <span>Infaq: {activity.biaya || 'Gratis'}</span>
+                    <div className="flex items-start gap-1.5 text-purple-700">
+                      <Tag size={14} className="shrink-0 mt-0.5" />
+                      <span className="leading-snug">Infaq: {activity.biaya || 'Gratis'}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-blue-700">
-                      <Users size={14} className="shrink-0" />
-                      <span>{activity.kuota || 'Terbuka'}</span>
+                    <div className="flex items-start gap-1.5 text-blue-700">
+                      <Users size={14} className="shrink-0 mt-0.5" />
+                      <span className="leading-snug">{activity.kuota || 'Terbuka'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                   <button
                     onClick={() => {
                       setSelectedActivity(activity);
                       setIsDetailModalOpen(true);
                     }}
-                    className="flex-1 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                   >
                     Detail & Daftar <ChevronRight size={14} />
                   </button>
@@ -311,29 +311,33 @@ export default function KegiatanPage() {
               </div>
 
               <div className="p-6 overflow-y-auto space-y-5 flex-1">
-                <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-xs">
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pelaksanaan</span>
-                    <span className="font-black text-gray-800 flex items-center gap-1.5 mt-0.5">
-                      <Calendar size={14} className="text-hw-green" /> {selectedActivity.tanggal}
+                    <span className="font-black text-gray-800 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Calendar size={14} className="text-hw-green shrink-0 mt-0.5" />
+                      <span>{selectedActivity.tanggal}</span>
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Lokasi</span>
-                    <span className="font-black text-gray-800 flex items-center gap-1.5 mt-0.5">
-                      <MapPin size={14} className="text-amber-600" /> {selectedActivity.lokasi}
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Lokasi & Tempat</span>
+                    <span className="font-black text-gray-900 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <MapPin size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                      <span>{selectedActivity.lokasi}</span>
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Infaq / Biaya</span>
-                    <span className="font-black text-purple-700 flex items-center gap-1.5 mt-0.5">
-                      <Tag size={14} /> {selectedActivity.biaya}
+                    <span className="font-black text-purple-700 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Tag size={14} className="shrink-0 mt-0.5" />
+                      <span>{selectedActivity.biaya}</span>
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Penyelenggara</span>
-                    <span className="font-black text-blue-800 flex items-center gap-1.5 mt-0.5">
-                      <Award size={14} /> {selectedActivity.penyelenggara || 'Kwarwil HW Jateng'}
+                    <span className="font-black text-blue-800 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Award size={14} className="shrink-0 mt-0.5" />
+                      <span>{selectedActivity.penyelenggara || 'Kwarwil HW Jateng'}</span>
                     </span>
                   </div>
                 </div>

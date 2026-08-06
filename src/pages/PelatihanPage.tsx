@@ -585,13 +585,13 @@ export default function PelatihanPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 font-medium pt-1">
-                  <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
-                    <MapPin size={14} className="text-hw-green shrink-0" />
-                    <span className="truncate">{act.lokasiPelatihan || 'Lokasi Pusdiklat HW'}</span>
+                  <div className="flex items-start gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
+                    <MapPin size={14} className="text-hw-green shrink-0 mt-0.5" />
+                    <span className="break-words leading-snug">{act.lokasiPelatihan || 'Lokasi Pusdiklat HW'}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
-                    <Calendar size={14} className="text-hw-green shrink-0" />
-                    <span className="truncate">{act.tanggalPelatihan || 'Jadwal Menyusul'}</span>
+                  <div className="flex items-start gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-100">
+                    <Calendar size={14} className="text-hw-green shrink-0 mt-0.5" />
+                    <span className="break-words leading-snug">{act.tanggalPelatihan || 'Jadwal Menyusul'}</span>
                   </div>
                 </div>
 

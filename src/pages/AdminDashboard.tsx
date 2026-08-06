@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const DefaultSignatureKetua = () => (
   <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -372,7 +372,7 @@ export default function AdminDashboard() {
   const [editingKegiatan, setEditingKegiatan] = useState<any | null>(null);
   const [kegiatanFormData, setKegiatanFormData] = useState({
     namaKegiatan: '',
-    kategori: 'Kemah Bakti',
+    kategori: 'Rapat HW',
     tanggal: '',
     lokasi: '',
     biaya: 'Gratis',
@@ -1280,7 +1280,7 @@ export default function AdminDashboard() {
       setEditingKegiatan(activity);
       setKegiatanFormData({
         namaKegiatan: activity.namaKegiatan || '',
-        kategori: activity.kategori || 'Kemah Bakti',
+        kategori: activity.kategori || 'Rapat HW',
         tanggal: activity.tanggal || '',
         lokasi: activity.lokasi || '',
         biaya: activity.biaya || 'Gratis',
@@ -1294,7 +1294,7 @@ export default function AdminDashboard() {
       setEditingKegiatan(null);
       setKegiatanFormData({
         namaKegiatan: '',
-        kategori: 'Kemah Bakti',
+        kategori: 'Rapat HW',
         tanggal: '',
         lokasi: '',
         biaya: 'Gratis',
@@ -1994,13 +1994,13 @@ export default function AdminDashboard() {
     doc.text(`Filter: ${selectedFilters.join(', ')}`, 14, 22);
     doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 27);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: headers,
       body: data,
       startY: 35,
       theme: 'grid',
       styles: { fontSize: 8 },
-      headStyles: { fillStyle: '#1a413d' }
+      headStyles: { fillColor: '#1a413d' }
     });
 
     const filterName = selectedFilters.join('_').replace(/\s+/g, '');
@@ -2088,13 +2088,13 @@ export default function AdminDashboard() {
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
     doc.text(`Total Filter: ${targetApps.length} Pengajuan (Status: ${ktaFilterStatus === 'Semua' ? 'Semua Status' : ktaFilterStatus})`, 14, 26);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: headers,
       body: data,
       startY: 32,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillStyle: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
@@ -2174,13 +2174,13 @@ export default function AdminDashboard() {
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 26);
     doc.text(`Total Peserta: ${list.length} Orang`, 14, 31);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: headers,
       body: data,
       startY: 36,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillStyle: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
@@ -5629,11 +5629,11 @@ export default function AdminDashboard() {
                                 <p className="text-xs text-gray-500 line-clamp-2 mt-1">{act.deskripsi}</p>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                                <div>📅 {act.tanggal}</div>
-                                <div>📍 {act.lokasi}</div>
-                                <div>💰 {act.biaya || 'Gratis'}</div>
-                                <div>👥 {act.kuota || 'Terbuka'}</div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                <div className="break-words leading-snug">📅 {act.tanggal}</div>
+                                <div className="break-words leading-snug">📍 {act.lokasi}</div>
+                                <div className="break-words leading-snug">💰 {act.biaya || 'Gratis'}</div>
+                                <div className="break-words leading-snug">👥 {act.kuota || 'Terbuka'}</div>
                               </div>
                             </div>
                           </div>
@@ -5847,7 +5847,7 @@ export default function AdminDashboard() {
                         required
                         value={kegiatanFormData.namaKegiatan}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, namaKegiatan: e.target.value })}
-                        placeholder="Contoh: Kemah Bakti HW Jateng 2026"
+                        placeholder="Contoh: Rapat Kerja Wilayah HW Jateng 2026"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
                       />
                     </div>
@@ -5860,11 +5860,10 @@ export default function AdminDashboard() {
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, kategori: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                         >
-                          <option value="Kemah Bakti">Kemah Bakti</option>
-                          <option value="Jambore">Jambore</option>
-                          <option value="Muswil">Muswil</option>
-                          <option value="Pelatihan Khusus">Pelatihan Khusus</option>
+                          <option value="Rapat HW">Rapat HW</option>
                           <option value="Silaturahmi">Silaturahmi</option>
+                          <option value="Pelatihan">Pelatihan</option>
+                          <option value="Perkemahan">Perkemahan</option>
                         </select>
                       </div>
                       <div>

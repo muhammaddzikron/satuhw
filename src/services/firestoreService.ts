@@ -1099,7 +1099,7 @@ export const firestoreService = {
       {
         id: 'keg-1',
         namaKegiatan: 'Kemah Bakti Pandu HW Jawa Tengah 2026',
-        kategori: 'Kemah Bakti',
+        kategori: 'Perkemahan',
         tanggal: '20 - 22 Agustus 2026',
         lokasi: 'Baturraden, Kabupaten Banyumas',
         biaya: 'Rp 35.000',
@@ -1112,7 +1112,7 @@ export const firestoreService = {
       {
         id: 'keg-2',
         namaKegiatan: 'Jambore Wilayah Hizbul Wathan 2026',
-        kategori: 'Jambore',
+        kategori: 'Perkemahan',
         tanggal: '10 - 14 September 2026',
         lokasi: 'Kawasan Wisata Bandungan, Kabupaten Semarang',
         biaya: 'Rp 75.000',
@@ -1125,7 +1125,7 @@ export const firestoreService = {
       {
         id: 'keg-3',
         namaKegiatan: 'Musyawarah Wilayah HW Jawa Tengah',
-        kategori: 'Muswil',
+        kategori: 'Rapat HW',
         tanggal: '15 - 16 Oktober 2026',
         lokasi: 'Auditorium Universitas Muhammadiyah Semarang (UNIMUS)',
         biaya: 'Gratis (Undangan)',
