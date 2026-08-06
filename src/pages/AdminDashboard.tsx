@@ -2339,55 +2339,26 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Section */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-hw-blue" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
-        <StatCard label="Terverifikasi" value={stats.verified} icon={CheckCircle} color="bg-hw-green" subValue={`${Math.round((stats.verified/stats.total)*100)}% dari total`} />
-        <StatCard label="Total Materi" value={materiList.length} icon={BookOpen} color="bg-hw-dark" subValue="Aktif di aplikasi" />
-        <StatCard label="Admin Aktif" value={members.filter(m => m.role === 'admin' || m.role === 'superadmin').length} icon={Shield} color="bg-orange-500" subValue="Super & Petugas" />
-      </div>
-
-      {/* Detailed Stats Section */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-2">
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Detail Demografi & Pelatihan</h3>
-          <span className="text-[10px] font-bold text-hw-dark/50">Klik kartu untuk melihat data anggota</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <DetailStatCard label="Laki-Laki" value={stats.laki} color="bg-blue-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Laki-laki']); }} />
-          <DetailStatCard label="Perempuan" value={stats.perempuan} color="bg-pink-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Perempuan']); }} />
-          <DetailStatCard label="Athfal" value={stats.athfal} color="bg-yellow-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Athfal']); }} />
-          <DetailStatCard label="Pengenal" value={stats.pengenal} color="bg-green-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Pengenal']); }} />
-          <DetailStatCard label="Penghela" value={stats.penghela} color="bg-red-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Penghela']); }} />
-          <DetailStatCard label="Penuntun" value={stats.penuntun} color="bg-purple-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Penuntun']); }} />
-          <DetailStatCard label="Dewan Sugli" value={stats.sugli} color="bg-hw-dark" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Dewan Sugli']); }} />
-          <DetailStatCard label="Kwarda" value={stats.kwarda} color="bg-orange-600" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Kwarda']); }} />
-          <DetailStatCard label="Jaya Melati 1" value={stats.jm1} color="bg-hw-green" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Melati 1']); }} />
-          <DetailStatCard label="Jaya Melati 2" value={stats.jm2} color="bg-hw-blue" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Melati 2']); }} />
-          <DetailStatCard label="Jaya Matahari 1" value={stats.jm3} color="bg-yellow-600" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Matahari 1']); }} />
-        </div>
-      </div>
-
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 pb-4 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2">
+      <div className="flex flex-wrap gap-2 pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60">
         {[
-          { id: 'anggota', label: 'Anggota', icon: Users },
-          { id: 'kta', label: 'KTA', icon: CreditCard },
-          { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap },
-          { id: 'kegiatan', label: 'Kegiatan', icon: Calendar },
-          { id: 'materi', label: 'Materi', icon: BookOpen },
-          { id: 'konten', label: 'Konten', icon: Layout },
-          user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield },
-          user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings },
-          { id: 'akun', label: 'Akun Saya', icon: Users }
+          { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-600', hoverClass: 'hover:border-blue-300 hover:text-blue-600' },
+          { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-600', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+          { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500', hoverClass: 'hover:border-orange-300 hover:text-orange-600' },
+          { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-600', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+          { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-teal-600 text-white shadow-lg shadow-teal-500/25 ring-2 ring-teal-600', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
+          { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-purple-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-600', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
+          user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-600', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
+          user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-slate-800 text-white shadow-lg shadow-slate-800/25 ring-2 ring-slate-800', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
+          { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-500', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
         ].filter(Boolean).map((tab: any) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 ${
               activeTab === tab.id 
-              ? 'bg-hw-dark text-white shadow-xl shadow-hw-dark/10 ring-4 ring-hw-dark/10' 
-              : 'bg-white text-gray-500 border border-gray-100 hover:border-gray-200'
+              ? tab.activeClass
+              : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
             }`}
           >
             <tab.icon size={16} />
@@ -2408,6 +2379,35 @@ export default function AdminDashboard() {
           {/* ANGGOTA TAB */}
           {activeTab === 'anggota' && (
             <div className="flex flex-col h-full">
+              {/* Stats & Demographic Section specifically for Anggota Tab */}
+              <div className="p-6 border-b border-gray-100 bg-gray-50/50 space-y-5">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-hw-blue" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
+                  <StatCard label="Terverifikasi" value={stats.verified} icon={CheckCircle} color="bg-hw-green" subValue={`${Math.round((stats.verified/(stats.total || 1))*100)}% dari total`} />
+                  <StatCard label="Total Materi" value={materiList.length} icon={BookOpen} color="bg-hw-dark" subValue="Aktif di aplikasi" />
+                  <StatCard label="Admin Aktif" value={members.filter(m => m.role === 'admin' || m.role === 'superadmin').length} icon={Shield} color="bg-orange-500" subValue="Super & Petugas" />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Detail Demografi & Pelatihan</h3>
+                    <span className="text-[10px] font-bold text-hw-dark/50">Klik kartu untuk menyaring data</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <DetailStatCard label="Laki-Laki" value={stats.laki} color="bg-blue-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Laki-laki']); }} />
+                    <DetailStatCard label="Perempuan" value={stats.perempuan} color="bg-pink-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Perempuan']); }} />
+                    <DetailStatCard label="Athfal" value={stats.athfal} color="bg-yellow-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Athfal']); }} />
+                    <DetailStatCard label="Pengenal" value={stats.pengenal} color="bg-green-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Pengenal']); }} />
+                    <DetailStatCard label="Penghela" value={stats.penghela} color="bg-red-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Penghela']); }} />
+                    <DetailStatCard label="Penuntun" value={stats.penuntun} color="bg-purple-500" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Penuntun']); }} />
+                    <DetailStatCard label="Dewan Sugli" value={stats.sugli} color="bg-hw-dark" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Dewan Sugli']); }} />
+                    <DetailStatCard label="Kwarda" value={stats.kwarda} color="bg-orange-600" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Kwarda']); }} />
+                    <DetailStatCard label="Jaya Melati 1" value={stats.jm1} color="bg-hw-green" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Melati 1']); }} />
+                    <DetailStatCard label="Jaya Melati 2" value={stats.jm2} color="bg-hw-blue" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Melati 2']); }} />
+                    <DetailStatCard label="Jaya Matahari 1" value={stats.jm3} color="bg-yellow-600" onClick={() => { setActiveTab('anggota'); setSelectedFilters(['Jaya Matahari 1']); }} />
+                  </div>
+                </div>
+              </div>
               <div className="p-6 border-b border-gray-50 bg-gray-50/30 space-y-4">
                 {/* Unsynced Approved Registrants Warning Alert */}
                 {unsyncedApprovedRegistrants.length > 0 && (
@@ -4360,25 +4360,25 @@ export default function AdminDashboard() {
                 {/* Sub-Tab Navigation Pills */}
                 <div className="flex border-b border-gray-150/60 overflow-x-auto scrollbar-none gap-2 px-1 pt-2">
                   {[
-                    { id: 'peserta', label: '1. Data Peserta Pelatihan', desc: 'Verifikasi & Biodata' },
-                    { id: 'presensi', label: '2. Presensi', desc: 'Absensi per Materi' },
-                    { id: 'penugasan', label: '3. Penugasan', desc: 'Ulasan Tugas' },
-                    { id: 'penilaian', label: '4. Penilaian & Kelulusan', desc: 'Status Kelulusan' },
-                    { id: 'piagam', label: '5. Cetak Piagam', desc: 'Unduh Sertifikat' },
-                    { id: 'pengaturan', label: '6. Atur Lokasi & Tanggal', desc: 'Jadwal & Tempat' },
+                    { id: 'peserta', label: '1. Data Peserta Pelatihan', desc: 'Verifikasi & Biodata', activeClass: 'border-blue-600 text-blue-700 bg-blue-50 font-black shadow-xs' },
+                    { id: 'presensi', label: '2. Presensi', desc: 'Absensi per Materi', activeClass: 'border-emerald-600 text-emerald-700 bg-emerald-50 font-black shadow-xs' },
+                    { id: 'penugasan', label: '3. Penugasan', desc: 'Ulasan Tugas', activeClass: 'border-amber-500 text-amber-700 bg-amber-50 font-black shadow-xs' },
+                    { id: 'penilaian', label: '4. Penilaian & Kelulusan', desc: 'Status Kelulusan', activeClass: 'border-purple-600 text-purple-700 bg-purple-50 font-black shadow-xs' },
+                    { id: 'piagam', label: '5. Cetak Piagam', desc: 'Unduh Sertifikat', activeClass: 'border-rose-500 text-rose-700 bg-rose-50 font-black shadow-xs' },
+                    { id: 'pengaturan', label: '6. Kelola Jenis Pelatihan', desc: 'Kegiatan & Jadwal', activeClass: 'border-orange-500 text-orange-700 bg-orange-50 font-black shadow-xs' },
                   ].map(sub => (
                     <button
                       key={sub.id}
                       onClick={() => setTrainingSubTab(sub.id as any)}
                       className={cn(
-                        "flex flex-col items-start px-5 py-3 rounded-t-2xl text-xs transition-all border-b-2 font-bold whitespace-nowrap min-w-[170px] text-left",
+                        "flex flex-col items-start px-5 py-3 rounded-t-2xl text-xs transition-all border-b-2 font-bold whitespace-nowrap min-w-[170px] text-left cursor-pointer",
                         trainingSubTab === sub.id 
-                          ? "border-hw-green text-hw-green bg-hw-green/5 font-black shadow-sm" 
-                          : "border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50/50"
+                          ? sub.activeClass
+                          : "border-transparent text-gray-400 hover:text-gray-700 hover:bg-gray-50"
                       )}
                     >
                       <span className="tracking-tight">{sub.label}</span>
-                      <span className="text-[9px] font-bold opacity-60 mt-0.5 tracking-wider uppercase">{sub.desc}</span>
+                      <span className="text-[9px] font-bold opacity-75 mt-0.5 tracking-wider uppercase">{sub.desc}</span>
                     </button>
                   ))}
                 </div>
