@@ -59,25 +59,21 @@ export default function PelatihNasionalPage() {
     loadData();
   }, []);
 
-  // Helper to check if a member is Super Admin or Admin
-  const isSuperAdminOrAdmin = (m: User): boolean => {
+  // Helper to check if a member is Super Admin system account
+  const isSuperAdminAccount = (m: User): boolean => {
     if (!m) return false;
-    const role = String(m.role || '').toLowerCase();
-    const activeRole = String(m.activeRole || '').toLowerCase();
     const email = String(m.email || '').toLowerCase().trim();
-    const roles = Array.isArray(m.roles) ? m.roles.map(r => String(r).toLowerCase()) : [];
+    const nama = String(m.namaLengkap || '').toLowerCase().trim();
+    const id = String(m.id || '').toLowerCase().trim();
 
     return (
-      role === 'superadmin' ||
-      role === 'admin' ||
-      activeRole === 'superadmin' ||
-      activeRole === 'admin' ||
-      roles.includes('superadmin') ||
-      roles.includes('admin') ||
+      id === 'admin-1' ||
+      email === 'admin@hwjateng.com' ||
       email === 'admin@hw.org' ||
       email === 'admin@hw.or.id' ||
-      email.startsWith('admin') ||
-      (m.namaLengkap || '').toLowerCase().includes('super admin')
+      email === 'admin@admin.com' ||
+      nama === 'super admin' ||
+      nama === 'super admin hw'
     );
   };
 
@@ -85,10 +81,17 @@ export default function PelatihNasionalPage() {
   const isPelatihNasional = (m: User): boolean => {
     if (!m) return false;
 
-    // Must not be Super Admin or Admin
-    if (isSuperAdminOrAdmin(m)) return false;
+    // Filter out default superadmin system accounts
+    if (isSuperAdminAccount(m)) return false;
 
-    const targets = ['jari1', 'jari2', 'jaya matahari 1', 'jaya matahari 2', 'jari 1', 'jari 2', 'jaya matahari', 'pelatih nasional'];
+    const targets = [
+      'jari1', 'jari2', 
+      'jaya matahari 1', 'jaya matahari 2', 
+      'jari 1', 'jari 2', 
+      'jaya matahari', 
+      'pelatih nasional', 
+      'pelatih'
+    ];
 
     const checkValue = (val: any): boolean => {
       if (!val) return false;
@@ -97,6 +100,16 @@ export default function PelatihNasionalPage() {
       }
       if (typeof val === 'string') {
         const lower = val.toLowerCase().trim();
+        if (lower.startsWith('[') && lower.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) {
+              return parsed.some(v => checkValue(v));
+            }
+          } catch (e) {
+            // fallback to string match
+          }
+        }
         return targets.some(t => lower.includes(t));
       }
       return false;
@@ -108,7 +121,12 @@ export default function PelatihNasionalPage() {
       checkValue(m.activeRole) ||
       checkValue(m.golongan) ||
       checkValue(m.pelatihan) ||
-      checkValue(m.pendidikan)
+      checkValue(m.pendidikan) ||
+      checkValue((m as any).kategori) ||
+      checkValue((m as any).tingkat) ||
+      checkValue((m as any).tingkatan) ||
+      checkValue(m.upgradeRequests) ||
+      checkValue((m as any).pelatihanAkanDiikuti)
     );
   };
 
@@ -117,13 +135,33 @@ export default function PelatihNasionalPage() {
     const kwardaStr = (m.asalKwarda || '').trim().toLowerCase();
     const qabilahStr = (m.qabilah || '').trim().toLowerCase();
 
-    // 1. First check if Kwarda matches Kwarda list (codes 01..35)
-    for (let i = 0; i < 35; i++) {
-      const item = KWARDA_QABILAH_JATENG[i];
-      const itemName = item.name.toLowerCase();
-      const cleanItemName = itemName.replace('kabupaten ', '').replace('kota ', '');
+    // 1. Check if Qabilah matches Qabilah PTMA list first (codes 36..58)
+    if (qabilahStr) {
+      for (let i = 35; i < KWARDA_QABILAH_JATENG.length; i++) {
+        const item = KWARDA_QABILAH_JATENG[i];
+        const itemName = item.name.toLowerCase();
+        const matchParen = item.name.match(/\(([^)]+)\)/);
+        const acronym = matchParen ? matchParen[1].toLowerCase() : '';
 
-      if (kwardaStr) {
+        if (
+          qabilahStr === itemName ||
+          itemName.includes(qabilahStr) ||
+          qabilahStr.includes(itemName) ||
+          (acronym && qabilahStr.includes(acronym)) ||
+          (acronym && acronym.includes(qabilahStr))
+        ) {
+          return { codeIndex: parseInt(item.code, 10), label: item.name };
+        }
+      }
+    }
+
+    // 2. Check if Kwarda matches Kwarda list (codes 01..35)
+    if (kwardaStr) {
+      for (let i = 0; i < 35; i++) {
+        const item = KWARDA_QABILAH_JATENG[i];
+        const itemName = item.name.toLowerCase();
+        const cleanItemName = itemName.replace('kabupaten ', '').replace('kota ', '');
+
         if (
           kwardaStr === itemName ||
           kwardaStr === cleanItemName ||
@@ -135,30 +173,27 @@ export default function PelatihNasionalPage() {
       }
     }
 
-    // 2. Next check if Qabilah or Kwarda matches Qabilah PTMA list (codes 36..58)
-    for (let i = 35; i < KWARDA_QABILAH_JATENG.length; i++) {
-      const item = KWARDA_QABILAH_JATENG[i];
-      const itemName = item.name.toLowerCase();
-      const matchParen = item.name.match(/\(([^)]+)\)/);
-      const acronym = matchParen ? matchParen[1].toLowerCase() : '';
+    // 3. Check if Kwarda matches Qabilah PTMA list (codes 36..58)
+    if (kwardaStr) {
+      for (let i = 35; i < KWARDA_QABILAH_JATENG.length; i++) {
+        const item = KWARDA_QABILAH_JATENG[i];
+        const itemName = item.name.toLowerCase();
+        const matchParen = item.name.match(/\(([^)]+)\)/);
+        const acronym = matchParen ? matchParen[1].toLowerCase() : '';
 
-      const checkStr = (val: string) => {
-        if (!val) return false;
-        return (
-          val === itemName ||
-          itemName.includes(val) ||
-          val.includes(itemName) ||
-          (acronym && val.includes(acronym)) ||
-          (acronym && acronym.includes(val))
-        );
-      };
-
-      if (checkStr(qabilahStr) || checkStr(kwardaStr)) {
-        return { codeIndex: parseInt(item.code, 10), label: item.name };
+        if (
+          kwardaStr === itemName ||
+          itemName.includes(kwardaStr) ||
+          kwardaStr.includes(itemName) ||
+          (acronym && kwardaStr.includes(acronym)) ||
+          (acronym && acronym.includes(kwardaStr))
+        ) {
+          return { codeIndex: parseInt(item.code, 10), label: item.name };
+        }
       }
     }
 
-    // 3. Fallback for unlisted items
+    // 4. Fallback for unlisted items
     return { codeIndex: 999, label: m.asalKwarda || m.qabilah || 'Lainnya' };
   };
 
@@ -170,8 +205,25 @@ export default function PelatihNasionalPage() {
       m.activeRole,
       m.golongan,
       m.pelatihan,
-      m.pendidikan
-    ].flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean).join(' ').toLowerCase();
+      m.pendidikan,
+      (m as any).kategori,
+      (m as any).tingkat,
+      (m as any).tingkatan,
+      (m as any).pelatihanAkanDiikuti
+    ].flatMap(v => {
+      if (!v) return [];
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') {
+        if (v.startsWith('[') && v.endsWith(']')) {
+          try {
+            const p = JSON.parse(v);
+            if (Array.isArray(p)) return p;
+          } catch (e) {}
+        }
+        return [v];
+      }
+      return [String(v)];
+    }).filter(Boolean).join(' ').toLowerCase();
 
     if (combinedStr.includes('jari2') || combinedStr.includes('jaya matahari 2') || combinedStr.includes('jari 2')) {
       return 'Jaya Matahari 2';
