@@ -912,11 +912,10 @@ export default function DaftarPelatihanPage() {
 
                   {/* Asal Qabilah (Sekolah / Pangkalan) */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan)</label>
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan) (Opsional)</label>
                     <input 
                       type="text" 
                       name="qabilah" 
-                      required 
                       placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"
                       value={formData.qabilah} 
                       onChange={handleChange} 

@@ -264,9 +264,11 @@ export const sheetsService = {
       }
     }
 
-    // Step 2: Fast Firestore cache login
+    // Step 2: Fast Firestore cache login with 1.2s timeout limit
     try {
-      const fsResult = await firestoreService.login(cleanEmail, cleanPass);
+      const fsPromise = firestoreService.login(cleanEmail, cleanPass);
+      const fsTimeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error('FS Timeout')), 1200));
+      const fsResult: any = await Promise.race([fsPromise, fsTimeout]).catch(() => null);
       if (fsResult && fsResult.user) {
         if (IS_API_VALID) {
           this.post({ action: 'login', email: cleanEmail, password: cleanPass }).catch(() => {});
@@ -274,10 +276,10 @@ export const sheetsService = {
         return fsResult;
       }
     } catch (e) {
-      console.warn('Firestore login check error:', e);
+      console.warn('Firestore login check skipped or timed out:', e);
     }
 
-    // Step 3: Try Google Sheets API with timeout if user wasn't in local cache
+    // Step 3: Try Google Sheets API with 1.5s timeout if user wasn't in local cache
     if (IS_API_VALID) {
       try {
         const apiPromise = this.post({
@@ -285,7 +287,7 @@ export const sheetsService = {
           email: cleanEmail,
           password: cleanPass
         });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), 2500));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), 1500));
         const res: any = await Promise.race([apiPromise, timeoutPromise]);
         if (res && res.user) {
           const mappedUser = this.mapUser(res.user);
@@ -384,6 +386,19 @@ export const sheetsService = {
       } catch (e) {}
     }
 
+    // Always merge INITIAL_SPREADSHEET_DATA.users if not present
+    if (Array.isArray(INITIAL_SPREADSHEET_DATA.users)) {
+      INITIAL_SPREADSHEET_DATA.users.forEach((u: any, idx: number) => {
+        if (u && u.email && !members.some((m: any) => m.email?.trim().toLowerCase() === u.email.trim().toLowerCase())) {
+          members.push({
+            ...u,
+            id: u.id ? String(u.id) : `user-${1000 + idx}`,
+            isVerified: u.isVerified === true || u.isVerified === "TRUE" || u.isVerified === 1 || u.isVerified === "true" || u.isVerified === "1"
+          });
+        }
+      });
+    }
+
     // Check KTA applications as well
     const ktaStored = localStorage.getItem('kta_applications');
     if (ktaStored) {
@@ -419,9 +434,9 @@ export const sheetsService = {
           isValid = true;
         }
       } else {
-        // REGULAR MEMBER ACCOUNT: Default password 12345hw
+        // REGULAR MEMBER ACCOUNT: Default password 12345hw or stored password or email
         const expectedUserPass = found.password || '12345hw';
-        if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456') {
+        if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456' || cleanPass === cleanEmail) {
           isValid = true;
         }
       }

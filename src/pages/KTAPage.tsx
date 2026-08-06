@@ -103,6 +103,42 @@ export const KWARDA_QABILAH_JATENG = [
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
 
+export const formatIndonesianDate = (dateStr?: string): string => {
+  if (!dateStr || dateStr === '-') return '-';
+  const cleanStr = dateStr.split('T')[0].split(' ')[0].trim();
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  // Check YYYY-MM-DD or YYYY/MM/DD
+  if (cleanStr.match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/)) {
+    const parts = cleanStr.split(/[-/]/);
+    const year = parts[0];
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (month >= 0 && month < 12 && !isNaN(day)) {
+      return `${day} ${months[month]} ${year}`;
+    }
+  }
+
+  // Check DD-MM-YYYY or DD/MM/YYYY
+  if (cleanStr.match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
+    const parts = cleanStr.split(/[-/]/);
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parts[2];
+    if (month >= 0 && month < 12 && !isNaN(day)) {
+      return `${day} ${months[month]} ${year}`;
+    }
+  }
+
+  // Fallback: try Date parse
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  return cleanStr;
+};
+
 const DefaultSignatureKetua = () => (
   <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10 25c10-2 20-15 25-15s5 20 15 5c5-5 15-10 20-5c5 5-2 15 5 15c5 0 15-10 20-15" />
@@ -434,11 +470,6 @@ export default function KTAPage() {
 
     if (!formData.tempatLahir || !formData.tanggalLahir) {
       setMessage({ type: 'error', text: 'Harap melengkapi Tempat Lahir dan Tanggal Lahir.' });
-      return;
-    }
-
-    if (!formData.qabilah) {
-      setMessage({ type: 'error', text: 'Harap melengkapi bidang Asal Qabilah.' });
       return;
     }
 
@@ -880,17 +911,12 @@ export default function KTAPage() {
 
               {/* Custom Date above pre-printed Sekretaris text on template background */}
               {ktaFrontBg && (
-                <div className="absolute bottom-[80px] right-[40px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
+                <div className="absolute bottom-[72px] right-[20px] z-30 text-right pointer-events-none" style={{ position: 'absolute', zIndex: 30 }}>
                   <p 
                     className="text-[5.5px] font-bold text-gray-800 leading-none"
                     style={{ color: '#1f2937', position: 'relative', zIndex: 30 }}
                   >
-                    {(() => {
-                      const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                      const d = new Date();
-                      const currentDateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-                      return `${settings.ktaKotaPenerbit || 'Semarang'}, ${myApplication.verifiedAt || currentDateStr}`;
-                    })()}
+                    {'\u00A0\u00A0\u00A0\u00A0'}{settings.ktaKotaPenerbit || 'Semarang'}, {formatIndonesianDate(myApplication.verifiedAt)}
                   </p>
                 </div>
               )}
@@ -1000,7 +1026,7 @@ export default function KTAPage() {
                           className="font-bold py-0.1"
                           style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
                         >
-                          {truncateText(myApplication.tempatLahir || '-', 15)}, {truncateText(myApplication.tanggalLahir || '-', 15)}
+                          {truncateText(myApplication.tempatLahir || '-', 15)}, {formatIndonesianDate(myApplication.tanggalLahir)}
                         </td>
                       </tr>
                       <tr>
@@ -1096,7 +1122,7 @@ export default function KTAPage() {
                 
                 {/* Right side signatures section */}
                 <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", ktaFrontBg ? "opacity-0 pointer-events-none hidden" : "")}>
-                  <p className={cn("text-[5.5px] font-bold leading-none", ktaFrontBg ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {myApplication.verifiedAt || '13 Juli 2026'}</p>
+                  <p className={cn("text-[5.5px] font-bold leading-none pt-0.5", ktaFrontBg ? "text-gray-500" : "text-slate-300")}>{'\u00A0\u00A0\u00A0\u00A0'}{settings.ktaKotaPenerbit || 'Semarang'}, {formatIndonesianDate(myApplication.verifiedAt)}</p>
                   
                   {/* Signatures & stamp overlapping row */}
                   <div className="flex items-center justify-between w-full h-8 relative mt-0.5 px-1">
@@ -1177,7 +1203,7 @@ export default function KTAPage() {
               )}
 
               {/* Rules and Pledge */}
-              <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
+              <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "")}>
                 <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                 <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
                   <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -1194,7 +1220,7 @@ export default function KTAPage() {
               </div>
 
               {/* Validation QR & Stamp Block */}
-              <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "border-transparent" : "border-white/10")}>
+              <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "border-white/10")}>
                 <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
                   <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                   <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
@@ -1296,14 +1322,9 @@ export default function KTAPage() {
 
                   {/* Custom Date above pre-printed Sekretaris text on template background */}
                   {ktaFrontBg && (
-                    <div className="absolute bottom-[80px] right-[40px] z-20 text-right pointer-events-none">
-                      <p className="text-[5.5px] font-bold text-gray-800 leading-none">
-                        {(() => {
-                          const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                          const d = new Date();
-                          const currentDateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-                          return `${settings.ktaKotaPenerbit || 'Semarang'}, ${myApplication.verifiedAt || currentDateStr}`;
-                        })()}
+                    <div className="absolute bottom-[72px] right-[20px] z-20 text-right pointer-events-none">
+                      <p className="text-[5.5px] font-bold text-gray-800 leading-none" style={{ color: '#1f2937' }}>
+                        {'\u00A0\u00A0\u00A0\u00A0'}{settings.ktaKotaPenerbit || 'Semarang'}, {formatIndonesianDate(myApplication.verifiedAt)}
                       </p>
                     </div>
                   )}
@@ -1364,7 +1385,7 @@ export default function KTAPage() {
                           <tr>
                             <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>TTL</td>
                             <td className="text-center py-0.1">:</td>
-                            <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.tempatLahir || '-'}, {myApplication.tanggalLahir || '-'}</td>
+                            <td className={cn("font-bold py-0.1", ktaFrontBg ? "text-gray-800" : "text-white")}>{myApplication.tempatLahir || '-'}, {formatIndonesianDate(myApplication.tanggalLahir)}</td>
                           </tr>
                           <tr>
                             <td className={cn("font-bold uppercase py-0.1", ktaFrontBg ? "text-gray-400" : "text-slate-300")}>Asal</td>
@@ -1399,7 +1420,7 @@ export default function KTAPage() {
                     
                     {/* Right side signatures section */}
                     <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative animate-fade-in", ktaFrontBg ? "opacity-0 pointer-events-none hidden" : "")}>
-                      <p className={cn("text-[5.5px] font-bold leading-none", ktaFrontBg ? "text-gray-500" : "text-slate-300")}>{settings.ktaKotaPenerbit || 'Semarang'}, {myApplication.verifiedAt || '13 Juli 2026'}</p>
+                      <p className={cn("text-[5.5px] font-bold leading-none pt-0.5", ktaFrontBg ? "text-gray-500" : "text-slate-300")}>{'\u00A0\u00A0\u00A0\u00A0'}{settings.ktaKotaPenerbit || 'Semarang'}, {formatIndonesianDate(myApplication.verifiedAt)}</p>
                       
                       {/* Signatures & stamp overlapping row */}
                       <div className="flex items-center justify-between w-full h-8 relative mt-0.5 px-1">
@@ -1479,7 +1500,7 @@ export default function KTAPage() {
                   )}
 
                   {/* Rules and Pledge */}
-                  <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
+                  <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "")}>
                     <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                     <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
                       <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -1496,7 +1517,7 @@ export default function KTAPage() {
                   </div>
 
                   {/* Validation QR & Stamp Block */}
-                  <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "border-transparent" : "border-white/10")}>
+                  <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "border-white/10")}>
                     <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
                       <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                       <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
@@ -1884,10 +1905,9 @@ export default function KTAPage() {
 
             {/* Qabilah (sekolah/ pangkalan kegiatan) */}
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan)</label>
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan) (Opsional)</label>
               <input 
                 type="text"
-                required
                 value={formData.qabilah}
                 onChange={(e) => setFormData(prev => ({ ...prev, qabilah: e.target.value }))}
                 placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"

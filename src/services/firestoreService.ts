@@ -11,6 +11,14 @@ import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 
+// Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
+const withTimeout = <T>(promise: Promise<T>, ms: number = 1500): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Firestore operation timeout')), ms))
+  ]);
+};
+
 // Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
 const cleanData = <T extends Record<string, any>>(obj: T): T => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -62,7 +70,7 @@ export const firestoreService = {
       let uploadedCount = 0;
 
       // 1. Members
-      const membersSnap = await getDocs(collection(db, 'members'));
+      const membersSnap = await withTimeout(getDocs(collection(db, 'members')), 1500);
       if (membersSnap.empty) {
         const localMembersStr = localStorage.getItem('mock_members');
         let initialMembers: any[] = [];
@@ -341,7 +349,7 @@ export const firestoreService = {
     let members: User[] = [];
     if (!this.isQuotaExceeded) {
       try {
-        const snap = await getDocs(collection(db, 'members'));
+        const snap = await withTimeout(getDocs(collection(db, 'members')), 1500);
         if (!snap.empty) {
           const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
           const validMembers: User[] = [];

@@ -3,6 +3,39 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const formatIndonesianDate = (dateStr?: string): string => {
+  if (!dateStr || dateStr === '-') return '-';
+  const cleanStr = dateStr.split('T')[0].split(' ')[0].trim();
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  if (cleanStr.match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/)) {
+    const parts = cleanStr.split(/[-/]/);
+    const year = parts[0];
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (month >= 0 && month < 12 && !isNaN(day)) {
+      return `${day} ${months[month]} ${year}`;
+    }
+  }
+
+  if (cleanStr.match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
+    const parts = cleanStr.split(/[-/]/);
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parts[2];
+    if (month >= 0 && month < 12 && !isNaN(day)) {
+      return `${day} ${months[month]} ${year}`;
+    }
+  }
+
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  return cleanStr;
+};
+
 const DefaultSignatureKetua = () => (
   <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10 25c10-2 20-15 25-15s5 20 15 5c5-5 15-10 20-5c5 5-2 15 5 15c5 0 15-10 20-15" />
@@ -3932,7 +3965,7 @@ export default function AdminDashboard() {
                               >
                                 {/* Custom Date above pre-printed Sekretaris text on template background */}
                                 {settings.ktaTemplateFront && (
-                                  <div className="absolute bottom-[80px] right-[40px] z-20 text-right pointer-events-none">
+                                  <div className="absolute bottom-[72px] right-[20px] z-20 text-right pointer-events-none">
                                     <p className="text-[5.5px] font-bold text-gray-800 leading-none">
                                       {(() => {
                                         const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -3997,7 +4030,7 @@ export default function AdminDashboard() {
                                         <tr>
                                           <td className="font-bold text-gray-500 uppercase py-0.25">TTL</td>
                                           <td className="text-center py-0.25">:</td>
-                                          <td className="font-bold text-gray-800 py-0.25">Banyumas, 17-09-2012</td>
+                                          <td className="font-bold text-gray-800 py-0.25">Banyumas, 17 September 2012</td>
                                         </tr>
                                         <tr>
                                           <td className="font-bold text-gray-500 uppercase py-0.25">Asal</td>
@@ -4025,7 +4058,7 @@ export default function AdminDashboard() {
                                   
                                   {/* Right side signatures section */}
                                   <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
-                                    <p className="text-[5.5px] font-bold text-gray-800 leading-none">{settings.ktaKotaPenerbit || 'Semarang'}, 13 Juli 2026</p>
+                                    <p className="text-[5.5px] font-bold text-gray-800 leading-none">{'    '}{settings.ktaKotaPenerbit || 'Semarang'}, 13 Juli 2026</p>
                                     
                                     {/* Signatures & stamp overlapping row */}
                                     <div className="flex items-center justify-between w-full h-8 relative mt-0.5 px-1">
@@ -4114,7 +4147,7 @@ export default function AdminDashboard() {
                                 )}
 
                                 {/* Top capsule logo */}
-                                <div className={cn("flex justify-center z-10", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
+                                <div className={cn("flex justify-center z-10", settings.ktaTemplateBack ? "hidden opacity-0 pointer-events-none" : "")}>
                                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-hw-green text-white rounded-full text-[7.5px] font-black uppercase tracking-wider shadow-sm border border-emerald-600/30">
                                     <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW" className="w-3.5 h-3.5 object-contain invert brightness-200" />
                                     <span>HW Jateng</span>
@@ -4122,7 +4155,7 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Rules and Pledge */}
-                                <div className={cn("space-y-1 z-10 px-1 mt-1", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
+                                <div className={cn("space-y-1 z-10 px-1 mt-1", settings.ktaTemplateBack ? "hidden opacity-0 pointer-events-none" : "")}>
                                   <h5 className="text-[7.5px] font-black uppercase text-emerald-800 tracking-wider text-center border-b border-gray-150 pb-0.5">Undang-Undang Pandu Hizbul Wathan</h5>
                                   <ol className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[4.8px] text-gray-700 list-decimal pl-3 font-semibold leading-tight mt-1">
                                     <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -4139,7 +4172,7 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Validation QR & Stamp Block */}
-                                <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-1", settings.ktaTemplateBack ? "border-transparent" : "border-gray-100")}>
+                                <div className={cn("border-t pt-1 z-10 flex items-center justify-between relative mt-1", settings.ktaTemplateBack ? "hidden border-transparent" : "border-gray-100")}>
                                   <div className={cn("text-left leading-tight max-w-[130px]", settings.ktaTemplateBack ? "opacity-0 pointer-events-none" : "")}>
                                     <p className="text-[4px] text-gray-400 uppercase font-bold">Diterbitkan oleh :</p>
                                     <p className="text-[5.5px] font-black text-emerald-800 uppercase leading-none">Pimpinan Wilayah HW Jawa Tengah</p>
@@ -7969,10 +8002,9 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan PTMA)</label>
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan PTMA) (Opsional)</label>
                     <input 
                       type="text" 
-                      required
                       value={editingKtaApp.qabilah || ''}
                       onChange={(e) => setEditingKtaApp({ ...editingKtaApp, qabilah: e.target.value })}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
@@ -8575,7 +8607,7 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Rules and Pledge */}
-                        <div className={cn("space-y-1 z-10 px-1 text-left leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
+                        <div className={cn("space-y-1 z-10 px-1 text-left leading-tight", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "")}>
                           <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
                           <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
                             <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
@@ -8592,7 +8624,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Validation QR & Stamp Block */}
-                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", ktaBackBg ? "border-transparent" : "border-white/10")}>
+                        <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "border-white/10")}>
                           <div className={cn("space-y-0.5 max-w-[140px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
                             <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
                             <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>

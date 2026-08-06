@@ -166,10 +166,6 @@ export default function RegisterPage() {
         setValidationError('Alamat lengkap wajib diisi');
         return false;
       }
-      if (!formData.qabilah.trim()) {
-        setValidationError('Asal Qabilah wajib diisi');
-        return false;
-      }
     }
     return true;
   };
@@ -691,13 +687,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Qabilah (Sekolah/Tempat Latihan)</label>
+                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Qabilah (Sekolah/Tempat Latihan) (Opsional)</label>
                   <input 
                     name="qabilah" 
                     value={formData.qabilah} 
                     onChange={handleChange} 
                     placeholder="Contoh: Qabilah Ahmad Dahlan" 
-                    required 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none" 
                   />
                 </div>
