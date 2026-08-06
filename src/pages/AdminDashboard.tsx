@@ -1777,10 +1777,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Simple RBAC check
-  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin')) {
-    return <Navigate to="/" />;
-  }
+
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2271,6 +2268,11 @@ export default function AdminDashboard() {
   const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
   const pendingTrainingApps = trainingApps.filter(t => t && t.status === 'pending' && isValidName(t.nama || t.namaLengkap));
   const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length + pendingTrainingApps.length;
+
+    // Simple RBAC check
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin')) {
+    return <Navigate to="/" />;
+  }
 
   if (loading) return <LoadingPage />;
 
