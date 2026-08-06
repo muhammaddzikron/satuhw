@@ -1228,7 +1228,7 @@ export const firestoreService = {
         approvalDate: new Date().toISOString(),
         isDigitalOnly: true
       };
-      await this.saveKTAApplication(ktaPayload);
+      await this.createKTAApplication(ktaPayload);
     } catch (e) {
       console.error('Auto KTA creation for activity error:', e);
     }

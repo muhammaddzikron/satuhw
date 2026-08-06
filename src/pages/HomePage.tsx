@@ -743,18 +743,23 @@ export default function HomePage() {
               {/* Banner Kegiatan HW Jateng for Guests */}
               <Link 
                 to="/kegiatan" 
-                className="flex items-center justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white p-4 rounded-3xl shadow-md shadow-blue-700/20 hover:shadow-lg transition-all border border-blue-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200 mt-2"
+                className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200 mt-2"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/20 rounded-2xl text-white">
+                  <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300">
                     <Calendar size={20} />
                   </div>
                   <div className="text-left space-y-0.5">
-                    <h4 className="text-xs font-black uppercase tracking-wider">Kegiatan HW Jateng</h4>
-                    <p className="text-[9px] text-blue-100 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
+                      <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                        Terbaru
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
                   </div>
                 </div>
-                <ChevronRight size={16} className="text-blue-100" />
+                <ChevronRight size={16} className="text-amber-300" />
               </Link>
             </div>
           </div>
@@ -802,18 +807,23 @@ export default function HomePage() {
             <div className="px-1">
               <Link 
                 to="/kegiatan" 
-                className="flex items-center justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white p-4 rounded-3xl shadow-md shadow-blue-700/20 hover:shadow-lg transition-all border border-blue-500/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+                className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/20 rounded-2xl text-white">
+                  <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300">
                     <Calendar size={20} />
                   </div>
                   <div className="text-left space-y-0.5">
-                    <h4 className="text-xs font-black uppercase tracking-wider">Kegiatan HW Jateng</h4>
-                    <p className="text-[9px] text-blue-100 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
+                      <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                        Terbaru
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Kemah bakti, jambore, muswil & agenda resmi HW Jateng</p>
                   </div>
                 </div>
-                <ChevronRight size={16} className="text-blue-100" />
+                <ChevronRight size={16} className="text-amber-300" />
               </Link>
             </div>
           </div>

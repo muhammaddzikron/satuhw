@@ -12,24 +12,24 @@ import {
   Search, 
   Info, 
   Sparkles, 
-  LogIn, 
-  UserPlus, 
   CreditCard, 
   ShieldCheck, 
   Clock, 
   Loader2, 
-  QrCode, 
   Check, 
   X,
   Share2,
-  Award
+  Award,
+  Send,
+  UserCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { KWARDA_QABILAH_JATENG } from './KTAPage';
 
 export default function KegiatanPage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
 
   const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,26 +40,19 @@ export default function KegiatanPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
-  // Quick Login Modal State inside registration flow if not logged in
-  const [showQuickLogin, setShowQuickLogin] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Kwarda list (Kabupaten/Kota se-Jateng) and Qabilah PTMA list
+  const kwardaOptions = KWARDA_QABILAH_JATENG.slice(0, 35).map(item => item.name);
+  const qabilahPtmaOptions = KWARDA_QABILAH_JATENG.slice(35).map(item => item.name);
 
   // Registration Form State
   const [formData, setFormData] = useState({
     namaLengkap: '',
-    nik: '',
-    jenisKelamin: 'L',
-    tempatLahir: '',
-    tanggalLahir: '',
-    golongan: 'Pengenal',
-    asalKwarda: 'Jawa Tengah',
-    qabilah: '',
-    noHp: '',
-    email: '',
-    alamat: ''
+    unsur: 'Kwarwil HW Jateng',
+    utusan: 'Kabupaten Banyumas',
+    qabilahPtma: 'Universitas Muhammadiyah Surakarta (UMS)',
+    jabatan: 'Anggota',
+    kategoriUndangan: 'Tidak Ada / Umum',
+    noHp: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,23 +75,16 @@ export default function KegiatanPage() {
   };
 
   useEffect(() => {
-    if (user && isAuthenticated) {
+    if (user) {
       setFormData(prev => ({
         ...prev,
         namaLengkap: user.namaLengkap || prev.namaLengkap,
-        nik: user.nik || prev.nik,
-        jenisKelamin: user.jenisKelamin || prev.jenisKelamin,
-        tempatLahir: (user as any).tempatLahir || prev.tempatLahir,
-        tanggalLahir: (user as any).tanggalLahir || prev.tanggalLahir,
-        golongan: user.golongan || prev.golongan,
-        asalKwarda: user.asalKwarda || prev.asalKwarda,
-        qabilah: user.qabilah || prev.qabilah,
         noHp: user.noHp || prev.noHp,
-        email: user.email || prev.email,
-        alamat: user.alamat || prev.alamat
+        utusan: user.asalKwarda || prev.utusan,
+        qabilahPtma: user.qabilah || prev.qabilahPtma
       }));
     }
-  }, [user, isAuthenticated]);
+  }, [user]);
 
   const categories = ['Semua', 'Kemah Bakti', 'Jambore', 'Muswil', 'Pelatihan Khusus', 'Silaturahmi'];
 
@@ -109,43 +95,11 @@ export default function KegiatanPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleQuickLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    setIsLoggingIn(true);
-    try {
-      const result = await sheetsService.login(loginEmail, loginPassword);
-      if (result && result.user) {
-        useAuthStore.getState().setAuth(result.user, result.token || 'mock-jwt-token');
-        setShowQuickLogin(false);
-        // Pre-fill form data
-        setFormData(prev => ({
-          ...prev,
-          namaLengkap: result.user.namaLengkap || prev.namaLengkap,
-          nik: result.user.nik || prev.nik,
-          jenisKelamin: result.user.jenisKelamin || prev.jenisKelamin,
-          golongan: result.user.golongan || prev.golongan,
-          asalKwarda: result.user.asalKwarda || prev.asalKwarda,
-          qabilah: result.user.qabilah || prev.qabilah,
-          noHp: result.user.noHp || prev.noHp,
-          email: result.user.email || prev.email,
-          alamat: result.user.alamat || prev.alamat
-        }));
-      } else {
-        setLoginError('Email atau password salah. Silakan coba lagi.');
-      }
-    } catch (err: any) {
-      setLoginError(err.message || 'Gagal login');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedActivity) return;
     if (!formData.namaLengkap || !formData.noHp) {
-      alert('Mohon isi Nama Lengkap dan No. WhatsApp/HP');
+      alert('Mohon isi Nama Lengkap dan Nomor WhatsApp');
       return;
     }
 
@@ -155,17 +109,24 @@ export default function KegiatanPage() {
         activityId: selectedActivity.id,
         namaKegiatan: selectedActivity.namaKegiatan,
         userId: user?.id || `user-act-${Date.now()}`,
-        ...formData,
+        namaLengkap: formData.namaLengkap,
+        unsur: formData.unsur,
+        utusan: formData.unsur === 'Kwarda HW' ? formData.utusan : '',
+        qabilahPtma: formData.unsur === 'Qabilah PTMA' ? formData.qabilahPtma : '',
+        jabatan: formData.jabatan,
+        kategoriUndangan: formData.kategoriUndangan,
+        noHp: formData.noHp,
+        asalKwarda: formData.unsur === 'Kwarda HW' ? formData.utusan : formData.unsur,
+        qabilah: formData.unsur === 'Qabilah PTMA' ? formData.qabilahPtma : formData.unsur,
         status: 'approved',
         tanggalDaftar: new Date().toISOString()
       };
 
       const result = await sheetsService.registerActivity(payload);
       setRegSuccess({
-        id: result.id,
+        id: result.id || `actreg-${Date.now()}`,
         activity: selectedActivity,
-        participant: formData,
-        ktaIssued: true
+        participant: payload
       });
     } catch (e: any) {
       alert('Gagal mendaftar kegiatan: ' + e.message);
@@ -384,16 +345,7 @@ export default function KegiatanPage() {
                   </p>
                 </div>
 
-                {/* Identity / KTA Auto-issue notice */}
-                <div className="p-4 bg-emerald-50/80 border border-emerald-200/60 rounded-2xl flex items-start gap-3">
-                  <CreditCard size={20} className="text-emerald-700 shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-0.5">
-                    <h5 className="font-black text-emerald-900">Termasuk KTA Digital Peserta</h5>
-                    <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
-                      Pendaftaran kegiatan otomatis menerbitkan KTA Digital sebagai bukti identitas peserta resmi.
-                    </p>
-                  </div>
-                </div>
+
               </div>
 
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
@@ -450,37 +402,103 @@ export default function KegiatanPage() {
                   <div className="space-y-1">
                     <h3 className="text-lg font-black text-hw-dark font-display">Pendaftaran Berhasil!</h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      Anda resmi terdaftar sebagai peserta <strong className="text-gray-800">{regSuccess.activity.namaKegiatan}</strong>.
+                      Data pendaftaran Anda untuk kegiatan <strong className="text-gray-800">{regSuccess.activity.namaKegiatan}</strong> telah berhasil dikirim ke panitia.
                     </p>
                   </div>
 
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-3xl space-y-3 text-left">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-600 text-white rounded-xl">
-                        <CreditCard size={20} />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase text-emerald-700">KTA Digital Peserta Diterbitkan</span>
-                        <h4 className="text-sm font-black text-emerald-950">{regSuccess.participant.namaLengkap}</h4>
-                      </div>
+                  {/* Summary Data Isian */}
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left space-y-1.5 text-xs text-gray-700">
+                    <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                      <span className="text-gray-500 font-medium">Nama:</span>
+                      <span className="font-black text-gray-900">{regSuccess.participant.namaLengkap}</span>
                     </div>
-                    <div className="text-[11px] font-bold text-emerald-800 space-y-1 pt-2 border-t border-emerald-200/60">
-                      <div>No. Reg: <span className="font-mono">{regSuccess.id}</span></div>
-                      <div>Asal Daerah: {regSuccess.participant.asalKwarda}</div>
-                      <div>Qabilah: {regSuccess.participant.qabilah || '-'}</div>
+                    <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                      <span className="text-gray-500 font-medium">Unsur:</span>
+                      <span className="font-bold text-gray-800">{regSuccess.participant.unsur}</span>
+                    </div>
+                    {regSuccess.participant.unsur === 'Kwarda HW' && (
+                      <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                        <span className="text-gray-500 font-medium">Utusan Kwarda:</span>
+                        <span className="font-bold text-emerald-700">{regSuccess.participant.utusan}</span>
+                      </div>
+                    )}
+                    {regSuccess.participant.unsur === 'Qabilah PTMA' && (
+                      <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                        <span className="text-gray-500 font-medium">Qabilah PTMA:</span>
+                        <span className="font-bold text-emerald-700">{regSuccess.participant.qabilahPtma}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                      <span className="text-gray-500 font-medium">Jabatan:</span>
+                      <span className="font-bold text-gray-800">{regSuccess.participant.jabatan}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-200/80 pb-1">
+                      <span className="text-gray-500 font-medium">Kategori Undangan:</span>
+                      <span className="font-bold text-gray-800">{regSuccess.participant.kategoriUndangan}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-medium">No. WhatsApp:</span>
+                      <span className="font-mono font-bold text-gray-900">{regSuccess.participant.noHp}</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex gap-3">
-                    <button
-                      onClick={() => navigate('/kta')}
-                      className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer"
+                  {/* Rekening Kwarwil HW Jateng Payment Banner */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-3xl text-left space-y-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                        <CreditCard size={18} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Rekening Pembayaran / Infaq</span>
+                        <h4 className="text-xs font-black text-emerald-950">Kwarwil HW Jawa Tengah</h4>
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded-2xl border border-emerald-100 space-y-1 shadow-xs">
+                      <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Transfer Infaq Kegiatan ({regSuccess.activity.biaya || 'Sesuai ketentuan'})</p>
+                      <p className="text-xs font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
+                      <p className="text-sm font-black text-gray-900 tracking-wider font-mono">7307427448</p>
+                      <p className="text-[10px] text-gray-600 font-semibold uppercase">a.n. Kwarwil HW Jateng</p>
+                    </div>
+                    <p className="text-[10px] text-emerald-800 leading-normal font-medium">
+                      Silakan lakukan pembayaran / infaq kegiatan jika berlaku, kemudian kirimkan konfirmasi bukti transfer via WhatsApp ke Medkom HW Jateng.
+                    </p>
+                    <a 
+                      href={`https://wa.me/6289688754000?text=${encodeURIComponent(
+                        `Assalamu'alaikum Medkom HW Jateng, saya baru saja mendaftar kegiatan *${regSuccess.activity.namaKegiatan}*.\n\nNama: ${regSuccess.participant.namaLengkap}\nUnsur: ${regSuccess.participant.unsur}\nNo. WA: ${regSuccess.participant.noHp}\n\nMohon konfirmasi pendaftaran kegiatan saya. Terima kasih.`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all"
                     >
-                      <CreditCard size={16} /> Lihat KTA Saya
+                      <Send size={14} /> Konfirmasi Pendaftaran via WhatsApp
+                    </a>
+                  </div>
+
+                  {/* Question & Link KTA Registration */}
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-3xl text-left space-y-2">
+                    <div className="flex items-center gap-2">
+                      <UserCheck size={18} className="text-amber-700" />
+                      <h4 className="text-xs font-black text-amber-900">Sudah punya akun / KTA HW Jateng?</h4>
+                    </div>
+                    <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                      Belum punya akun atau KTA digital HW Jateng? Dapatkan KTA resmi digital untuk kemudahan akses fitur dan histori kegiatan HW.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsRegisterModalOpen(false);
+                        setRegSuccess(null);
+                        navigate('/register');
+                      }}
+                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    >
+                      <Sparkles size={14} /> Daftar Akun & KTA HW Jateng di Sini
                     </button>
+                  </div>
+
+                  <div className="pt-2">
                     <button
                       onClick={() => { setIsRegisterModalOpen(false); setRegSuccess(null); }}
-                      className="px-5 py-3 bg-gray-100 text-gray-700 rounded-2xl text-xs font-bold hover:bg-gray-200 cursor-pointer"
+                      className="w-full py-3 bg-gray-100 text-gray-700 rounded-2xl text-xs font-bold hover:bg-gray-200 cursor-pointer"
                     >
                       Selesai
                     </button>
@@ -489,69 +507,13 @@ export default function KegiatanPage() {
               ) : (
                 /* Registration Form */
                 <form onSubmit={handleRegisterSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
-                  {/* Auth Status & Pre-fill Banner */}
-                  {isAuthenticated && user ? (
-                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
-                          {user.namaLengkap?.charAt(0) || 'A'}
-                        </div>
-                        <div className="text-left">
-                          <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-700 block">Login Sebagai Member</span>
-                          <span className="text-xs font-black text-emerald-950">{user.namaLengkap}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <Check size={12} /> Profil Otomatis
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
-                      <div className="text-left">
-                        <span className="text-[10px] font-bold text-amber-800 block">Sudah Punya Akun HW?</span>
-                        <span className="text-xs font-black text-amber-950">Login untuk isi data otomatis</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowQuickLogin(!showQuickLogin)}
-                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
-                      >
-                        <LogIn size={13} /> {showQuickLogin ? 'Batal' : 'Login'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Inline Quick Login */}
-                  {showQuickLogin && !isAuthenticated && (
-                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
-                      <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">Login Akun HW</h4>
-                      {loginError && <p className="text-[11px] font-bold text-rose-600">{loginError}</p>}
-                      <input 
-                        type="email" 
-                        placeholder="Email" 
-                        value={loginEmail}
-                        onChange={e => setLoginEmail(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-xl p-2.5 text-xs font-bold"
-                      />
-                      <input 
-                        type="password" 
-                        placeholder="Password" 
-                        value={loginPassword}
-                        onChange={e => setLoginPassword(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-xl p-2.5 text-xs font-bold"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleQuickLogin}
-                        disabled={isLoggingIn}
-                        className="w-full py-2.5 bg-hw-dark text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
-                      >
-                        {isLoggingIn ? <Loader2 size={14} className="animate-spin" /> : 'Masuk & Isi Otomatis'}
-                      </button>
-                    </div>
-                  )}
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                    <span className="text-[10px] font-bold text-emerald-800 block">Pendaftaran Langsung Peserta</span>
+                    <span className="text-xs font-black text-emerald-950">Isi formulir di bawah ini untuk mendaftar kegiatan (Tanpa Perlu Login)</span>
+                  </div>
 
                   <div className="space-y-3 pt-1">
+                    {/* Nama Lengkap */}
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Nama Lengkap *</label>
                       <input 
@@ -559,96 +521,128 @@ export default function KegiatanPage() {
                         required
                         value={formData.namaLengkap}
                         onChange={e => setFormData({ ...formData, namaLengkap: e.target.value })}
-                        placeholder="Nama lengkap sesuai KTP/Identitas"
+                        placeholder="Nama lengkap sesuai identitas"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
                       />
                     </div>
 
+                    {/* Unsur */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Unsur *</label>
+                      <select
+                        value={formData.unsur}
+                        onChange={e => setFormData({ ...formData, unsur: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
+                      >
+                        <option value="Kwarwil HW Jateng">Kwarwil HW Jateng</option>
+                        <option value="DSW HW Jateng">DSW HW Jateng</option>
+                        <option value="Kwarda HW">Kwarda HW</option>
+                        <option value="Qabilah PTMA">Qabilah PTMA</option>
+                        <option value="Luar Jawa Tengah">Luar Jawa Tengah</option>
+                      </select>
+                    </div>
+
+                    {/* Conditional: Utusan (If Unsur === Kwarda HW) */}
+                    {formData.unsur === 'Kwarda HW' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">Utusan Kwarda HW (Se-Jawa Tengah) *</label>
+                        <select
+                          value={formData.utusan}
+                          onChange={e => setFormData({ ...formData, utusan: e.target.value })}
+                          className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 text-xs font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
+                        >
+                          {kwardaOptions.map((k, idx) => (
+                            <option key={idx} value={k}>{k}</option>
+                          ))}
+                        </select>
+                      </motion.div>
+                    )}
+
+                    {/* Conditional: Qabilah PTMA (If Unsur === Qabilah PTMA) */}
+                    {formData.unsur === 'Qabilah PTMA' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">Daftar Qabilah PTMA (Se-Jawa Tengah) *</label>
+                        <select
+                          value={formData.qabilahPtma}
+                          onChange={e => setFormData({ ...formData, qabilahPtma: e.target.value })}
+                          className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 text-xs font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
+                        >
+                          {qabilahPtmaOptions.map((q, idx) => (
+                            <option key={idx} value={q}>{q}</option>
+                          ))}
+                        </select>
+                      </motion.div>
+                    )}
+
+                    {/* Jabatan & Kategori Undangan */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">NIK / No KTP</label>
-                        <input 
-                          type="text" 
-                          value={formData.nik}
-                          onChange={e => setFormData({ ...formData, nik: e.target.value })}
-                          placeholder="NIK (opsional)"
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Jenis Kelamin</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Jabatan *</label>
                         <select
-                          value={formData.jenisKelamin}
-                          onChange={e => setFormData({ ...formData, jenisKelamin: e.target.value })}
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                          value={formData.jabatan}
+                          onChange={e => setFormData({ ...formData, jabatan: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                         >
-                          <option value="L">Laki-laki</option>
-                          <option value="P">Perempuan</option>
+                          <option value="Ketua">Ketua</option>
+                          <option value="Wakil Ketua">Wakil Ketua</option>
+                          <option value="Sekretaris">Sekretaris</option>
+                          <option value="Wakil Sekretaris">Wakil Sekretaris</option>
+                          <option value="Bendahara">Bendahara</option>
+                          <option value="Wakil Bendahara">Wakil Bendahara</option>
+                          <option value="Anggota">Anggota</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Kategori Undangan *</label>
+                        <select
+                          value={formData.kategoriUndangan}
+                          onChange={e => setFormData({ ...formData, kategoriUndangan: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
+                        >
+                          <option value="Tidak Ada / Umum">Tidak Ada / Umum</option>
+                          <option value="Pelatih Nasional HW Jateng">Pelatih Nasional HW Jateng</option>
+                          <option value="Pandu Senior">Pandu Senior</option>
+                          <option value="Alumni Jati 2 HW Jateng di Klaten">Alumni Jati 2 HW Jateng di Klaten</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">No. WhatsApp / HP *</label>
-                        <input 
-                          type="tel" 
-                          required
-                          value={formData.noHp}
-                          onChange={e => setFormData({ ...formData, noHp: e.target.value })}
-                          placeholder="08xxxxxxxxxx"
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Email</label>
-                        <input 
-                          type="email" 
-                          value={formData.email}
-                          onChange={e => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="email@domain.com"
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Asal Kwarda / Daerah</label>
-                        <input 
-                          type="text" 
-                          value={formData.asalKwarda}
-                          onChange={e => setFormData({ ...formData, asalKwarda: e.target.value })}
-                          placeholder="Banyumas, Semarang, dll"
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Qabilah / Sekolah</label>
-                        <input 
-                          type="text" 
-                          value={formData.qabilah}
-                          onChange={e => setFormData({ ...formData, qabilah: e.target.value })}
-                          placeholder="Qabilah SMA HW..."
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
-                        />
-                      </div>
+                    {/* Nomor Whatsapp */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Nomor Whatsapp *</label>
+                      <input 
+                        type="tel" 
+                        required
+                        value={formData.noHp}
+                        onChange={e => setFormData({ ...formData, noHp: e.target.value })}
+                        placeholder="Contoh: 081234567890"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                      />
                     </div>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="pt-3">
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full py-3.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
                     >
                       {isSubmitting ? (
                         <>
-                          <Loader2 size={16} className="animate-spin" /> Memproses...
+                          <Loader2 size={16} className="animate-spin" /> Memproses Pendaftaran...
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 size={16} /> Kirim Pendaftaran & Terbitkan KTA
+                          <CheckCircle2 size={16} /> Daftar Kegiatan
                         </>
                       )}
                     </button>

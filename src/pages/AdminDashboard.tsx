@@ -2101,6 +2101,92 @@ export default function AdminDashboard() {
     doc.save(`Laporan_KTA_HW_Jateng_${dateStr}.pdf`);
   };
 
+  const exportActivityParticipantsToExcel = () => {
+    const list = activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants);
+    
+    let activityName = 'Semua_Kegiatan';
+    if (selectedActivityForParticipants !== 'semua') {
+      const selectedAct = activitiesList.find(a => a.id === selectedActivityForParticipants);
+      if (selectedAct) {
+        activityName = (selectedAct.namaKegiatan || 'Kegiatan').replace(/[^a-zA-Z0-9]/g, '_');
+      }
+    }
+
+    const headers = ['No', 'Nama Lengkap', 'Nama Kegiatan', 'Unsur', 'Utusan / Qabilah', 'Jabatan', 'Kategori Undangan', 'No. WhatsApp', 'Tanggal Daftar'];
+    const data = list.map((app, idx) => [
+      idx + 1,
+      app.namaLengkap || '-',
+      app.namaKegiatan || '-',
+      app.unsur || app.asalKwarda || '-',
+      app.utusan || app.qabilahPtma || app.qabilah || '-',
+      app.jabatan || '-',
+      app.kategoriUndangan || '-',
+      app.noHp ? `'${app.noHp}` : '-',
+      app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'
+    ]);
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Daftar_Hadir_Peserta_${activityName}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportActivityParticipantsToPDF = () => {
+    const list = activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants);
+
+    let activityTitle = 'Semua Kegiatan HW Jateng';
+    let activityNameFile = 'Semua_Kegiatan';
+    if (selectedActivityForParticipants !== 'semua') {
+      const selectedAct = activitiesList.find(a => a.id === selectedActivityForParticipants);
+      if (selectedAct) {
+        activityTitle = selectedAct.namaKegiatan || 'Kegiatan HW';
+        activityNameFile = (selectedAct.namaKegiatan || 'Kegiatan').replace(/[^a-zA-Z0-9]/g, '_');
+      }
+    }
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'Nama Lengkap', 'Unsur', 'Utusan / Qabilah', 'Jabatan', 'Undangan', 'No. WA']];
+    const data = list.map((app, idx) => [
+      idx + 1,
+      app.namaLengkap || '-',
+      app.unsur || app.asalKwarda || '-',
+      app.utusan || app.qabilahPtma || app.qabilah || '-',
+      app.jabatan || '-',
+      app.kategoriUndangan && app.kategoriUndangan !== 'Tidak Ada / Umum' ? app.kategoriUndangan : '-',
+      app.noHp || '-'
+    ]);
+
+    doc.setFontSize(14);
+    doc.text('DAFTAR HADIR / PESERTA KEGIATAN HW JATENG', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Kegiatan: ${activityTitle}`, 14, 21);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 26);
+    doc.text(`Total Peserta: ${list.length} Orang`, 14, 31);
+
+    doc.autoTable({
+      head: headers,
+      body: data,
+      startY: 36,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillStyle: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Daftar_Hadir_Peserta_${activityNameFile}_${dateStr}.pdf`);
+  };
+
   const filteredMembers = members.filter(m => {
     const matchesSearch = (
       (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -5573,69 +5659,153 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* SUB TAB 2: PESERTA TERDAFTAR */}
+              {/* SUB TAB 2: PESERTA TERDAFTAR / DAFTAR HADIR */}
               {activitySubTab === 'peserta' && (
                 <div className="space-y-4">
-                  {/* Filter Activity */}
-                  <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <span className="text-xs font-black text-gray-500 uppercase tracking-wider shrink-0">Pilih Kegiatan:</span>
-                    <select
-                      value={selectedActivityForParticipants}
-                      onChange={(e) => setSelectedActivityForParticipants(e.target.value)}
-                      className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none"
-                    >
-                      <option value="semua">Semua Kegiatan ({activityApplicationsList.length} Peserta)</option>
-                      {activitiesList.map(a => (
-                        <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
-                      ))}
-                    </select>
+                  {/* Filter & Export Action Bar - Fully Responsive for Mobile, iPad, Laptop, PC */}
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
+                      <span className="text-xs font-black text-gray-500 uppercase tracking-wider shrink-0">Pilih Kegiatan:</span>
+                      <select
+                        value={selectedActivityForParticipants}
+                        onChange={(e) => setSelectedActivityForParticipants(e.target.value)}
+                        className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none w-full sm:w-auto focus:ring-2 focus:ring-hw-green/20"
+                      >
+                        <option value="semua">Semua Kegiatan ({activityApplicationsList.length} Peserta)</option>
+                        {activitiesList.map(a => (
+                          <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Export Buttons */}
+                    <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={exportActivityParticipantsToExcel}
+                        className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Export Daftar Hadir ke Excel (CSV)"
+                      >
+                        <FileSpreadsheet size={15} />
+                        <span>Export Excel</span>
+                      </button>
+                      <button
+                        onClick={exportActivityParticipantsToPDF}
+                        className="px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Export Daftar Hadir ke PDF"
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Table */}
+                  {/* Responsive Container */}
                   <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
+                    {/* 1. Mobile Card View (Visible on small screens) */}
+                    <div className="block md:hidden divide-y divide-gray-100">
+                      {activityApplicationsList
+                        .filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants)
+                        .map((app, index) => (
+                          <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">#{index + 1} • {app.namaKegiatan || 'Kegiatan HW'}</span>
+                                <h4 className="text-sm font-black text-gray-900">{app.namaLengkap}</h4>
+                                {app.nik && <p className="text-[10px] text-gray-400 font-mono">NIK: {app.nik}</p>}
+                              </div>
+                              <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                                {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-gray-100">
+                              <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Unsur / Utusan</span>
+                                <p className="font-bold text-gray-800">{app.unsur || app.asalKwarda || '-'}</p>
+                                {(app.utusan || app.qabilahPtma) && (
+                                  <p className="text-[10px] text-emerald-700 font-bold">{app.utusan || app.qabilahPtma}</p>
+                                )}
+                              </div>
+
+                              <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Jabatan</span>
+                                <p className="font-bold text-gray-800">{app.jabatan || '-'}</p>
+                                {app.kategoriUndangan && app.kategoriUndangan !== 'Tidak Ada / Umum' && (
+                                  <span className="inline-block text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded-md font-extrabold border border-emerald-200 mt-0.5">
+                                    {app.kategoriUndangan}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="pt-1 flex items-center justify-between text-xs">
+                              <span className="text-[10px] text-gray-400 font-medium">No. WA / Telp:</span>
+                              <span className="font-mono font-bold text-gray-900">{app.noHp || '-'}</span>
+                            </div>
+                          </div>
+                        ))}
+
+                      {activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants).length === 0 && (
+                        <div className="p-8 text-center text-gray-400 font-bold text-xs">
+                          Belum ada pendaftar kegiatan.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Desktop, Laptop, PC & iPad Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[700px]">
                         <thead className="bg-gray-50 text-gray-500 uppercase font-black text-[10px] tracking-wider border-b border-gray-100">
                           <tr>
+                            <th className="p-4 w-12 text-center">No</th>
                             <th className="p-4">Peserta</th>
                             <th className="p-4">Kegiatan</th>
+                            <th className="p-4">Unsur / Utusan</th>
+                            <th className="p-4">Jabatan & Undangan</th>
                             <th className="p-4">No. HP / WA</th>
-                            <th className="p-4">Kwarda & Qabilah</th>
-                            <th className="p-4">Status KTA</th>
                             <th className="p-4">Tgl Daftar</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {activityApplicationsList
                             .filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants)
-                            .map((app) => (
-                              <tr key={app.id} className="hover:bg-gray-50/80 transition-colors">
+                            .map((app, index) => (
+                              <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
+                                <td className="p-4 font-bold text-gray-400 text-center text-[11px]">
+                                  {index + 1}
+                                </td>
                                 <td className="p-4 font-bold text-gray-900">
                                   {app.namaLengkap}
-                                  <div className="text-[10px] text-gray-400 font-mono font-normal">NIK: {app.nik || '-'}</div>
+                                  {app.nik && <div className="text-[10px] text-gray-400 font-mono font-normal">NIK: {app.nik}</div>}
                                 </td>
                                 <td className="p-4 font-bold text-hw-green">
                                   {app.namaKegiatan || 'Kegiatan HW'}
                                 </td>
-                                <td className="p-4 font-mono font-bold text-gray-700">
-                                  {app.noHp}
+                                <td className="p-4 text-xs font-semibold text-gray-700">
+                                  <div>{app.unsur || app.asalKwarda || '-'}</div>
+                                  {(app.utusan || app.qabilahPtma) && (
+                                    <div className="text-[10px] text-emerald-700 font-bold">{app.utusan || app.qabilahPtma}</div>
+                                  )}
                                 </td>
-                                <td className="p-4 text-gray-600">
-                                  {app.asalKwarda} / {app.qabilah || '-'}
+                                <td className="p-4 text-xs text-gray-600">
+                                  <div className="font-bold text-gray-800">{app.jabatan || '-'}</div>
+                                  {app.kategoriUndangan && app.kategoriUndangan !== 'Tidak Ada / Umum' && (
+                                    <span className="inline-block mt-0.5 text-[9px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md font-extrabold border border-emerald-200">
+                                      {app.kategoriUndangan}
+                                    </span>
+                                  )}
                                 </td>
-                                <td className="p-4">
-                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-                                    <CheckCircle2 size={12} /> KTA Aktif
-                                  </span>
+                                <td className="p-4 font-mono font-bold text-gray-800">
+                                  {app.noHp || '-'}
                                 </td>
                                 <td className="p-4 text-gray-400 text-[11px]">
                                   {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
                                 </td>
                               </tr>
                             ))}
-                          {activityApplicationsList.length === 0 && (
+                          {activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants).length === 0 && (
                             <tr>
-                              <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">
+                              <td colSpan={7} className="p-8 text-center text-gray-400 font-bold">
                                 Belum ada pendaftar kegiatan.
                               </td>
                             </tr>
