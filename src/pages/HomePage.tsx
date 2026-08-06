@@ -33,6 +33,8 @@ import {
   SkipBack,
   RefreshCw,
   CreditCard,
+  Globe,
+  Mail,
   LogIn,
   UserPlus,
   Bell,
@@ -106,6 +108,9 @@ export default function HomePage() {
   const [galleryItems, setGalleryItems] = useState<Content[]>([]);
   const [playlistItems, setPlaylistItems] = useState<Content[]>([]);
   const [sosmed, setSosmed] = useState<Content | null>(null);
+  const [kontak, setKontak] = useState<Content | null>(null);
+  const [showSosmedModal, setShowSosmedModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [runningText, setRunningText] = useState<string>('');
   
@@ -187,6 +192,7 @@ export default function HomePage() {
         setGalleryItems(contents.filter(c => c.section === 'galeri'));
         setPlaylistItems(playlist || []);
         setSosmed(contents.find(c => c.section === 'sosmed') || null);
+        setKontak(contents.find(c => c.section === 'kontak') || null);
 
         const rtContent = contents.find(c => c.section === 'running-text');
         setRunningText(rtContent?.field1 || 'Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW JATENG, mohon dukungan dan supportnya, Salam HW!');
@@ -697,15 +703,15 @@ export default function HomePage() {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-orange-500" />
+          <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-amber-500" />
           <MenuCard to="/gallery" icon={ImageIcon} label="Galeri" color="bg-pink-500" />
-          <MenuCard to="/sosmed" icon={Share2} label="Sosmed" color="bg-blue-600" />
-          <MenuCard to="/doa" icon={Heart} label="Doa" color="bg-red-500" />
+          <MenuCard to="/doa" icon={Heart} label="Doa" color="bg-rose-500" />
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
-          <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-amber-600" />
+          <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-cyan-600" />
           <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
-          <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-emerald-600" />
-          <MenuCard to="/contact" icon={Phone} label="Kontak" color="bg-slate-700" />
+          <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-purple-600" />
+          <MenuCard onClick={() => setShowSosmedModal(true)} icon={Share2} label="Sosmed" color="bg-blue-500" />
+          <MenuCard onClick={() => setShowContactModal(true)} icon={Phone} label="Kontak" color="bg-teal-600" />
         </div>
       </section>
 
@@ -1221,6 +1227,210 @@ export default function HomePage() {
                 >
                   <LogIn size={16} className="text-orange-500" /> Sudah Punya Akun? Login & Daftar
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Social Media HW */}
+      <AnimatePresence>
+        {showSosmedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between relative">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/20 rounded-2xl text-white backdrop-blur-md">
+                    <Share2 size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-black text-base uppercase tracking-wider">Media Sosial HW</h3>
+                    <p className="text-[10px] text-blue-100 font-medium">Akun Resmi Hizbul Wathan Jawa Tengah</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSosmedModal(false)}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { 
+                      name: 'Instagram', 
+                      handle: sosmed?.field1 || '@hw_pusat', 
+                      icon: Instagram, 
+                      color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500', 
+                      link: sosmed?.field1?.startsWith('http') ? sosmed.field1 : `https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}` 
+                    },
+                    { 
+                      name: 'Tiktok', 
+                      handle: sosmed?.field2 || '@hw_pusat', 
+                      icon: Share2, 
+                      color: 'bg-black', 
+                      link: sosmed?.field2?.startsWith('http') ? sosmed.field2 : `https://tiktok.com/@${String(sosmed?.field2 || 'hw_pusat').replace('@', '')}` 
+                    },
+                    { 
+                      name: 'YouTube', 
+                      handle: sosmed?.field3 || 'Hizbul Wathan TV', 
+                      icon: Youtube, 
+                      color: 'bg-red-600', 
+                      link: sosmed?.field3?.startsWith('http') ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}` 
+                    },
+                  ].map((item) => (
+                    <a
+                      key={item.name}
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 hover:border-blue-300 hover:bg-white transition-all shadow-xs group"
+                    >
+                      <div className={`w-11 h-11 rounded-xl ${item.color} text-white flex items-center justify-center shadow-md shrink-0`}>
+                        <item.icon size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-800 text-xs">{item.name}</h4>
+                        <p className="text-[11px] text-gray-400 font-medium truncate">{item.handle}</p>
+                      </div>
+                      <div className="text-gray-300 group-hover:text-blue-600 transition-colors">
+                        <ChevronRight size={18} />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+
+                <div className="p-4 bg-gray-900 rounded-2xl text-center space-y-3">
+                  <h4 className="text-white font-display font-bold text-xs">Join Community HW Jateng</h4>
+                  <p className="text-gray-400 text-[11px] leading-relaxed">
+                    Dapatkan info terbaru seputar kegiatan & materi HW langsung di WhatsApp.
+                  </p>
+                  <a
+                    href={sosmed?.field4 || 'https://chat.whatsapp.com/'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 bg-gradient-to-r from-hw-green to-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all"
+                  >
+                    <MessageCircle size={16} /> Gabung Grup WhatsApp
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Kontak & Hubungi Kami */}
+      <AnimatePresence>
+        {showContactModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 text-white flex items-center justify-between relative">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/10 rounded-2xl text-white backdrop-blur-md">
+                    <Phone size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-black text-base uppercase tracking-wider">Hubungi Kami</h3>
+                    <p className="text-[10px] text-gray-300 font-medium">Layanan Informasi Hizbul Wathan Jateng</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowContactModal(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="space-y-2.5">
+                  <a
+                    href={`https://wa.me/${String(kontak?.field2 || '').replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 hover:border-emerald-400 hover:bg-white transition-all shadow-xs group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shrink-0">
+                      <MessageCircle size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">WhatsApp Admin</p>
+                      <p className="text-xs font-bold text-gray-800 truncate">{kontak?.field2 || "+62 812-3456-7890"}</p>
+                    </div>
+                    <div className="text-gray-300 group-hover:text-emerald-600 transition-colors">
+                      <ChevronRight size={18} />
+                    </div>
+                  </a>
+
+                  <div className="flex items-center gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 shadow-xs">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md shrink-0">
+                      <Phone size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Nama Kontak</p>
+                      <p className="text-xs font-bold text-gray-800 truncate">{kontak?.field1 || "Admin HW Jateng"}</p>
+                    </div>
+                  </div>
+
+                  {kontak?.field3 && (
+                    <a
+                      href={kontak.field3.startsWith('http') ? kontak.field3 : `https://${kontak.field3}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 hover:border-blue-400 hover:bg-white transition-all shadow-xs group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
+                        <Globe size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Website Resmi</p>
+                        <p className="text-xs font-bold text-gray-800 truncate">{kontak.field3}</p>
+                      </div>
+                      <div className="text-gray-300 group-hover:text-blue-600 transition-colors">
+                        <ChevronRight size={18} />
+                      </div>
+                    </a>
+                  )}
+                </div>
+
+                <div className="bg-hw-dark p-5 rounded-2xl text-white space-y-3 relative overflow-hidden shadow-lg">
+                  <div className="relative z-10 space-y-2 text-center">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto text-amber-400">
+                      <MapPin size={22} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-display font-bold">Kwarwil HW Jateng</h4>
+                      <p className="text-[10px] text-white/70 leading-relaxed mt-0.5">
+                        Jl. Singosari No.33, Wonodri, Kec. Semarang Sel., Kota Semarang, Jawa Tengah 50242
+                      </p>
+                    </div>
+                    <a
+                      href="https://maps.google.com/?q=Jl.+Singosari+No.33+Wonodri+Semarang"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-4 py-2 bg-white text-hw-dark font-bold text-[10px] rounded-lg shadow-sm hover:scale-105 transition-transform"
+                    >
+                      Buka di Google Maps
+                    </a>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
