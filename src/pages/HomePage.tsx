@@ -413,7 +413,6 @@ export default function HomePage() {
       deskripsi: 'Pelatihan kepemimpinan tingkat dasar pembina HW untuk membekali manajemen qabilah & kepanduan Islami.',
       lokasiPelatihan: (trainingLocations && trainingLocations[0]) || 'Pusdiklat HW Jawa Tengah',
       tanggalPelatihan: 'Jadwal Aktif 2026',
-      biaya: 'Rp 50.000',
       kuota: 'Terbuka'
     },
     {
@@ -424,7 +423,6 @@ export default function HomePage() {
       deskripsi: 'Pelatihan kepemimpinan tingkat lanjutan pembina HW untuk pengembangan manajerial kwarda & kwarwil.',
       lokasiPelatihan: (trainingLocations && trainingLocations[1]) || 'Gedung Dakwah Muhammadiyah Jateng',
       tanggalPelatihan: 'Jadwal Aktif 2026',
-      biaya: 'Rp 75.000',
       kuota: 'Terbuka'
     },
     {
@@ -435,7 +433,6 @@ export default function HomePage() {
       deskripsi: 'Kursus pelatih instruktur kepanduan Hizbul Wathan tingkat utama wilayah Jawa Tengah.',
       lokasiPelatihan: (trainingLocations && trainingLocations[2]) || 'Kwarda Banyumas / Wilayah',
       tanggalPelatihan: 'Jadwal Aktif 2026',
-      biaya: 'Rp 100.000',
       kuota: 'Terbuka'
     }
   ];
@@ -1117,7 +1114,6 @@ export default function HomePage() {
                     const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
                     const loc = act.lokasiPelatihan || 'Pusdiklat HW Jateng';
                     const date = act.tanggalPelatihan || 'Jadwal Aktif 2026';
-                    const fee = act.biaya || 'Rp 50.000';
 
                     return (
                       <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs">
@@ -1128,9 +1124,6 @@ export default function HomePage() {
                             </span>
                             <h4 className="text-sm font-black text-gray-800 leading-snug font-display">{title}</h4>
                           </div>
-                          <span className="text-xs font-black text-hw-green bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100 shrink-0">
-                            {fee}
-                          </span>
                         </div>
 
                         {act.deskripsi && (
