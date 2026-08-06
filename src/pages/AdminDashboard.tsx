@@ -2359,31 +2359,33 @@ export default function AdminDashboard() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60">
-        {[
-          { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-sky-400 text-white shadow-lg shadow-sky-400/25 ring-2 ring-sky-400', hoverClass: 'hover:border-sky-300 hover:text-sky-500' },
-          { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-600', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-          { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500', hoverClass: 'hover:border-orange-300 hover:text-orange-600' },
-          { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-600', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
-          { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-teal-600 text-white shadow-lg shadow-teal-500/25 ring-2 ring-teal-600', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
-          { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-purple-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-600', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
-          user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-600', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
-          user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-slate-800 text-white shadow-lg shadow-slate-800/25 ring-2 ring-slate-800', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
-          { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-500', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
-        ].filter(Boolean).map((tab: any) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 ${
-              activeTab === tab.id 
-              ? tab.activeClass
-              : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
-            }`}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 lg:flex lg:flex-wrap lg:justify-center items-center w-full max-w-5xl mx-auto gap-2 sm:gap-2.5">
+          {[
+            { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
+            { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+            { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
+            { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
+            user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
+            user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
+            { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
+          ].filter(Boolean).map((tab: any) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center justify-center gap-2 flex-1 min-w-0 w-full px-3 sm:px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+                activeTab === tab.id 
+                ? tab.activeClass
+                : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
+              }`}
+            >
+              <tab.icon size={16} className="shrink-0" />
+              <span className="truncate">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -2401,7 +2403,7 @@ export default function AdminDashboard() {
               {/* Stats & Demographic Section specifically for Anggota Tab */}
               <div className="p-6 border-b border-gray-100 bg-gray-50/50 space-y-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-sky-500" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
+                  <StatCard label="Total Anggota" value={stats.total} icon={Users} color="bg-gradient-to-r from-emerald-500 to-blue-600" subValue={`${stats.laki} L / ${stats.perempuan} P`} />
                   <StatCard label="Terverifikasi" value={stats.verified} icon={CheckCircle} color="bg-hw-green" subValue={`${Math.round((stats.verified/(stats.total || 1))*100)}% dari total`} />
                   <StatCard label="Total Materi" value={materiList.length} icon={BookOpen} color="bg-hw-dark" subValue="Aktif di aplikasi" />
                   <StatCard label="Admin Aktif" value={members.filter(m => m.role === 'admin' || m.role === 'superadmin').length} icon={Shield} color="bg-orange-500" subValue="Super & Petugas" />
