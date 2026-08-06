@@ -381,17 +381,21 @@ export const firestoreService = {
       if (ktaStored) {
         try { ktas = JSON.parse(ktaStored); } catch(e) {}
       }
-      try {
-        const ktaSnap = await getDocs(collection(db, 'kta_applications'));
-        if (!ktaSnap.empty) {
-          const fsKtas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          fsKtas.forEach((fk: any) => {
-            if (!ktas.some((k: any) => k.id === fk.id || (k.email && fk.email && String(k.email).trim().toLowerCase() === String(fk.email).trim().toLowerCase()))) {
-              ktas.push(fk);
-            }
-          });
+      if (!this.isQuotaExceeded) {
+        try {
+          const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+          if (!ktaSnap.empty) {
+            const fsKtas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            fsKtas.forEach((fk: any) => {
+              if (!ktas.some((k: any) => k.id === fk.id || (k.email && fk.email && String(k.email).trim().toLowerCase() === String(fk.email).trim().toLowerCase()))) {
+                ktas.push(fk);
+              }
+            });
+          }
+        } catch(e) {
+          this.checkQuotaError(e);
         }
-      } catch(e) {}
+      }
 
       if (Array.isArray(ktas) && ktas.length > 0) {
         ktas.forEach((k: any) => {
