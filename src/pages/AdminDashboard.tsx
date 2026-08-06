@@ -2360,7 +2360,7 @@ export default function AdminDashboard() {
 
       {/* Navigation Tabs */}
       <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 lg:flex lg:flex-wrap lg:justify-center items-center w-full max-w-5xl mx-auto gap-2 sm:gap-2.5">
+        <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 max-w-6xl mx-auto">
           {[
             { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
             { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
@@ -2375,14 +2375,14 @@ export default function AdminDashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 flex-1 min-w-0 w-full px-3 sm:px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
                 activeTab === tab.id 
                 ? tab.activeClass
                 : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
               }`}
             >
               <tab.icon size={16} className="shrink-0" />
-              <span className="truncate">{tab.label}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
         </div>
@@ -3028,53 +3028,55 @@ export default function AdminDashboard() {
 
           {/* ADMIN TAB */}
           {activeTab === 'admin' && (
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
+            <div className="p-4 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
                 <div>
                   <h3 className="text-lg font-display font-black text-gray-800">Manajemen Admin</h3>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Kelola hak akses administrator</p>
                 </div>
                 <button 
                   onClick={() => handleOpenModal(null, 'admin')}
-                  className="px-5 py-3 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-600/20 flex items-center gap-2 text-xs font-bold hover:scale-105 active:scale-95 transition-all"
+                  className="w-full sm:w-auto justify-center px-5 py-3 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-600/20 flex items-center gap-2 text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
                 >
                   <Plus size={16} /> Tambah Staff Admin
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {members
                   .filter(m => m.role === 'admin' || m.role === 'superadmin' || m.role === 'kwarda' || m.role === 'admin_kwarda')
                   .map((adm, idx) => (
-                    <div key={`admin-row-${adm.id || idx}`} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100 group hover:bg-white hover:shadow-xl transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-hw-dark font-black">
+                    <div key={`admin-row-${adm.id || idx}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 bg-gray-50 rounded-3xl border border-gray-100 group hover:bg-white hover:shadow-xl transition-all gap-3 sm:gap-4 w-full overflow-hidden">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-hw-dark font-black shrink-0">
                           {adm.namaLengkap?.charAt(0) || 'A'}
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-800">{adm.namaLengkap}</h4>
-                          <p className="text-xs text-gray-500">{adm.email || 'Tanpa Email'}</p>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-bold text-gray-800 truncate">{adm.namaLengkap}</h4>
+                          <p className="text-xs text-gray-500 truncate">{adm.email || 'Tanpa Email'}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-widest ${
+                      <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto pt-2.5 sm:pt-0 border-t border-gray-200/60 sm:border-t-0">
+                        <span className={`px-2.5 sm:px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-widest truncate ${
                           adm.role === 'superadmin' ? 'bg-red-600 text-white' : 
                           adm.role === 'admin' ? 'bg-hw-dark text-white' : 
                           'bg-blue-100 text-blue-600'
                         }`}>
                           {Array.isArray(adm.roles) ? adm.roles.map((r: string) => ROLE_LABELS[r] || r).join(', ') : (ROLE_LABELS[adm.role] || adm.role)}
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button 
                             onClick={() => handleOpenModal(adm)}
-                            className="p-2 text-gray-400 hover:text-hw-green transition-colors"
+                            className="p-2 text-gray-500 hover:text-hw-green hover:bg-hw-green/10 rounded-xl transition-colors cursor-pointer"
+                            title="Edit Admin"
                           >
                             <Edit2 size={18} />
                           </button>
                           {adm.id !== user?.id && (
                             <button 
                               onClick={() => handleDeleteMember(adm.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                              className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                              title="Hapus Admin"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -3095,7 +3097,7 @@ export default function AdminDashboard() {
 
           {/* PENGATURAN TAB */}
           {activeTab === 'pengaturan' && user?.role === 'superadmin' && (
-            <div className="p-8 space-y-10">
+            <div className="p-4 sm:p-8 space-y-8 sm:space-y-10">
               {/* App Names */}
               <div className="space-y-4">
                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Identitas Aplikasi</h4>
