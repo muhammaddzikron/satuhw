@@ -258,7 +258,7 @@ export default function ProfilePage() {
         throw new Error('Akun Super Admin (Demo) tidak dapat diubah datanya.');
       }
       
-      const isJM1 = formData.roles.includes('jari1') || formData.roles.includes('jaya_matahari_1') || formData.role === 'jari1';
+      const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
 
       // Ensure we have a payload that includes identifier
       const payload = {
@@ -267,8 +267,8 @@ export default function ProfilePage() {
         role: formData.roles[0] || formData.role || 'umum',
         roles: formData.roles,
         activeRole: formData.roles[0] || formData.role || 'umum',
-        golongan: isJM1 ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
-        golonganPelatih: isJM1 ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
+        golongan: isJM ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
+        golonganPelatih: isJM ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
         photo: formData.photo || user.photo || ''
       };
       
@@ -340,8 +340,8 @@ export default function ProfilePage() {
         role: formData.roles[0] || formData.role || 'umum',
         roles: formData.roles,
         activeRole: formData.roles[0] || formData.role || 'umum',
-        golongan: isJM1 ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
-        golonganPelatih: isJM1 ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
+        golongan: isJM ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
+        golonganPelatih: isJM ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
         photo: formData.photo || user.photo || ''
       });
       
@@ -609,12 +609,12 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 */}
-            {(formData.roles.includes('jari1') || formData.roles.includes('jaya_matahari_1') || formData.role === 'jari1') && (
+            {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 & 2 */}
+            {(formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2') && (
               <div className="space-y-2 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 animate-fade-in">
                 <label className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-1.5">
                   <Award size={14} className="text-amber-600" />
-                  Golongan Pelatih Ahli Pandu (Jaya Matahari 1)
+                  Golongan Pelatih Ahli Pandu (Jaya Matahari)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map((gol) => {

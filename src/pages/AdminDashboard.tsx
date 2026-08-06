@@ -213,6 +213,7 @@ const ROLE_LABELS: Record<string, string> = {
   jati1: 'Jaya Melati 1',
   jati2: 'Jaya Melati 2',
   jari1: 'Jaya Matahari 1',
+  jari2: 'Jaya Matahari 2',
   umum: 'Umum'
 };
 
@@ -1595,6 +1596,7 @@ export default function AdminDashboard() {
         roles: rolesArr,
         jenisKelamin: member.jenisKelamin,
         golongan: member.golongan,
+        golonganPelatih: (member as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(member?.golongan || '') ? member.golongan : 'Penghela'),
         pelatihan: pelatihanArr,
         pendidikan: member.pendidikan || 'SMA/SMK/MA',
         asalKwarda: member.asalKwarda,
@@ -1616,6 +1618,7 @@ export default function AdminDashboard() {
         roles: [defaultRole],
         jenisKelamin: 'L',
         golongan: 'Penghela',
+        golonganPelatih: 'Penghela',
         pelatihan: [],
         pendidikan: 'SMA/SMK/MA',
         asalKwarda: '',
@@ -1635,9 +1638,24 @@ export default function AdminDashboard() {
   const handleSaveMember = async () => {
     try {
       setLoading(true);
+      const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
       const payload = editingMember 
-        ? { ...editingMember, ...formData }
-        : { ...formData, id: Date.now().toString() };
+        ? { 
+            ...editingMember, 
+            ...formData,
+            ...(isJM ? {
+              golongan: formData.golonganPelatih || formData.golongan,
+              golonganPelatih: formData.golonganPelatih || formData.golongan
+            } : {})
+          }
+        : { 
+            ...formData, 
+            id: Date.now().toString(),
+            ...(isJM ? {
+              golongan: formData.golonganPelatih || formData.golongan,
+              golonganPelatih: formData.golonganPelatih || formData.golongan
+            } : {})
+          };
       
       // If editing and password is empty, don't update it
       if (editingMember && !formData.password) {
@@ -6524,6 +6542,37 @@ export default function AdminDashboard() {
                       })}
                     </div>
                   </div>
+
+                  {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 & 2 */}
+                  {(formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2') && (
+                    <div className="space-y-2 col-span-1 sm:col-span-2 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 animate-fade-in">
+                      <label className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-1.5">
+                        <Award size={14} className="text-amber-600" />
+                        Golongan Pelatih Ahli Pandu (Jaya Matahari)
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map((gol) => {
+                          const isSelected = formData.golonganPelatih === gol || formData.golongan === gol;
+                          return (
+                            <button
+                              key={`admin-gol-pelatih-${gol}`}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, golonganPelatih: gol, golongan: gol })}
+                              className={cn(
+                                "py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                isSelected
+                                  ? "bg-amber-500 border-amber-600 text-amber-950 font-black shadow-sm"
+                                  : "bg-white border-amber-200 text-gray-600 hover:bg-amber-100/50"
+                              )}
+                            >
+                              {isSelected && <Check size={12} />}
+                              {gol}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
