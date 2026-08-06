@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -16,7 +16,8 @@ import {
   Award,
   Download,
   LogIn,
-  ExternalLink
+  ExternalLink,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -44,16 +45,47 @@ const KATEGORI_COLORS: Record<string, string> = {
   umum_pandu: 'bg-teal-100 text-teal-600'
 };
 
+const UPGRADE_FEES_DEFAULT: Record<string, string> = {
+  jati1: 'Rp 50.000',
+  jati2: 'Rp 50.000',
+  jari1: 'Rp 50.000',
+  sugli: 'Rp 0',
+  kwarda: 'Rp 0'
+};
+
 export default function MateriPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, activeRole } = useAuthStore();
+  const { user, isAuthenticated, activeRole, updateUser } = useAuthStore();
   const [materi, setMateri] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('umum');
   const [search, setSearch] = useState('');
   const [selectedMateri, setSelectedMateri] = useState<Materi | null>(null);
   const [showLoginPromptModal, setShowLoginPromptModal] = useState<Materi | null>(null);
+  const [upgradeFees, setUpgradeFees] = useState<Record<string, string>>(UPGRADE_FEES_DEFAULT);
+  const [waNumber, setWaNumber] = useState('6281234567890');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const s = await sheetsService.getSettings();
+        if (Array.isArray(s.upgradeFees)) {
+          const map: Record<string, string> = { ...UPGRADE_FEES_DEFAULT };
+          s.upgradeFees.forEach((fee: any) => {
+            if (fee.id && fee.value) {
+              map[fee.id] = fee.value;
+            }
+          });
+          setUpgradeFees(map);
+        }
+        if (s.waConfirmation) {
+          setWaNumber(s.waConfirmation);
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     if (location.state?.searchQuery) {
@@ -143,12 +175,51 @@ export default function MateriPage() {
     }
   };
 
+  const userRequests: string[] = useMemo(() => {
+    if (!user || !user.upgradeRequests) return [];
+    if (Array.isArray(user.upgradeRequests)) return user.upgradeRequests;
+    if (typeof user.upgradeRequests === 'string') {
+      return safeJsonParse(user.upgradeRequests, []);
+    }
+    return [];
+  }, [user]);
+
+  const hasRequestedUpgrade = userRequests.includes(filter);
+  const categoryFee = upgradeFees[filter] || 'Rp 50.000';
+
+  const handleWhatsAppConfirm = (catKey: string, priceStr: string) => {
+    const title = ROLE_DISPLAY[catKey] || catKey;
+    let text = "";
+    if (priceStr === 'Rp 0') {
+      text = encodeURIComponent(`Assalamu'alaikum Admin, Saya telah mengajukan upgrade ke tingkat ${title}.\n\nNama: ${user?.namaLengkap || ''}\nEmail: ${user?.email || ''}\n\nMohon verifikasi pengajuan saya. Terima kasih.`);
+    } else {
+      text = encodeURIComponent(`Assalamu'alaikum Admin, Saya telah mengajukan upgrade ke tingkat ${title} dengan biaya ${priceStr}.\n\nNama: ${user?.namaLengkap || ''}\nEmail: ${user?.email || ''}\n\nMohon verifikasi pengajuan saya. Terima kasih.`);
+    }
+    window.open(`https://wa.me/${String(waNumber).replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+  };
+
   const handleUpgradeRequest = async (cat: string) => {
-    if (!user) return;
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     try {
       setLoading(true);
-      await sheetsService.requestUpgrade(user.id, cat, user);
-      alert('Permohonan upgrade telah dikirim. Silakan tunggu verifikasi admin.');
+      const res = await sheetsService.requestUpgrade(user.id, cat, user);
+      if (res.success || !res.error) {
+        const currentRequests = Array.isArray(user.upgradeRequests)
+          ? [...user.upgradeRequests]
+          : typeof user.upgradeRequests === 'string'
+            ? safeJsonParse(user.upgradeRequests, [])
+            : [];
+        if (!currentRequests.includes(cat)) {
+          currentRequests.push(cat);
+        }
+        updateUser({ ...user, upgradeRequests: currentRequests });
+        alert(`Pengajuan upgrade untuk ${ROLE_DISPLAY[cat] || cat} telah dikirim dengan biaya ${upgradeFees[cat] || 'Rp 50.000'}. Silakan tunggu proses verifikasi dari petugas.`);
+      } else {
+        alert(res.message || 'Gagal mengirim permohonan upgrade');
+      }
     } catch (error) {
       alert('Gagal mengirim permohonan upgrade');
     } finally {
@@ -166,12 +237,13 @@ export default function MateriPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/')} 
-            className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-hw-green transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-100 rounded-2xl text-gray-700 hover:text-hw-green transition-colors shadow-sm font-bold text-xs"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
+            <span>Kembali</span>
           </button>
           <div>
-            <h2 className="text-xl font-display font-bold text-gray-800">SATU HW JATENG</h2>
+            <h2 className="text-lg font-display font-bold text-gray-800">SATU HW JATENG</h2>
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">HIZBUL WATHAN SUPER APPS</p>
           </div>
         </div>
@@ -231,8 +303,8 @@ export default function MateriPage() {
       {/* Materi List */}
       <div className="grid grid-cols-1 gap-4">
         {noAccess ? (
-          <div className="bg-white rounded-3xl p-10 text-center space-y-6 shadow-sm border border-gray-100">
-            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 text-center space-y-6 shadow-sm border border-gray-100">
+            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2 border border-rose-100">
               <Lock size={40} />
             </div>
             <div className="space-y-2">
@@ -241,13 +313,48 @@ export default function MateriPage() {
                 Materi kategori <span className="font-bold text-hw-green">{ROLE_DISPLAY[filter] || filter}</span> hanya tersedia untuk anggota dengan akses khusus.
               </p>
             </div>
-            <button 
-              onClick={() => handleUpgradeRequest(filter)}
-              className="w-full max-w-xs mx-auto py-4 rounded-2xl bg-hw-green text-white font-bold shadow-lg shadow-hw-green/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              <Award size={20} />
-              UPGRADE SEKARANG
-            </button>
+
+            {hasRequestedUpgrade ? (
+              <div className="space-y-4 max-w-sm mx-auto pt-2">
+                <div className="p-4 bg-amber-50 border border-amber-200/80 rounded-2xl text-left space-y-2 shadow-sm">
+                  <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                    <Clock size={18} className="text-amber-600 shrink-0" />
+                    <span>Telah Mengajukan Upgrade</span>
+                  </div>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Anda telah mengajukan upgrade untuk tingkat <span className="font-extrabold text-amber-900">{ROLE_DISPLAY[filter] || filter}</span> dengan biaya <span className="font-extrabold text-amber-900">{categoryFee}</span>. Silakan tunggu proses verifikasi dari petugas.
+                  </p>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <button 
+                    disabled
+                    className="w-full py-3.5 rounded-2xl bg-amber-100 text-amber-800 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed border border-amber-200"
+                  >
+                    <Clock size={16} />
+                    Menunggu Verifikasi Petugas
+                  </button>
+                  {waNumber && (
+                    <button
+                      type="button"
+                      onClick={() => handleWhatsAppConfirm(filter, categoryFee)}
+                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+                    >
+                      <MessageCircle size={16} />
+                      Konfirmasi via WhatsApp Admin
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button 
+                onClick={() => handleUpgradeRequest(filter)}
+                className="w-full max-w-xs mx-auto py-4 rounded-2xl bg-hw-green text-white font-bold shadow-lg shadow-hw-green/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <Award size={20} />
+                UPGRADE SEKARANG
+              </button>
+            )}
           </div>
         ) : filteredMateri.length > 0 ? (
           filteredMateri.map((item, index) => (
