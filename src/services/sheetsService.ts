@@ -658,7 +658,25 @@ export const sheetsService = {
     try {
       const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
-        return response.data.map((m: any) => this.mapUser(m));
+        const sheetMembers = response.data.map((m: any) => this.mapUser(m));
+        // Merge Firestore photos if missing/empty in Google Sheets response
+        try {
+          const fsMembers = await firestoreService.getMembers();
+          sheetMembers.forEach(sm => {
+            if (!sm.photo && sm.email) {
+              const match = fsMembers.find(fm => 
+                (fm.id && sm.id && String(fm.id) === String(sm.id)) ||
+                (fm.email && sm.email && fm.email.toLowerCase().trim() === sm.email.toLowerCase().trim())
+              );
+              if (match && match.photo) {
+                sm.photo = match.photo;
+              }
+            }
+          });
+        } catch (e) {
+          console.warn('Error merging Firestore photos into getMembers:', e);
+        }
+        return sheetMembers;
       }
       return [];
     } catch (error) {
@@ -777,7 +795,24 @@ export const sheetsService = {
     try {
       const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`);
       if (Array.isArray(response.data)) {
-        return response.data;
+        const apps = response.data;
+        // Merge photos from Firestore if empty in Google Sheets response
+        try {
+          const fsApps = await firestoreService.getKTAApplications();
+          apps.forEach(a => {
+            if (!a.photo) {
+              const match = fsApps.find(fa => 
+                (fa.id && a.id && String(fa.id) === String(a.id)) ||
+                (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
+                (fa.userId && a.userId && String(fa.userId) === String(a.userId))
+              );
+              if (match && match.photo) {
+                a.photo = match.photo;
+              }
+            }
+          });
+        } catch (e) {}
+        return apps;
       }
       return await firestoreService.getKTAApplications();
     } catch (e) {

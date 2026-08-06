@@ -443,7 +443,7 @@ export default function HomePage() {
         <div className="flex flex-col">
           <h2 className="text-base font-display font-bold text-hw-dark">
             {isAuthenticated ? (
-              `Assalamu'alaikum, ${user?.namaLengkap?.split(' ')[0] || 'Peserta'}`
+              `Assalamu'alaikum, ${user?.namaLengkap || 'Anggota'}`
             ) : (
               "Assalamu'alaikum Sahabat HW.."
             )}

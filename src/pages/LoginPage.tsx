@@ -168,14 +168,6 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
 
       {!showForgotModal ? (
         <form onSubmit={handleLogin} className="w-full space-y-4">
-          <div className="border-b border-gray-100 pb-2.5 mb-2 text-center">
-            <h3 className="text-base font-extrabold font-display text-gray-800 flex items-center justify-center gap-2">
-              <Lock size={18} className="text-hw-green" />
-              Login Anggota HW
-            </h3>
-            <p className="text-xs text-gray-500 font-medium">Masukkan email/username dan password Anda di bawah ini</p>
-          </div>
-
           {error && (
             <div className="bg-red-50 text-red-500 text-xs p-3 rounded-xl border border-red-100 mb-4">
               {error}

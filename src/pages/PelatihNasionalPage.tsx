@@ -17,7 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { User } from '../types';
-import { safeJsonParse } from '../lib/utils';
+import { safeJsonParse, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
 
 export default function PelatihNasionalPage() {
@@ -232,6 +232,37 @@ export default function PelatihNasionalPage() {
       return 'Jaya Matahari 1';
     }
     return m.golongan || 'Jaya Matahari';
+  };
+
+  // Helper to extract and resolve member profile photo safely
+  const getPelatihPhoto = (m: User): string => {
+    if (!m) return '';
+    let raw = m.photo || (m as any).foto || (m as any).fotoUrl || (m as any).avatar || (m as any).imageUrl || (m as any).Photo || (m as any).Foto || '';
+
+    // Check localStorage mock_kta_applications or mock_members if empty
+    if (!raw && m.email) {
+      try {
+        const cachedKta = localStorage.getItem('mock_kta_applications');
+        if (cachedKta) {
+          const ktaList = safeJsonParse(cachedKta, []);
+          if (Array.isArray(ktaList)) {
+            const match = ktaList.find((k: any) => 
+              (k.email && k.email.toLowerCase().trim() === m.email?.toLowerCase().trim()) ||
+              (k.userId && String(k.userId) === String(m.id))
+            );
+            if (match && match.photo) {
+              raw = match.photo;
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!raw) return '';
+    if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+    return getCorsSafeUrl(raw);
   };
 
   // Filter members list to Pelatih Nasional & sort by Kwarda then Qabilah PTMA & then alphabetically by name
@@ -491,6 +522,7 @@ export default function PelatihNasionalPage() {
               const isJM2 = level.includes('2');
               const asalKwarda = m.asalKwarda?.trim() || '';
               const qabilah = m.qabilah?.trim() || '';
+              const photoUrl = getPelatihPhoto(m);
 
               return (
                 <motion.div
@@ -503,18 +535,41 @@ export default function PelatihNasionalPage() {
                   <div className="flex items-start gap-3.5">
                     {/* Avatar / Profile Image */}
                     <div className="relative shrink-0">
-                      {m.photo ? (
+                      {photoUrl ? (
                         <img 
-                          src={m.photo} 
-                          alt={m.namaLengkap} 
+                          src={photoUrl} 
+                          alt={m.namaLengkap || 'Pelatih'} 
                           className="w-12 h-14 object-cover rounded-2xl border-2 border-amber-400 shadow-xs" 
                           referrerPolicy="no-referrer" 
+                          onError={(e) => {
+                            // If photo fails to load, try raw drive link before hiding
+                            const raw = m.photo || (m as any).foto || '';
+                            if (raw && !e.currentTarget.dataset.retried) {
+                              e.currentTarget.dataset.retried = 'true';
+                              const directLink = getDriveDirectLink(raw);
+                              if (directLink && directLink !== photoUrl) {
+                                e.currentTarget.src = directLink;
+                                return;
+                              }
+                            }
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              const fallback = parent.querySelector('.photo-fallback') as HTMLElement;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }
+                          }}
                         />
-                      ) : (
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-amber-950 flex items-center justify-center font-black text-lg shadow-sm border border-yellow-300">
-                          {m.namaLengkap ? m.namaLengkap.charAt(0).toUpperCase() : 'P'}
-                        </div>
-                      )}
+                      ) : null}
+                      
+                      <div 
+                        className={`photo-fallback w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-amber-950 items-center justify-center font-black text-lg shadow-sm border border-yellow-300 ${
+                          photoUrl ? 'hidden flex' : 'flex'
+                        }`}
+                      >
+                        {m.namaLengkap ? m.namaLengkap.trim().charAt(0).toUpperCase() : 'P'}
+                      </div>
+                      
                       <div className="absolute -bottom-1 -right-1 bg-amber-950 text-amber-300 p-0.5 rounded-full border border-yellow-300">
                         <Award size={10} />
                       </div>
@@ -547,21 +602,21 @@ export default function PelatihNasionalPage() {
                         </span>
                       </div>
 
-                      {/* Additional Tags (e.g. Email / Gender / Verified) */}
-                      <div className="flex items-center gap-2 pt-1 flex-wrap text-[10px] text-gray-400 font-medium">
+                      {/* Additional Tags (Golongan / Gender / Verified) */}
+                      <div className="flex items-center gap-2 pt-1 flex-wrap text-[10px] text-gray-600 font-medium">
+                        <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border border-amber-200/80">
+                          <GraduationCap size={11} className="text-amber-700" /> Golongan: {level}
+                        </span>
+
                         {m.jenisKelamin && (
                           <span className="bg-gray-100 px-2 py-0.5 rounded-md text-gray-600 font-bold">
                             {m.jenisKelamin === 'P' || m.jenisKelamin === 'Perempuan' ? 'Perempuan' : 'Laki-laki'}
                           </span>
                         )}
+
                         {m.isVerified && (
                           <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border border-emerald-200/60">
                             <ShieldCheck size={11} /> Terverifikasi
-                          </span>
-                        )}
-                        {m.email && (
-                          <span className="truncate max-w-[180px] text-gray-400">
-                            {m.email}
                           </span>
                         )}
                       </div>

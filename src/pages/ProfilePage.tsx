@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
+import { User } from '../types';
 import { Navigate, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
@@ -73,10 +75,15 @@ export default function ProfilePage() {
           let width = img.width;
           let height = img.height;
           
-          const maxDim = 350;
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
+          const maxDim = 450;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
           
           canvas.width = width;
@@ -85,19 +92,23 @@ export default function ProfilePage() {
           let compressedBase64 = event.target?.result as string;
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
           }
           
           setFormData(prev => ({ ...prev, photo: compressedBase64 }));
 
-          // If user changes photo outside full edit mode, save immediately
+          // If user changes photo outside full edit mode, save immediately to Firestore & Sheets
           if (!isEditing && user) {
             try {
               setLoading(true);
               const updatedUser = { ...user, photo: compressedBase64 };
               await sheetsService.saveMember(updatedUser);
+              await firestoreService.saveMember(updatedUser);
+              if (user.id) {
+                await firestoreService.updateMember(user.id, { photo: compressedBase64 });
+              }
 
-              // Also sync KTA application photo
+              // Also sync KTA application photo in Firebase
               try {
                 const apps = await sheetsService.getKTAApplications();
                 const userApp = apps.find((app: any) => 
@@ -105,15 +116,17 @@ export default function ProfilePage() {
                   (app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim())
                 );
                 if (userApp) {
-                  await sheetsService.saveKTAApplication({ ...userApp, photo: compressedBase64 });
-                  setKtaApp({ ...userApp, photo: compressedBase64 });
+                  const updatedApp = { ...userApp, photo: compressedBase64 };
+                  await sheetsService.saveKTAApplication(updatedApp);
+                  await firestoreService.createKTAApplication(updatedApp);
+                  setKtaApp(updatedApp);
                 }
               } catch (err) {
                 console.error('Error syncing KTA app photo:', err);
               }
 
               updateUser({ photo: compressedBase64 });
-              setMessage({ type: 'success', text: 'Foto profil dan KTA berhasil diperbarui!' });
+              setMessage({ type: 'success', text: 'Foto profil dan KTA berhasil diperbarui dan tersimpan di Firebase!' });
               setTimeout(() => setMessage(null), 3000);
             } catch (err: any) {
               console.error('Error auto saving photo:', err);
@@ -174,6 +187,10 @@ export default function ProfilePage() {
         (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
       );
       if (freshUser) {
+        // Prevent wiping out newly uploaded photo if freshUser from Sheets has empty photo
+        if (!freshUser.photo && user.photo) {
+          freshUser.photo = user.photo;
+        }
         updateUser(freshUser);
       }
     } catch (e) {
@@ -192,6 +209,9 @@ export default function ProfilePage() {
         (app: any) => app.userId === user.id || app.email?.toLowerCase() === user.email?.toLowerCase()
       );
       if (userApp) {
+        if (!userApp.photo && user.photo) {
+          userApp.photo = user.photo;
+        }
         setKtaApp(userApp);
       } else {
         setKtaApp(null);
@@ -239,14 +259,21 @@ export default function ProfilePage() {
         delete (payload as any).password;
       }
       
-      // Call service
+      // Save member to Firestore & Sheets
       const res = await sheetsService.saveMember(payload);
+      await firestoreService.saveMember(payload as User);
+      if (user.id) {
+        await firestoreService.updateMember(user.id, {
+          ...payload,
+          photo: formData.photo || user.photo || ''
+        });
+      }
       
       if (res && res.error) {
         throw new Error(res.error);
       }
 
-      // Also explicitly sync KTA Application if it exists for this user
+      // Also explicitly sync KTA Application in Firestore if it exists for this user
       if (formData.photo || formData.namaLengkap) {
         try {
           const apps = await sheetsService.getKTAApplications();
@@ -261,6 +288,7 @@ export default function ProfilePage() {
               ...(formData.qabilah ? { qabilah: formData.qabilah } : {})
             };
             await sheetsService.saveKTAApplication(updatedApp);
+            await firestoreService.createKTAApplication(updatedApp);
             setKtaApp(updatedApp);
           }
         } catch (err) {
@@ -269,7 +297,6 @@ export default function ProfilePage() {
       }
 
       // Update local state - Merge with current user to keep fields not in formData
-      // but ensure updated fields from formData are spread
       const { password, ...formDataWithoutPassword } = formData;
       updateUser(formDataWithoutPassword);
       
@@ -277,7 +304,7 @@ export default function ProfilePage() {
       await fetchFreshProfile(false);
       
       setIsEditing(false);
-      setMessage({ type: 'success', text: 'Profil berhasil diperbaharui! Data telah tersimpan di sistem.' });
+      setMessage({ type: 'success', text: 'Profil berhasil diperbaharui! Data telah tersimpan di Firebase.' });
       
       // Clear message after 3 seconds
       setTimeout(() => setMessage(null), 3000);
@@ -293,7 +320,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-36 sm:pb-44">
       {/* Dashboard Header */}
       <section className="pt-2">
         <div className="flex items-center justify-between mb-4">
@@ -623,14 +650,16 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <button 
-            onClick={handleSave}
-            disabled={loading}
-            className="w-full py-4 rounded-2xl bg-hw-green text-white font-black shadow-lg shadow-hw-green/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
-            SIMPAN PERUBAHAN
-          </button>
+          <div className="pt-2 pb-10">
+            <button 
+              onClick={handleSave}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl bg-hw-green text-white font-black shadow-lg shadow-hw-green/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
+              SIMPAN PERUBAHAN
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -737,7 +766,7 @@ export default function ProfilePage() {
           )}
 
           {/* Account Actions */}
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 pb-10">
             <button 
               onClick={() => {
                 setIsEditing(true);

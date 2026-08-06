@@ -523,7 +523,7 @@ export const firestoreService = {
     const memberId = member.id || `user-${Date.now()}`;
     const dataToSave = cleanData({ ...member, id: memberId });
     try {
-      await setDoc(doc(db, 'members', memberId), dataToSave);
+      await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
     } catch (err) {
       console.error('Firestore saveMember error:', err);
     }
