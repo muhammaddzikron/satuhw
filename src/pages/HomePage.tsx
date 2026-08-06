@@ -786,32 +786,27 @@ export default function HomePage() {
           {/* 2. Banner Pelatihan HW Jateng (Orange - Kuning) */}
           <button 
             onClick={() => setShowTrainingModal(true)}
-            className="w-full text-left relative overflow-hidden flex items-center justify-between bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 text-white p-5 rounded-[2rem] shadow-lg shadow-orange-500/20 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 border border-amber-300/40 cursor-pointer"
+            className="w-full text-left flex items-center justify-between bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 text-white p-4 rounded-3xl shadow-md shadow-orange-500/15 hover:shadow-lg transition-all border border-amber-300/40 hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
           >
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-yellow-300/20 rounded-full blur-xl pointer-events-none"></div>
-            
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white border border-white/20 shadow-inner shrink-0">
-                <GraduationCap size={28} className="animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white/20 rounded-2xl text-white border border-white/20 shrink-0">
+                <GraduationCap size={20} />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-sm md:text-base font-black uppercase tracking-wider font-display text-white drop-shadow-xs">
+              <div className="text-left space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">
                     Pelatihan HW Jateng
                   </h4>
-                  <span className="bg-white text-orange-600 text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs tracking-wider">
+                  <span className="bg-white text-orange-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
                     Resmi
                   </span>
                 </div>
-                <p className="text-[10px] md:text-xs text-orange-50 font-medium leading-relaxed">
+                <p className="text-[9px] text-orange-50 font-semibold leading-none">
                   Jaya Melati 1, 2, Jaya Matahari 1 dan Jaya Pertiwi
                 </p>
               </div>
             </div>
-            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white shrink-0 hover:bg-white/30 transition-colors">
-              <ChevronRight size={20} />
-            </div>
+            <ChevronRight size={16} className="text-orange-100 shrink-0" />
           </button>
 
           {/* 3. Banner KTA Digital HW Jateng */}
