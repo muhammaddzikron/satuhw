@@ -5,7 +5,8 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
@@ -1438,6 +1439,245 @@ export const firestoreService = {
     }
     localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
     return dataToSave;
+  },
+
+  // --- JENIS KEGIATAN (ACTIVITY CATEGORIES) REALTIME ---
+  async getActivityCategories(): Promise<string[]> {
+    const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
+    try {
+      const snap = await getDocs(collection(db, 'hw_activity_categories'));
+      if (!snap.empty) {
+        const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
+        if (list.length > 0) {
+          localStorage.setItem('hw_activity_categories', JSON.stringify(list));
+          return list;
+        }
+      }
+      for (const cat of defaults) {
+        const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }).catch(() => {});
+      }
+      localStorage.setItem('hw_activity_categories', JSON.stringify(defaults));
+      return defaults;
+    } catch (e) {
+      const stored = localStorage.getItem('hw_activity_categories');
+      if (stored) {
+        try { return JSON.parse(stored); } catch (err) {}
+      }
+      return defaults;
+    }
+  },
+
+  async saveActivityCategory(categoryName: string): Promise<string[]> {
+    const nameClean = categoryName.trim();
+    if (!nameClean) return await this.getActivityCategories();
+    const catId = `cat-${nameClean.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    try {
+      await setDoc(doc(db, 'hw_activity_categories', catId), {
+        id: catId,
+        name: nameClean,
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error('Error saving activity category:', e);
+    }
+    return await this.getActivityCategories();
+  },
+
+  async deleteActivityCategory(categoryName: string): Promise<string[]> {
+    const catId = `cat-${categoryName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    try {
+      await deleteDoc(doc(db, 'hw_activity_categories', catId));
+    } catch (e) {
+      console.error('Error deleting activity category:', e);
+    }
+    return await this.getActivityCategories();
+  },
+
+  subscribeToActivityCategories(callback: (categories: string[]) => void): () => void {
+    const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
+    
+    const cached = localStorage.getItem('hw_activity_categories');
+    if (cached) {
+      try { callback(JSON.parse(cached)); } catch (e) {}
+    } else {
+      callback(defaults);
+    }
+
+    try {
+      const unsub = onSnapshot(collection(db, 'hw_activity_categories'), (snap) => {
+        if (!snap.empty) {
+          const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
+          localStorage.setItem('hw_activity_categories', JSON.stringify(list));
+          callback(list);
+        } else {
+          defaults.forEach(cat => {
+            const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+            setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }).catch(() => {});
+          });
+          localStorage.setItem('hw_activity_categories', JSON.stringify(defaults));
+          callback(defaults);
+        }
+      }, (err) => {
+        console.warn('subscribeToActivityCategories warning:', err);
+      });
+      return unsub;
+    } catch (e) {
+      return () => {};
+    }
+  },
+
+  subscribeToActivities(callback: (activities: any[]) => void): () => void {
+    const defaults = [
+      {
+        id: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        kategori: 'Silaturahmi',
+        tanggal: '29-30 Agustus 2026',
+        lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
+        biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
+        status: 'Buka',
+        kuota: '400 Orang',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
+        gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+        createdBy: 'muhammaddzikron@gmail.com',
+        creatorName: 'Muhammad Dzikron'
+      }
+    ];
+
+    const cached = localStorage.getItem('hw_activities');
+    if (cached) {
+      try { callback(JSON.parse(cached)); } catch (e) {}
+    } else {
+      callback(defaults);
+    }
+
+    try {
+      const unsub = onSnapshot(collection(db, 'hw_activities'), (snap) => {
+        let list: any[] = [];
+        if (!snap.empty) {
+          list = snap.docs.map(d => {
+            const data = d.data();
+            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
+              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
+              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
+            }
+            return { id: d.id, ...data };
+          });
+        }
+
+        defaults.forEach(def => {
+          const exists = list.some(a => a.id === def.id || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === def.namaKegiatan.toLowerCase().trim()));
+          if (!exists) {
+            list.unshift(def);
+            setDoc(doc(db, 'hw_activities', def.id), cleanData(def)).catch(() => {});
+          }
+        });
+
+        localStorage.setItem('hw_activities', JSON.stringify(list));
+        callback(list);
+      }, (err) => {
+        console.warn('subscribeToActivities warning:', err);
+      });
+      return unsub;
+    } catch (e) {
+      return () => {};
+    }
+  },
+
+  subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
+    const defaultApps = [
+      {
+        id: 'actreg-dzikron',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-dzikron',
+        namaLengkap: 'Muhammad Dzikron',
+        unsur: 'Kwarwil HW Jateng',
+        utusan: 'Kwarwil HW Jateng',
+        jabatan: 'Sekretaris',
+        kategoriUndangan: 'Pelatih Nasional HW Jateng',
+        noHp: '081226854000',
+        status: 'approved',
+        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-burhan',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-burhan',
+        namaLengkap: 'BURHAN UTAMSI',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Purworejo',
+        asalKwarda: 'Kabupaten Purworejo',
+        jabatan: 'Ketua',
+        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
+        noHp: '08562737944',
+        status: 'approved',
+        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-jalu',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-jalu',
+        namaLengkap: 'JALU SURONO',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Klaten',
+        asalKwarda: 'Kabupaten Klaten',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
+        noHp: '081548754225',
+        status: 'approved',
+        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+      }
+    ];
+
+    const cached = localStorage.getItem('activity_applications');
+    if (cached) {
+      try { callback(JSON.parse(cached)); } catch (e) {}
+    } else {
+      callback(defaultApps);
+    }
+
+    try {
+      const unsub = onSnapshot(collection(db, 'activity_applications'), (snap) => {
+        let list: any[] = [];
+        if (!snap.empty) {
+          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        defaultApps.forEach(def => {
+          const exists = list.some((p: any) => 
+            p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
+          );
+          if (!exists) {
+            list.push(def);
+            setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
+          }
+        });
+
+        list = list.map((a: any) => {
+          if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
+            return {
+              ...a,
+              activityId: 'keg-silaturahmi-pelatih',
+              namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+            };
+          }
+          return a;
+        });
+
+        localStorage.setItem('activity_applications', JSON.stringify(list));
+        callback(list);
+      }, (err) => {
+        console.warn('subscribeToActivityApplications warning:', err);
+      });
+      return unsub;
+    } catch (e) {
+      return () => {};
+    }
   },
 
   // --- KEGIATAN HW JATENG ---

@@ -62,25 +62,30 @@ export default function KegiatanPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [regSuccess, setRegSuccess] = useState<any | null>(null);
 
-  useEffect(() => {
-    loadActivities();
-  }, []);
+  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan']);
 
-  const loadActivities = async () => {
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const [list, apps] = await Promise.all([
-        sheetsService.getActivities(),
-        sheetsService.getActivityApplications()
-      ]);
-      setActivities(list || []);
-      setActivityApps(apps || []);
-    } catch (e) {
-      console.error('Error loading activities:', e);
-    } finally {
+
+    const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
+      setActivityCategoriesList(cats);
+    });
+
+    const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
+      setActivities(acts || []);
       setIsLoading(false);
-    }
-  };
+    });
+
+    const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
+      setActivityApps(apps || []);
+    });
+
+    return () => {
+      unsubCategories();
+      unsubActivities();
+      unsubApps();
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -94,7 +99,7 @@ export default function KegiatanPage() {
     }
   }, [user]);
 
-  const categories = ['Semua', 'Kegiatan Saya', 'Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan'];
+  const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya')];
 
   const filteredActivities = activities.filter(act => {
     const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||

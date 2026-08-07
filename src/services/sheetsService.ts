@@ -1545,6 +1545,30 @@ export const sheetsService = {
   },
 
   // --- KEGIATAN HW JATENG METHODS ---
+  async getActivityCategories(): Promise<string[]> {
+    return await firestoreService.getActivityCategories();
+  },
+
+  async saveActivityCategory(categoryName: string): Promise<string[]> {
+    return await firestoreService.saveActivityCategory(categoryName);
+  },
+
+  async deleteActivityCategory(categoryName: string): Promise<string[]> {
+    return await firestoreService.deleteActivityCategory(categoryName);
+  },
+
+  subscribeToActivityCategories(callback: (categories: string[]) => void): () => void {
+    return firestoreService.subscribeToActivityCategories(callback);
+  },
+
+  subscribeToActivities(callback: (activities: any[]) => void): () => void {
+    return firestoreService.subscribeToActivities(callback);
+  },
+
+  subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
+    return firestoreService.subscribeToActivityApplications(callback);
+  },
+
   async getActivities(): Promise<any[]> {
     return await firestoreService.getActivities();
   },

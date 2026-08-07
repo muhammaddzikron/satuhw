@@ -409,7 +409,9 @@ export default function AdminDashboard() {
   // Kegiatan HW Jateng State
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
   const [activityApplicationsList, setActivityApplicationsList] = useState<any[]>([]);
-  const [activitySubTab, setActivitySubTab] = useState<'kegiatan' | 'peserta'>('kegiatan');
+  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan']);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [activitySubTab, setActivitySubTab] = useState<'kegiatan' | 'jenis' | 'peserta'>('kegiatan');
   const [isKegiatanModalOpen, setIsKegiatanModalOpen] = useState(false);
   const [editingKegiatan, setEditingKegiatan] = useState<any | null>(null);
   const [kegiatanFormData, setKegiatanFormData] = useState({
@@ -1499,6 +1501,24 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
+
+    const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
+      setActivityCategoriesList(cats);
+    });
+
+    const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
+      setActivitiesList(acts || []);
+    });
+
+    const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
+      setActivityApplicationsList(apps || []);
+    });
+
+    return () => {
+      unsubCategories();
+      unsubActivities();
+      unsubApps();
+    };
   }, []);
 
   const handleSelectSection = (section: string) => {
@@ -5695,6 +5715,14 @@ export default function AdminDashboard() {
                   Daftar Kegiatan ({activitiesList.length})
                 </button>
                 <button
+                  onClick={() => setActivitySubTab('jenis')}
+                  className={`pb-3 transition-colors cursor-pointer border-b-2 ${
+                    activitySubTab === 'jenis' ? 'border-hw-green text-hw-green' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Jenis Kegiatan ({activityCategoriesList.length})
+                </button>
+                <button
                   onClick={() => setActivitySubTab('peserta')}
                   className={`pb-3 transition-colors cursor-pointer border-b-2 ${
                     activitySubTab === 'peserta' ? 'border-hw-green text-hw-green' : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -5703,6 +5731,61 @@ export default function AdminDashboard() {
                   Peserta Terdaftar ({activityApplicationsList.length})
                 </button>
               </div>
+
+              {/* SUB TAB: JENIS KEGIATAN */}
+              {activitySubTab === 'jenis' && (
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+                    <h4 className="text-sm font-extrabold text-gray-800">Tambah Jenis / Kategori Kegiatan Baru</h4>
+                    <p className="text-xs text-gray-500">
+                      Jenis kegiatan ini tersimpan secara permanen di Cloud Firestore dan langsung tersedia di seluruh perangkat.
+                    </p>
+                    <div className="flex gap-2 max-w-md">
+                      <input
+                        type="text"
+                        value={newCategoryInput}
+                        onChange={(e) => setNewCategoryInput(e.target.value)}
+                        placeholder="Contoh: Rapat HW, Bakti Sosial, Lomba,..."
+                        className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newCategoryInput.trim()) return;
+                          await sheetsService.saveActivityCategory(newCategoryInput.trim());
+                          setNewCategoryInput('');
+                        }}
+                        className="px-5 py-3 bg-hw-green hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Plus size={16} /> Tambah
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+                    <h4 className="text-sm font-extrabold text-gray-800">Daftar Jenis Kegiatan Terdaftar ({activityCategoriesList.length})</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {activityCategoriesList.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
+                          <span className="text-xs font-black text-gray-800">{cat}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`Hapus jenis kegiatan "${cat}"?`)) {
+                                await sheetsService.deleteActivityCategory(cat);
+                              }
+                            }}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Hapus jenis kegiatan"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* SUB TAB 1: DAFTAR KEGIATAN */}
               {activitySubTab === 'kegiatan' && (
