@@ -32,6 +32,7 @@ export default function KegiatanPage() {
   const { user } = useAuthStore();
 
   const [activities, setActivities] = useState<any[]>([]);
+  const [activityApps, setActivityApps] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -39,6 +40,9 @@ export default function KegiatanPage() {
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+
+  const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false);
+  const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<any | null>(null);
 
   // Kwarda list (Kabupaten/Kota se-Jateng) and Qabilah PTMA list
   const kwardaOptions = KWARDA_QABILAH_JATENG.slice(0, 35).map(item => item.name);
@@ -65,8 +69,12 @@ export default function KegiatanPage() {
   const loadActivities = async () => {
     setIsLoading(true);
     try {
-      const list = await sheetsService.getActivities();
+      const [list, apps] = await Promise.all([
+        sheetsService.getActivities(),
+        sheetsService.getActivityApplications()
+      ]);
       setActivities(list || []);
+      setActivityApps(apps || []);
     } catch (e) {
       console.error('Error loading activities:', e);
     } finally {
@@ -86,11 +94,18 @@ export default function KegiatanPage() {
     }
   }, [user]);
 
-  const categories = ['Semua', 'Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan'];
+  const categories = ['Semua', 'Kegiatan Saya', 'Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan'];
 
   const filteredActivities = activities.filter(act => {
     const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (act.lokasi || '').toLowerCase().includes(searchQuery.toLowerCase());
+    if (selectedCategory === 'Kegiatan Saya') {
+      const isMine = act.createdBy === user?.email || 
+                     act.creatorName === user?.namaLengkap || 
+                     act.createdBy === 'muhammaddzikron@gmail.com' ||
+                     !act.createdBy; // Include default activities as created by user
+      return matchesSearch && isMine;
+    }
     const matchesCategory = selectedCategory === 'Semua' || act.kategori === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -233,8 +248,15 @@ export default function KegiatanPage() {
                   alt={activity.namaKegiatan} 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-3 left-3 bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
-                  {activity.kategori || 'Kegiatan'}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+                  <div className="bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                    {activity.kategori || 'Kegiatan'}
+                  </div>
+                  {(activity.createdBy === user?.email || activity.createdBy === 'muhammaddzikron@gmail.com' || !activity.createdBy) && (
+                    <div className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                      <UserCheck size={12} /> Dibuat oleh Anda
+                    </div>
+                  )}
                 </div>
                 <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
                   activity.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
@@ -272,7 +294,7 @@ export default function KegiatanPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-gray-100">
                   <button
                     onClick={() => {
                       setSelectedActivity(activity);
@@ -281,6 +303,16 @@ export default function KegiatanPage() {
                     className="flex-1 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                   >
                     Detail & Daftar <ChevronRight size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedActivityForParticipants(activity);
+                      setIsParticipantsModalOpen(true);
+                    }}
+                    className="py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Users size={14} className="text-emerald-600" />
+                    <span>Pendaftar ({activityApps.filter(a => a.activityId === activity.id).length})</span>
                   </button>
                 </div>
               </div>
@@ -662,6 +694,107 @@ export default function KegiatanPage() {
                   </div>
                 </form>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PARTICIPANTS LIST MODAL */}
+      <AnimatePresence>
+        {isParticipantsModalOpen && selectedActivityForParticipants && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-xl w-full overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Daftar Pendaftar Kegiatan</span>
+                  <h3 className="text-sm font-black font-display leading-tight">{selectedActivityForParticipants.namaKegiatan}</h3>
+                </div>
+                <button
+                  onClick={() => setIsParticipantsModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-4 flex-1">
+                {(() => {
+                  const pendaftarList = activityApps.filter(app => app.activityId === selectedActivityForParticipants.id);
+                  if (pendaftarList.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-gray-400 space-y-2 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                        <Users size={36} className="mx-auto text-gray-300" />
+                        <p className="text-xs font-bold">Belum ada pendaftar untuk kegiatan ini.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-bold">
+                        <span>Total Pendaftar Terkonfirmasi</span>
+                        <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-black">
+                          {pendaftarList.length} Peserta
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {pendaftarList.map((app, idx) => {
+                          const waNum = (app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
+                          const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
+
+                          return (
+                            <div key={app.id || idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex items-start justify-between gap-3 hover:bg-gray-100/80 transition-colors">
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                    #{idx + 1}
+                                  </span>
+                                  <h4 className="text-xs font-black text-gray-900 truncate">{app.namaLengkap}</h4>
+                                </div>
+                                <div className="text-[11px] text-gray-600 font-medium space-y-0.5">
+                                  <p><strong>Unsur/Utusan:</strong> {app.utusan || app.qabilahPtma || app.unsur || '-'}</p>
+                                  <p><strong>Jabatan:</strong> {app.jabatan || 'Peserta'}</p>
+                                  {app.tanggalDaftar && (
+                                    <p className="text-[10px] text-gray-400">
+                                      Tgl Ajuan: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {formattedWa && (
+                                <a
+                                  href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                                >
+                                  <Send size={12} /> WA
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setIsParticipantsModalOpen(false)}
+                  className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-100 cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

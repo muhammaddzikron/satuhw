@@ -40,7 +40,7 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
 export const firestoreService = {
   // Sync state flag
   isInitialized: false,
-  isQuotaExceeded: false,
+  isQuotaExceeded: typeof window !== 'undefined' && localStorage.getItem('firestore_quota_exceeded') === 'true',
 
   getIsQuotaExceeded(): boolean {
     if (this.isQuotaExceeded) return true;
@@ -1349,51 +1349,43 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore getActivities error:', err);
       }
     }
-    const stored = localStorage.getItem('hw_activities');
-    if (stored) {
-      try { return JSON.parse(stored); } catch (e) {}
-    }
     const defaults = [
       {
-        id: 'keg-1',
-        namaKegiatan: 'Kemah Bakti Pandu HW Jawa Tengah 2026',
-        kategori: 'Perkemahan',
-        tanggal: '20 - 22 Agustus 2026',
-        lokasi: 'Baturraden, Kabupaten Banyumas',
-        biaya: 'Rp 35.000',
+        id: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        kategori: 'Silaturahmi',
+        tanggal: '25 - 27 Agustus 2026',
+        lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
+        biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
-        kuota: '500 Peserta',
-        deskripsi: 'Ajang silaturahmi dan pengabdian masyarakat Pandu HW se-Jawa Tengah dengan kegiatan bakti sosial, penghijauan, dan latihan kepanduan.',
-        gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
-        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
-      },
-      {
-        id: 'keg-2',
-        namaKegiatan: 'Jambore Wilayah Hizbul Wathan 2026',
-        kategori: 'Perkemahan',
-        tanggal: '10 - 14 September 2026',
-        lokasi: 'Kawasan Wisata Bandungan, Kabupaten Semarang',
-        biaya: 'Rp 75.000',
-        status: 'Buka',
-        kuota: '1000 Peserta',
-        deskripsi: 'Pertemuan agung Pandu Pengenal dan Penghela HW se-Jawa Tengah yang mengusung semangat kepanduan Islami, kecakapan hidup, dan kompetensi teknologi.',
-        gambarUrl: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&q=80&w=800',
-        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
-      },
-      {
-        id: 'keg-3',
-        namaKegiatan: 'Musyawarah Wilayah HW Jawa Tengah',
-        kategori: 'Rapat HW',
-        tanggal: '15 - 16 Oktober 2026',
-        lokasi: 'Auditorium Universitas Muhammadiyah Semarang (UNIMUS)',
-        biaya: 'Gratis (Undangan)',
-        status: 'Buka',
-        kuota: '200 Utusan',
-        deskripsi: 'Musyawarah tertinggi tingkat wilayah Jawa Tengah untuk perumusan program kerja strategis dan pemilihan kepemimpinan Kwartir Wilayah HW.',
+        kuota: '150 Peserta',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+        createdBy: 'muhammaddzikron@gmail.com',
+        creatorName: 'Muhammad Dzikron'
       }
     ];
+
+    const stored = localStorage.getItem('hw_activities');
+    if (stored) {
+      try {
+        let parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove old default sample activities (keg-1, keg-2, keg-3)
+          parsed = parsed.filter((a: any) => a.id !== 'keg-1' && a.id !== 'keg-2' && a.id !== 'keg-3');
+          const pelatihIdx = parsed.findIndex((a: any) => (a.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih') || a.id === 'keg-silaturahmi-pelatih');
+          if (pelatihIdx >= 0) {
+            parsed[pelatihIdx] = { ...defaults[0], ...parsed[pelatihIdx], ...defaults[0] };
+          } else {
+            parsed.unshift(defaults[0]);
+          }
+          localStorage.setItem('hw_activities', JSON.stringify(parsed));
+          return parsed;
+        }
+      } catch (e) {}
+    }
+
     localStorage.setItem('hw_activities', JSON.stringify(defaults));
     return defaults;
   },
@@ -1451,11 +1443,74 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore getActivityApplications error:', err);
       }
     }
+    const defaultApps = [
+      {
+        id: 'actreg-1',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-101',
+        namaLengkap: 'Ahmad Dahlan',
+        unsur: 'Kwarda HW',
+        utusan: 'Kabupaten Banyumas',
+        jabatan: 'Pelatih HW',
+        kategoriUndangan: 'Utusan Kwarda',
+        noHp: '081234567890',
+        status: 'approved',
+        tanggalDaftar: '2026-08-01T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-2',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-102',
+        namaLengkap: 'Siti Walidah',
+        unsur: 'Qabilah PTMA',
+        qabilahPtma: 'Universitas Muhammadiyah Gombong (UNIMUGO)',
+        jabatan: 'Pandu Senior',
+        kategoriUndangan: 'Alumni JM2',
+        noHp: '081987654321',
+        status: 'approved',
+        tanggalDaftar: '2026-08-02T10:30:00.000Z'
+      },
+      {
+        id: 'actreg-3',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-103',
+        namaLengkap: 'Budi Santoso',
+        unsur: 'Kwarda HW',
+        utusan: 'Kota Semarang',
+        jabatan: 'Pelatih Nasional',
+        kategoriUndangan: 'Utusan Kwarda',
+        noHp: '085712345678',
+        status: 'approved',
+        tanggalDaftar: '2026-08-03T14:15:00.000Z'
+      }
+    ];
+
     const stored = localStorage.getItem('activity_applications');
     if (stored) {
-      try { return JSON.parse(stored); } catch (e) {}
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mapped = parsed.map((a: any) => {
+            if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
+              return {
+                ...a,
+                activityId: 'keg-silaturahmi-pelatih',
+                namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+              };
+            }
+            return a;
+          });
+          localStorage.setItem('activity_applications', JSON.stringify(mapped));
+          return mapped;
+        }
+      } catch (e) {}
     }
-    return [];
+
+    localStorage.setItem('activity_applications', JSON.stringify(defaultApps));
+    return defaultApps;
   },
 
   async registerActivity(appData: any): Promise<any> {
