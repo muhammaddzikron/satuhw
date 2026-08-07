@@ -10,7 +10,7 @@ const model = "gemini-3.5-flash";
 
 const getAi = () => {
   if (!ai) {
-    const key = process.env.GEMINI_API_KEY;
+    const key = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : (import.meta.env.VITE_GEMINI_API_KEY || '');
     if (!key || key === 'null') {
       console.warn('Gemini API Key is missing. Translation feature will be disabled.');
       return null;
