@@ -472,7 +472,7 @@ export const sheetsService = {
           user: this.mapUser(found)
         };
       } else {
-        throw new Error('Password yang Anda masukkan salah. Gunakan password "12345hw" atau password saat pendaftaran.');
+        throw new Error('Password yang Anda masukkan salah.');
       }
     }
 

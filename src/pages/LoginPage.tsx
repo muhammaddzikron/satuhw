@@ -7,14 +7,17 @@ import {
   Eye, 
   EyeOff, 
   Loader2, 
-  ShieldCheck, 
   ChevronLeft, 
   MessageCircle, 
   Search, 
   CheckCircle2, 
   XCircle, 
   UserPlus,
-  X
+  X,
+  Phone,
+  Key,
+  HelpCircle,
+  ArrowRight
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -25,10 +28,20 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Forgot password states
   const [resetEmail, setResetEmail] = useState('');
-  const [resetFullName, setResetFullName] = useState('');
+  const [resetPhone, setResetPhone] = useState('');
   const [waNumber, setWaNumber] = useState('6281234567890');
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [isCheckingForgot, setIsCheckingForgot] = useState(false);
+  const [forgotResult, setForgotResult] = useState<{
+    checked: boolean;
+    success: boolean;
+    userName?: string;
+    password?: string;
+    message?: string;
+  } | null>(null);
   
   // Cek Email Status states
   const [checkEmailInput, setCheckEmailInput] = useState('');
@@ -119,18 +132,77 @@ export default function LoginPage() {
     }
   };
 
-  const handleWhatsAppReset = (e: React.FormEvent) => {
+  const handleCheckForgot = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetEmail || !resetFullName) return;
-    
-    const text = encodeURIComponent(`Assalamu'alaikum Medkom HW Jateng,
-Saya mengajukan permohonan untuk melakukan reset password akun saya dengan data sebagai berikut:
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    const cleanPhoneInput = resetPhone.replace(/[^0-9]/g, '');
 
-Nama Lengkap : ${resetFullName}
-Email : ${resetEmail}
+    if (!cleanEmail || !cleanPhoneInput) return;
 
-Mohon bantuan untuk mereset password akun saya.
-Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
+    setIsCheckingForgot(true);
+    setForgotResult(null);
+
+    try {
+      const members = await sheetsService.getMembers();
+      const found = members.find((m: any) => {
+        const mEmail = (m.email || '').trim().toLowerCase();
+        const mId = String(m.id || '').trim().toLowerCase();
+        const mPhone = String(m.noHp || m.noWa || m.telepon || m.nohp || '').replace(/[^0-9]/g, '');
+
+        const isEmailMatch = mEmail === cleanEmail || mId === cleanEmail;
+        
+        let isPhoneMatch = false;
+        if (mPhone && cleanPhoneInput) {
+          if (mPhone === cleanPhoneInput) {
+            isPhoneMatch = true;
+          } else {
+            const normM = mPhone.replace(/^62/, '0');
+            const normInput = cleanPhoneInput.replace(/^62/, '0');
+            if (normM === normInput) {
+              isPhoneMatch = true;
+            } else if (normM.length >= 8 && normInput.length >= 8 && normM.slice(-8) === normInput.slice(-8)) {
+              isPhoneMatch = true;
+            }
+          }
+        }
+
+        return isEmailMatch && isPhoneMatch;
+      });
+
+      if (found) {
+        setForgotResult({
+          checked: true,
+          success: true,
+          userName: found.namaLengkap || found.nama || 'Anggota HW',
+          password: '12345hw'
+        });
+      } else {
+        setForgotResult({
+          checked: true,
+          success: false,
+          message: 'Data Email dan Nomor HP tidak cocok atau belum terdaftar dalam sistem.'
+        });
+      }
+    } catch (err) {
+      console.error('Error checking forgot password:', err);
+      setForgotResult({
+        checked: true,
+        success: false,
+        message: 'Terjadi kesalahan saat memverifikasi data. Silakan hubungi Admin.'
+      });
+    } finally {
+      setIsCheckingForgot(false);
+    }
+  };
+
+  const handleOpenWhatsAppAdmin = () => {
+    const text = encodeURIComponent(`Assalamu'alaikum Admin Medkom HW Jateng,
+Saya mengalami kendala saat lupa password / reset password akun saya:
+
+Email: ${resetEmail || email || '-'}
+No HP: ${resetPhone || '-'}
+
+Mohon bantuan verifikasi akun saya. Terima kasih.`);
 
     window.open(`https://wa.me/${String(waNumber).replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
   };
@@ -157,11 +229,11 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
       
       <div className="text-center mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-800">
-          {showForgotModal ? 'Reset Password' : 'Login Anggota HW'}
+          {showForgotModal ? 'Lupa Password' : 'Login Anggota HW'}
         </h2>
         <p className="text-gray-500 text-sm px-4">
           {showForgotModal 
-            ? 'Lengkapi data dibawah untuk mengajukan reset password via WhatsApp' 
+            ? 'Masukkan Email dan Nomor HP terdaftar untuk mengecek password Anda' 
             : 'Masuk untuk mengakses materi & fitur lengkap aplikasi'}
         </p>
       </div>
@@ -292,11 +364,12 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
                           onClick={() => {
                             setShowForgotModal(true);
                             setResetEmail(checkResult.user?.email || checkResult.emailSearched || '');
-                            setResetFullName(checkResult.user?.namaLengkap || '');
+                            if (checkResult.user?.noHp) setResetPhone(checkResult.user.noHp);
+                            setForgotResult(null);
                           }}
                           className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer"
                         >
-                          Lupa Password? Hubungi Admin
+                          Lupa Password? Cek Di Sini
                         </button>
                       </div>
                     </div>
@@ -326,55 +399,134 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           </div>
         </form>
       ) : (
-        <form onSubmit={handleWhatsAppReset} className="w-full space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Nama Lengkap</label>
-            <div className="relative">
-              <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="text"
-                value={resetFullName}
-                onChange={(e) => setResetFullName(e.target.value)}
-                placeholder="Nama sesuai pendaftaran"
-                required
-                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Email Terdaftar</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="email"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                placeholder="nama@email.com"
-                required
-                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
-              />
-            </div>
-          </div>
+        <div className="w-full space-y-4">
+          {!forgotResult ? (
+            <form onSubmit={handleCheckForgot} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Email Terdaftar</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="nama@email.com"
+                    required
+                    className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
+                  />
+                </div>
+              </div>
 
-          <button 
-            type="submit"
-            className="w-full bg-hw-green text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <MessageCircle size={20} /> Hubungi Admin via WhatsApp
-          </button>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Nomor HP / WhatsApp Terdaftar</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="tel"
+                    value={resetPhone}
+                    onChange={(e) => setResetPhone(e.target.value)}
+                    placeholder="081234567890"
+                    required
+                    className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
+                  />
+                </div>
+              </div>
 
-          <button 
-            type="button"
-            onClick={() => {
-              setShowForgotModal(false);
-              setError('');
-            }}
-            className="w-full text-gray-500 text-sm font-medium py-2 hover:text-hw-green transition-colors cursor-pointer"
-          >
-            Kembali ke Login
-          </button>
-        </form>
+              <button 
+                type="submit"
+                disabled={isCheckingForgot}
+                className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isCheckingForgot ? <Loader2 className="animate-spin" size={20} /> : <><Key size={18} /> Cek Password Akun</>}
+              </button>
+            </form>
+          ) : (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+              {forgotResult.success ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-emerald-950">Password Ditemukan!</h3>
+                      <p className="text-xs text-emerald-800">Assalamu'alaikum <strong>{forgotResult.userName}</strong></p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-emerald-200/80 text-center space-y-1 shadow-xs">
+                    <p className="text-xs text-gray-600 font-medium">Password Akun Anda adalah:</p>
+                    <div className="text-2xl font-mono font-black text-emerald-800 tracking-wider my-1 bg-emerald-50 py-2.5 px-4 rounded-xl border border-emerald-200 inline-block select-all">
+                      {forgotResult.password || '12345hw'}
+                    </div>
+                    <p className="text-[11px] text-gray-500">Gunakan password di atas untuk login ke aplikasi HW.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(resetEmail);
+                      setPassword(forgotResult.password || '12345hw');
+                      setShowForgotModal(false);
+                      setForgotResult(null);
+                    }}
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+                  >
+                    <span>Masuk Menggunakan Password Ini</span> <ArrowRight size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center shrink-0">
+                      <XCircle size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-amber-950">Data Tidak Cocok / Belum Terdaftar</h3>
+                      <p className="text-xs text-amber-800">Email dan Nomor HP tidak cocok dengan data anggota.</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-700 leading-relaxed bg-white p-3.5 rounded-2xl border border-amber-200/80">
+                    {forgotResult.message || 'Silakan periksa kembali email dan nomor HP terdaftar Anda, atau hubungi Admin jika mengalami kendala.'}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setForgotResult(null)}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow-sm transition-all text-xs cursor-pointer"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Button Bantuan Admin WhatsApp */}
+          <div className="pt-3 border-t border-gray-100 space-y-2">
+            <p className="text-xs text-gray-500 text-center">Jika ada kendala lain, hubungi Admin:</p>
+            <button 
+              type="button"
+              onClick={handleOpenWhatsAppAdmin}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+            >
+              <MessageCircle size={18} /> Chat Admin via WhatsApp
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => {
+                setShowForgotModal(false);
+                setForgotResult(null);
+                setError('');
+              }}
+              className="w-full text-gray-500 text-xs font-bold py-2 hover:text-hw-green transition-colors cursor-pointer text-center block"
+            >
+              Kembali ke Form Login
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="mt-8 mb-6 text-center flex flex-col gap-3 pt-5 border-t border-gray-100 w-full">
