@@ -479,24 +479,73 @@ export default function KTAPage() {
       return nikStr ? String(nikStr).replace(/\D/g, '') : '';
     };
 
-    // Check duplication across all applications (excluding rejected ones)
     const normalizedFormNik = normalizeNikGlobal(formData.nik);
-    const normalizedFormEmail = formData.email.trim().toLowerCase();
+    const normalizedFormEmail = (formData.email || '').trim().toLowerCase();
     const normalizedFormPhone = normalizePhoneGlobal(formData.noWa);
+
+    const isOwnApplication = (app: any) => {
+      if (!app) return false;
+
+      // 1. Compare with myApplication state if present
+      if (myApplication) {
+        const appIdStr = String(app.id || app.Id || '').trim();
+        const myAppIdStr = String(myApplication.id || myApplication.Id || '').trim();
+        if (appIdStr && myAppIdStr && (appIdStr === myAppIdStr || myAppIdStr.startsWith('kta-sync-'))) return true;
+
+        const appUserIdStr = String(app.userId || '').trim();
+        const myAppUserIdStr = String(myApplication.userId || '').trim();
+        if (appUserIdStr && myAppUserIdStr && appUserIdStr === myAppUserIdStr) return true;
+
+        const appEmailLower = (app.email || '').trim().toLowerCase();
+        const myAppEmailLower = (myApplication.email || '').trim().toLowerCase();
+        if (appEmailLower && myAppEmailLower && appEmailLower === myAppEmailLower) return true;
+
+        const appNik = normalizeNikGlobal(app.nik);
+        const myAppNik = normalizeNikGlobal(myApplication.nik);
+        if (appNik && myAppNik && appNik === myAppNik) return true;
+
+        const appPhone = normalizePhoneGlobal(app.noWa || app.noHp);
+        const myAppPhone = normalizePhoneGlobal(myApplication.noWa || myApplication.noHp);
+        if (appPhone && myAppPhone && appPhone === myAppPhone) return true;
+      }
+
+      // 2. Compare with logged-in user profile
+      if (isAuthenticated && user) {
+        const appUserIdStr = String(app.userId || '').trim();
+        const currentUserIdStr = String(user.id || '').trim();
+        if (appUserIdStr && currentUserIdStr && appUserIdStr === currentUserIdStr) return true;
+
+        const appEmailLower = (app.email || '').trim().toLowerCase();
+        const userEmailLower = (user.email || '').trim().toLowerCase();
+        if (appEmailLower && userEmailLower && appEmailLower === userEmailLower) return true;
+
+        const appNik = normalizeNikGlobal(app.nik);
+        const userNik = normalizeNikGlobal((user as any).nik);
+        if (appNik && userNik && appNik === userNik) return true;
+
+        const appPhone = normalizePhoneGlobal(app.noWa || app.noHp);
+        const userPhone = normalizePhoneGlobal(user.noHp);
+        if (appPhone && userPhone && appPhone === userPhone) return true;
+      }
+
+      // 3. If editing or logged in, check if form data matches app (same person)
+      if (showEditForm || myApplication || isAuthenticated) {
+        const appEmailLower = (app.email || '').trim().toLowerCase();
+        if (normalizedFormEmail && appEmailLower && appEmailLower === normalizedFormEmail) return true;
+
+        const appNik = normalizeNikGlobal(app.nik);
+        if (normalizedFormNik && appNik && appNik === normalizedFormNik) return true;
+      }
+
+      return false;
+    };
 
     const isDuplicate = applications.some((app: any) => {
       if (app.status === 'rejected') return false;
       
       // Exclude own application from duplicate checking when updating/editing!
-      if (myApplication) {
-        const appIdStr = String(app.id || app.Id || '');
-        const myAppIdStr = String(myApplication.id || myApplication.Id || '');
-        const appEmailLower = (app.email || '').trim().toLowerCase();
-        const myAppEmailLower = (myApplication.email || '').trim().toLowerCase();
-        
-        if ((appIdStr !== '' && appIdStr === myAppIdStr) || (appEmailLower !== '' && appEmailLower === myAppEmailLower)) {
-          return false;
-        }
+      if (isOwnApplication(app)) {
+        return false;
       }
       
       const appNikNormalized = normalizeNikGlobal(app.nik);
@@ -521,9 +570,17 @@ export default function KTAPage() {
     setSubmitting(true);
     setMessage(null);
 
+    // Find if user already has an existing application in applications list
+    const existingApp = applications.find((app: any) => isOwnApplication(app));
+    const targetAppId = (myApplication?.id && !myApplication.id.startsWith('kta-sync-'))
+      ? myApplication.id
+      : (existingApp?.id || (user?.id ? `kta-${user.id}` : `kta-${Date.now()}`));
+
+    const isEditingMode = showEditForm || !!myApplication || !!existingApp;
+
     const payload = {
-      id: myApplication?.id || '',
-      userId: user?.id || 'guest-' + Math.random().toString(36).substring(2, 9),
+      id: targetAppId,
+      userId: user?.id || myApplication?.userId || existingApp?.userId || 'guest-' + Math.random().toString(36).substring(2, 9),
       nama: formData.nama,
       alamat: formData.alamat,
       tingkatan: formData.tingkatan,
@@ -531,13 +588,16 @@ export default function KTAPage() {
       noWa: formData.noWa,
       email: formData.email,
       sosmed: formData.sosmed,
-      photo: photoPreview || '',
+      photo: photoPreview || myApplication?.photo || existingApp?.photo || user?.photo || '',
       nik: formData.nik,
       tempatLahir: formData.tempatLahir,
       tanggalLahir: formData.tanggalLahir,
       jenisKelamin: formData.jenisKelamin,
       qabilah: formData.qabilah,
-      jenisKta: formData.jenisKta
+      jenisKta: formData.jenisKta,
+      status: myApplication?.status || existingApp?.status || 'pending',
+      ktaNumber: myApplication?.ktaNumber || existingApp?.ktaNumber || '',
+      tanggalAjuan: myApplication?.tanggalAjuan || existingApp?.tanggalAjuan || new Date().toISOString()
     };
 
     try {
@@ -545,17 +605,30 @@ export default function KTAPage() {
       if (res.success || res.application) {
         const createdApp = res.application || payload;
         setMyApplication(createdApp);
+        
+        const successMsg = isEditingMode
+          ? 'Data pengajuan KTA berhasil diperbarui.'
+          : 'Pendaftaran KTA berhasil dikirim! Silahkan menyelesaikan pembayaran sesuai arahan di bawah.';
+
         setMessage({ 
           type: 'success', 
-          text: 'Pendaftaran KTA berhasil dikirim! Silahkan menyelesaikan pembayaran sesuai arahan di bawah.' 
+          text: successMsg
         });
         
         // Auto update local user status (if logged in, keep them updated)
         if (isAuthenticated && user) {
-          // If approved instantly (some system settings), update user, else mark verified
-          if (createdApp.status === 'approved') {
-            updateUser({ isVerified: true });
-          }
+          updateUser({
+            namaLengkap: formData.nama,
+            alamat: formData.alamat,
+            noHp: formData.noWa,
+            email: formData.email,
+            asalKwarda: formData.asalDaerah,
+            qabilah: formData.qabilah,
+            sosmed: formData.sosmed,
+            nik: formData.nik,
+            photo: photoPreview || user.photo || '',
+            isVerified: createdApp.status === 'approved' ? true : user.isVerified
+          });
         }
         
         // Re-fetch to coordinate

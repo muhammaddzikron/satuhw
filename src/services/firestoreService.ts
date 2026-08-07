@@ -1086,14 +1086,19 @@ export const firestoreService = {
     });
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'kta_applications', newApp.id), newApp);
+        await setDoc(doc(db, 'kta_applications', newApp.id), newApp, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore createKTAApplication error:', err);
       }
     }
     const list = await this.getKTAApplications();
-    list.unshift(newApp);
+    const existingIndex = list.findIndex((x: any) => String(x.id) === String(newApp.id));
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...newApp };
+    } else {
+      list.unshift(newApp);
+    }
     localStorage.setItem('kta_applications', JSON.stringify(list));
 
     // Sync photo and profile to member profile if match found
