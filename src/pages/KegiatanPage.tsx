@@ -775,7 +775,7 @@ export default function KegiatanPage() {
                                 </div>
                               </div>
 
-                              {formattedWa && (
+                              {user && formattedWa && (
                                 <a
                                   href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
                                   target="_blank"
