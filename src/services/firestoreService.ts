@@ -1413,26 +1413,6 @@ export const firestoreService = {
 
   // --- KEGIATAN HW JATENG ---
   async getActivities(): Promise<any[]> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await getDocs(collection(db, 'hw_activities'));
-        if (!snap.empty) {
-          const list = snap.docs.map(d => {
-            const data = d.data();
-            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
-              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
-              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
-            }
-            return { id: d.id, ...data };
-          });
-          localStorage.setItem('hw_activities', JSON.stringify(list));
-          return list;
-        }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivities error:', err);
-      }
-    }
     const defaults = [
       {
         id: 'keg-silaturahmi-pelatih',
@@ -1451,12 +1431,74 @@ export const firestoreService = {
       }
     ];
 
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await getDocs(collection(db, 'hw_activities'));
+        let list: any[] = [];
+        if (!snap.empty) {
+          list = snap.docs.map(d => {
+            const data = d.data();
+            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
+              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
+              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
+            }
+            return { id: d.id, ...data };
+          });
+        }
+
+        // Ensure defaults are seeded to Firestore
+        for (const def of defaults) {
+          const exists = list.some(a => a.id === def.id || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === def.namaKegiatan.toLowerCase().trim()));
+          if (!exists) {
+            list.unshift(def);
+            setDoc(doc(db, 'hw_activities', def.id), cleanData(def)).catch(() => {});
+          }
+        }
+
+        // Also merge activities from settings into hw_activities if missing
+        try {
+          const setSnap = await getDoc(doc(db, 'settings', 'app_settings'));
+          if (setSnap.exists()) {
+            const sData = setSnap.data();
+            const trainActs = Array.isArray(sData.trainingActivities) ? sData.trainingActivities : [];
+            trainActs.forEach((ta: any) => {
+              if (ta && ta.namaKegiatan) {
+                const actId = ta.id || `act-${Date.now()}`;
+                const exists = list.some(a => a.id === actId || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === ta.namaKegiatan.toLowerCase().trim()));
+                if (!exists) {
+                  const mapped = cleanData({
+                    id: actId,
+                    namaKegiatan: ta.namaKegiatan,
+                    kategori: ta.jenisPelatihan || 'Pelatihan',
+                    jenisPelatihan: ta.jenisPelatihan,
+                    tanggal: ta.tanggalPelatihan || ta.tanggal || '',
+                    lokasi: ta.lokasiPelatihan || ta.lokasi || '',
+                    status: ta.status || 'Buka',
+                    deskripsi: ta.deskripsi || '',
+                    kuota: '100 Peserta',
+                    penyelenggara: 'Kwarwil HW Jateng'
+                  });
+                  list.push(mapped);
+                  setDoc(doc(db, 'hw_activities', actId), mapped).catch(() => {});
+                }
+              }
+            });
+          }
+        } catch (e) {}
+
+        localStorage.setItem('hw_activities', JSON.stringify(list));
+        return list;
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivities error:', err);
+      }
+    }
+
     const stored = localStorage.getItem('hw_activities');
     if (stored) {
       try {
         let parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Remove old default sample activities (keg-1, keg-2, keg-3)
           parsed = parsed.filter((a: any) => a.id !== 'keg-1' && a.id !== 'keg-2' && a.id !== 'keg-3');
           const pelatihIdx = parsed.findIndex((a: any) => (a.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih') || a.id === 'keg-silaturahmi-pelatih');
           if (pelatihIdx >= 0) {

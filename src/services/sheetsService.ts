@@ -1389,8 +1389,10 @@ export const sheetsService = {
     const DEFAULT_TYPES = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
     const DEFAULT_ACTIVITIES: any[] = [];
 
+    const fsSettings = await firestoreService.getSettings();
+
     if (!IS_API_VALID) {
-      const parsed = localParsed || { 
+      const parsed = fsSettings || localParsed || { 
         appName: 'HW App', 
         orgName: 'HW Org', 
         waConfirmation: '628',
@@ -1407,7 +1409,7 @@ export const sheetsService = {
           { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
         ]
       };
-      return {
+      const result = {
         ...parsed,
         trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
@@ -1421,31 +1423,34 @@ export const sheetsService = {
           { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
         ])
       };
+      localStorage.setItem('hw_settings', JSON.stringify(result));
+      return result;
     }
     try {
       const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`);
       const apiSettings = response.data || {};
       const merged = {
+        ...fsSettings,
         ...apiSettings,
-        appName: apiSettings.appName || 'HW App',
-        orgName: apiSettings.orgName || 'HW Org',
-        waConfirmation: apiSettings.waConfirmation || '628',
-        lastBackup: apiSettings.lastBackup || '-',
-        ktaTemplateFront: apiSettings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-        ktaTemplateBack: apiSettings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
-        ktaKetuaNama: apiSettings.ktaKetuaNama || 'TAUFIQ',
-        ktaKetuaNbm: apiSettings.ktaKetuaNbm || 'NBM 1015096',
-        ktaSekretarisNama: apiSettings.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: apiSettings.ktaSekretarisNbm || 'NBM 1029863',
-        ktaKotaPenerbit: apiSettings.ktaKotaPenerbit || 'Semarang',
-        ktaTandaTanganKetua: apiSettings.ktaTandaTanganKetua || '',
-        ktaTandaTanganSekretaris: apiSettings.ktaTandaTanganSekretaris || '',
-        ktaStempelImage: apiSettings.ktaStempelImage || '',
-        trainingTypes: safeParse(apiSettings.trainingTypes, DEFAULT_TYPES),
-        trainingActivities: safeParse(apiSettings.trainingActivities, DEFAULT_ACTIVITIES),
-        trainingLocations: safeParse(apiSettings.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
-        trainingDates: safeParse(apiSettings.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(apiSettings.upgradeFees, [
+        appName: apiSettings.appName || fsSettings?.appName || 'HW App',
+        orgName: apiSettings.orgName || fsSettings?.orgName || 'HW Org',
+        waConfirmation: apiSettings.waConfirmation || fsSettings?.waConfirmation || '628',
+        lastBackup: apiSettings.lastBackup || fsSettings?.lastBackup || '-',
+        ktaTemplateFront: apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+        ktaTemplateBack: apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+        ktaKetuaNama: apiSettings.ktaKetuaNama || fsSettings?.ktaKetuaNama || 'TAUFIQ',
+        ktaKetuaNbm: apiSettings.ktaKetuaNbm || fsSettings?.ktaKetuaNbm || 'NBM 1015096',
+        ktaSekretarisNama: apiSettings.ktaSekretarisNama || fsSettings?.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
+        ktaSekretarisNbm: apiSettings.ktaSekretarisNbm || fsSettings?.ktaSekretarisNbm || 'NBM 1029863',
+        ktaKotaPenerbit: apiSettings.ktaKotaPenerbit || fsSettings?.ktaKotaPenerbit || 'Semarang',
+        ktaTandaTanganKetua: apiSettings.ktaTandaTanganKetua || fsSettings?.ktaTandaTanganKetua || '',
+        ktaTandaTanganSekretaris: apiSettings.ktaTandaTanganSekretaris || fsSettings?.ktaTandaTanganSekretaris || '',
+        ktaStempelImage: apiSettings.ktaStempelImage || fsSettings?.ktaStempelImage || '',
+        trainingTypes: safeParse(apiSettings.trainingTypes || fsSettings?.trainingTypes, DEFAULT_TYPES),
+        trainingActivities: safeParse(apiSettings.trainingActivities || fsSettings?.trainingActivities, DEFAULT_ACTIVITIES),
+        trainingLocations: safeParse(apiSettings.trainingLocations || fsSettings?.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
+        trainingDates: safeParse(apiSettings.trainingDates || fsSettings?.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
+        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, [
           { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
           { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
           { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
@@ -1457,7 +1462,7 @@ export const sheetsService = {
       return merged;
     } catch (error) {
       console.warn('getSettings API error, falling back to local settings:', (error as any)?.message || error);
-      const parsed = localParsed || { 
+      const parsed = fsSettings || localParsed || { 
         appName: 'HW App', 
         orgName: 'HW Org', 
         lastBackup: '-',
@@ -1512,6 +1517,12 @@ export const sheetsService = {
 
   async saveSettings(settings: any): Promise<any> {
     localStorage.setItem('hw_settings', JSON.stringify(settings));
+    try {
+      await firestoreService.saveSettings(settings);
+    } catch (e) {
+      console.warn('saveSettings Firestore error:', e);
+    }
+
     if (!IS_API_VALID) {
       return { success: true };
     }
@@ -1525,10 +1536,15 @@ export const sheetsService = {
       }
     }
 
-    return this.post({
-      action: 'saveSettings',
-      settings: serializedSettings
-    });
+    try {
+      return await this.post({
+        action: 'saveSettings',
+        settings: serializedSettings
+      });
+    } catch (e) {
+      console.warn('saveSettings Sheets API error:', e);
+      return { success: true };
+    }
   },
 
   async syncDatabase(): Promise<any> {

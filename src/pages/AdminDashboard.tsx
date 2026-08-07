@@ -5532,10 +5532,21 @@ export default function AdminDashboard() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (confirm(`Hapus kegiatan "${act.namaKegiatan}"?`)) {
                                         const filtered = (settings.trainingActivities || []).filter((_: any, i: number) => i !== idx && _.id !== act.id);
-                                        setSettings(prev => ({ ...prev, trainingActivities: filtered }));
+                                        const updatedSettings = { ...settings, trainingActivities: filtered };
+                                        setSettings(updatedSettings);
+                                        try {
+                                          setLoading(true);
+                                          await sheetsService.saveSettings(updatedSettings);
+                                          if (act.id) await sheetsService.deleteActivity(act.id);
+                                          alert('Kegiatan berhasil dihapus dari cloud!');
+                                        } catch (e: any) {
+                                          alert('Gagal menghapus kegiatan: ' + e.message);
+                                        } finally {
+                                          setLoading(false);
+                                        }
                                       }
                                     }}
                                     className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
@@ -9216,7 +9227,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!activityForm.namaKegiatan.trim()) {
                       alert('Nama kegiatan wajib diisi.');
                       return;
@@ -9243,14 +9254,39 @@ export default function AdminDashboard() {
                       updatedDates.push(activityForm.tanggalPelatihan);
                     }
 
-                    setSettings(prev => ({
-                      ...prev,
+                    const updatedSettings = {
+                      ...settings,
                       trainingActivities: updatedActivities,
                       trainingLocations: updatedLocations,
                       trainingDates: updatedDates
-                    }));
+                    };
 
-                    setIsActivityModalOpen(false);
+                    setSettings(updatedSettings);
+
+                    try {
+                      setLoading(true);
+                      await sheetsService.saveSettings(updatedSettings);
+                      await sheetsService.saveActivity({
+                        id: newAct.id,
+                        namaKegiatan: newAct.namaKegiatan,
+                        kategori: newAct.jenisPelatihan || 'Pelatihan',
+                        jenisPelatihan: newAct.jenisPelatihan,
+                        tanggal: newAct.tanggalPelatihan || '',
+                        lokasi: newAct.lokasiPelatihan || '',
+                        tanggalPelatihan: newAct.tanggalPelatihan || '',
+                        lokasiPelatihan: newAct.lokasiPelatihan || '',
+                        status: newAct.status || 'Buka',
+                        deskripsi: newAct.deskripsi || '',
+                        kuota: '100 Peserta',
+                        penyelenggara: 'Kwarwil HW Jateng'
+                      });
+                      alert('Kegiatan berhasil disimpan dan disinkronkan ke Cloud Firestore!');
+                      setIsActivityModalOpen(false);
+                    } catch (err: any) {
+                      alert('Gagal menyimpan kegiatan ke cloud: ' + (err?.message || err));
+                    } finally {
+                      setLoading(false);
+                    }
                   }}
                   className="px-5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-wider cursor-pointer"
                 >
