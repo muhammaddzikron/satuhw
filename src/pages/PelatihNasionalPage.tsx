@@ -57,6 +57,15 @@ export default function PelatihNasionalPage() {
     };
 
     loadData();
+
+    const unsub = sheetsService.subscribeToMembers((mList) => {
+      if (Array.isArray(mList) && mList.length > 0) {
+        setMembers(mList);
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   // Helper to check if a member is Super Admin system account

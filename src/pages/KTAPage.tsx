@@ -258,13 +258,20 @@ export default function KTAPage() {
 
     syncProfileAndApplications();
 
+    const unsubMembers = sheetsService.subscribeToMembers(() => {
+      syncProfileAndApplications();
+    });
+
     const unsubSettings = sheetsService.subscribeToSettings((newSettings: any) => {
       if (newSettings) {
         setSettings((prev: any) => ({ ...prev, ...newSettings }));
       }
     });
 
-    return () => unsubSettings();
+    return () => {
+      unsubMembers();
+      unsubSettings();
+    };
   }, [isAuthenticated, user?.id, user?.email]);
 
   const fetchApplications = async () => {

@@ -874,6 +874,14 @@ export const sheetsService = {
     }
   },
 
+  subscribeToMembers(callback: (members: User[]) => void): () => void {
+    return firestoreService.subscribeToMembers(callback);
+  },
+
+  subscribeToMember(memberId: string, callback: (member: User | null) => void): () => void {
+    return firestoreService.subscribeToMember(memberId, callback);
+  },
+
   async forgotPassword(email: string): Promise<any> {
     if (!IS_API_VALID) {
       return new Promise((resolve) => {

@@ -241,7 +241,7 @@ const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fu
 );
 
 export default function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, updateUser } = useAuthStore();
 
   useEffect(() => {
     // Check API status for debugging in browser console
@@ -256,6 +256,42 @@ export default function App() {
       console.log('[MATERI HW] Also ensure the variable is prefixed with "VITE_" so the frontend can read it.');
     }
   }, []);
+
+  // Real-time synchronization of current logged-in user profile from Firestore
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      const unsub = sheetsService.subscribeToMember(user.id, (freshUser) => {
+        if (freshUser) {
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser) {
+            // Check if any profile property has changed
+            const isChanged = 
+              freshUser.namaLengkap !== currentUser.namaLengkap ||
+              freshUser.photo !== currentUser.photo ||
+              freshUser.noHp !== currentUser.noHp ||
+              freshUser.alamat !== currentUser.alamat ||
+              freshUser.qabilah !== currentUser.qabilah ||
+              freshUser.asalKwarda !== currentUser.asalKwarda ||
+              freshUser.role !== currentUser.role ||
+              freshUser.isVerified !== currentUser.isVerified ||
+              freshUser.ktaNumber !== currentUser.ktaNumber ||
+              JSON.stringify(freshUser.roles) !== JSON.stringify(currentUser.roles) ||
+              JSON.stringify(freshUser.upgradeRequests) !== JSON.stringify(currentUser.upgradeRequests);
+
+            if (isChanged) {
+              updateUser({
+                ...currentUser,
+                ...freshUser,
+                namaLengkap: freshUser.namaLengkap || currentUser.namaLengkap,
+                photo: freshUser.photo || currentUser.photo || ''
+              });
+            }
+          }
+        }
+      });
+      return () => unsub();
+    }
+  }, [isAuthenticated, user?.id]);
 
   return (
     <Router>

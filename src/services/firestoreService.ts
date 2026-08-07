@@ -882,6 +882,72 @@ export const firestoreService = {
     }
   },
 
+  subscribeToMembers(callback: (members: User[]) => void): () => void {
+    // Return cached/local members immediately for fast startup
+    const cachedStr = localStorage.getItem('mock_members');
+    if (cachedStr) {
+      try {
+        const parsed = JSON.parse(cachedStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          callback(parsed);
+        }
+      } catch (e) {}
+    }
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const q = collection(db, 'members');
+        const unsub = onSnapshot(q, (snap) => {
+          if (!snap.empty) {
+            const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+            const validMembers: User[] = [];
+            for (const m of rawMembers) {
+              const name = (m.namaLengkap || (m as any).nama || '').trim();
+              const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
+              if (!isInvalid) {
+                validMembers.push(m);
+              }
+            }
+            localStorage.setItem('mock_members', JSON.stringify(validMembers));
+            callback(validMembers);
+          }
+        }, (err) => {
+          this.checkQuotaError(err);
+          console.warn('[FIRESTORE] subscribeToMembers snapshot error:', err?.message || err);
+        });
+        return unsub;
+      } catch (e) {
+        console.warn('[FIRESTORE] subscribeToMembers error:', e);
+      }
+    }
+    return () => {};
+  },
+
+  subscribeToMember(memberId: string, callback: (member: User | null) => void): () => void {
+    if (!memberId) return () => {};
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const memberRef = doc(db, 'members', memberId);
+        const unsub = onSnapshot(memberRef, (snap) => {
+          if (snap.exists()) {
+            const data = { id: snap.id, ...snap.data() } as User;
+            callback(data);
+          } else {
+            callback(null);
+          }
+        }, (err) => {
+          this.checkQuotaError(err);
+          console.warn('[FIRESTORE] subscribeToMember snapshot error:', err?.message || err);
+        });
+        return unsub;
+      } catch (e) {
+        console.warn('[FIRESTORE] subscribeToMember error:', e);
+      }
+    }
+    return () => {};
+  },
+
   // --- MATERI ---
   async getMateri(): Promise<Materi[]> {
     if (!this.getIsQuotaExceeded()) {

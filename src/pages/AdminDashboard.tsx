@@ -1520,6 +1520,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchData();
 
+    const unsubMembers = sheetsService.subscribeToMembers((mList: any[]) => {
+      const isValidName = (name?: string) => {
+        if (!name) return false;
+        const trimmed = name.trim().toLowerCase();
+        return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
+      };
+      if (Array.isArray(mList) && mList.length > 0) {
+        setMembers((mList || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama)));
+      }
+    });
+
     const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
       setActivityCategoriesList(cats);
     });
@@ -1533,6 +1544,7 @@ export default function AdminDashboard() {
     });
 
     return () => {
+      unsubMembers();
       unsubCategories();
       unsubActivities();
       unsubApps();
@@ -1874,6 +1886,7 @@ export default function AdminDashboard() {
       setMembers(data || []);
       setKtaApps(ktaData || []);
       setIsModalOpen(false);
+      alert("Data anggota berhasil diperbarui.");
     } catch (error: any) {
       console.error('Save member error:', error);
       alert('Gagal menyimpan anggota: ' + (error.message || 'Error tidak diketahui'));

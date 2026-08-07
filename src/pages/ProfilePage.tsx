@@ -361,7 +361,7 @@ export default function ProfilePage() {
       await fetchFreshProfile(false);
       
       setIsEditing(false);
-      setMessage({ type: 'success', text: 'Profil berhasil diperbaharui! Data telah tersimpan di Firebase.' });
+      setMessage({ type: 'success', text: 'Data anggota berhasil diperbarui.' });
       
       // Clear message after 3 seconds
       setTimeout(() => setMessage(null), 3000);
