@@ -189,9 +189,7 @@ export default function LoginPage() {
         const isMedkom = (found.email && found.email.toLowerCase() === 'medkom@hwjateng.com') || found.id === '1777209184010';
         let detectedPassword = found.password;
         if (isMedkom) {
-          detectedPassword = (found.password && found.password !== 'adnimku') ? found.password : '12345hwhw';
-        } else if (isAdmin || (found.email && found.email.toLowerCase() === 'admin@hw.org')) {
-          detectedPassword = found.password || 'adnimku';
+          detectedPassword = (found.password && found.password !== 'adnimku' && found.password !== 'admin') ? found.password : '12345hwhw';
         } else {
           detectedPassword = (found.password && found.password !== 'adnimku' && found.password !== 'admin') ? found.password : '12345hw';
         }

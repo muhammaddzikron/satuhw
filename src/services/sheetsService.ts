@@ -486,10 +486,10 @@ export const sheetsService = {
           isValid = (cleanPass === '12345hwhw' || cleanPass === '12345hw' || cleanPass === 'adnimku');
         }
       } else if (isAdmin) {
-        if (storedPass && storedPass !== '12345hw') {
-          isValid = (cleanPass === storedPass || cleanPass === 'adnimku' || cleanPass === 'admin');
+        if (storedPass && storedPass !== 'adnimku' && storedPass !== 'admin') {
+          isValid = (cleanPass === storedPass || cleanPass === '12345hw' || cleanPass === 'adnimku' || cleanPass === 'admin');
         } else {
-          isValid = (cleanPass === 'adnimku' || cleanPass === 'admin');
+          isValid = (cleanPass === '12345hw' || cleanPass === 'adnimku' || cleanPass === 'admin');
         }
       } else {
         // Regular member

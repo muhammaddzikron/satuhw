@@ -462,9 +462,9 @@ export const firestoreService = {
 
             let assignedPass = m.password;
             if (isMedkom) {
-              if (!assignedPass || assignedPass === 'adnimku') assignedPass = '12345hwhw';
+              if (!assignedPass || assignedPass === 'adnimku' || assignedPass === 'admin') assignedPass = '12345hwhw';
             } else if (isAdmin) {
-              if (!assignedPass) assignedPass = 'adnimku';
+              if (!assignedPass || assignedPass === 'adnimku' || assignedPass === 'admin') assignedPass = '12345hw';
             } else {
               if (!assignedPass || assignedPass === 'adnimku' || assignedPass === 'admin') assignedPass = '12345hw';
             }
@@ -536,9 +536,9 @@ export const firestoreService = {
 
         let normPass = m.password;
         if (isMedkom) {
-          if (!normPass || normPass === 'adnimku') normPass = '12345hwhw';
+          if (!normPass || normPass === 'adnimku' || normPass === 'admin') normPass = '12345hwhw';
         } else if (isAdmin) {
-          if (!normPass) normPass = 'adnimku';
+          if (!normPass || normPass === 'adnimku' || normPass === 'admin') normPass = '12345hw';
         } else {
           if (!normPass || normPass === 'adnimku' || normPass === 'admin') normPass = '12345hw';
         }
@@ -585,10 +585,10 @@ export const firestoreService = {
       }
 
       if (isAdmin) {
-        if (storedPass && storedPass !== '12345hw') {
-          return cleanPass === storedPass || cleanPass === 'adnimku' || cleanPass === 'admin';
+        if (storedPass && storedPass !== 'adnimku' && storedPass !== 'admin') {
+          return cleanPass === storedPass || cleanPass === '12345hw' || cleanPass === 'adnimku' || cleanPass === 'admin';
         }
-        return cleanPass === 'adnimku' || cleanPass === 'admin';
+        return cleanPass === '12345hw' || cleanPass === 'adnimku' || cleanPass === 'admin';
       }
 
       // Regular member
