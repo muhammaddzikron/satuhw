@@ -91,6 +91,10 @@ function doGet(e) {
     return handleGetTrainingApplications();
   }
 
+  if (action == 'getActivityApplications') {
+    return handleGetActivityApplications();
+  }
+
   return responseError("Action not found: " + action);
 }
 
@@ -193,6 +197,14 @@ function doPost(e) {
 
     if (action == 'updateTrainingSchedule') {
       return handleUpdateTrainingSchedule(data.id, data.lokasiPelatihan, data.tanggalPelatihan);
+    }
+
+    if (action == 'registerActivity') {
+      return handleRegisterActivity(data);
+    }
+
+    if (action == 'deleteActivityApplication') {
+      return handleDeleteActivityApplication(data.id);
     }
     
     return responseError("Action not found: " + action);
@@ -2108,6 +2120,67 @@ function handleDeleteKTAApplication(id) {
     return responseOk({ success: true, message: "KTA Application deleted successfully" });
   }
   return responseError("Pengajuan KTA tidak ditemukan");
+}
+
+function handleGetActivityApplications() {
+  var sheet = getSheet('Activity_Applications');
+  var apps = getRowsAsObjects(sheet);
+  return responseOk(apps);
+}
+
+function handleRegisterActivity(data) {
+  var sheet = getSheet('Activity_Applications');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
+    return h ? h.toString().trim().toLowerCase() : ""; 
+  });
+  
+  var apps = getRowsAsObjects(sheet);
+  var regId = data.id || 'actreg-' + new Date().getTime().toString();
+  var rowIndex = apps.findIndex(function(app) {
+    var appId = (app.id || app.Id || '').toString().trim();
+    return appId === regId.toString().trim() && appId !== '';
+  });
+
+  var rowData = new Array(headers.length).fill("");
+  headers.forEach(function(header, i) {
+    if (header === 'id') rowData[i] = regId;
+    else if (header === 'activityid') rowData[i] = data.activityId || "";
+    else if (header === 'namakegiatan') rowData[i] = data.namaKegiatan || "";
+    else if (header === 'userid') rowData[i] = data.userId || "";
+    else if (header === 'namalengkap') rowData[i] = data.namaLengkap || data.nama || "";
+    else if (header === 'unsur') rowData[i] = data.unsur || "";
+    else if (header === 'utusan') rowData[i] = data.utusan || "";
+    else if (header === 'qabilahptma') rowData[i] = data.qabilahPtma || "";
+    else if (header === 'jabatan') rowData[i] = data.jabatan || "";
+    else if (header === 'kategoriundangan') rowData[i] = data.kategoriUndangan || "";
+    else if (header === 'nohp') rowData[i] = data.noHp || data.noWa || "";
+    else if (header === 'asalkwarda') rowData[i] = data.asalKwarda || "";
+    else if (header === 'qabilah') rowData[i] = data.qabilah || "";
+    else if (header === 'status') rowData[i] = data.status || "approved";
+    else if (header === 'tanggaldaftar') rowData[i] = data.tanggalDaftar || new Date().toISOString();
+  });
+
+  if (rowIndex > -1) {
+    sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
+  } else {
+    sheet.appendRow(rowData);
+  }
+
+  return responseOk({ success: true, message: "Pendaftaran kegiatan berhasil disimpan", application: data });
+}
+
+function handleDeleteActivityApplication(id) {
+  var sheet = getSheet('Activity_Applications');
+  var apps = getRowsAsObjects(sheet);
+  var rowIndex = apps.findIndex(function(app) {
+    var appId = (app.id || app.Id || '').toString().trim();
+    return appId === id.toString().trim() && appId !== '';
+  });
+  if (rowIndex > -1) {
+    sheet.deleteRow(rowIndex + 2);
+    return responseOk({ success: true, message: "Pendaftaran kegiatan berhasil dihapus" });
+  }
+  return responseError("Pendaftaran kegiatan tidak ditemukan");
 }
 
 `;

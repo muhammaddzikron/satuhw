@@ -143,6 +143,8 @@ export default function KegiatanPage() {
         activity: selectedActivity,
         participant: payload
       });
+      const updatedApps = await sheetsService.getActivityApplications();
+      if (updatedApps) setActivityApps(updatedApps);
     } catch (e: any) {
       alert('Gagal mendaftar kegiatan: ' + e.message);
     } finally {

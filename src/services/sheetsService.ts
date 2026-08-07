@@ -1573,14 +1573,43 @@ export const sheetsService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
+    if (IS_API_VALID) {
+      try {
+        const apps = await this.fetch('getActivityApplications');
+        if (Array.isArray(apps) && apps.length > 0) {
+          apps.forEach(a => {
+            firestoreService.registerActivity(a).catch(() => {});
+          });
+          return apps;
+        }
+      } catch (e) {
+        console.warn('getActivityApplications Sheets API error, falling back to Firestore:', (e as any)?.message || e);
+      }
+    }
     return await firestoreService.getActivityApplications();
   },
 
   async registerActivity(appData: any): Promise<any> {
+    if (IS_API_VALID) {
+      try {
+        const res = await this.post({ action: 'registerActivity', ...appData });
+        await firestoreService.registerActivity(appData);
+        return res;
+      } catch (e) {
+        console.warn('registerActivity Sheets API error, falling back to Firestore:', (e as any)?.message || e);
+      }
+    }
     return await firestoreService.registerActivity(appData);
   },
 
   async deleteActivityApplication(id: string): Promise<boolean> {
+    if (IS_API_VALID) {
+      try {
+        await this.post({ action: 'deleteActivityApplication', id });
+      } catch (e) {
+        console.warn('deleteActivityApplication Sheets API error:', (e as any)?.message || e);
+      }
+    }
     return await firestoreService.deleteActivityApplication(id);
   },
 

@@ -1517,19 +1517,6 @@ export const firestoreService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await getDocs(collection(db, 'activity_applications'));
-        if (!snap.empty) {
-          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          localStorage.setItem('activity_applications', JSON.stringify(list));
-          return list;
-        }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivityApplications error:', err);
-      }
-    }
     const defaultApps = [
       {
         id: 'actreg-dzikron',
@@ -1577,6 +1564,65 @@ export const firestoreService = {
       }
     ];
 
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await getDocs(collection(db, 'activity_applications'));
+        let list: any[] = [];
+        if (!snap.empty) {
+          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        // 1. Merge default seed entries if missing and seed them to Firestore
+        for (const def of defaultApps) {
+          const exists = list.some((p: any) => 
+            p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
+          );
+          if (!exists) {
+            list.push(def);
+            setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
+          }
+        }
+
+        // 2. Sync any offline/unsynced local storage items to Firestore
+        const stored = localStorage.getItem('activity_applications');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              for (const localItem of parsed) {
+                if (localItem && localItem.id) {
+                  const inList = list.some((p: any) => p.id === localItem.id);
+                  if (!inList) {
+                    list.unshift(localItem);
+                    setDoc(doc(db, 'activity_applications', localItem.id), cleanData(localItem)).catch(() => {});
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        // Normalize activityIds
+        list = list.map((a: any) => {
+          if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
+            return {
+              ...a,
+              activityId: 'keg-silaturahmi-pelatih',
+              namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+            };
+          }
+          return a;
+        });
+
+        localStorage.setItem('activity_applications', JSON.stringify(list));
+        return list;
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivityApplications error:', err);
+      }
+    }
+
+    // Fallback if Firestore fails/quota exceeded
     const stored = localStorage.getItem('activity_applications');
     if (stored) {
       try {
@@ -1584,23 +1630,12 @@ export const firestoreService = {
         if (Array.isArray(parsed) && parsed.length > 0) {
           for (const def of defaultApps) {
             const exists = parsed.some((p: any) => 
-              p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase() === def.namaLengkap.toLowerCase())
+              p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
             );
             if (!exists) {
               parsed.push(def);
             }
           }
-          parsed = parsed.map((a: any) => {
-            if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
-              return {
-                ...a,
-                activityId: 'keg-silaturahmi-pelatih',
-                namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
-              };
-            }
-            return a;
-          });
-          localStorage.setItem('activity_applications', JSON.stringify(parsed));
           return parsed;
         }
       } catch (e) {}
@@ -1616,20 +1651,25 @@ export const firestoreService = {
       ...appData,
       id: regId,
       status: appData.status || 'approved',
-      tanggalDaftar: new Date().toISOString()
+      tanggalDaftar: appData.tanggalDaftar || new Date().toISOString()
     });
 
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'activity_applications', regId), cleanReg);
+        await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore registerActivity error:', err);
       }
     }
 
-    const regList = await this.getActivityApplications();
-    regList.unshift(cleanReg);
+    let regList = await this.getActivityApplications();
+    const existingIndex = regList.findIndex((a: any) => a.id === cleanReg.id);
+    if (existingIndex >= 0) {
+      regList[existingIndex] = { ...regList[existingIndex], ...cleanReg };
+    } else {
+      regList.unshift(cleanReg);
+    }
     localStorage.setItem('activity_applications', JSON.stringify(regList));
 
     // Automatically create/ensure KTA Application & Member Profile for participant
