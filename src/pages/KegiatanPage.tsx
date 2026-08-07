@@ -182,6 +182,10 @@ export default function KegiatanPage() {
 
   const handleSaveNewActivity = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert('Hanya Admin yang memiliki hak akses untuk menambah atau mengedit kegiatan.');
+      return;
+    }
     if (!newActivityForm.namaKegiatan.trim()) {
       alert('Nama Kegiatan wajib diisi.');
       return;
@@ -231,6 +235,10 @@ export default function KegiatanPage() {
   };
 
   const handleEditActivity = (act: any) => {
+    if (!isAdmin) {
+      alert('Hanya Admin yang memiliki hak akses untuk mengedit kegiatan.');
+      return;
+    }
     setEditingActivity(act);
     setNewActivityForm({
       namaKegiatan: act.namaKegiatan || act.title || '',
@@ -248,6 +256,10 @@ export default function KegiatanPage() {
   };
 
   const handleDeleteActivity = async (actId: string, actTitle: string) => {
+    if (!isAdmin) {
+      alert('Hanya Admin yang memiliki hak akses untuk menghapus kegiatan.');
+      return;
+    }
     if (!confirm(`Apakah Anda yakin ingin menghapus kegiatan "${actTitle}"?`)) return;
     try {
       await sheetsService.deleteActivity(actId);
@@ -297,27 +309,29 @@ export default function KegiatanPage() {
           <Calendar className="text-hw-green" size={18} />
           <span className="text-xs font-black text-gray-800 font-display">Agenda Terdaftar ({filteredActivities.length})</span>
         </div>
-        <button
-          onClick={() => {
-            setEditingActivity(null);
-            setNewActivityForm({
-              namaKegiatan: '',
-              kategori: activityCategoriesList[0] || 'Pelatihan',
-              tanggal: '',
-              lokasi: '',
-              biaya: 'Gratis',
-              kuota: 'Terbuka',
-              penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
-              gambarUrl: '',
-              deskripsi: '',
-              status: 'Buka'
-            });
-            setIsAddActivityModalOpen(true);
-          }}
-          className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
-        >
-          <Plus size={16} /> Tambah Kegiatan Baru
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setEditingActivity(null);
+              setNewActivityForm({
+                namaKegiatan: '',
+                kategori: activityCategoriesList[0] || 'Pelatihan',
+                tanggal: '',
+                lokasi: '',
+                biaya: 'Gratis',
+                kuota: 'Terbuka',
+                penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+                gambarUrl: '',
+                deskripsi: '',
+                status: 'Buka'
+              });
+              setIsAddActivityModalOpen(true);
+            }}
+            className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+          >
+            <Plus size={16} /> Tambah Kegiatan Baru
+          </button>
+        )}
       </div>
 
       {/* Search & Category Filter */}
