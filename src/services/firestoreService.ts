@@ -1391,7 +1391,14 @@ export const firestoreService = {
       try {
         const snap = await getDocs(collection(db, 'hw_activities'));
         if (!snap.empty) {
-          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const list = snap.docs.map(d => {
+            const data = d.data();
+            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
+              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
+              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
+            }
+            return { id: d.id, ...data };
+          });
           localStorage.setItem('hw_activities', JSON.stringify(list));
           return list;
         }
@@ -1405,11 +1412,11 @@ export const firestoreService = {
         id: 'keg-silaturahmi-pelatih',
         namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
         kategori: 'Silaturahmi',
-        tanggal: '25 - 27 Agustus 2026',
+        tanggal: '29-30 Agustus 2026',
         lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
         biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
-        kuota: '150 Peserta',
+        kuota: '400 Orang',
         deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
@@ -1427,7 +1434,10 @@ export const firestoreService = {
           parsed = parsed.filter((a: any) => a.id !== 'keg-1' && a.id !== 'keg-2' && a.id !== 'keg-3');
           const pelatihIdx = parsed.findIndex((a: any) => (a.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih') || a.id === 'keg-silaturahmi-pelatih');
           if (pelatihIdx >= 0) {
-            parsed[pelatihIdx] = { ...defaults[0], ...parsed[pelatihIdx] };
+            const existing = parsed[pelatihIdx];
+            if (existing.tanggal === '25 - 27 Agustus 2026') existing.tanggal = '29-30 Agustus 2026';
+            if (existing.kuota === '150 Peserta') existing.kuota = '400 Orang';
+            parsed[pelatihIdx] = { ...defaults[0], ...existing };
           } else {
             parsed.unshift(defaults[0]);
           }
@@ -1457,7 +1467,7 @@ export const firestoreService = {
     const list = await this.getActivities();
     const idx = list.findIndex(a => a.id === newAct.id);
     if (idx >= 0) {
-      list[idx] = newAct;
+      list[idx] = { ...list[idx], ...newAct };
     } else {
       list.unshift(newAct);
     }

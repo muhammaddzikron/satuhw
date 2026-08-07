@@ -1222,8 +1222,9 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const payload = {
-        id: editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`,
-        ...kegiatanFormData
+        ...(editingKegiatan || {}),
+        ...kegiatanFormData,
+        id: editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`
       };
       await sheetsService.saveActivity(payload);
       alert(editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil dibuat!');
