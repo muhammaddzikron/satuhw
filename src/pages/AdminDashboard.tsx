@@ -7745,7 +7745,7 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Nama Lengkap */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap *</label>
                       <input 
                         type="text"
                         required
@@ -7755,31 +7755,9 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Email */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
-                      <input 
-                        type="email"
-                        value={editingActivityParticipant.email || ''}
-                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, email: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
-                    {/* NIK */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK</label>
-                      <input 
-                        type="text"
-                        value={editingActivityParticipant.nik || ''}
-                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, nik: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
                     {/* No WhatsApp */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. WhatsApp / HP</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. WhatsApp / HP *</label>
                       <input 
                         type="text"
                         required
@@ -7789,53 +7767,94 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Unsur / Asal Kwarda */}
+                    {/* Unsur */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Unsur / Asal Daerah</label>
-                      <input 
-                        type="text"
-                        value={editingActivityParticipant.unsur || editingActivityParticipant.asalKwarda || ''}
-                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, unsur: e.target.value, asalKwarda: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Unsur *</label>
+                      <select 
+                        value={editingActivityParticipant.unsur || 'Kwarwil HW Jateng'}
+                        onChange={(e) => setEditingActivityParticipant({ 
+                          ...editingActivityParticipant, 
+                          unsur: e.target.value,
+                          asalKwarda: e.target.value === 'Kwarda HW' ? (editingActivityParticipant.utusan || KWARDA_QABILAH_JATENG[0].name) : e.target.value
+                        })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
+                      >
+                        <option value="Kwarwil HW Jateng">Kwarwil HW Jateng</option>
+                        <option value="DSW HW Jateng">DSW HW Jateng</option>
+                        <option value="Kwarda HW">Kwarda HW</option>
+                        <option value="Qabilah PTMA">Qabilah PTMA</option>
+                        <option value="Luar Jawa Tengah">Luar Jawa Tengah</option>
+                      </select>
                     </div>
 
-                    {/* Utusan / Qabilah */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Utusan / Qabilah / Instansi</label>
-                      <input 
-                        type="text"
-                        value={editingActivityParticipant.utusan || editingActivityParticipant.qabilahPtma || ''}
-                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, utusan: e.target.value, qabilahPtma: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
+                    {/* Utusan Kwarda HW (If Unsur === Kwarda HW) */}
+                    {editingActivityParticipant.unsur === 'Kwarda HW' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest ml-1">Utusan Kwarda HW (Se-Jawa Tengah) *</label>
+                        <select 
+                          value={editingActivityParticipant.utusan || editingActivityParticipant.asalKwarda || KWARDA_QABILAH_JATENG[0].name}
+                          onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, utusan: e.target.value, asalKwarda: e.target.value })}
+                          className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-emerald-900 cursor-pointer"
+                        >
+                          {KWARDA_QABILAH_JATENG.slice(0, 35).map((k) => (
+                            <option key={k.code} value={k.name}>{k.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Qabilah PTMA (If Unsur === Qabilah PTMA) */}
+                    {editingActivityParticipant.unsur === 'Qabilah PTMA' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest ml-1">Daftar Qabilah PTMA (Se-Jawa Tengah) *</label>
+                        <select 
+                          value={editingActivityParticipant.qabilahPtma || editingActivityParticipant.qabilah || KWARDA_QABILAH_JATENG[35]?.name}
+                          onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, qabilahPtma: e.target.value, qabilah: e.target.value })}
+                          className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-emerald-900 cursor-pointer"
+                        >
+                          {KWARDA_QABILAH_JATENG.slice(35).map((q) => (
+                            <option key={q.code} value={q.name}>{q.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Jabatan */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jabatan</label>
-                      <input 
-                        type="text"
-                        value={editingActivityParticipant.jabatan || ''}
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jabatan *</label>
+                      <select 
+                        value={editingActivityParticipant.jabatan || 'Anggota'}
                         onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, jabatan: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
+                      >
+                        <option value="Ketua">Ketua</option>
+                        <option value="Wakil Ketua">Wakil Ketua</option>
+                        <option value="Sekretaris">Sekretaris</option>
+                        <option value="Wakil Sekretaris">Wakil Sekretaris</option>
+                        <option value="Bendahara">Bendahara</option>
+                        <option value="Wakil Bendahara">Wakil Bendahara</option>
+                        <option value="Anggota">Anggota</option>
+                      </select>
                     </div>
 
                     {/* Kategori Undangan */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori Undangan / Akses</label>
-                      <input 
-                        type="text"
-                        value={editingActivityParticipant.kategoriUndangan || ''}
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori Undangan *</label>
+                      <select 
+                        value={editingActivityParticipant.kategoriUndangan || 'Tidak Ada / Umum'}
                         onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, kategoriUndangan: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
+                      >
+                        <option value="Tidak Ada / Umum">Tidak Ada / Umum</option>
+                        <option value="Pelatih Nasional HW Jateng">Pelatih Nasional HW Jateng</option>
+                        <option value="Pandu Senior">Pandu Senior</option>
+                        <option value="Alumni Jati 2 HW Jateng di Klaten">Alumni Jati 2 HW Jateng di Klaten</option>
+                      </select>
                     </div>
 
                     {/* Pilih Kegiatan */}
                     <div className="space-y-1 md:col-span-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kegiatan Yang Diikuti</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kegiatan Yang Diikuti *</label>
                       <select
                         value={editingActivityParticipant.activityId || ''}
                         onChange={(e) => {
@@ -7846,7 +7865,7 @@ export default function AdminDashboard() {
                             namaKegiatan: act ? act.namaKegiatan : editingActivityParticipant.namaKegiatan
                           });
                         }}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
                       >
                         {activitiesList.map(a => (
                           <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
