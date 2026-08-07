@@ -23,6 +23,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { CopyAccountButton } from '../components/CopyAccountButton';
 import { sheetsService } from '../services/sheetsService';
 
 export default function DaftarPelatihanPage() {
@@ -338,7 +339,9 @@ export default function DaftarPelatihanPage() {
               </p>
               <div className="bg-white p-3 rounded-xl border border-emerald-100 text-center font-mono">
                 <span className="block text-[9px] uppercase tracking-wider text-gray-400 font-sans">Bank Syariah Indonesia (BSI)</span>
-                <span className="text-base font-black text-hw-dark">7307427448</span>
+                <div>
+                  <CopyAccountButton accountNumber="7307427448" textClassName="text-base font-black text-hw-dark font-mono" />
+                </div>
                 <span className="block text-[10px] text-gray-600 font-sans mt-0.5">an. Kwarwil HW Jateng</span>
               </div>
               <p className="text-[11px] leading-normal pt-1">

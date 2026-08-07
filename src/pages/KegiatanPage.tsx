@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
+import { CopyAccountButton } from '../components/CopyAccountButton';
 
 export default function KegiatanPage() {
   const navigate = useNavigate();
@@ -508,7 +509,9 @@ export default function KegiatanPage() {
                     <div className="bg-white p-3 rounded-2xl border border-emerald-100 space-y-1 shadow-xs">
                       <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Transfer Infaq Kegiatan ({regSuccess.activity.biaya || 'Sesuai ketentuan'})</p>
                       <p className="text-xs font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
-                      <p className="text-sm font-black text-gray-900 tracking-wider font-mono">7307427448</p>
+                      <div>
+                        <CopyAccountButton accountNumber="7307427448" textClassName="text-sm font-black text-gray-900 tracking-wider font-mono" />
+                      </div>
                       <p className="text-[10px] text-gray-600 font-semibold uppercase">a.n. Kwarwil HW Jateng</p>
                     </div>
                     <p className="text-[10px] text-emerald-800 leading-normal font-medium">
