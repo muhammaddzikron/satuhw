@@ -373,6 +373,7 @@ export default function AdminDashboard() {
     roles: ['umum'] as string[],
     jenisKelamin: 'L',
     golongan: 'Penghela',
+    golonganPelatih: 'Penghela',
     pelatihan: [] as string[],
     pendidikan: 'SMA/SMK/MA',
     asalKwarda: '',
@@ -383,7 +384,13 @@ export default function AdminDashboard() {
     password: '',
     isVerified: true,
     upgradeRequests: [] as string[],
-    photo: ''
+    photo: '',
+    nik: '',
+    tempatLahir: '',
+    tanggalLahir: '',
+    statusKta: 'approved',
+    ktaNumber: '',
+    jenisKta: 'Reguler'
   });
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
@@ -1669,28 +1676,40 @@ export default function AdminDashboard() {
     if (member) {
       setEditingMember(member);
       
+      const matchingKta = ktaApps.find((app: any) => 
+        (member.id && app.userId === member.id) || 
+        (app.email && member.email && app.email.toLowerCase().trim() === member.email.toLowerCase().trim()) ||
+        (member.nik && app.nik && String(member.nik).trim() === String(app.nik).trim())
+      );
+
       const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : [];
       const rolesArr = Array.isArray(member.roles) ? member.roles : (member.role ? [member.role] : ['umum']);
 
       setFormData({
-        email: member.email || '',
-        namaLengkap: member.namaLengkap,
+        email: member.email || matchingKta?.email || '',
+        namaLengkap: matchingKta?.nama || member.namaLengkap || member.nama || '',
         role: member.role || (rolesArr[0] || 'umum'),
         roles: rolesArr,
-        jenisKelamin: member.jenisKelamin,
-        golongan: member.golongan,
+        jenisKelamin: matchingKta?.jenisKelamin || member.jenisKelamin || 'L',
+        golongan: matchingKta?.tingkatan || member.golongan || 'Penghela',
         golonganPelatih: (member as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(member?.golongan || '') ? member.golongan : 'Penghela'),
         pelatihan: pelatihanArr,
         pendidikan: member.pendidikan || 'SMA/SMK/MA',
-        asalKwarda: member.asalKwarda,
-        qabilah: member.qabilah || '',
-        alamat: member.alamat || '',
-        noHp: member.noHp || '',
-        sosmed: member.sosmed || '',
+        asalKwarda: matchingKta?.asalDaerah || member.asalKwarda || '',
+        qabilah: matchingKta?.qabilah || member.qabilah || '',
+        alamat: matchingKta?.alamat || member.alamat || '',
+        noHp: matchingKta?.noWa || member.noHp || '',
+        sosmed: matchingKta?.sosmed || member.sosmed || '',
         password: '', // Always empty when opening for security, only update if typed
-        isVerified: member.isVerified,
+        isVerified: matchingKta?.status === 'approved' ? true : (member.isVerified ?? true),
         upgradeRequests: Array.isArray(member.upgradeRequests) ? member.upgradeRequests : [],
-        photo: member.photo || member.foto || ''
+        photo: matchingKta?.photo || member.photo || member.foto || '',
+        nik: matchingKta?.nik || member.nik || '',
+        tempatLahir: matchingKta?.tempatLahir || member.tempatLahir || '',
+        tanggalLahir: matchingKta?.tanggalLahir || member.tanggalLahir || '',
+        statusKta: matchingKta?.status || (member.isVerified ? 'approved' : 'pending'),
+        ktaNumber: matchingKta?.ktaNumber || member.ktaNumber || '',
+        jenisKta: matchingKta?.jenisKta || 'Reguler'
       });
     } else {
       setEditingMember(null);
@@ -1712,7 +1731,13 @@ export default function AdminDashboard() {
         password: '',
         isVerified: true,
         upgradeRequests: [],
-        photo: ''
+        photo: '',
+        nik: '',
+        tempatLahir: '',
+        tanggalLahir: '',
+        statusKta: 'approved',
+        ktaNumber: '',
+        jenisKta: 'Reguler'
       });
     }
     setIsModalOpen(true);
@@ -1722,10 +1747,22 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
+      const memberId = editingMember?.id || Date.now().toString();
+
       const payload = editingMember 
         ? { 
             ...editingMember, 
             ...formData,
+            id: memberId,
+            nik: formData.nik,
+            photo: formData.photo,
+            noHp: formData.noHp,
+            asalKwarda: formData.asalKwarda,
+            qabilah: formData.qabilah,
+            alamat: formData.alamat,
+            tempatLahir: formData.tempatLahir,
+            tanggalLahir: formData.tanggalLahir,
+            jenisKelamin: formData.jenisKelamin,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
               golonganPelatih: formData.golonganPelatih || formData.golongan
@@ -1733,7 +1770,9 @@ export default function AdminDashboard() {
           }
         : { 
             ...formData, 
-            id: Date.now().toString(),
+            id: memberId,
+            nik: formData.nik,
+            photo: formData.photo,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
               golonganPelatih: formData.golonganPelatih || formData.golongan
@@ -1757,25 +1796,37 @@ export default function AdminDashboard() {
         throw new Error(res.error);
       }
 
-      // Sync KTA application if matching entry exists
-      if (payload.email || payload.id) {
-        const matchingKta = ktaApps.find(app => 
-          (payload.id && app.userId === payload.id) || 
-          (app.email && payload.email && app.email.toLowerCase().trim() === payload.email.toLowerCase().trim())
-        );
-        if (matchingKta) {
-          const updatedKta = {
-            ...matchingKta,
-            ...(payload.photo ? { photo: payload.photo } : {}),
-            ...(payload.namaLengkap ? { nama: payload.namaLengkap } : {}),
-            ...(payload.nik ? { nik: payload.nik } : {}),
-            ...(payload.noHp ? { noWa: payload.noHp } : {}),
-            ...(payload.asalKwarda ? { asalDaerah: payload.asalKwarda } : {}),
-            ...(payload.qabilah ? { qabilah: payload.qabilah } : {})
-          };
-          await sheetsService.saveKTAApplication(updatedKta).catch(err => console.error("Sync KTA error:", err));
-        }
-      }
+      // Centralized KTA application update/create
+      const matchingKta = ktaApps.find(app => 
+        (payload.id && app.userId === payload.id) || 
+        (app.email && payload.email && app.email.toLowerCase().trim() === payload.email.toLowerCase().trim()) ||
+        (formData.nik && app.nik && formData.nik.trim() === app.nik.trim())
+      );
+
+      const ktaPayload = {
+        ...(matchingKta || {}),
+        id: matchingKta?.id || `kta-${Date.now()}`,
+        userId: payload.id,
+        nama: payload.namaLengkap,
+        email: payload.email,
+        nik: formData.nik || payload.nik || matchingKta?.nik || '',
+        noWa: payload.noHp || formData.noHp || '',
+        asalDaerah: payload.asalKwarda || formData.asalKwarda || '',
+        qabilah: payload.qabilah || formData.qabilah || '',
+        alamat: payload.alamat || formData.alamat || '',
+        tempatLahir: formData.tempatLahir || payload.tempatLahir || '',
+        tanggalLahir: formData.tanggalLahir || payload.tanggalLahir || '',
+        jenisKelamin: payload.jenisKelamin || formData.jenisKelamin || 'L',
+        tingkatan: payload.golongan || formData.golongan || 'Penghela',
+        photo: payload.photo || formData.photo || '',
+        jenisKta: formData.jenisKta || matchingKta?.jenisKta || 'Reguler',
+        status: formData.statusKta || matchingKta?.status || (payload.isVerified ? 'approved' : 'pending'),
+        ktaNumber: formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
+        verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
+      };
+
+      await sheetsService.saveKTAApplication(ktaPayload).catch(err => console.error("Sync KTA error:", err));
+      await firestoreService.createKTAApplication(ktaPayload).catch(err => console.error("Firestore sync KTA error:", err));
       
       // Refresh lists
       const [data, ktaData] = await Promise.all([
@@ -6538,6 +6589,52 @@ export default function AdminDashboard() {
                       onChange={(e) => setFormData({...formData, namaLengkap: e.target.value})}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
+                      <input 
+                        type="text" 
+                        maxLength={16}
+                        value={formData.nik}
+                        onChange={(e) => setFormData({...formData, nik: e.target.value.replace(/\D/g, '')})}
+                        placeholder="33xxxxxxxxxxxxxx"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA</label>
+                      <input 
+                        type="text" 
+                        value={formData.ktaNumber}
+                        onChange={(e) => setFormData({...formData, ktaNumber: e.target.value})}
+                        placeholder="001.HW.JATENG.2026"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
+                      <input 
+                        type="text" 
+                        value={formData.tempatLahir}
+                        onChange={(e) => setFormData({...formData, tempatLahir: e.target.value})}
+                        placeholder="Kota / Kabupaten"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
+                      <input 
+                        type="date" 
+                        value={formData.tanggalLahir}
+                        onChange={(e) => setFormData({...formData, tanggalLahir: e.target.value})}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
+                      />
+                    </div>
                   </div>
 
                   {(() => {

@@ -116,7 +116,7 @@ const Navigation = () => {
   const isMemberView = !canAccessAdmin() || activeRole === 'umum';
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-[100] bg-gradient-to-r from-hw-green via-emerald-600 to-hw-blue border-t border-white/20 shadow-2xl safe-bottom pointer-events-auto">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-gradient-to-r from-hw-green via-emerald-600 to-hw-blue border-t border-white/20 shadow-2xl safe-bottom pointer-events-auto">
       <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
         {isAuthenticated && !isMemberView ? (
           /* Admin/Staff view */
@@ -234,7 +234,7 @@ const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fu
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
     transition={{ duration: 0.3 }}
-    className={cn("pb-24 pt-4 px-4 mx-auto", fullWidth ? "max-w-7xl" : "max-w-md")}
+    className={cn("pb-32 sm:pb-36 pt-4 px-4 mx-auto", fullWidth ? "max-w-7xl" : "max-w-md")}
   >
     {children}
   </motion.div>
