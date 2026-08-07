@@ -833,12 +833,6 @@ export default function HomePage() {
             <Sparkles size={18} className="text-amber-500" />
             <h3 className="font-display font-bold text-gray-800">Semarak HW Jateng</h3>
           </div>
-          <button 
-            onClick={() => setShowTrainingModal(true)}
-            className="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-1 hover:underline cursor-pointer"
-          >
-            Lihat Jenis Pelatihan <ChevronRight size={12} />
-          </button>
         </div>
 
         <div className="space-y-2.5 px-1">
