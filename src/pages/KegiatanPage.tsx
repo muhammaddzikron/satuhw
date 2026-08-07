@@ -21,7 +21,10 @@ import {
   Share2,
   Award,
   Send,
-  UserCheck
+  UserCheck,
+  Plus,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -31,6 +34,8 @@ import { CopyAccountButton } from '../components/CopyAccountButton';
 export default function KegiatanPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+
+  const isAdmin = user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.role === 'admin' || user?.email === 'muhammaddzikron@gmail.com';
 
   const [activities, setActivities] = useState<any[]>([]);
   const [activityApps, setActivityApps] = useState<any[]>([]);
@@ -44,6 +49,23 @@ export default function KegiatanPage() {
 
   const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false);
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<any | null>(null);
+
+  // Add & Edit Activity Modal State
+  const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<any | null>(null);
+  const [newActivityForm, setNewActivityForm] = useState({
+    namaKegiatan: '',
+    kategori: 'Pelatihan',
+    tanggal: '',
+    lokasi: '',
+    biaya: 'Gratis',
+    kuota: 'Terbuka',
+    penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+    gambarUrl: '',
+    deskripsi: '',
+    status: 'Buka'
+  });
+  const [isSavingActivity, setIsSavingActivity] = useState(false);
 
   // Kwarda list (Kabupaten/Kota se-Jateng) and Qabilah PTMA list
   const kwardaOptions = KWARDA_QABILAH_JATENG.slice(0, 35).map(item => item.name);
@@ -158,6 +180,83 @@ export default function KegiatanPage() {
     }
   };
 
+  const handleSaveNewActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newActivityForm.namaKegiatan.trim()) {
+      alert('Nama Kegiatan wajib diisi.');
+      return;
+    }
+    if (!newActivityForm.tanggal.trim()) {
+      alert('Tanggal pelaksanaan wajib diisi.');
+      return;
+    }
+    if (!newActivityForm.lokasi.trim()) {
+      alert('Lokasi / Tempat kegiatan wajib diisi.');
+      return;
+    }
+
+    setIsSavingActivity(true);
+    try {
+      const actId = editingActivity ? editingActivity.id : `keg-${Date.now()}`;
+      const payload = {
+        ...newActivityForm,
+        id: actId,
+        createdBy: user?.email || 'muhammaddzikron@gmail.com',
+        creatorName: user?.namaLengkap || 'Panitia HW Jateng',
+        createdAt: editingActivity ? editingActivity.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await sheetsService.saveActivity(payload);
+      alert(editingActivity ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
+      setIsAddActivityModalOpen(false);
+      setEditingActivity(null);
+      setNewActivityForm({
+        namaKegiatan: '',
+        kategori: 'Pelatihan',
+        tanggal: '',
+        lokasi: '',
+        biaya: 'Gratis',
+        kuota: 'Terbuka',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+        gambarUrl: '',
+        deskripsi: '',
+        status: 'Buka'
+      });
+    } catch (err: any) {
+      alert('Gagal menyimpan kegiatan: ' + (err.message || 'Error koneksi'));
+    } finally {
+      setIsSavingActivity(false);
+    }
+  };
+
+  const handleEditActivity = (act: any) => {
+    setEditingActivity(act);
+    setNewActivityForm({
+      namaKegiatan: act.namaKegiatan || act.title || '',
+      kategori: act.kategori || act.category || 'Pelatihan',
+      tanggal: act.tanggal || act.startDate || '',
+      lokasi: act.lokasi || act.location || '',
+      biaya: act.biaya || 'Gratis',
+      kuota: act.kuota || 'Terbuka',
+      penyelenggara: act.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
+      gambarUrl: act.gambarUrl || act.imageUrl || '',
+      deskripsi: act.deskripsi || act.description || '',
+      status: act.status || 'Buka'
+    });
+    setIsAddActivityModalOpen(true);
+  };
+
+  const handleDeleteActivity = async (actId: string, actTitle: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus kegiatan "${actTitle}"?`)) return;
+    try {
+      await sheetsService.deleteActivity(actId);
+      alert('Kegiatan berhasil dihapus.');
+    } catch (err: any) {
+      alert('Gagal menghapus kegiatan: ' + err.message);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header Bar */}
@@ -190,6 +289,35 @@ export default function KegiatanPage() {
             Ikuti berbagai kegiatan resmi HW Jateng seperti Rapat HW, Silaturahmi, Pelatihan, dan Perkemahan. Dapatkan KTA Digital resmi sebagai identitas peserta!
           </p>
         </div>
+      </div>
+
+      {/* Action Bar: Quick Add Activity Button */}
+      <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-gray-150 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Calendar className="text-hw-green" size={18} />
+          <span className="text-xs font-black text-gray-800 font-display">Agenda Terdaftar ({filteredActivities.length})</span>
+        </div>
+        <button
+          onClick={() => {
+            setEditingActivity(null);
+            setNewActivityForm({
+              namaKegiatan: '',
+              kategori: activityCategoriesList[0] || 'Pelatihan',
+              tanggal: '',
+              lokasi: '',
+              biaya: 'Gratis',
+              kuota: 'Terbuka',
+              penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+              gambarUrl: '',
+              deskripsi: '',
+              status: 'Buka'
+            });
+            setIsAddActivityModalOpen(true);
+          }}
+          className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+        >
+          <Plus size={16} /> Tambah Kegiatan Baru
+        </button>
       </div>
 
       {/* Search & Category Filter */}
@@ -322,6 +450,24 @@ export default function KegiatanPage() {
                     <Users size={14} className="text-emerald-600" />
                     <span>Pendaftar ({activityApps.filter(a => a.activityId === activity.id).length})</span>
                   </button>
+                  {(isAdmin || activity.createdBy === user?.email || !activity.createdBy) && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditActivity(activity)}
+                        title="Edit Kegiatan"
+                        className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteActivity(activity.id, activity.namaKegiatan)}
+                        title="Hapus Kegiatan"
+                        className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -805,6 +951,203 @@ export default function KegiatanPage() {
                   Tutup
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL TAMBAH / EDIT KEGIATAN */}
+      <AnimatePresence>
+        {isAddActivityModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Pusat Data Kegiatan</span>
+                  <h3 className="text-sm font-black font-display leading-tight">
+                    {editingActivity ? 'Edit Data Kegiatan' : 'Tambah Kegiatan Baru'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsAddActivityModalOpen(false);
+                    setEditingActivity(null);
+                  }}
+                  className="p-2 text-white/70 hover:text-white rounded-full transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveNewActivity} className="p-6 overflow-y-auto space-y-4 flex-1">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                    Nama Kegiatan *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newActivityForm.namaKegiatan}
+                    onChange={e => setNewActivityForm({ ...newActivityForm, namaKegiatan: e.target.value })}
+                    placeholder="Contoh: Perkemahan Sabtu Minggu (Persami) HW Jateng"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Kategori Kegiatan *
+                    </label>
+                    <select
+                      value={newActivityForm.kategori}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, kategori: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
+                    >
+                      {activityCategoriesList.map((cat, idx) => (
+                        <option key={idx} value={cat}>{cat}</option>
+                      ))}
+                      <option value="Perkemahan">Perkemahan</option>
+                      <option value="Pelatihan">Pelatihan</option>
+                      <option value="Silaturahmi">Silaturahmi</option>
+                      <option value="Rapat HW">Rapat HW</option>
+                      <option value="Musyawarah">Musyawarah</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Status Kegiatan *
+                    </label>
+                    <select
+                      value={newActivityForm.status}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, status: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value="Buka">Buka (Menerima Pendaftaran)</option>
+                      <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Tanggal & Waktu *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newActivityForm.tanggal}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, tanggal: e.target.value })}
+                      placeholder="Contoh: 12 - 14 September 2026"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Lokasi / Tempat *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newActivityForm.lokasi}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, lokasi: e.target.value })}
+                      placeholder="Contoh: Bumi Perkemahan Karanganyar"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Infaq / Biaya
+                    </label>
+                    <input
+                      type="text"
+                      value={newActivityForm.biaya}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, biaya: e.target.value })}
+                      placeholder="Gratis / Rp 50.000"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                      Kuota Peserta
+                    </label>
+                    <input
+                      type="text"
+                      value={newActivityForm.kuota}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, kuota: e.target.value })}
+                      placeholder="Terbuka / 100 Orang"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                    URL Foto Poster / Cover (Opsional)
+                  </label>
+                  <input
+                    type="url"
+                    value={newActivityForm.gambarUrl}
+                    onChange={e => setNewActivityForm({ ...newActivityForm, gambarUrl: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
+                    Deskripsi Lengkap Kegiatan
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={newActivityForm.deskripsi}
+                    onChange={e => setNewActivityForm({ ...newActivityForm, deskripsi: e.target.value })}
+                    placeholder="Jelaskan detail susunan acara, syarat peserta, fasilitas, serta ketentuan pendaftaran..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddActivityModalOpen(false);
+                      setEditingActivity(null);
+                    }}
+                    className="px-5 py-3.5 bg-white border border-gray-200 text-gray-700 rounded-2xl text-xs font-bold hover:bg-gray-100 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingActivity}
+                    className="flex-1 py-3.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                  >
+                    {isSavingActivity ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={16} /> Simpan Kegiatan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

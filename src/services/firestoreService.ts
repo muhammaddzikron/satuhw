@@ -884,6 +884,154 @@ export const firestoreService = {
     };
   },
 
+  /**
+   * Registers a new member securely with pre-validation, duplicate check, transaction KTA allocation, and Firestore sync.
+   */
+  async registerMemberWithTransaction(formData: any, firebaseUid: string): Promise<{ user: User; ktaApp: any }> {
+    const cleanEmail = (formData.email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Alamat email tidak valid.');
+    }
+    if (!formData.namaLengkap || formData.namaLengkap.trim().length < 3) {
+      throw new Error('Nama lengkap wajib diisi minimal 3 karakter.');
+    }
+    if (!formData.password || formData.password.length < 5) {
+      throw new Error('Password minimal terdiri dari 5 karakter.');
+    }
+    if (!formData.noHp || formData.noHp.trim().length < 8) {
+      throw new Error('Nomor WhatsApp wajib diisi.');
+    }
+
+    // 1. Strict Duplicate Check before saving
+    let isDuplicate = false;
+    try {
+      const existingMembers = await this.getMembers();
+      isDuplicate = existingMembers.some(
+        m => m.email && m.email.trim().toLowerCase() === cleanEmail && String(m.id || m.uid) !== String(firebaseUid)
+      );
+    } catch (e) {}
+
+    if (isDuplicate) {
+      throw new Error(`Email "${cleanEmail}" sudah terdaftar sebagai anggota. Silakan login menggunakan akun Anda atau gunakan email lain.`);
+    }
+
+    // 2. KTA Number Allocation Transaction
+    const ktaInfo = await this.allocateKtaNumberTransaction(
+      formData.asalKwarda || formData.qabilah,
+      undefined
+    );
+
+    const nowIso = new Date().toISOString();
+
+    // 3. Construct Member Object with ALL fields
+    const userPayload: any = cleanData({
+      id: firebaseUid,
+      uid: firebaseUid,
+      namaLengkap: formData.namaLengkap.trim(),
+      nama: formData.namaLengkap.trim(),
+      tempatLahir: formData.tempatLahir || '',
+      tanggalLahir: formData.tanggalLahir || '',
+      jenisKelamin: formData.jenisKelamin || 'L',
+      golongan: formData.golongan || 'Penghela',
+      pendidikan: formData.pendidikan || 'SMA/SMK',
+      asalKwarda: formData.asalKwarda || 'Semarang',
+      qabilah: formData.qabilah || '',
+      asalQabilah: formData.qabilah || '',
+      alamat: formData.alamat || '',
+      noHp: formData.noHp.trim(),
+      sosmed: formData.sosmed || '',
+      email: cleanEmail,
+      password: formData.password,
+      photo: formData.photo || '',
+      pelatihan: Array.isArray(formData.pelatihan) ? formData.pelatihan : [],
+      nik: formData.nik || '',
+      jenisKta: formData.jenisKta || 'Fisik',
+      statusPembayaran: 'Belum Bayar',
+      statusAktivasi: 'Belum Aktif',
+      isVerified: false,
+      status: 'Pending',
+      role: 'umum',
+      roles: ['umum'],
+      activeRole: 'umum',
+      nomorKTA: ktaInfo.nomorKTA,
+      ktaNumber: ktaInfo.ktaNumber,
+      kodeProvinsi: ktaInfo.kodeProvinsi,
+      kodeKwarda: ktaInfo.kodeKwarda,
+      nomorUrut: ktaInfo.nomorUrut,
+      tanggalDaftar: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+
+    // 4. Construct KTA Application Object with ALL fields
+    const ktaId = `kta-${firebaseUid}`;
+    const ktaPayload: any = cleanData({
+      id: ktaId,
+      userId: firebaseUid,
+      nama: formData.namaLengkap.trim(),
+      alamat: formData.alamat || '',
+      tingkatan: formData.golongan || 'Penghela',
+      asalDaerah: formData.asalKwarda || 'Semarang',
+      qabilah: formData.qabilah || '',
+      noWa: formData.noHp.trim(),
+      email: cleanEmail,
+      sosmed: formData.sosmed || '',
+      photo: formData.photo || '',
+      nik: formData.nik || '',
+      tempatLahir: formData.tempatLahir || '',
+      tanggalLahir: formData.tanggalLahir || '',
+      jenisKelamin: formData.jenisKelamin || 'L',
+      jenisKta: formData.jenisKta || 'Fisik',
+      pelatihan: Array.isArray(formData.pelatihan) ? formData.pelatihan : [],
+      statusPembayaran: 'Belum Bayar',
+      status: 'pending',
+      nomorKTA: ktaInfo.nomorKTA,
+      ktaNumber: ktaInfo.ktaNumber,
+      kodeProvinsi: ktaInfo.kodeProvinsi,
+      kodeKwarda: ktaInfo.kodeKwarda,
+      nomorUrut: ktaInfo.nomorUrut,
+      tanggalAjuan: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+
+    // 5. Direct write to Firestore
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'members', firebaseUid), userPayload, { merge: true });
+        await setDoc(doc(db, 'kta_applications', ktaId), ktaPayload, { merge: true });
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.error('Firestore registration save error:', err);
+      }
+    }
+
+    // 6. Local Storage Sync
+    try {
+      const members = await this.getMembers();
+      const existingIdx = members.findIndex(m => m.email && m.email.trim().toLowerCase() === cleanEmail);
+      if (existingIdx >= 0) {
+        members[existingIdx] = userPayload;
+      } else {
+        members.push(userPayload);
+      }
+      localStorage.setItem('mock_members', JSON.stringify(members));
+
+      const ktasStr = localStorage.getItem('kta_applications') || '[]';
+      let ktas: any[] = [];
+      try { ktas = JSON.parse(ktasStr); } catch(e) {}
+      const existingKtaIdx = ktas.findIndex(k => k.id === ktaId || (k.email && k.email.trim().toLowerCase() === cleanEmail));
+      if (existingKtaIdx >= 0) {
+        ktas[existingKtaIdx] = ktaPayload;
+      } else {
+        ktas.push(ktaPayload);
+      }
+      localStorage.setItem('kta_applications', JSON.stringify(ktas));
+    } catch (e) {}
+
+    return { user: userPayload as User, ktaApp: ktaPayload };
+  },
+
   async saveMember(member: User): Promise<User> {
     const memberId = member.id || member.uid || `user-${Date.now()}`;
     const existingKta = member.nomorKTA || member.ktaNumber;

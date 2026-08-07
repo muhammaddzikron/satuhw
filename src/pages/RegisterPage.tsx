@@ -185,7 +185,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(3)) return;
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
 
     setIsLoading(true);
     setValidationError('');
@@ -193,7 +193,16 @@ export default function RegisterPage() {
       const cleanEmail = formData.email.trim().toLowerCase();
       const password = formData.password || '12345hw';
 
-      // 1. Register with Firebase Authentication if available
+      // 1. Check for duplicates in Firestore / local database first
+      const existingMembers = await firestoreService.getMembers();
+      const duplicateFound = existingMembers.some(
+        m => m.email && m.email.trim().toLowerCase() === cleanEmail
+      );
+      if (duplicateFound) {
+        throw new Error(`Email "${cleanEmail}" sudah terdaftar sebagai anggota HW. Silakan login atau gunakan email lain.`);
+      }
+
+      // 2. Register with Firebase Authentication if available
       let firebaseUid = `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
       try {
         const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
@@ -202,75 +211,17 @@ export default function RegisterPage() {
         }
       } catch (authErr: any) {
         if (authErr?.code === 'auth/email-already-in-use') {
-          try {
-            const loginCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-            if (loginCred?.user?.uid) {
-              firebaseUid = loginCred.user.uid;
-            }
-          } catch (signInErr) {
-            console.warn('Firebase Auth user exists but password mismatch:', signInErr);
-          }
+          throw new Error(`Email "${cleanEmail}" sudah terdaftar di Firebase Auth. Silakan login menggunakan email Anda.`);
         } else {
           console.warn('Firebase Auth creation warning:', authErr?.message || authErr);
         }
       }
 
-      // 2. Register user account to Firestore with UID document ID
-      const userPayload = {
-        id: firebaseUid,
-        uid: firebaseUid,
-        namaLengkap: formData.namaLengkap,
-        tempatLahir: formData.tempatLahir,
-        tanggalLahir: formData.tanggalLahir,
-        jenisKelamin: formData.jenisKelamin,
-        golongan: formData.golongan,
-        pendidikan: formData.pendidikan,
-        asalKwarda: formData.asalKwarda,
-        qabilah: formData.qabilah,
-        alamat: formData.alamat,
-        noHp: formData.noHp,
-        sosmed: formData.sosmed,
-        email: cleanEmail,
-        password: password,
-        photo: formData.photo,
-        pelatihan: formData.pelatihan,
-        nik: formData.nik || '',
-        statusPembayaran: 'Belum Bayar',
-        statusAktivasi: 'Belum Aktif',
-        isVerified: false,
-        role: 'umum',
-        roles: ['umum'],
-        activeRole: 'umum'
-      };
-
-      await sheetsService.register(userPayload);
-      await firestoreService.saveMember(userPayload as any);
-
-      // 3. Create KTA Application
-      const ktaPayload = {
-        id: '',
-        userId: firebaseUid,
-        nama: formData.namaLengkap,
-        alamat: formData.alamat,
-        tingkatan: formData.golongan,
-        asalDaerah: formData.asalKwarda,
-        noWa: formData.noHp,
-        email: cleanEmail,
-        sosmed: formData.sosmed,
-        photo: formData.photo,
-        nik: formData.nik || '',
-        tempatLahir: formData.tempatLahir,
-        tanggalLahir: formData.tanggalLahir,
-        jenisKelamin: formData.jenisKelamin,
-        qabilah: formData.qabilah,
-        jenisKta: formData.jenisKta,
-        statusPembayaran: 'Belum Bayar',
-        status: 'pending'
-      };
-      await sheetsService.applyKTA(ktaPayload);
+      // 3. Register member with transaction (validates, checks duplicate, assigns KTA number, saves member & KTA application)
+      const regResult = await firestoreService.registerMemberWithTransaction(formData, firebaseUid);
 
       // Automatically authenticate user in state
-      setAuth(userPayload as any, `fs-token-${firebaseUid}`);
+      setAuth(regResult.user, `fs-token-${firebaseUid}`);
 
       setIsSuccess(true);
     } catch (err: any) {
