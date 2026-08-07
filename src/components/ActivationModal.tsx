@@ -49,7 +49,11 @@ export const ActivationModal: React.FC<ActivationModalProps> = ({
           </div>
 
           <p className="text-xs text-gray-600 text-center leading-relaxed font-medium">
-            Akun Anda belum diaktifkan oleh Admin. Silakan melakukan pembayaran biaya aktivasi pendaftaran terlebih dahulu untuk membuka akses seluruh materi dan fitur premium.
+            Akun Anda belum diaktifkan oleh Admin. Silakan melakukan pembayaran biaya aktivasi senilai <strong>Rp 10.000</strong> ke rekening atas nama <strong>Kwarwil HW Jateng</strong> agar admin dapat segera mengaktifkan akun Anda.
+          </p>
+
+          <p className="text-[11px] text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/80 text-center font-medium leading-relaxed">
+            Biaya ini termasuk biaya KTA Digital, segera Ajukan KTA Digital HW Jateng, nikmati fitur lainnya.
           </p>
 
           {/* Account Transfer Box */}

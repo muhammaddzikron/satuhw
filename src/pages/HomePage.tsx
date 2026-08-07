@@ -522,7 +522,10 @@ export default function HomePage() {
             </div>
 
             <p className="text-xs text-white/90 leading-relaxed font-medium">
-              Akun Anda telah berhasil terdaftar. Silakan melakukan pembayaran biaya aktivasi ke rekening atas nama <strong>Kwarwil HW Jateng</strong> di bawah ini agar admin dapat segera mengaktifkan akun Anda.
+              Akun Anda telah berhasil terdaftar. Silakan melakukan pembayaran biaya aktivasi senilai <strong>Rp 10.000</strong> ke rekening atas nama <strong>Kwarwil HW Jateng</strong> di bawah ini agar admin dapat segera mengaktifkan akun Anda.
+            </p>
+            <p className="text-[11px] text-amber-100 font-semibold bg-white/10 px-3 py-2 rounded-xl border border-white/15 leading-snug">
+              Biaya ini termasuk biaya KTA Digital, segera Ajukan KTA Digital HW Jateng, nikmati fitur lainnya.
             </p>
 
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-2.5 border border-white/15 space-y-1 text-center">

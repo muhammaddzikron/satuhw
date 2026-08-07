@@ -2,78 +2,59 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email in ['admin@hw.org', 'admin@hw.or.id', 'medkom@hwjateng.com', 'muhammaddzikron@gmail.com'] ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role in ['admin', 'superadmin']
-      );
-    }
-
     // Members collection
     match /members/{memberId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && (
-        !request.resource.data.keys().hasAny(['statusAktivasi', 'statusPembayaran', 'role']) ||
-        request.resource.data.statusAktivasi == 'Belum Aktif' ||
-        isAdmin()
-      );
-      allow update: if isSignedIn() && (
-        isAdmin() || (
-          (request.auth.uid == memberId || resource.data.email == request.auth.token.email) &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['statusAktivasi', 'statusPembayaran', 'role', 'roles'])
-        )
-      );
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // KTA Applications collection
     match /kta_applications/{appId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        isAdmin() ||
-        resource.data.userId == request.auth.uid ||
-        resource.data.email == request.auth.token.email
-      );
+      allow read, write: if true;
     }
 
     // Training Applications
     match /training_applications/{appId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        isAdmin() ||
-        resource.data.userId == request.auth.uid ||
-        resource.data.email == request.auth.token.email
-      );
+      allow read, write: if true;
+    }
+
+    // HW Activities collection
+    match /hw_activities/{actId} {
+      allow read, write: if true;
+    }
+
+    // HW Activity Categories collection
+    match /hw_activity_categories/{catId} {
+      allow read, write: if true;
+    }
+
+    // Activity Applications collection
+    match /activity_applications/{appId} {
+      allow read, write: if true;
     }
 
     // Materi collection
     match /materi/{materiId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Contents collection
     match /contents/{contentId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Settings collection
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
-    // Default fallback rule
+    // Default fallback rule for any other collection
     match /{document=**} {
-      allow read, write: if isSignedIn();
+      allow read, write: if true;
     }
   }
 }

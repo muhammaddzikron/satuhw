@@ -153,6 +153,41 @@
         "ktaTandaTanganSekretaris": { "type": "string" }
       },
       "required": ["id"]
+    },
+    "hw_activities": {
+      "title": "HW Activities",
+      "description": "Activities and events managed in Admin Dashboard",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "judul": { "type": "string" },
+        "description": { "type": "string" },
+        "deskripsi": { "type": "string" },
+        "date": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "location": { "type": "string" },
+        "lokasi": { "type": "string" },
+        "biaya": { "type": "string" },
+        "kuota": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "activity_applications": {
+      "title": "Activity Applications",
+      "description": "Registrations for activities and events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "activityId": { "type": "string" },
+        "userId": { "type": "string" },
+        "nama": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id"]
     }
   }
 }
