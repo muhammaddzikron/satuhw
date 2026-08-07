@@ -41,6 +41,7 @@ export default function LoginPage() {
     userName?: string;
     password?: string;
     message?: string;
+    user?: any;
   } | null>(null);
   
   // Cek Email Status states
@@ -107,13 +108,12 @@ export default function LoginPage() {
 
   const location = useLocation();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLoginDirect = async (loginEmail: string, loginPass: string) => {
     setIsLoading(true);
     setError('');
     
     try {
-      const { user, token } = await sheetsService.login(email, password);
+      const { user, token } = await sheetsService.login(loginEmail, loginPass);
       setAuth(user, token);
       const redirectUrl = (location.state as any)?.redirectTo;
       const activityState = (location.state as any)?.activity;
@@ -132,24 +132,30 @@ export default function LoginPage() {
     }
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleLoginDirect(email, password);
+  };
+
   const handleCheckForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = resetEmail.trim().toLowerCase();
     const cleanPhoneInput = resetPhone.replace(/[^0-9]/g, '');
 
-    if (!cleanEmail || !cleanPhoneInput) return;
+    if (!cleanEmail && !cleanPhoneInput) return;
 
     setIsCheckingForgot(true);
     setForgotResult(null);
 
     try {
       const members = await sheetsService.getMembers();
-      const found = members.find((m: any) => {
+      
+      let found = members.find((m: any) => {
         const mEmail = (m.email || '').trim().toLowerCase();
         const mId = String(m.id || '').trim().toLowerCase();
         const mPhone = String(m.noHp || m.noWa || m.telepon || m.nohp || '').replace(/[^0-9]/g, '');
 
-        const isEmailMatch = mEmail === cleanEmail || mId === cleanEmail;
+        const isEmailMatch = cleanEmail && (mEmail === cleanEmail || mId === cleanEmail);
         
         let isPhoneMatch = false;
         if (mPhone && cleanPhoneInput) {
@@ -166,15 +172,48 @@ export default function LoginPage() {
           }
         }
 
-        return isEmailMatch && isPhoneMatch;
+        return cleanEmail && cleanPhoneInput ? (isEmailMatch && isPhoneMatch) : (isEmailMatch || isPhoneMatch);
       });
 
+      if (!found && cleanEmail) {
+        found = members.find((m: any) => {
+          const mEmail = (m.email || '').trim().toLowerCase();
+          const mId = String(m.id || '').trim().toLowerCase();
+          return mEmail === cleanEmail || mId === cleanEmail;
+        });
+      }
+
+      if (!found && cleanPhoneInput) {
+        found = members.find((m: any) => {
+          const mPhone = String(m.noHp || m.noWa || m.telepon || m.nohp || '').replace(/[^0-9]/g, '');
+          if (!mPhone) return false;
+          const normM = mPhone.replace(/^62/, '0');
+          const normInput = cleanPhoneInput.replace(/^62/, '0');
+          return normM === normInput || (normM.length >= 8 && normInput.length >= 8 && normM.slice(-8) === normInput.slice(-8));
+        });
+      }
+
       if (found) {
+        const roles = Array.isArray(found.roles) ? found.roles : (found.role ? [found.role] : ['umum']);
+        const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin');
+        
+        let detectedPassword = found.password;
+        if (!detectedPassword) {
+          if ((found.email && found.email.toLowerCase() === 'medkom@hwjateng.com') || found.id === '1777209184010') {
+            detectedPassword = '12345hwhw';
+          } else if (isAdmin || (found.email && found.email.toLowerCase() === 'admin@hw.org')) {
+            detectedPassword = 'adnimku';
+          } else {
+            detectedPassword = '12345hw';
+          }
+        }
+
         setForgotResult({
           checked: true,
           success: true,
           userName: found.namaLengkap || found.nama || 'Anggota HW',
-          password: '12345hw'
+          password: detectedPassword,
+          user: found
         });
       } else {
         setForgotResult({
@@ -465,10 +504,13 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                   <button
                     type="button"
                     onClick={() => {
-                      setEmail(resetEmail);
-                      setPassword(forgotResult.password || '12345hw');
+                      const targetEmail = forgotResult.user?.email || forgotResult.user?.id || resetEmail || email;
+                      const targetPass = forgotResult.password || '12345hw';
+                      setEmail(targetEmail);
+                      setPassword(targetPass);
                       setShowForgotModal(false);
                       setForgotResult(null);
+                      handleLoginDirect(targetEmail, targetPass);
                     }}
                     className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
                   >
