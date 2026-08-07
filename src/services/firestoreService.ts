@@ -42,6 +42,15 @@ export const firestoreService = {
   isInitialized: false,
   isQuotaExceeded: false,
 
+  getIsQuotaExceeded(): boolean {
+    if (this.isQuotaExceeded) return true;
+    if (typeof window !== 'undefined' && localStorage.getItem('firestore_quota_exceeded') === 'true') {
+      this.isQuotaExceeded = true;
+      return true;
+    }
+    return false;
+  },
+
   checkQuotaError(err: any): boolean {
     if (!err) return false;
     const errMsg = String(err?.message || err?.code || err || '');
@@ -53,6 +62,9 @@ export const firestoreService = {
       err?.code === 'resource-exhausted'
     ) {
       this.isQuotaExceeded = true;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('firestore_quota_exceeded', 'true');
+      }
       return true;
     }
     return false;
@@ -63,7 +75,7 @@ export const firestoreService = {
    * and upload any local backup data to Firestore.
    */
   async initAndSyncWithFirestore(): Promise<{ success: boolean; message: string }> {
-    if (this.isQuotaExceeded) {
+    if (this.getIsQuotaExceeded()) {
       return { success: false, message: 'Firestore daily quota limit reached. Local cache mode active.' };
     }
     try {
@@ -296,7 +308,7 @@ export const firestoreService = {
       }
     } catch (e) {}
 
-    if (this.isQuotaExceeded) return;
+    if (this.getIsQuotaExceeded()) return;
 
     try {
       // 1. Purge empty KTA Applications from Firestore
@@ -338,7 +350,7 @@ export const firestoreService = {
       }
     } catch (e) {
       this.checkQuotaError(e);
-      if (!this.isQuotaExceeded) {
+      if (!this.getIsQuotaExceeded()) {
         console.error('Error purging empty data:', e);
       }
     }
@@ -347,7 +359,7 @@ export const firestoreService = {
   // --- MEMBERS ---
   async getMembers(): Promise<User[]> {
     let members: User[] = [];
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await withTimeout(getDocs(collection(db, 'members')), 1500);
         if (!snap.empty) {
@@ -366,7 +378,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) {
+        if (!this.getIsQuotaExceeded()) {
           console.error('Firestore getMembers error, fallback to cache:', err);
         }
       }
@@ -403,7 +415,7 @@ export const firestoreService = {
       if (ktaStored) {
         try { ktas = JSON.parse(ktaStored); } catch(e) {}
       }
-      if (!this.isQuotaExceeded) {
+      if (!this.getIsQuotaExceeded()) {
         try {
           const ktaSnap = await getDocs(collection(db, 'kta_applications'));
           if (!ktaSnap.empty) {
@@ -626,7 +638,7 @@ export const firestoreService = {
   async saveMember(member: User): Promise<User> {
     const memberId = member.id || `user-${Date.now()}`;
     const dataToSave = cleanData({ ...member, id: memberId });
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
       } catch (err) {
@@ -663,7 +675,7 @@ export const firestoreService = {
       });
       localStorage.setItem('kta_applications', JSON.stringify(localKtas));
 
-      if (!this.isQuotaExceeded) {
+      if (!this.getIsQuotaExceeded()) {
         const ktas = await this.getKTAApplications();
         ktas.forEach((k: any) => {
           if ((k.userId && String(k.userId) === String(memberId)) ||
@@ -689,7 +701,7 @@ export const firestoreService = {
   },
 
   async updateMember(id: string, updates: Partial<User>): Promise<User> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'members', id), cleanData(updates), { merge: true });
       } catch (err) {
@@ -721,7 +733,7 @@ export const firestoreService = {
         if (updates.noHp) ktaSync.noWa = updates.noHp;
         if (updates.asalKwarda) ktaSync.asalDaerah = updates.asalKwarda;
         if (updates.qabilah) ktaSync.qabilah = updates.qabilah;
-        if (Object.keys(ktaSync).length > 0 && !this.isQuotaExceeded) {
+        if (Object.keys(ktaSync).length > 0 && !this.getIsQuotaExceeded()) {
           await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
         }
       }
@@ -733,7 +745,7 @@ export const firestoreService = {
   },
 
   async deleteMember(id: string): Promise<boolean> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'members', id));
       } catch (err) {
@@ -767,7 +779,7 @@ export const firestoreService = {
 
   // --- MATERI ---
   async getMateri(): Promise<Materi[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'materi'));
         if (!snap.empty) {
@@ -777,7 +789,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) {
+        if (!this.getIsQuotaExceeded()) {
           console.error('Firestore getMateri error, fallback to cache:', err);
         }
       }
@@ -792,12 +804,12 @@ export const firestoreService = {
       ...item,
       id: rawId
     });
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'materi', String(itemData.id)), itemData);
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore saveMateri error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore saveMateri error:', err);
       }
     }
     const list = await this.getMateri();
@@ -813,12 +825,12 @@ export const firestoreService = {
 
   async deleteMateri(id: string): Promise<boolean> {
     const strId = String(id);
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'materi', strId));
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore deleteMateri error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteMateri error:', err);
       }
     }
     const list = await this.getMateri();
@@ -829,7 +841,7 @@ export const firestoreService = {
 
   // --- KTA APPLICATIONS ---
   async getKTAApplications(): Promise<any[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'kta_applications'));
         let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -876,7 +888,7 @@ export const firestoreService = {
         return ktas;
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) {
+        if (!this.getIsQuotaExceeded()) {
           console.error('Firestore getKTAApplications error, fallback to cache:', err);
         }
       }
@@ -897,10 +909,13 @@ export const firestoreService = {
       status: appData.status || 'pending',
       tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
     });
-    try {
-      await setDoc(doc(db, 'kta_applications', newApp.id), newApp);
-    } catch (err) {
-      console.error('Firestore createKTAApplication error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'kta_applications', newApp.id), newApp);
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore createKTAApplication error:', err);
+      }
     }
     const list = await this.getKTAApplications();
     list.unshift(newApp);
@@ -985,10 +1000,13 @@ export const firestoreService = {
 
     localStorage.setItem('kta_applications', JSON.stringify(list));
 
-    try {
-      await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
-    } catch (err) {
-      console.error('Firestore updateKTAStatus error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore updateKTAStatus error:', err);
+      }
     }
 
     // Sync approval, photo, and ktaNumber to members collection
@@ -1055,10 +1073,13 @@ export const firestoreService = {
 
     const docIdToDelete = match?.id || targetId;
 
-    try {
-      await deleteDoc(doc(db, 'kta_applications', docIdToDelete));
-    } catch (err) {
-      console.error('Firestore deleteKTAApplication error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await deleteDoc(doc(db, 'kta_applications', docIdToDelete));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteKTAApplication error:', err);
+      }
     }
 
     const filtered = list.filter(k => {
@@ -1082,7 +1103,7 @@ export const firestoreService = {
 
   // --- TRAINING APPLICATIONS ---
   async getTrainingApplications(): Promise<any[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'training_applications'));
         if (!snap.empty) {
@@ -1102,7 +1123,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) {
+        if (!this.getIsQuotaExceeded()) {
           console.error('Firestore getTrainingApplications error, fallback to cache:', err);
         }
       }
@@ -1123,10 +1144,13 @@ export const firestoreService = {
       status: appData.status || 'pending',
       tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
     });
-    try {
-      await setDoc(doc(db, 'training_applications', newApp.id), newApp);
-    } catch (err) {
-      console.error('Firestore createTrainingApplication error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'training_applications', newApp.id), newApp);
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore createTrainingApplication error:', err);
+      }
     }
     const list = await this.getTrainingApplications();
     list.unshift(newApp);
@@ -1137,10 +1161,13 @@ export const firestoreService = {
   async updateTrainingStatus(id: string, status: string, remark?: string): Promise<any> {
     const updates: any = { status };
     if (remark !== undefined) updates.remark = remark;
-    try {
-      await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
-    } catch (err) {
-      console.error('Firestore updateTrainingStatus error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore updateTrainingStatus error:', err);
+      }
     }
     const list = await this.getTrainingApplications();
     const idx = list.findIndex(t => t.id === id);
@@ -1152,10 +1179,13 @@ export const firestoreService = {
   },
 
   async updateAttendance(id: string, kehadiranStr: string): Promise<any> {
-    try {
-      await setDoc(doc(db, 'training_applications', id), { kehadiran: kehadiranStr }, { merge: true });
-    } catch (err) {
-      console.error('Firestore updateAttendance error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'training_applications', id), { kehadiran: kehadiranStr }, { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore updateAttendance error:', err);
+      }
     }
     const list = await this.getTrainingApplications();
     const idx = list.findIndex(t => t.id === id);
@@ -1170,10 +1200,13 @@ export const firestoreService = {
     const updates: any = {};
     if (tugasStr !== undefined) updates.tugas = tugasStr;
     if (nilaiStr !== undefined) updates.nilai = nilaiStr;
-    try {
-      await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
-    } catch (err) {
-      console.error('Firestore updateAssignmentGrade error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore updateAssignmentGrade error:', err);
+      }
     }
     const list = await this.getTrainingApplications();
     const idx = list.findIndex(t => t.id === id);
@@ -1185,10 +1218,13 @@ export const firestoreService = {
   },
 
   async deleteTrainingApplication(id: string): Promise<boolean> {
-    try {
-      await deleteDoc(doc(db, 'training_applications', id));
-    } catch (err) {
-      console.error('Firestore deleteTrainingApplication error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await deleteDoc(doc(db, 'training_applications', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteTrainingApplication error:', err);
+      }
     }
     const list = await this.getTrainingApplications();
     const filtered = list.filter(t => t.id !== id);
@@ -1198,7 +1234,7 @@ export const firestoreService = {
 
   // --- CONTENTS ---
   async getContents(): Promise<Content[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'contents'));
         if (!snap.empty) {
@@ -1208,7 +1244,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore getContents error, fallback to cache:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getContents error, fallback to cache:', err);
       }
     }
     const stored = localStorage.getItem('contents') || '[]';
@@ -1220,12 +1256,12 @@ export const firestoreService = {
       ...item,
       id: item.id || `content-${Date.now()}`
     });
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'contents', itemData.id), itemData);
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore saveContent error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore saveContent error:', err);
       }
     }
     const list = await this.getContents();
@@ -1240,12 +1276,12 @@ export const firestoreService = {
   },
 
   async deleteContent(id: string): Promise<boolean> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'contents', id));
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore deleteContent error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteContent error:', err);
       }
     }
     const list = await this.getContents();
@@ -1256,7 +1292,7 @@ export const firestoreService = {
 
   // --- SETTINGS ---
   async getSettings(): Promise<any> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
         if (docSnap.exists()) {
@@ -1266,7 +1302,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore getSettings error, fallback to cache:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getSettings error, fallback to cache:', err);
       }
     }
     const stored = localStorage.getItem('hw_settings');
@@ -1286,12 +1322,12 @@ export const firestoreService = {
 
   async saveSettings(settings: any): Promise<any> {
     const dataToSave = cleanData({ ...settings, id: 'app_settings' });
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'settings', 'app_settings'), dataToSave, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore saveSettings error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore saveSettings error:', err);
       }
     }
     localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
@@ -1300,7 +1336,7 @@ export const firestoreService = {
 
   // --- KEGIATAN HW JATENG ---
   async getActivities(): Promise<any[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'hw_activities'));
         if (!snap.empty) {
@@ -1310,7 +1346,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore getActivities error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivities error:', err);
       }
     }
     const stored = localStorage.getItem('hw_activities');
@@ -1367,10 +1403,13 @@ export const firestoreService = {
       ...activityData,
       id: activityData.id || `keg-${Date.now()}`
     });
-    try {
-      await setDoc(doc(db, 'hw_activities', newAct.id), newAct, { merge: true });
-    } catch (err) {
-      console.error('Firestore saveActivity error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'hw_activities', newAct.id), newAct, { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore saveActivity error:', err);
+      }
     }
     const list = await this.getActivities();
     const idx = list.findIndex(a => a.id === newAct.id);
@@ -1384,10 +1423,13 @@ export const firestoreService = {
   },
 
   async deleteActivity(id: string): Promise<boolean> {
-    try {
-      await deleteDoc(doc(db, 'hw_activities', id));
-    } catch (err) {
-      console.error('Firestore deleteActivity error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await deleteDoc(doc(db, 'hw_activities', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteActivity error:', err);
+      }
     }
     const list = await this.getActivities();
     const filtered = list.filter(a => a.id !== id);
@@ -1396,7 +1438,7 @@ export const firestoreService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
-    if (!this.isQuotaExceeded) {
+    if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'activity_applications'));
         if (!snap.empty) {
@@ -1406,7 +1448,7 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.isQuotaExceeded) console.error('Firestore getActivityApplications error:', err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivityApplications error:', err);
       }
     }
     const stored = localStorage.getItem('activity_applications');
