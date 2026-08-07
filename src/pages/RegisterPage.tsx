@@ -23,10 +23,12 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { sheetsService } from '../services/sheetsService';
+import { useAuthStore } from '../store/useAuthStore';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,7 +216,8 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password || '12345hw',
         photo: formData.photo,
-        pelatihan: formData.pelatihan
+        pelatihan: formData.pelatihan,
+        nik: formData.nik
       };
       await sheetsService.register(userPayload);
 
@@ -321,18 +324,25 @@ export default function RegisterPage() {
         </div>
 
         <button 
-          onClick={() => {
+          type="button"
+          onClick={async () => {
             const redirectUrl = (location.state as any)?.redirectTo;
             const activityState = (location.state as any)?.activity;
-            if (redirectUrl) {
-              navigate('/login', { state: { redirectTo: redirectUrl, activity: activityState } });
-            } else {
-              navigate('/login');
+            try {
+              const { user, token } = await sheetsService.login(formData.email, formData.password || '12345hw');
+              setAuth(user, token);
+              if (redirectUrl) {
+                navigate(redirectUrl, { state: { activity: activityState } });
+              } else {
+                navigate('/');
+              }
+            } catch (e) {
+              navigate('/login', { state: { redirectTo: redirectUrl, activity: activityState, email: formData.email } });
             }
           }}
-          className="w-full py-4 rounded-2xl bg-hw-dark text-white font-bold shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          className="w-full py-4 rounded-2xl gradient-bg text-white font-bold shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
         >
-          {(location.state as any)?.redirectTo ? 'Lanjut Login & Daftar Pelatihan' : 'Masuk ke Akun Aplikasi'} <ChevronRight size={18} />
+          Masuk Sekarang &amp; Jelajahi Aplikasi <ChevronRight size={18} />
         </button>
       </motion.div>
     );

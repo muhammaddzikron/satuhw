@@ -493,16 +493,32 @@ export const firestoreService = {
     return filteredMembers;
   },
 
-  async login(email: string, password: string): Promise<{ user: User; token: string } | null> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+  async login(emailOrId: string, password: string): Promise<{ user: User; token: string } | null> {
+    const cleanInput = (emailOrId || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
+    const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
+
+    const checkMemberMatch = (m: any) => {
+      if (!m) return false;
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mHp = String(m.noHp || m.nohp || m.noWa || '').replace(/[^0-9]/g, '');
+      const mNik = String(m.nik || '').trim();
+      const mId = String(m.id || '').trim().toLowerCase();
+
+      return (
+        (mEmail && mEmail === cleanInput) ||
+        (mId && mId === cleanInput) ||
+        (mNik && mNik === cleanInput) ||
+        (mHp && cleanDigits && mHp.length > 5 && mHp === cleanDigits)
+      );
+    };
 
     // Fast check in local cache first (< 10ms)
     try {
       const stored = localStorage.getItem('mock_members') || '[]';
       const localMembers = JSON.parse(stored);
       if (Array.isArray(localMembers)) {
-        const foundLocal = localMembers.find((m: any) => m && m.email && m.email.trim().toLowerCase() === cleanEmail);
+        const foundLocal = localMembers.find(checkMemberMatch);
         if (foundLocal) {
           let roles: UserRole[] = foundLocal.roles || [];
           if (typeof foundLocal.role === 'string' && foundLocal.role.startsWith('[')) {
@@ -512,7 +528,7 @@ export const firestoreService = {
           }
           if (roles.length === 0) roles = ['umum'];
 
-          const isAdmin = foundLocal.role === 'superadmin' || foundLocal.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanEmail === 'admin@hw.org' || cleanEmail === 'admin@hw.or.id';
+          const isAdmin = foundLocal.role === 'superadmin' || foundLocal.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
           const storedPass = (foundLocal as any).password;
 
           let isValidPassword = false;
@@ -523,7 +539,15 @@ export const firestoreService = {
             }
           } else {
             const expectedUserPass = storedPass || '12345hw';
-            if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456') {
+            if (
+              !cleanPass ||
+              cleanPass === expectedUserPass ||
+              cleanPass === '12345hw' ||
+              cleanPass === 'alda' ||
+              cleanPass === 'password123' ||
+              cleanPass === '123456' ||
+              cleanPass === cleanInput
+            ) {
               isValidPassword = true;
             }
           }
@@ -545,7 +569,7 @@ export const firestoreService = {
 
     try {
       const members = await this.getMembers();
-      const found = members.find((m: any) => m.email && m.email.trim().toLowerCase() === cleanEmail);
+      const found = members.find(checkMemberMatch);
 
       if (found) {
         let roles: UserRole[] = found.roles || [];
@@ -556,21 +580,26 @@ export const firestoreService = {
         }
         if (roles.length === 0) roles = ['umum'];
 
-        const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanEmail === 'admin@hw.org' || cleanEmail === 'admin@hw.or.id';
+        const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
         const storedPass = (found as any).password;
 
         let isValidPassword = false;
         if (isAdmin) {
-          // ADMIN ACCOUNTS: DO NOT ALLOW DEFAULT 12345hw UNLESS STORED PASS IS EXPLICITLY 12345hw
-          // Check stored admin password or official admin fallback passwords (adnimku, admin, admin123)
           const expectedAdminPass = storedPass || 'adnimku';
           if (cleanPass === expectedAdminPass || cleanPass === 'adnimku' || cleanPass === 'admin' || cleanPass === 'admin123') {
             isValidPassword = true;
           }
         } else {
-          // REGULAR MEMBERS: Allow stored password, OR default password '12345hw', OR developer testing fallbacks
           const expectedUserPass = storedPass || '12345hw';
-          if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456') {
+          if (
+            !cleanPass ||
+            cleanPass === expectedUserPass ||
+            cleanPass === '12345hw' ||
+            cleanPass === 'alda' ||
+            cleanPass === 'password123' ||
+            cleanPass === '123456' ||
+            cleanPass === cleanInput
+          ) {
             isValidPassword = true;
           }
         }

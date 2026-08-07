@@ -400,26 +400,31 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    if (searchQuery.trim().length > 1) {
-      const q = searchQuery.toLowerCase();
-      
-    const filteredMateri = (materiList || []).filter(m => 
-      m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
-        String(m.judul || '').toLowerCase().includes(q) ||
-        String(m.konten || '').toLowerCase().includes(q)
-      )
-    ).map(item => ({ ...item, type: 'materi' }));
+    try {
+      if (searchQuery.trim().length > 1) {
+        const q = searchQuery.trim().toLowerCase();
+        
+        const filteredMateri = (materiList || []).filter(m => 
+          m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
+            String(m.judul || '').toLowerCase().includes(q) ||
+            String(m.konten || '').toLowerCase().includes(q)
+          )
+        ).map(item => ({ ...item, type: 'materi' }));
 
-    const filteredVideos = (galleryItems || []).filter(v => 
-      v && (v.field2 || '').toLowerCase().includes(q)
-    ).map(item => ({ ...item, type: 'video' }));
+        const filteredVideos = (galleryItems || []).filter(v => 
+          v && String(v.field2 || '').toLowerCase().includes(q)
+        ).map(item => ({ ...item, type: 'video' }));
 
-    const filteredAudio = (playlistItems || []).filter(a => 
-      a && (a.field2 || '').toLowerCase().includes(q)
-    ).map(item => ({ ...item, type: 'audio' }));
+        const filteredAudio = (playlistItems || []).filter(a => 
+          a && String(a.field2 || '').toLowerCase().includes(q)
+        ).map(item => ({ ...item, type: 'audio' }));
 
-      setSearchResults([...filteredMateri, ...filteredVideos, ...filteredAudio]);
-    } else {
+        setSearchResults([...filteredMateri, ...filteredVideos, ...filteredAudio]);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (e) {
+      console.error('Error during search calculation:', e);
       setSearchResults([]);
     }
   }, [searchQuery, materiList, galleryItems, playlistItems]);
@@ -547,8 +552,8 @@ export default function HomePage() {
 
       {/* Search Bar */}
       <section className="relative">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <form onSubmit={(e) => e.preventDefault()} className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
           <input 
             type="text" 
             placeholder="Cari materi, audio, video..." 
@@ -558,113 +563,129 @@ export default function HomePage() {
           />
           {searchQuery && (
             <button 
+              type="button"
               onClick={() => setSearchQuery('')}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors"
             >
               <X size={18} />
             </button>
           )}
-        </div>
+        </form>
         
         {/* Live Search Results */}
         <AnimatePresence>
-          {searchResults.length > 0 && (
+          {searchQuery.trim().length > 1 && (
             <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm mt-3"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-md mt-3 overflow-hidden z-20 relative"
             >
-              <div className="p-3 border-b border-gray-50 flex items-center justify-between">
+              <div className="p-3 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Hasil Pencarian</span>
                 <span className="text-[10px] font-bold text-hw-green">{searchResults.length} Hasil ditemukan</span>
               </div>
-              <div className="max-h-[400px] overflow-y-auto">
-                {searchResults.map((m, index) => {
-                  const isMateri = m.type === 'materi';
-                  const isVideo = m.type === 'video';
-                  const isAudio = m.type === 'audio';
 
-                  return (
-                    <div key={`${m.id}-${index}-${m.type}`} className="border-b border-gray-50 last:border-0 transition-colors">
-                      {isMateri && (
-                        <Link 
-                          to="/materi" 
-                          state={{ searchQuery: m.judul, selectedMateriId: m.id, filter: m.kategori || 'umum' }}
-                          className="flex items-center gap-3 p-3 hover:bg-gray-50 bg-white"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-hw-green/10 flex items-center justify-center text-hw-green shrink-0">
-                            <BookOpen size={16} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.judul}</h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded ${m.kategori === 'umum_pandu' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'}`}>
-                                {m.kategori === 'umum_pandu' ? 'Umum Pandu' : 'Umum'}
-                              </span>
-                              {m.kategori === 'umum_pandu' && !isAuthenticated && (
-                                <span className="text-[8px] text-amber-600 font-bold flex items-center gap-0.5">
-                                  <Lock size={10} /> Perlu Login
-                                </span>
-                              )}
+              {searchResults.length > 0 ? (
+                <div className="max-h-[350px] overflow-y-auto divide-y divide-gray-50">
+                  {searchResults.map((m, index) => {
+                    const isMateri = m.type === 'materi';
+                    const isVideo = m.type === 'video';
+                    const isAudio = m.type === 'audio';
+                    const itemKey = `search-${m.type}-${m.id || index}`;
+
+                    return (
+                      <div key={itemKey} className="transition-colors hover:bg-gray-50">
+                        {isMateri && (
+                          <Link 
+                            to="/materi" 
+                            state={{ searchQuery: m.judul, selectedMateriId: m.id, filter: m.kategori || 'umum' }}
+                            className="flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-hw-green/10 flex items-center justify-center text-hw-green shrink-0">
+                              <BookOpen size={16} />
                             </div>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-300" />
-                        </Link>
-                      )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.judul || 'Tanpa Judul'}</h4>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded ${m.kategori === 'umum_pandu' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'}`}>
+                                  {m.kategori === 'umum_pandu' ? 'Umum Pandu' : 'Umum'}
+                                </span>
+                                {m.kategori === 'umum_pandu' && !isAuthenticated && (
+                                  <span className="text-[8px] text-amber-600 font-bold flex items-center gap-0.5">
+                                    <Lock size={10} /> Perlu Login
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-gray-300" />
+                          </Link>
+                        )}
 
-                      {isVideo && (
-                        <a 
-                          href={m.field1}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 hover:bg-gray-50 bg-white"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center text-red-500 shrink-0">
-                            <Youtube size={16} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.field2}</h4>
-                            <p className="text-[9px] text-gray-400 line-clamp-1 italic uppercase font-black tracking-tighter">Video Tutorial / YouTube</p>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-300" />
-                        </a>
-                      )}
+                        {isVideo && (
+                          <a 
+                            href={m.field1 || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center text-red-500 shrink-0">
+                              <Youtube size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.field2 || 'Video HW'}</h4>
+                              <p className="text-[9px] text-gray-400 line-clamp-1 italic uppercase font-black tracking-tighter">Video Tutorial / YouTube</p>
+                            </div>
+                            <ChevronRight size={14} className="text-gray-300" />
+                          </a>
+                        )}
 
-                      {isAudio && (
-                        <button 
-                          onClick={() => {
-                            const idx = playlistItems.findIndex(p => p.id === m.id);
-                            if (idx !== -1) handlePlayTrack(idx);
-                            setSearchQuery('');
-                          }}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 bg-white"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                            <Music size={16} />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.field2}</h4>
-                            <p className="text-[9px] text-gray-400 line-clamp-1 italic uppercase font-black tracking-tighter">Audio HW / MP3</p>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-300" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {searchQuery.trim().length > 1 && (
-                <div className="p-4 bg-hw-green/5 border-t border-hw-green/5 text-center">
-                  <p className="text-[10px] text-gray-500 font-medium mb-2">Ingin materi Tingkat Jati/Jari/Sugli?</p>
-                  <button 
-                    onClick={() => navigate('/profile')}
-                    className="w-full py-2 bg-hw-green text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-hw-green/10"
-                  >
-                    Upgrade Role Sekarang
-                  </button>
+                        {isAudio && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const idx = playlistItems.findIndex(p => p.id === m.id);
+                              if (idx !== -1) handlePlayTrack(idx);
+                              setSearchQuery('');
+                            }}
+                            className="w-full flex items-center gap-3 p-3 bg-white hover:bg-gray-50 text-left transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                              <Music size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[11px] font-bold text-gray-800 truncate">{m.field2 || 'Audio HW'}</h4>
+                              <p className="text-[9px] text-gray-400 line-clamp-1 italic uppercase font-black tracking-tighter">Audio HW / MP3</p>
+                            </div>
+                            <ChevronRight size={14} className="text-gray-300" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-6 text-center">
+                  <p className="text-xs text-gray-500 font-medium">
+                    Tidak ada materi, video, atau audio yang cocok dengan &quot;{searchQuery}&quot;
+                  </p>
                 </div>
               )}
+
+              <div className="p-3 bg-hw-green/5 border-t border-hw-green/10 flex items-center justify-between">
+                <p className="text-[10px] text-gray-500 font-medium">Ingin lihat semua materi?</p>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    navigate('/materi');
+                    setSearchQuery('');
+                  }}
+                  className="text-[10px] font-bold text-hw-green hover:underline flex items-center gap-1"
+                >
+                  Buka Halaman Materi <ChevronRight size={12} />
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

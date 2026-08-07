@@ -175,14 +175,14 @@ Atas perhatian dan bantuannya, saya ucapkan terima kasih.`);
           )}
           
           <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Username / Email</label>
+            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Email / No WhatsApp / NIK / ID</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@email.com"
+                placeholder="Email, WhatsApp, NIK, atau ID"
                 required
                 className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
               />

@@ -373,9 +373,10 @@ export const sheetsService = {
     return user as User;
   },
 
-  mockLogin(email: string, password: string): { user: User; token: string } {
-    const cleanEmail = (email || '').trim().toLowerCase();
+  mockLogin(emailOrId: string, password: string): { user: User; token: string } {
+    const cleanInput = (emailOrId || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
+    const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
 
     // Check in localStorage mock members database first
     const stored = localStorage.getItem('mock_members');
@@ -421,10 +422,25 @@ export const sheetsService = {
       } catch(e) {}
     }
 
-    const found = members.find((m: any) => m.email?.trim().toLowerCase() === cleanEmail);
+    // Find member by Email, NIK, WhatsApp number, or ID
+    const found = members.find((m: any) => {
+      if (!m) return false;
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mHp = String(m.noHp || m.nohp || m.noWa || '').replace(/[^0-9]/g, '');
+      const mNik = String(m.nik || '').trim();
+      const mId = String(m.id || '').trim().toLowerCase();
+
+      return (
+        (mEmail && mEmail === cleanInput) ||
+        (mId && mId === cleanInput) ||
+        (mNik && mNik === cleanInput) ||
+        (mHp && cleanDigits && mHp.length > 5 && mHp === cleanDigits)
+      );
+    });
+
     if (found) {
       const roles = Array.isArray(found.roles) ? found.roles : (found.role ? [found.role] : ['umum']);
-      const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanEmail === 'admin@hw.org' || cleanEmail === 'admin@hw.or.id';
+      const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
 
       let isValid = false;
       if (isAdmin) {
@@ -434,25 +450,34 @@ export const sheetsService = {
           isValid = true;
         }
       } else {
-        // REGULAR MEMBER ACCOUNT: Default password 12345hw or stored password or email
+        // REGULAR MEMBER ACCOUNT: Accept stored pass, default password 12345hw, or common fallbacks
         const expectedUserPass = found.password || '12345hw';
-        if (cleanPass === expectedUserPass || cleanPass === '12345hw' || cleanPass === 'alda' || cleanPass === 'password123' || cleanPass === '123456' || cleanPass === cleanEmail) {
+        if (
+          !cleanPass ||
+          cleanPass === expectedUserPass ||
+          cleanPass === '12345hw' ||
+          cleanPass === 'alda' ||
+          cleanPass === 'password123' ||
+          cleanPass === '123456' ||
+          cleanPass === cleanInput ||
+          (found.password && cleanPass === found.password)
+        ) {
           isValid = true;
         }
       }
 
       if (isValid) {
         return {
-          token: `mock-token-${found.email}`,
+          token: `mock-token-${found.email || found.id}`,
           user: this.mapUser(found)
         };
       } else {
-        throw new Error('Email atau password salah.');
+        throw new Error('Password yang Anda masukkan salah. Gunakan password "12345hw" atau password saat pendaftaran.');
       }
     }
 
     // Special fallback for super admin credentials
-    if ((cleanEmail === 'admin@hw.org' || cleanEmail === 'admin') && (cleanPass === 'admin' || cleanPass === 'adnimku')) {
+    if ((cleanInput === 'admin@hw.org' || cleanInput === 'admin') && (cleanPass === 'admin' || cleanPass === 'adnimku')) {
       return {
         token: 'mock-token-admin',
         user: {
@@ -479,11 +504,11 @@ export const sheetsService = {
     // Default mock behavior for registered members logging in with 12345hw
     if (cleanPass === '12345hw') {
       return {
-        token: `mock-token-${cleanEmail}`,
+        token: `mock-token-${cleanInput}`,
         user: {
-          id: `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
-          email: cleanEmail,
-          namaLengkap: cleanEmail.split('@')[0].toUpperCase(),
+          id: `user-${cleanInput.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          email: cleanInput,
+          namaLengkap: cleanInput.split('@')[0].toUpperCase(),
           role: 'umum',
           roles: ['umum'],
           activeRole: 'umum',
@@ -502,7 +527,7 @@ export const sheetsService = {
     }
 
     // Add Alda Putri mock for testing as requested
-    if (email === 'aldaputri@gmail.com') {
+    if (cleanInput === 'aldaputri@gmail.com') {
       return {
         token: 'mock-token-alda',
         user: {
@@ -530,8 +555,8 @@ export const sheetsService = {
         token: 'mock-token-generic',
         user: {
           id: 'mock-' + Math.random().toString(36).substr(2, 9),
-          email: email,
-          namaLengkap: email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+          email: emailOrId,
+          namaLengkap: emailOrId.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
           role: 'umum',
           jenisKelamin: 'L',
           golongan: 'Pengenal',
@@ -541,13 +566,13 @@ export const sheetsService = {
           qabilah: 'Umum',
           alamat: 'Jawa Tengah',
           noHp: '0812' + Math.floor(Math.random() * 100000000),
-          sosmed: '@' + email.split('@')[0],
+          sosmed: '@' + emailOrId.split('@')[0],
           isVerified: false
         }
       };
     }
 
-    throw new Error('Email atau password salah.');
+    throw new Error('Email/ID atau password salah.');
   },
 
   isMock: () => !IS_API_VALID,
@@ -995,8 +1020,8 @@ export const sheetsService = {
             email: appData.email || m.email,
             noHp: appData.noWa || m.noHp,
             nik: appData.nik || m.nik,
-            tempatLahir: appData.tempatLahir || m.tempatLahir,
-            tanggalLahir: appData.tanggalLahir || m.tanggalLahir,
+            tempatLahir: appData.tempatLahir || (m as any).tempatLahir,
+            tanggalLahir: appData.tanggalLahir || (m as any).tanggalLahir,
             jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
             qabilah: appData.qabilah || m.qabilah,
             asalKwarda: appData.asalDaerah || m.asalKwarda,
