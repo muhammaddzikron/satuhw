@@ -343,7 +343,10 @@ export default function ProfilePage() {
               ...(formData.namaLengkap ? { nama: formData.namaLengkap } : {}),
               ...(formData.noHp ? { noWa: formData.noHp } : {}),
               ...(formData.asalKwarda ? { asalDaerah: formData.asalKwarda } : {}),
-              ...(formData.qabilah ? { qabilah: formData.qabilah } : {})
+              ...(formData.qabilah ? { qabilah: formData.qabilah } : {}),
+              ...(formData.alamat ? { alamat: formData.alamat } : {}),
+              ...(formData.tempatLahir ? { tempatLahir: formData.tempatLahir } : {}),
+              ...(formData.tanggalLahir ? { tanggalLahir: formData.tanggalLahir } : {})
             };
             await sheetsService.saveKTAApplication(updatedApp);
             await firestoreService.createKTAApplication(updatedApp);

@@ -1104,6 +1104,10 @@ export const firestoreService = {
           if (member.noHp) k.noWa = member.noHp;
           if (member.asalKwarda) k.asalDaerah = member.asalKwarda;
           if (member.qabilah) k.qabilah = member.qabilah;
+          if (member.alamat) k.alamat = member.alamat;
+          if (member.tempatLahir) k.tempatLahir = member.tempatLahir;
+          if (member.tanggalLahir) k.tanggalLahir = member.tanggalLahir;
+          if (member.jenisKelamin) k.jenisKelamin = member.jenisKelamin;
         }
       });
       localStorage.setItem('kta_applications', JSON.stringify(localKtas));
@@ -1120,6 +1124,10 @@ export const firestoreService = {
             if (member.noHp) ktaSync.noWa = member.noHp;
             if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
             if (member.qabilah) ktaSync.qabilah = member.qabilah;
+            if (member.alamat) ktaSync.alamat = member.alamat;
+            if (member.tempatLahir) ktaSync.tempatLahir = member.tempatLahir;
+            if (member.tanggalLahir) ktaSync.tanggalLahir = member.tanggalLahir;
+            if (member.jenisKelamin) ktaSync.jenisKelamin = member.jenisKelamin;
             if (Object.keys(ktaSync).length > 0) {
               setDoc(doc(db, 'kta_applications', k.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
             }
@@ -1166,6 +1174,10 @@ export const firestoreService = {
         if (updates.noHp) ktaSync.noWa = updates.noHp;
         if (updates.asalKwarda) ktaSync.asalDaerah = updates.asalKwarda;
         if (updates.qabilah) ktaSync.qabilah = updates.qabilah;
+        if (updates.alamat) ktaSync.alamat = updates.alamat;
+        if (updates.tempatLahir) ktaSync.tempatLahir = updates.tempatLahir;
+        if (updates.tanggalLahir) ktaSync.tanggalLahir = updates.tanggalLahir;
+        if (updates.jenisKelamin) ktaSync.jenisKelamin = updates.jenisKelamin;
         if (Object.keys(ktaSync).length > 0 && !this.getIsQuotaExceeded()) {
           await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
         }

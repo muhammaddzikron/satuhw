@@ -375,6 +375,8 @@ export const sheetsService = {
       asalKwarda: data.asalKwarda || data.asalkwarda || data.kwarda || data.asalDaerah || '',
       qabilah: data.qabilah || '',
       alamat: data.alamat || '',
+      tempatLahir: data.tempatLahir || data.tempatlahir || data.tempat_lahir || '',
+      tanggalLahir: data.tanggalLahir || data.tanggallahir || data.tanggal_lahir || '',
       noHp: data.noHp || data.nohp || data.noWa || data.phone || '',
       sosmed: data.sosmed || '',
       role: 'umum' as UserRole,
@@ -787,6 +789,8 @@ export const sheetsService = {
               if (!sm.ktaNumber && match.ktaNumber) sm.ktaNumber = match.ktaNumber;
               if (!sm.noHp && match.noHp) sm.noHp = match.noHp;
               if (!sm.alamat && match.alamat) sm.alamat = match.alamat;
+              if (!sm.tempatLahir && match.tempatLahir) sm.tempatLahir = match.tempatLahir;
+              if (!sm.tanggalLahir && match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
               if (!sm.asalKwarda && match.asalKwarda) sm.asalKwarda = match.asalKwarda;
               if (!sm.qabilah && match.qabilah) sm.qabilah = match.qabilah;
               if (!sm.sosmed && match.sosmed) sm.sosmed = match.sosmed;
@@ -808,6 +812,9 @@ export const sheetsService = {
                 if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
                 if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
                 if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
+                if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
+                if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
+                if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
               }
             }
           });
