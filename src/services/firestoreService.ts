@@ -851,7 +851,7 @@ export const firestoreService = {
           const item = k as any;
           const name = (item.nama || item.namaLengkap || '').trim();
           const email = (item.email || '').trim();
-          const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || (!email && name === 'Anggota HW');
+          const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || name === 'KTA-HW.JT.XXXX' || name.toLowerCase() === 'undefined' || name.toLowerCase() === 'null' || (!email && name === 'Anggota HW');
           if (isInvalid) {
             deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
           } else {
@@ -896,7 +896,11 @@ export const firestoreService = {
     const stored = localStorage.getItem('kta_applications') || '[]';
     try {
       const parsed = JSON.parse(stored);
-      return parsed.filter((k: any) => k && k.nama && k.nama !== 'Tanpa Nama' && k.nama !== '-');
+      return parsed.filter((k: any) => {
+        if (!k) return false;
+        const name = (k.nama || k.namaLengkap || '').trim();
+        return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
+      });
     } catch (e) {
       return [];
     }
@@ -1522,10 +1526,13 @@ export const firestoreService = {
       tanggalDaftar: new Date().toISOString()
     });
 
-    try {
-      await setDoc(doc(db, 'activity_applications', regId), cleanReg);
-    } catch (err) {
-      console.error('Firestore registerActivity error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'activity_applications', regId), cleanReg);
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore registerActivity error:', err);
+      }
     }
 
     const regList = await this.getActivityApplications();
@@ -1565,43 +1572,60 @@ export const firestoreService = {
     try {
       let deletedCount = 0;
       let ktas: any[] = [];
-      try {
-        const snap = await getDocs(collection(db, 'kta_applications'));
-        if (!snap.empty) {
-          ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await getDocs(collection(db, 'kta_applications'));
+          if (!snap.empty) {
+            ktas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          }
+        } catch (e) {
+          this.checkQuotaError(e);
         }
+      }
+
+      let localKtas: any[] = [];
+      try {
+        const stored = localStorage.getItem('kta_applications') || '[]';
+        localKtas = JSON.parse(stored);
       } catch (e) {}
 
-      if (ktas.length === 0) {
-        const stored = localStorage.getItem('kta_applications') || '[]';
-        try { ktas = JSON.parse(stored); } catch (e) {}
-      }
+      // Combine items from both Firestore and LocalStorage to make sure no invalid record escapes
+      const allKtasMap = new Map<string, any>();
+      localKtas.forEach(k => { if (k && k.id) allKtasMap.set(String(k.id), k); });
+      ktas.forEach(k => { if (k && k.id) allKtasMap.set(String(k.id), k); });
 
       const pendingIds: string[] = [];
       const remainingKtas: any[] = [];
 
-      ktas.forEach(k => {
+      allKtasMap.forEach((k, id) => {
         if (!k) return;
         const status = (k.status || '').toString().trim().toLowerCase();
-        if (status === 'pending' || !status) {
-          if (k.id) pendingIds.push(String(k.id));
+        const name = (k.nama || k.namaLengkap || '').toString().trim();
+        const isInvalidName = !name || name === 'Tanpa Nama' || name === '-' || name === 'KTA-HW.JT.XXXX' || name.toLowerCase() === 'undefined' || name.toLowerCase() === 'null';
+
+        if (status === 'pending' || !status || isInvalidName) {
+          if (id) pendingIds.push(id);
           deletedCount++;
         } else {
           remainingKtas.push(k);
         }
       });
 
-      if (pendingIds.length > 0) {
+      if (pendingIds.length > 0 && !this.getIsQuotaExceeded()) {
         const batch = writeBatch(db);
         pendingIds.forEach(id => {
           batch.delete(doc(db, 'kta_applications', id));
         });
-        await batch.commit().catch(err => console.warn('Error deleting pending KTAs batch:', err));
+        await batch.commit().catch(err => {
+          this.checkQuotaError(err);
+          console.warn('Error deleting pending KTAs batch:', err);
+        });
       }
 
       localStorage.setItem('kta_applications', JSON.stringify(remainingKtas));
       return { success: true, deletedCount };
     } catch (err: any) {
+      this.checkQuotaError(err);
       console.error('deletePendingKtaApplications error:', err);
       return { success: false, deletedCount: 0 };
     }
@@ -1620,13 +1644,16 @@ export const firestoreService = {
       let members: User[] = [];
       let ktas: any[] = [];
 
-      try {
-        const memberSnap = await getDocs(collection(db, 'members'));
-        if (!memberSnap.empty) {
-          members = memberSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const memberSnap = await getDocs(collection(db, 'members'));
+          if (!memberSnap.empty) {
+            members = memberSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+          }
+        } catch (e) {
+          this.checkQuotaError(e);
+          console.warn('Sync: Failed to fetch members from Firestore:', e);
         }
-      } catch (e) {
-        console.warn('Sync: Failed to fetch members from Firestore:', e);
       }
 
       if (members.length === 0) {
@@ -1634,13 +1661,16 @@ export const firestoreService = {
         try { members = JSON.parse(storedMembers); } catch (e) {}
       }
 
-      try {
-        const ktaSnap = await getDocs(collection(db, 'kta_applications'));
-        if (!ktaSnap.empty) {
-          ktas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+          if (!ktaSnap.empty) {
+            ktas = ktaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          }
+        } catch (e) {
+          this.checkQuotaError(e);
+          console.warn('Sync: Failed to fetch ktas from Firestore:', e);
         }
-      } catch (e) {
-        console.warn('Sync: Failed to fetch ktas from Firestore:', e);
       }
 
       if (ktas.length === 0) {
@@ -1809,8 +1839,16 @@ export const firestoreService = {
         }
       }
 
-      await memberBatch.commit().catch(e => console.warn('Member batch commit warn:', e));
-      await ktaBatch.commit().catch(e => console.warn('KTA batch commit warn:', e));
+      if (!this.getIsQuotaExceeded()) {
+        await memberBatch.commit().catch(e => {
+          this.checkQuotaError(e);
+          console.warn('Member batch commit warn:', e);
+        });
+        await ktaBatch.commit().catch(e => {
+          this.checkQuotaError(e);
+          console.warn('KTA batch commit warn:', e);
+        });
+      }
 
       const cleanMembers = newMembers.filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
       localStorage.setItem('mock_members', JSON.stringify(cleanMembers));
@@ -1838,6 +1876,13 @@ export const firestoreService = {
    * Complete Backup & Upload of ALL local data to Firestore
    */
   async backupAndUploadAllToFirestore(): Promise<{ success: boolean; message: string; details: any }> {
+    if (this.getIsQuotaExceeded()) {
+      return {
+        success: false,
+        message: 'Aplikasi berjalan dalam mode cache lokal (kuota harian Firestore telah habis). Data Anda tetap tersimpan aman di browser/perangkat lokal.',
+        details: null
+      };
+    }
     try {
       const details = { members: 0, materi: 0, kta: 0, training: 0, contents: 0, settings: false };
 
@@ -1925,6 +1970,7 @@ export const firestoreService = {
         details
       };
     } catch (err: any) {
+      this.checkQuotaError(err);
       console.error('backupAndUploadAllToFirestore error:', err);
       return {
         success: false,

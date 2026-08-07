@@ -1379,9 +1379,15 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      if (cachedMembers) setMembers(safeJsonParse(cachedMembers, []));
-      if (cachedKtas) setKtaApps(safeJsonParse(cachedKtas, []));
-      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []));
+      const isValidName = (name?: string) => {
+        if (!name) return false;
+        const trimmed = name.trim().toLowerCase();
+        return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
+      };
+
+      if (cachedMembers) setMembers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama)));
+      if (cachedKtas) setKtaApps(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)));
+      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidName(t?.nama || t?.namaLengkap)));
       if (cachedMateri) setMateriList(safeJsonParse(cachedMateri, []));
       if (cachedContents) setContents(safeJsonParse(cachedContents, []));
       if (cachedActivities) setActivitiesList(safeJsonParse(cachedActivities, []));
@@ -3528,6 +3534,13 @@ export default function AdminDashboard() {
                                       className="px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
                                     >
                                       Tolak
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Data Tidak Valid')}
+                                      className="px-2.5 py-1.5 bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1"
+                                      title="Hapus paksa data ini dari sistem"
+                                    >
+                                      <Trash2 size={12} /> Hapus
                                     </button>
                                   </div>
                                 </td>
@@ -8697,12 +8710,25 @@ export default function AdminDashboard() {
                             setViewingKtaApp(null);
                             handleOpenRejectKTA(appId);
                           }}
-                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                         >
                           Tolak Pengajuan
                         </button>
                       </>
                     )}
+                    <button 
+                      onClick={async () => {
+                        const appId = viewingKtaApp.id;
+                        const appName = viewingKtaApp.nama || 'Data Tidak Valid';
+                        setIsViewKtaModalOpen(false);
+                        setViewingKtaApp(null);
+                        await handleDeleteKtaApp(appId, appName);
+                      }}
+                      className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                      title="Hapus paksa data ini dari sistem"
+                    >
+                      <Trash2 size={14} /> Hapus Paksa Data
+                    </button>
                   </div>
 
                   <button 
