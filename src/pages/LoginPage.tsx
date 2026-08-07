@@ -142,7 +142,14 @@ export default function LoginPage() {
     const cleanEmail = resetEmail.trim().toLowerCase();
     const cleanPhoneInput = resetPhone.replace(/[^0-9]/g, '');
 
-    if (!cleanEmail && !cleanPhoneInput) return;
+    if (!cleanEmail || !cleanPhoneInput) {
+      setForgotResult({
+        checked: true,
+        success: false,
+        message: 'Silakan isi Email dan Nomor HP/WhatsApp terdaftar secara lengkap.'
+      });
+      return;
+    }
 
     setIsCheckingForgot(true);
     setForgotResult(null);
@@ -150,7 +157,7 @@ export default function LoginPage() {
     try {
       const members = await sheetsService.getMembers();
       
-      let found = members.find((m: any) => {
+      const found = members.find((m: any) => {
         const mEmail = (m.email || '').trim().toLowerCase();
         const mId = String(m.id || '').trim().toLowerCase();
         const mPhone = String(m.noHp || m.noWa || m.telepon || m.nohp || '').replace(/[^0-9]/g, '');
@@ -172,26 +179,8 @@ export default function LoginPage() {
           }
         }
 
-        return cleanEmail && cleanPhoneInput ? (isEmailMatch && isPhoneMatch) : (isEmailMatch || isPhoneMatch);
+        return isEmailMatch && isPhoneMatch;
       });
-
-      if (!found && cleanEmail) {
-        found = members.find((m: any) => {
-          const mEmail = (m.email || '').trim().toLowerCase();
-          const mId = String(m.id || '').trim().toLowerCase();
-          return mEmail === cleanEmail || mId === cleanEmail;
-        });
-      }
-
-      if (!found && cleanPhoneInput) {
-        found = members.find((m: any) => {
-          const mPhone = String(m.noHp || m.noWa || m.telepon || m.nohp || '').replace(/[^0-9]/g, '');
-          if (!mPhone) return false;
-          const normM = mPhone.replace(/^62/, '0');
-          const normInput = cleanPhoneInput.replace(/^62/, '0');
-          return normM === normInput || (normM.length >= 8 && normInput.length >= 8 && normM.slice(-8) === normInput.slice(-8));
-        });
-      }
 
       if (found) {
         const roles = Array.isArray(found.roles) ? found.roles : (found.role ? [found.role] : ['umum']);
@@ -204,23 +193,21 @@ export default function LoginPage() {
         } else if (isAdmin || (found.email && found.email.toLowerCase() === 'admin@hw.org')) {
           detectedPassword = found.password || 'adnimku';
         } else {
-          if (!detectedPassword || detectedPassword === 'adnimku' || detectedPassword === 'admin') {
-            detectedPassword = '12345hw';
-          }
+          detectedPassword = (found.password && found.password !== 'adnimku' && found.password !== 'admin') ? found.password : '12345hw';
         }
 
         setForgotResult({
           checked: true,
           success: true,
           userName: found.namaLengkap || found.nama || 'Anggota HW',
-          password: detectedPassword,
+          password: detectedPassword || '12345hw',
           user: found
         });
       } else {
         setForgotResult({
           checked: true,
           success: false,
-          message: 'Data Email dan Nomor HP tidak cocok atau belum terdaftar dalam sistem.'
+          message: 'Email atau Nomor HP/WhatsApp tidak cocok atau belum terdaftar.'
         });
       }
     } catch (err) {
@@ -228,7 +215,7 @@ export default function LoginPage() {
       setForgotResult({
         checked: true,
         success: false,
-        message: 'Terjadi kesalahan saat memverifikasi data. Silakan hubungi Admin.'
+        message: 'Gagal memverifikasi data. Silakan hubungi Admin atau lakukan pendaftaran jika belum terdaftar.'
       });
     } finally {
       setIsCheckingForgot(false);
@@ -526,21 +513,40 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-amber-950">Data Tidak Cocok / Belum Terdaftar</h3>
-                      <p className="text-xs text-amber-800">Email dan Nomor HP tidak cocok dengan data anggota.</p>
+                      <p className="text-xs text-amber-800">Email dan Nomor HP/WhatsApp tidak terdeteksi cocok.</p>
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-700 leading-relaxed bg-white p-3.5 rounded-2xl border border-amber-200/80">
-                    {forgotResult.message || 'Silakan periksa kembali email dan nomor HP terdaftar Anda, atau hubungi Admin jika mengalami kendala.'}
+                  <p className="text-xs text-gray-700 leading-relaxed bg-white p-3.5 rounded-2xl border border-amber-200/80 font-medium">
+                    {forgotResult.message || 'Silakan hubungi Admin atau lakukan pendaftaran jika belum terdaftar.'}
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={() => setForgotResult(null)}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow-sm transition-all text-xs cursor-pointer"
-                  >
-                    Coba Lagi
-                  </button>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <Link
+                      to="/register"
+                      onClick={() => {
+                        setShowForgotModal(false);
+                        setForgotResult(null);
+                      }}
+                      className="w-full bg-hw-green hover:bg-hw-green/90 text-white font-bold py-3 rounded-2xl shadow-sm transition-all text-xs text-center flex items-center justify-center gap-2"
+                    >
+                      <UserPlus size={16} /> Daftar Akun Baru
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleOpenWhatsAppAdmin}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+                    >
+                      <MessageCircle size={16} /> Hubungi Admin via WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForgotResult(null)}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-2xl transition-all text-xs cursor-pointer"
+                    >
+                      Coba Lagi
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>
