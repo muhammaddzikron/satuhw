@@ -1546,21 +1546,15 @@ export const firestoreService = {
       if (!snap.empty) {
         const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
         if (list.length > 0) {
-          localStorage.setItem('hw_activity_categories', JSON.stringify(list));
           return list;
         }
       }
       for (const cat of defaults) {
         const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-        setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }).catch(() => {});
+        setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }, { merge: true }).catch(() => {});
       }
-      localStorage.setItem('hw_activity_categories', JSON.stringify(defaults));
       return defaults;
     } catch (e) {
-      const stored = localStorage.getItem('hw_activity_categories');
-      if (stored) {
-        try { return JSON.parse(stored); } catch (err) {}
-      }
       return defaults;
     }
   },
@@ -1593,26 +1587,17 @@ export const firestoreService = {
 
   subscribeToActivityCategories(callback: (categories: string[]) => void): () => void {
     const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
-    
-    const cached = localStorage.getItem('hw_activity_categories');
-    if (cached) {
-      try { callback(JSON.parse(cached)); } catch (e) {}
-    } else {
-      callback(defaults);
-    }
 
     try {
       const unsub = onSnapshot(collection(db, 'hw_activity_categories'), (snap) => {
         if (!snap.empty) {
           const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
-          localStorage.setItem('hw_activity_categories', JSON.stringify(list));
           callback(list);
         } else {
           defaults.forEach(cat => {
             const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-            setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }).catch(() => {});
+            setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }, { merge: true }).catch(() => {});
           });
-          localStorage.setItem('hw_activity_categories', JSON.stringify(defaults));
           callback(defaults);
         }
       }, (err) => {
@@ -1629,56 +1614,66 @@ export const firestoreService = {
       {
         id: 'keg-silaturahmi-pelatih',
         namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
         kategori: 'Silaturahmi',
+        category: 'Silaturahmi',
         tanggal: '29-30 Agustus 2026',
+        startDate: '2026-08-29',
+        endDate: '2026-08-30',
         lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
+        location: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
         biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
         kuota: '400 Orang',
         deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
+        description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         createdBy: 'muhammaddzikron@gmail.com',
-        creatorName: 'Muhammad Dzikron'
+        creatorName: 'Muhammad Dzikron',
+        isPublished: true,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z'
       }
     ];
 
-    const cached = localStorage.getItem('hw_activities');
-    if (cached) {
-      try { callback(JSON.parse(cached)); } catch (e) {}
-    } else {
-      callback(defaults);
-    }
-
     try {
       const unsub = onSnapshot(collection(db, 'hw_activities'), (snap) => {
-        let list: any[] = [];
         if (!snap.empty) {
-          list = snap.docs.map(d => {
+          const list = snap.docs.map(d => {
             const data = d.data();
-            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
-              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
-              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
-            }
-            return { id: d.id, ...data };
+            return {
+              id: d.id,
+              ...data,
+              namaKegiatan: data.namaKegiatan || data.title || '',
+              title: data.title || data.namaKegiatan || '',
+              deskripsi: data.deskripsi || data.description || '',
+              description: data.description || data.deskripsi || '',
+              lokasi: data.lokasi || data.location || '',
+              location: data.location || data.lokasi || '',
+              tanggal: data.tanggal || data.startDate || '',
+              startDate: data.startDate || data.tanggal || '',
+              gambarUrl: data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              imageUrl: data.imageUrl || data.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              kategori: data.kategori || data.category || 'Silaturahmi',
+              category: data.category || data.kategori || 'Silaturahmi',
+              status: data.status || 'Buka'
+            };
           });
+          callback(list);
+        } else {
+          defaults.forEach(def => {
+            setDoc(doc(db, 'hw_activities', def.id), cleanData(def), { merge: true }).catch(() => {});
+          });
+          callback(defaults);
         }
-
-        defaults.forEach(def => {
-          const exists = list.some(a => a.id === def.id || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === def.namaKegiatan.toLowerCase().trim()));
-          if (!exists) {
-            list.unshift(def);
-            setDoc(doc(db, 'hw_activities', def.id), cleanData(def)).catch(() => {});
-          }
-        });
-
-        localStorage.setItem('hw_activities', JSON.stringify(list));
-        callback(list);
       }, (err) => {
         console.warn('subscribeToActivities warning:', err);
       });
       return unsub;
     } catch (e) {
+      console.error('subscribeToActivities error:', e);
       return () => {};
     }
   },
@@ -1731,29 +1726,17 @@ export const firestoreService = {
       }
     ];
 
-    const cached = localStorage.getItem('activity_applications');
-    if (cached) {
-      try { callback(JSON.parse(cached)); } catch (e) {}
-    } else {
-      callback(defaultApps);
-    }
-
     try {
       const unsub = onSnapshot(collection(db, 'activity_applications'), (snap) => {
         let list: any[] = [];
         if (!snap.empty) {
           list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } else {
+          defaultApps.forEach(def => {
+            setDoc(doc(db, 'activity_applications', def.id), cleanData(def), { merge: true }).catch(() => {});
+          });
+          list = [...defaultApps];
         }
-
-        defaultApps.forEach(def => {
-          const exists = list.some((p: any) => 
-            p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
-          );
-          if (!exists) {
-            list.push(def);
-            setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
-          }
-        });
 
         list = list.map((a: any) => {
           if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
@@ -1766,7 +1749,6 @@ export const firestoreService = {
           return a;
         });
 
-        localStorage.setItem('activity_applications', JSON.stringify(list));
         callback(list);
       }, (err) => {
         console.warn('subscribeToActivityApplications warning:', err);
@@ -1783,135 +1765,118 @@ export const firestoreService = {
       {
         id: 'keg-silaturahmi-pelatih',
         namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
         kategori: 'Silaturahmi',
+        category: 'Silaturahmi',
         tanggal: '29-30 Agustus 2026',
+        startDate: '2026-08-29',
+        endDate: '2026-08-30',
         lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
+        location: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
         biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
         kuota: '400 Orang',
         deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
+        description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         createdBy: 'muhammaddzikron@gmail.com',
-        creatorName: 'Muhammad Dzikron'
+        creatorName: 'Muhammad Dzikron',
+        isPublished: true,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z'
       }
     ];
 
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await getDocs(collection(db, 'hw_activities'));
-        let list: any[] = [];
-        if (!snap.empty) {
-          list = snap.docs.map(d => {
-            const data = d.data();
-            if (d.id === 'keg-silaturahmi-pelatih' || (data.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih')) {
-              if (data.tanggal === '25 - 27 Agustus 2026' || !data.tanggal) data.tanggal = '29-30 Agustus 2026';
-              if (data.kuota === '150 Peserta' || !data.kuota) data.kuota = '400 Orang';
-            }
-            return { id: d.id, ...data };
-          });
-        }
-
-        // Ensure defaults are seeded to Firestore
-        for (const def of defaults) {
-          const exists = list.some(a => a.id === def.id || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === def.namaKegiatan.toLowerCase().trim()));
-          if (!exists) {
-            list.unshift(def);
-            setDoc(doc(db, 'hw_activities', def.id), cleanData(def)).catch(() => {});
-          }
-        }
-
-        // Also merge activities from settings into hw_activities if missing
-        try {
-          const setSnap = await getDoc(doc(db, 'settings', 'app_settings'));
-          if (setSnap.exists()) {
-            const sData = setSnap.data();
-            const trainActs = Array.isArray(sData.trainingActivities) ? sData.trainingActivities : [];
-            trainActs.forEach((ta: any) => {
-              if (ta && ta.namaKegiatan) {
-                const actId = ta.id || `act-${Date.now()}`;
-                const exists = list.some(a => a.id === actId || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === ta.namaKegiatan.toLowerCase().trim()));
-                if (!exists) {
-                  const mapped = cleanData({
-                    id: actId,
-                    namaKegiatan: ta.namaKegiatan,
-                    kategori: ta.jenisPelatihan || 'Pelatihan',
-                    jenisPelatihan: ta.jenisPelatihan,
-                    tanggal: ta.tanggalPelatihan || ta.tanggal || '',
-                    lokasi: ta.lokasiPelatihan || ta.lokasi || '',
-                    status: ta.status || 'Buka',
-                    deskripsi: ta.deskripsi || '',
-                    kuota: '100 Peserta',
-                    penyelenggara: 'Kwarwil HW Jateng'
-                  });
-                  list.push(mapped);
-                  setDoc(doc(db, 'hw_activities', actId), mapped).catch(() => {});
-                }
-              }
-            });
-          }
-        } catch (e) {}
-
-        localStorage.setItem('hw_activities', JSON.stringify(list));
-        return list;
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivities error:', err);
+    try {
+      const snap = await getDocs(collection(db, 'hw_activities'));
+      if (!snap.empty) {
+        return snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            namaKegiatan: data.namaKegiatan || data.title || '',
+            title: data.title || data.namaKegiatan || '',
+            deskripsi: data.deskripsi || data.description || '',
+            description: data.description || data.deskripsi || '',
+            lokasi: data.lokasi || data.location || '',
+            location: data.location || data.lokasi || '',
+            tanggal: data.tanggal || data.startDate || '',
+            startDate: data.startDate || data.tanggal || '',
+            gambarUrl: data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+            imageUrl: data.imageUrl || data.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+            kategori: data.kategori || data.category || 'Silaturahmi',
+            category: data.category || data.kategori || 'Silaturahmi',
+            status: data.status || 'Buka'
+          };
+        });
       }
-    }
 
-    const stored = localStorage.getItem('hw_activities');
-    if (stored) {
-      try {
-        let parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          parsed = parsed.filter((a: any) => a.id !== 'keg-1' && a.id !== 'keg-2' && a.id !== 'keg-3');
-          const pelatihIdx = parsed.findIndex((a: any) => (a.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih') || a.id === 'keg-silaturahmi-pelatih');
-          if (pelatihIdx >= 0) {
-            const existing = parsed[pelatihIdx];
-            if (existing.tanggal === '25 - 27 Agustus 2026') existing.tanggal = '29-30 Agustus 2026';
-            if (existing.kuota === '150 Peserta') existing.kuota = '400 Orang';
-            parsed[pelatihIdx] = { ...defaults[0], ...existing };
-          } else {
-            parsed.unshift(defaults[0]);
-          }
-          localStorage.setItem('hw_activities', JSON.stringify(parsed));
-          return parsed;
-        }
-      } catch (e) {}
+      for (const def of defaults) {
+        await setDoc(doc(db, 'hw_activities', def.id), cleanData(def), { merge: true }).catch(() => {});
+      }
+      return defaults;
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore getActivities error:', err);
+      return defaults;
     }
-
-    localStorage.setItem('hw_activities', JSON.stringify(defaults));
-    return defaults;
   },
 
   async saveActivity(activityData: any): Promise<any> {
+    const actId = activityData.id || `keg-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const titleVal = activityData.namaKegiatan || activityData.title || '';
+    const descVal = activityData.deskripsi || activityData.description || '';
+    const locVal = activityData.lokasi || activityData.location || '';
+    const dateVal = activityData.tanggal || activityData.startDate || '';
+    const imgVal = activityData.gambarUrl || activityData.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const catVal = activityData.kategori || activityData.category || 'Silaturahmi';
+
     const newAct = cleanData({
       ...activityData,
-      id: activityData.id || `keg-${Date.now()}`
+      id: actId,
+      namaKegiatan: titleVal,
+      title: titleVal,
+      deskripsi: descVal,
+      description: descVal,
+      lokasi: locVal,
+      location: locVal,
+      tanggal: dateVal,
+      startDate: dateVal,
+      endDate: activityData.endDate || '',
+      startTime: activityData.startTime || activityData.jamMulai || '',
+      endTime: activityData.endTime || activityData.jamSelesai || '',
+      biaya: activityData.biaya || 'Gratis',
+      kuota: activityData.kuota || 'Terbuka',
+      gambarUrl: imgVal,
+      imageUrl: imgVal,
+      kategori: catVal,
+      category: catVal,
+      status: activityData.status || 'Buka',
+      penyelenggara: activityData.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
+      createdBy: activityData.createdBy || '',
+      creatorName: activityData.creatorName || '',
+      isPublished: activityData.isPublished !== undefined ? activityData.isPublished : true,
+      createdAt: activityData.createdAt || nowIso,
+      updatedAt: nowIso
     });
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'hw_activities', newAct.id), newAct, { merge: true });
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore saveActivity error:', err);
-      }
-    }
-    const list = await this.getActivities();
-    const idx = list.findIndex(a => a.id === newAct.id);
-    if (idx >= 0) {
-      list[idx] = { ...list[idx], ...newAct };
-    } else {
-      list.unshift(newAct);
-    }
-    localStorage.setItem('hw_activities', JSON.stringify(list));
 
-    // Also update trainingActivities inside app_settings in Cloud Firestore
+    try {
+      await setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true });
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore saveActivity error:', err);
+      throw new Error('Gagal menyimpan ke Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
+    }
+
+    // Sync trainingActivities inside app_settings if applicable
     try {
       const currentSettings = await this.getSettings();
       const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
-      const actIdx = currentActs.findIndex((a: any) => a.id === newAct.id);
+      const actIdx = currentActs.findIndex((a: any) => a.id === actId);
       if (actIdx >= 0) {
         currentActs[actIdx] = { ...currentActs[actIdx], ...newAct };
       } else {
@@ -1924,17 +1889,13 @@ export const firestoreService = {
   },
 
   async deleteActivity(id: string): Promise<boolean> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await deleteDoc(doc(db, 'hw_activities', id));
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteActivity error:', err);
-      }
+    try {
+      await deleteDoc(doc(db, 'hw_activities', id));
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore deleteActivity error:', err);
+      throw new Error('Gagal menghapus kegiatan dari Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
     }
-    const list = await this.getActivities();
-    const filtered = list.filter(a => a.id !== id);
-    localStorage.setItem('hw_activities', JSON.stringify(filtered));
 
     try {
       const currentSettings = await this.getSettings();
@@ -1994,85 +1955,41 @@ export const firestoreService = {
       }
     ];
 
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await getDocs(collection(db, 'activity_applications'));
-        let list: any[] = [];
-        if (!snap.empty) {
-          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        }
-
-        // 1. Merge default seed entries if missing and seed them to Firestore
-        for (const def of defaultApps) {
-          const exists = list.some((p: any) => 
-            p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
-          );
-          if (!exists) {
-            list.push(def);
-            setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
-          }
-        }
-
-        // 2. Sync any offline/unsynced local storage items to Firestore
-        const stored = localStorage.getItem('activity_applications');
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              for (const localItem of parsed) {
-                if (localItem && localItem.id) {
-                  const inList = list.some((p: any) => p.id === localItem.id);
-                  if (!inList) {
-                    list.unshift(localItem);
-                    setDoc(doc(db, 'activity_applications', localItem.id), cleanData(localItem)).catch(() => {});
-                  }
-                }
-              }
-            }
-          } catch (e) {}
-        }
-
-        // Normalize activityIds
-        list = list.map((a: any) => {
-          if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
-            return {
-              ...a,
-              activityId: 'keg-silaturahmi-pelatih',
-              namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
-            };
-          }
-          return a;
-        });
-
-        localStorage.setItem('activity_applications', JSON.stringify(list));
-        return list;
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getActivityApplications error:', err);
+    try {
+      const snap = await getDocs(collection(db, 'activity_applications'));
+      let list: any[] = [];
+      if (!snap.empty) {
+        list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       }
-    }
 
-    // Fallback if Firestore fails/quota exceeded
-    const stored = localStorage.getItem('activity_applications');
-    if (stored) {
-      try {
-        let parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          for (const def of defaultApps) {
-            const exists = parsed.some((p: any) => 
-              p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
-            );
-            if (!exists) {
-              parsed.push(def);
-            }
-          }
-          return parsed;
+      for (const def of defaultApps) {
+        const exists = list.some((p: any) => 
+          p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
+        );
+        if (!exists) {
+          list.push(def);
+          setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
         }
-      } catch (e) {}
-    }
+      }
 
-    localStorage.setItem('activity_applications', JSON.stringify(defaultApps));
-    return defaultApps;
+      // Normalize activityIds
+      list = list.map((a: any) => {
+        if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
+          return {
+            ...a,
+            activityId: 'keg-silaturahmi-pelatih',
+            namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+          };
+        }
+        return a;
+      });
+
+      return list;
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore getActivityApplications error:', err);
+      return defaultApps;
+    }
   },
 
   async registerActivity(appData: any): Promise<any> {
@@ -2084,23 +2001,13 @@ export const firestoreService = {
       tanggalDaftar: appData.tanggalDaftar || new Date().toISOString()
     });
 
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore registerActivity error:', err);
-      }
+    try {
+      await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore registerActivity error:', err);
+      throw new Error('Gagal mendaftar kegiatan di Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
     }
-
-    let regList = await this.getActivityApplications();
-    const existingIndex = regList.findIndex((a: any) => a.id === cleanReg.id);
-    if (existingIndex >= 0) {
-      regList[existingIndex] = { ...regList[existingIndex], ...cleanReg };
-    } else {
-      regList.unshift(cleanReg);
-    }
-    localStorage.setItem('activity_applications', JSON.stringify(regList));
 
     // Automatically create/ensure KTA Application & Member Profile for participant
     try {
@@ -2129,17 +2036,13 @@ export const firestoreService = {
   },
 
   async deleteActivityApplication(id: string): Promise<boolean> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await deleteDoc(doc(db, 'activity_applications', id));
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteActivityApplication error:', err);
-      }
+    try {
+      await deleteDoc(doc(db, 'activity_applications', id));
+    } catch (err: any) {
+      this.checkQuotaError(err);
+      console.error('Firestore deleteActivityApplication error:', err);
+      throw new Error('Gagal menghapus pendaftaran dari Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
     }
-    const list = await this.getActivityApplications();
-    const filtered = list.filter((a: any) => a.id !== id);
-    localStorage.setItem('activity_applications', JSON.stringify(filtered));
     return true;
   },
 
