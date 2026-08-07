@@ -147,10 +147,6 @@ export default function RegisterPage() {
         return false;
       }
     } else if (currentStep === 2) {
-      if (!formData.nik || formData.nik.length !== 16) {
-        setValidationError('NIK harus terdiri dari 16 digit angka');
-        return false;
-      }
       if (!formData.tempatLahir.trim()) {
         setValidationError('Tempat lahir wajib diisi');
         return false;
@@ -190,16 +186,15 @@ export default function RegisterPage() {
     setIsLoading(true);
     setValidationError('');
     try {
-      // 1. Check for duplicates (NIK, Email)
+      // 1. Check for duplicates (Email)
       const apps = await sheetsService.getKTAApplications();
       const isDup = apps.some((app: any) => {
         const appEmail = (app.email || '').trim().toLowerCase();
-        const appNik = (app.nik || '').trim();
-        return appEmail === formData.email.trim().toLowerCase() || appNik === formData.nik.trim();
+        return appEmail === formData.email.trim().toLowerCase();
       });
 
       if (isDup) {
-        throw new Error('NIK atau Email ini sudah terdaftar dalam sistem pengajuan KTA.');
+        throw new Error('Email ini sudah terdaftar dalam sistem pengajuan KTA.');
       }
 
       // 2. Register user account (isVerified = false)
@@ -217,7 +212,7 @@ export default function RegisterPage() {
         password: formData.password || '12345hw',
         photo: formData.photo,
         pelatihan: formData.pelatihan,
-        nik: formData.nik
+        nik: formData.nik || ''
       };
       await sheetsService.register(userPayload);
 
@@ -233,7 +228,7 @@ export default function RegisterPage() {
         email: formData.email,
         sosmed: formData.sosmed,
         photo: formData.photo,
-        nik: formData.nik,
+        nik: formData.nik || '',
         tempatLahir: formData.tempatLahir,
         tanggalLahir: formData.tanggalLahir,
         jenisKelamin: formData.jenisKelamin,
@@ -251,7 +246,7 @@ export default function RegisterPage() {
 
   if (isSuccess) {
     const paymentAmount = formData.jenisKta === 'Fisik' ? 'Rp 50.000,-' : 'Rp 10.000,-';
-    const waText = `Assalamu'alaikum Medkom HW Jateng, saya baru saja mendaftar akun aplikasi HW Jateng dan mengajukan KTA.\n\nNama: ${formData.namaLengkap}\nNIK: ${formData.nik}\nJenis KTA: ${formData.jenisKta}\nKabupaten/Kota: ${formData.asalKwarda}\nEmail: ${formData.email}\n\nMohon diverifikasi pembayaran aktivasi KTA saya. Terima kasih.`;
+    const waText = `Assalamu'alaikum Medkom HW Jateng, saya baru saja mendaftar akun aplikasi HW Jateng dan mengajukan KTA.\n\nNama: ${formData.namaLengkap}\nJenis KTA: ${formData.jenisKta}\nKabupaten/Kota: ${formData.asalKwarda}\nEmail: ${formData.email}\n\nMohon diverifikasi pembayaran aktivasi KTA saya. Terima kasih.`;
     
     return (
       <motion.div 
@@ -530,19 +525,6 @@ export default function RegisterPage() {
                       <p className="text-[8.5px] text-gray-400 leading-normal">Format JPG/PNG, Berbackground Putih, Dianjurkan Berseragam HW Lengkap, Maksimal File 2 MB (Rasio Portrait 3:4)</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">NIK / Nomor Induk Kependudukan (16 Digit)</label>
-                  <input 
-                    name="nik" 
-                    maxLength={16}
-                    value={formData.nik} 
-                    onChange={(e) => setFormData(prev => ({ ...prev, nik: e.target.value.replace(/\D/g, '') }))}
-                    placeholder="Masukkan 16 digit NIK sesuai KTP" 
-                    required 
-                    className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none font-mono" 
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

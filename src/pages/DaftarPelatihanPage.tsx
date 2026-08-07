@@ -486,7 +486,6 @@ export default function DaftarPelatihanPage() {
                   {formData.namaLengkap || user?.namaLengkap}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-600 font-medium pt-1">
-                  <p>NIK: <span className="font-mono text-gray-800 font-bold">{formData.nik || '-'}</span></p>
                   <p>Email: <span className="font-mono text-gray-800 font-bold">{formData.email || '-'}</span></p>
                   <p>WhatsApp: <span className="font-mono text-gray-800 font-bold">{formData.noHp || '-'}</span></p>
                   <p>Golongan: <span className="font-bold text-gray-800">{formData.golongan || '-'}</span></p>

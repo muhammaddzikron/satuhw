@@ -3774,7 +3774,6 @@ export default function AdminDashboard() {
                           <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                             <th className="p-4 pl-6">Foto</th>
                             <th className="p-4">Nama & Kontak</th>
-                            <th className="p-4">NIK</th>
                             <th className="p-4">Tingkatan & Jenis</th>
                             <th className="p-4">Asal Kwarda / Qabilah</th>
                             <th className="p-4">Status / No. KTA</th>
@@ -3822,9 +3821,6 @@ export default function AdminDashboard() {
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                   <div className="text-[10px] text-hw-green font-mono">{app.noWa}</div>
-                                </td>
-                                <td className="p-4 font-mono text-[11px] text-gray-600">
-                                  {app.nik || '-'}
                                 </td>
                                 <td className="p-4 space-y-1">
                                   <div>
@@ -4326,7 +4322,6 @@ export default function AdminDashboard() {
                                 <td className="p-4">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                  <div className="text-[10px] text-gray-500 mt-0.5">NIK: <span className="font-mono text-gray-700 font-bold">{app.nik || '-'}</span></div>
                                   <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{app.tempatLahir || '-'}, {app.tanggalLahir || '-'}</span></div>
                                   <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{app.jenisKelamin === 'L' ? 'Laki-Laki' : app.jenisKelamin === 'P' ? 'Perempuan' : '-'}</span></div>
                                   <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
@@ -4495,7 +4490,7 @@ export default function AdminDashboard() {
                                     </button>
                                     <button
                                       onClick={() => {
-                                        alert(`Detail Pendaftaran Pelatihan:\n\nNama Lengkap: ${app.nama}\nEmail: ${app.email}\nWhatsApp: ${app.noWa}\nNIK: ${app.nik || '-'}\nTempat, Tgl Lahir: ${app.tempatLahir || '-'}, ${app.tanggalLahir || '-'}\nJenis Kelamin: ${app.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}\nAsal Kabupaten: ${app.asalDaerah || '-'}\nQabilah: ${app.qabilah || '-'}\nGolongan: ${app.golonganAnggota || '-'}\nPelatih Golongan: ${app.pelatihGolongan || '-'}\nPelatihan Yang Diikuti: ${app.pelatihanAkanDiikuti}\nStatus: ${app.status.toUpperCase()}`);
+                                        alert(`Detail Pendaftaran Pelatihan:\n\nNama Lengkap: ${app.nama}\nEmail: ${app.email}\nWhatsApp: ${app.noWa}\nTempat, Tgl Lahir: ${app.tempatLahir || '-'}, ${app.tanggalLahir || '-'}\nJenis Kelamin: ${app.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}\nAsal Kabupaten: ${app.asalDaerah || '-'}\nQabilah: ${app.qabilah || '-'}\nGolongan: ${app.golonganAnggota || '-'}\nPelatih Golongan: ${app.pelatihGolongan || '-'}\nPelatihan Yang Diikuti: ${app.pelatihanAkanDiikuti}\nStatus: ${app.status.toUpperCase()}`);
                                       }}
                                       className="px-2 py-1 bg-gray-50 text-gray-550 border border-gray-150 rounded-lg font-black text-[9px] uppercase tracking-wider hover:bg-gray-100"
                                     >
@@ -5690,7 +5685,6 @@ export default function AdminDashboard() {
                               <div className="space-y-0.5">
                                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">#{index + 1} • {app.namaKegiatan || 'Kegiatan HW'}</span>
                                 <h4 className="text-sm font-black text-gray-900">{app.namaLengkap}</h4>
-                                {app.nik && <p className="text-[10px] text-gray-400 font-mono">NIK: {app.nik}</p>}
                               </div>
                               <span className="text-[10px] text-gray-400 font-mono shrink-0">
                                 {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
@@ -5769,7 +5763,6 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="p-4 font-bold text-gray-900">
                                   {app.namaLengkap}
-                                  {app.nik && <div className="text-[10px] text-gray-400 font-mono font-normal">NIK: {app.nik}</div>}
                                 </td>
                                 <td className="p-4 font-bold text-hw-green">
                                   {app.namaKegiatan || 'Kegiatan HW'}
@@ -6458,18 +6451,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
-                      <input 
-                        type="text" 
-                        maxLength={16}
-                        value={formData.nik}
-                        onChange={(e) => setFormData({...formData, nik: e.target.value.replace(/\D/g, '')})}
-                        placeholder="33xxxxxxxxxxxxxx"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
-                      />
-                    </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 sm:col-span-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA</label>
                       <input 
                         type="text" 
@@ -7496,7 +7478,7 @@ export default function AdminDashboard() {
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                         <input 
                           type="text" 
-                          placeholder="Ketik nama, email, atau NIK anggota..."
+                          placeholder="Ketik nama, email, atau WhatsApp anggota..."
                           value={addParticipantSearchQuery}
                           onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10" 
@@ -7523,7 +7505,7 @@ export default function AdminDashboard() {
                             <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={16} />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap}</p>
-                              <p className="text-[10px] text-emerald-700 truncate">{m.email} | NIK: {m.nik || '-'}</p>
+                              <p className="text-[10px] text-emerald-700 truncate">{m.email} | WA: {m.noHp || '-'}</p>
                               <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
                                 Kwarda: {m.asalKwarda || '-'} | Qabilah: {m.qabilah || '-'}
                               </p>
@@ -7932,17 +7914,6 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* NIK */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK</label>
-                      <input 
-                        type="text"
-                        value={editingTrainingApp.nik || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nik: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
                     {/* Tempat Lahir */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
@@ -8189,7 +8160,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <form onSubmit={handleSaveEditKTA} className="space-y-4 text-xs font-semibold text-gray-700">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nama Lengkap</label>
                       <input 
@@ -8198,17 +8169,6 @@ export default function AdminDashboard() {
                         value={editingKtaApp.nama}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, nama: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">NIK</label>
-                      <input 
-                        type="text" 
-                        required
-                        maxLength={16}
-                        value={editingKtaApp.nik || ''}
-                        onChange={(e) => setEditingKtaApp({ ...editingKtaApp, nik: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none font-mono"
                       />
                     </div>
                   </div>

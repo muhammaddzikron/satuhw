@@ -449,11 +449,6 @@ export default function KTAPage() {
       return;
     }
 
-    if (!formData.nik || formData.nik.length < 10) {
-      setMessage({ type: 'error', text: 'Kolom NIK wajib diisi dengan benar.' });
-      return;
-    }
-
     if (!formData.tempatLahir || !formData.tanggalLahir) {
       setMessage({ type: 'error', text: 'Harap melengkapi Tempat Lahir dan Tanggal Lahir.' });
       return;
@@ -519,10 +514,6 @@ export default function KTAPage() {
         const userEmailLower = (user.email || '').trim().toLowerCase();
         if (appEmailLower && userEmailLower && appEmailLower === userEmailLower) return true;
 
-        const appNik = normalizeNikGlobal(app.nik);
-        const userNik = normalizeNikGlobal((user as any).nik);
-        if (appNik && userNik && appNik === userNik) return true;
-
         const appPhone = normalizePhoneGlobal(app.noWa || app.noHp);
         const userPhone = normalizePhoneGlobal(user.noHp);
         if (appPhone && userPhone && appPhone === userPhone) return true;
@@ -532,9 +523,6 @@ export default function KTAPage() {
       if (showEditForm || myApplication || isAuthenticated) {
         const appEmailLower = (app.email || '').trim().toLowerCase();
         if (normalizedFormEmail && appEmailLower && appEmailLower === normalizedFormEmail) return true;
-
-        const appNik = normalizeNikGlobal(app.nik);
-        if (normalizedFormNik && appNik && appNik === normalizedFormNik) return true;
       }
 
       return false;
@@ -548,21 +536,19 @@ export default function KTAPage() {
         return false;
       }
       
-      const appNikNormalized = normalizeNikGlobal(app.nik);
       const appEmailNormalized = (app.email || '').trim().toLowerCase();
       const appPhoneNormalized = normalizePhoneGlobal(app.noWa || app.noHp);
 
-      const isMatchNik = normalizedFormNik && appNikNormalized === normalizedFormNik;
       const isMatchEmail = normalizedFormEmail && appEmailNormalized === normalizedFormEmail;
       const isMatchPhone = normalizedFormPhone && appPhoneNormalized === normalizedFormPhone;
 
-      return isMatchNik || isMatchEmail || isMatchPhone;
+      return isMatchEmail || isMatchPhone;
     });
 
     if (isDuplicate) {
       setMessage({ 
         type: 'error', 
-        text: 'NIK, Email, atau nomor WhatsApp ini sudah terdaftar dalam sistem pengajuan KTA yang aktif atau sedang ditinjau. Anda tidak dapat melakukan pendaftaran ganda.' 
+        text: 'Email atau nomor WhatsApp ini sudah terdaftar dalam sistem pengajuan KTA yang aktif atau sedang ditinjau. Anda tidak dapat melakukan pendaftaran ganda.' 
       });
       return;
     }
@@ -891,7 +877,7 @@ export default function KTAPage() {
                 </div>
 
                 <a 
-                  href={`https://wa.me/6289688754000?text=${encodeURIComponent("Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: " + myApplication.nama + "\nNIK: " + (myApplication.nik || "-") + "\nJenis KTA: " + (myApplication.jenisKta || "Digital") + "\nKabupaten/Kota: " + (myApplication.asalDaerah || "-"))}`}
+                  href={`https://wa.me/6289688754000?text=${encodeURIComponent("Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: " + myApplication.nama + "\nJenis KTA: " + (myApplication.jenisKta || "Digital") + "\nKabupaten/Kota: " + (myApplication.asalDaerah || "-"))}`}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors"
@@ -1114,7 +1100,7 @@ export default function KTAPage() {
                 </div>
 
                 <a 
-                  href={`https://wa.me/6289688754000?text=${encodeURIComponent(`Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: ${myApplication.nama}\nNIK: ${myApplication.nik || '-'}\nJenis KTA: ${myApplication.jenisKta || 'Digital'}\nKabupaten/Kota: ${myApplication.asalDaerah || '-'}`)}`}
+                  href={`https://wa.me/6289688754000?text=${encodeURIComponent(`Assalamu'alaikum Medkom HW Jateng, saya ingin konfirmasi bukti transfer pembayaran KTA HW Jateng.\n\nNama: ${myApplication.nama}\nJenis KTA: ${myApplication.jenisKta || 'Digital'}\nKabupaten/Kota: ${myApplication.asalDaerah || '-'}`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors"
@@ -1224,20 +1210,6 @@ export default function KTAPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, nama: e.target.value }))}
                 placeholder="Masukkan nama lengkap Anda"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
-              />
-            </div>
-
-            {/* NIK */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">NIK / Nomor Induk Kependudukan (Wajib)</label>
-              <input 
-                type="text"
-                required
-                maxLength={16}
-                value={formData.nik}
-                onChange={(e) => setFormData(prev => ({ ...prev, nik: e.target.value.replace(/\D/g, '') }))}
-                placeholder="Masukkan 16 digit NIK Anda"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold font-mono"
               />
             </div>
 
