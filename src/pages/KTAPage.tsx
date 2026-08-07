@@ -103,8 +103,16 @@ export const KWARDA_QABILAH_JATENG = [
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
 
-export const formatIndonesianDate = (dateStr?: string): string => {
-  if (!dateStr || dateStr === '-') return '-';
+export const getCurrentIndonesianDate = (): string => {
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const d = new Date();
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+export const formatIndonesianDate = (dateStr?: string, fallbackToCurrent: boolean = false): string => {
+  if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') {
+    return fallbackToCurrent ? getCurrentIndonesianDate() : '-';
+  }
   const cleanStr = dateStr.split('T')[0].split(' ')[0].trim();
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -286,6 +294,14 @@ export default function KTAPage() {
     };
 
     syncProfileAndApplications();
+
+    const unsubSettings = sheetsService.subscribeToSettings((newSettings: any) => {
+      if (newSettings) {
+        setSettings((prev: any) => ({ ...prev, ...newSettings }));
+      }
+    });
+
+    return () => unsubSettings();
   }, [isAuthenticated, user?.id, user?.email]);
 
   const fetchApplications = async () => {
@@ -1171,13 +1187,13 @@ export default function KTAPage() {
             <div 
               id="kta-back-capture" 
               className={cn(
-                "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative",
-                ktaBackBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
+                "w-[350px] h-[220px] rounded-3xl overflow-hidden border relative flex flex-col justify-between",
+                ktaBackBg ? "bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20 p-4"
               )}
               style={{ boxSizing: 'border-box' }}
             >
-              {/* Background Template Image */}
-              {ktaBackBg && (
+              {/* Background Template Image - Full Bleed without any overlay text or member data */}
+              {ktaBackBg ? (
                 <img 
                   src={getCorsSafeUrl(ktaBackBg)} 
                   alt="Template Back" 
@@ -1191,93 +1207,39 @@ export default function KTAPage() {
                     }
                   }}
                 />
-              )}
-
-              {/* Watermark background if no template */}
-              {!ktaBackBg && (
+              ) : (
+                /* Default system background if no template - Clean without member data */
                 <>
                   <div className="absolute -left-10 -top-10 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
                   <div className="absolute right-0 bottom-0 w-40 h-16 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-tl-full pointer-events-none" />
-                  <div className="absolute left-6 top-6 w-32 h-32 opacity-5 bg-no-repeat bg-contain" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png')" }}></div>
+                  <div className="absolute left-6 top-6 w-32 h-32 opacity-5 bg-no-repeat bg-contain pointer-events-none" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png')" }}></div>
+
+                  {/* Rules and Pledge */}
+                  <div className="space-y-1 z-10 px-1 text-left leading-tight">
+                    <h5 className="text-[7.5px] font-black uppercase tracking-wider text-center border-b border-white/10 pb-0.5 text-amber-300">Undang-Undang Pandu Hizbul Wathan</h5>
+                    <ol className="grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1 text-slate-300">
+                      <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
+                      <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
+                      <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
+                      <li>Empat, Pandu Hizbul Wathan itu, suka perdamaian dan persaudaraan.</li>
+                      <li>Lima, Pandu Hizbul Wathan itu, sopan santun dan perwira.</li>
+                      <li>Enam, Pandu Hizbul Wathan itu, menyayangi semua makhluk.</li>
+                      <li>Tujuh, Pandu Hizbul Wathan itu, melaksanakan perintah tanpa membantah.</li>
+                      <li>Delapan, Pandu Hizbul Wathan itu, sabar dan pemaaf.</li>
+                      <li>Sembilan, Pandu Hizbul Wathan itu, teliti dan hemat.</li>
+                      <li>Sepuluh, Pandu Hizbul Wathan itu, suci dalam hati, pikiran, perkataan dan perbuatan.</li>
+                    </ol>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left">
+                    <div className="space-y-0.5 max-w-[140px] leading-tight">
+                      <p className="text-[4px] uppercase font-bold text-slate-400">Diterbitkan oleh :</p>
+                      <p className="text-[5.5px] font-black uppercase leading-none text-white">Pimpinan Wilayah HW Jawa Tengah</p>
+                      <p className="text-[4px] text-slate-450">Jl. Singosari No.33, Semarang</p>
+                    </div>
+                  </div>
                 </>
               )}
-
-              {/* Rules and Pledge */}
-              <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "")}>
-                <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
-                <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
-                  <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
-                  <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
-                  <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
-                  <li>Empat, Pandu Hizbul Wathan itu, suka perdamaian dan persaudaraan.</li>
-                  <li>Lima, Pandu Hizbul Wathan itu, sopan santun dan perwira.</li>
-                  <li>Enam, Pandu Hizbul Wathan itu, menyayangi semua makhluk.</li>
-                  <li>Tujuh, Pandu Hizbul Wathan itu, melaksanakan perintah tanpa membantah.</li>
-                  <li>Delapan, Pandu Hizbul Wathan itu, sabar dan pemaaf.</li>
-                  <li>Sembilan, Pandu Hizbul Wathan itu, teliti dan hemat.</li>
-                  <li>Sepuluh, Pandu Hizbul Wathan itu, suci dalam hati, pikiran, perkataan dan perbuatan.</li>
-                </ol>
-              </div>
-
-              {/* Validation QR & Stamp Block */}
-              <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "border-white/10")}>
-                <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
-                  <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
-                  <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
-                  <p className={cn("text-[4px]", ktaBackBg ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
-                </div>
-
-                <div className="flex items-center gap-2 z-10">
-                  {/* Validation QR Code */}
-                  <div className="flex flex-col items-center gap-0.5 shrink-0 bg-white p-0.5 rounded border border-gray-100 shadow-xs">
-                    <img 
-                      src={getCorsSafeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(validationUrl)}`)} 
-                      alt="QR Validasi" 
-                      className="w-8 h-8 object-contain" 
-                      crossOrigin="anonymous"
-                    />
-                    <span className="text-[2.5px] font-bold text-slate-800 uppercase tracking-widest text-center font-mono leading-none">VALIDASI KTA</span>
-                  </div>
-
-                  {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                  <div className={cn("flex items-center gap-1 w-[110px] shrink-0 justify-end relative", ktaBackBg ? "opacity-0 pointer-events-none hidden" : "")}>
-                    {/* Small stamp overlay */}
-                    <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
-                      {settings.ktaStempelImage ? (
-                        <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
-                      ) : (
-                        <DefaultStempel idSuffix="back-capture" />
-                      )}
-                    </div>
-
-                    {/* Ketua Sig */}
-                    <div className="flex flex-col items-center w-[50px] relative">
-                      <span className={cn("text-[3.5px] font-bold uppercase leading-none", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Ketua</span>
-                      <div className="h-5 flex items-center justify-center scale-90">
-                        {settings.ktaTandaTanganKetua ? (
-                          <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-5 object-contain" crossOrigin="anonymous" />
-                        ) : (
-                          <DefaultSignatureKetua />
-                        )}
-                      </div>
-                      <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", ktaBackBg ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
-                    </div>
-
-                    {/* Sekretaris Sig */}
-                    <div className="flex flex-col items-center w-[50px] relative">
-                      <span className={cn("text-[3.5px] font-bold uppercase leading-none", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
-                      <div className="h-5 flex items-center justify-center scale-90">
-                        {settings.ktaTandaTanganSekretaris ? (
-                          <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" crossOrigin="anonymous" />
-                        ) : (
-                          <DefaultSignatureSekretaris />
-                        )}
-                      </div>
-                      <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", ktaBackBg ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -1468,13 +1430,13 @@ export default function KTAPage() {
                 {/* CARD BACK CONTAINER */}
                 <div 
                   className={cn(
-                    "absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl overflow-hidden shadow-xl border p-4 flex flex-col justify-between",
-                    ktaBackBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20"
+                    "absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl overflow-hidden shadow-xl border relative flex flex-col justify-between",
+                    ktaBackBg ? "bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20 p-4"
                   )}
                   style={{ boxSizing: 'border-box' }}
                 >
-                  {/* Background Template Image */}
-                  {ktaBackBg && (
+                  {/* Background Template Image - Full Bleed without any overlay text or member data */}
+                  {ktaBackBg ? (
                     <img 
                       src={getCorsSafeUrl(ktaBackBg)} 
                       alt="Template Back" 
@@ -1488,93 +1450,39 @@ export default function KTAPage() {
                         }
                       }}
                     />
-                  )}
-
-                  {/* Watermark background if no template */}
-                  {!ktaBackBg && (
+                  ) : (
+                    /* Default system background if no template - Clean without member data */
                     <>
                       <div className="absolute -left-10 -top-10 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
                       <div className="absolute right-0 bottom-0 w-40 h-16 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-tl-full pointer-events-none" />
-                      <div className="absolute left-6 top-6 w-32 h-32 opacity-5 bg-no-repeat bg-contain" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png')" }}></div>
+                      <div className="absolute left-6 top-6 w-32 h-32 opacity-5 bg-no-repeat bg-contain pointer-events-none" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png')" }}></div>
+
+                      {/* Rules and Pledge */}
+                      <div className="space-y-1 z-10 px-1 text-left leading-tight">
+                        <h5 className="text-[7.5px] font-black uppercase tracking-wider text-center border-b border-white/10 pb-0.5 text-amber-300">Undang-Undang Pandu Hizbul Wathan</h5>
+                        <ol className="grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1 text-slate-300">
+                          <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
+                          <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
+                          <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
+                          <li>Empat, Pandu Hizbul Wathan itu, suka perdamaian dan persaudaraan.</li>
+                          <li>Lima, Pandu Hizbul Wathan itu, sopan santun dan perwira.</li>
+                          <li>Enam, Pandu Hizbul Wathan itu, menyayangi semua makhluk.</li>
+                          <li>Tujuh, Pandu Hizbul Wathan itu, melaksanakan perintah tanpa membantah.</li>
+                          <li>Delapan, Pandu Hizbul Wathan itu, sabar dan pemaaf.</li>
+                          <li>Sembilan, Pandu Hizbul Wathan itu, teliti dan hemat.</li>
+                          <li>Sepuluh, Pandu Hizbul Wathan itu, suci dalam hati, pikiran, perkataan dan perbuatan.</li>
+                        </ol>
+                      </div>
+
+                      <div className="border-t border-white/10 pt-1.5 z-10 flex items-center justify-between relative mt-auto text-left">
+                        <div className="space-y-0.5 max-w-[140px] leading-tight">
+                          <p className="text-[4px] uppercase font-bold text-slate-400">Diterbitkan oleh :</p>
+                          <p className="text-[5.5px] font-black uppercase leading-none text-white">Pimpinan Wilayah HW Jawa Tengah</p>
+                          <p className="text-[4px] text-slate-450">Jl. Singosari No.33, Semarang</p>
+                        </div>
+                      </div>
                     </>
                   )}
-
-                  {/* Rules and Pledge */}
-                  <div className={cn("space-y-1 z-10 px-1", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "")}>
-                    <h5 className={cn("text-[7.5px] font-black uppercase tracking-wider text-center border-b pb-0.5", ktaBackBg ? "text-emerald-800 border-gray-150" : "text-amber-300 border-white/10")}>Undang-Undang Pandu Hizbul Wathan</h5>
-                    <ol className={cn("grid grid-cols-2 gap-x-3 gap-y-0.25 text-[4.8px] list-decimal pl-3 font-semibold leading-tight mt-1", ktaBackBg ? "text-gray-750" : "text-slate-300")}>
-                      <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
-                      <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
-                      <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
-                      <li>Empat, Pandu Hizbul Wathan itu, suka perdamaian dan persaudaraan.</li>
-                      <li>Lima, Pandu Hizbul Wathan itu, sopan santun dan perwira.</li>
-                      <li>Enam, Pandu Hizbul Wathan itu, menyayangi semua makhluk.</li>
-                      <li>Tujuh, Pandu Hizbul Wathan itu, melaksanakan perintah tanpa membantah.</li>
-                      <li>Delapan, Pandu Hizbul Wathan itu, sabar dan pemaaf.</li>
-                      <li>Sembilan, Pandu Hizbul Wathan itu, teliti dan hemat.</li>
-                      <li>Sepuluh, Pandu Hizbul Wathan itu, suci dalam hati, pikiran, perkataan dan perbuatan.</li>
-                    </ol>
-                  </div>
-
-                  {/* Validation QR & Stamp Block */}
-                  <div className={cn("border-t pt-1.5 z-10 flex items-center justify-between relative mt-auto", ktaBackBg ? "hidden opacity-0 pointer-events-none" : "border-white/10")}>
-                    <div className={cn("text-left space-y-0.5 max-w-[130px] leading-tight", ktaBackBg ? "opacity-0 pointer-events-none" : "")}>
-                      <p className={cn("text-[4px] uppercase font-bold", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Diterbitkan oleh :</p>
-                      <p className={cn("text-[5.5px] font-black uppercase leading-none", ktaBackBg ? "text-emerald-800" : "text-white")}>Pimpinan Wilayah HW Jawa Tengah</p>
-                      <p className={cn("text-[4px]", ktaBackBg ? "text-gray-400" : "text-slate-450")}>Jl. Singosari No.33, Semarang</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 z-10">
-                      {/* Validation QR Code */}
-                      <div className="flex flex-col items-center gap-0.5 shrink-0 bg-white p-0.5 rounded border border-gray-100 shadow-xs">
-                        <img 
-                          src={getCorsSafeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(validationUrl)}`)} 
-                          alt="QR Validasi" 
-                          className="w-8 h-8 object-contain" 
-                          crossOrigin="anonymous"
-                        />
-                        <span className="text-[2.5px] font-bold text-slate-800 uppercase tracking-widest text-center font-mono leading-none">VALIDASI KTA</span>
-                      </div>
-
-                      {/* Overlapping Stamp & Signatures row below Undang-undang - fully complies with user requirement */}
-                      <div className={cn("flex items-center gap-1 w-[110px] shrink-0 justify-end relative", ktaBackBg ? "opacity-0 pointer-events-none hidden" : "")}>
-                        {/* Small stamp overlay */}
-                        <div className="absolute right-[40%] top-1/2 -translate-y-1/2 z-20 opacity-80 pointer-events-none">
-                          {settings.ktaStempelImage ? (
-                            <img src={getCorsSafeUrl(settings.ktaStempelImage)} alt="Stempel" className="w-8 h-8 object-contain rotate-[-12deg]" crossOrigin="anonymous" />
-                          ) : (
-                            <DefaultStempel idSuffix="back-view" />
-                          )}
-                        </div>
-
-                        {/* Ketua Sig */}
-                        <div className="flex flex-col items-center w-[50px] relative">
-                          <span className={cn("text-[3.5px] font-bold uppercase leading-none", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Ketua</span>
-                          <div className="h-5 flex items-center justify-center scale-90">
-                            {settings.ktaTandaTanganKetua ? (
-                              <img src={getCorsSafeUrl(settings.ktaTandaTanganKetua)} alt="Tanda Tangan Ketua" className="h-5 object-contain" crossOrigin="anonymous" />
-                            ) : (
-                              <DefaultSignatureKetua />
-                            )}
-                          </div>
-                          <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", ktaBackBg ? "text-gray-800" : "text-white")}>{settings.ktaKetuaNama}</span>
-                        </div>
-
-                        {/* Sekretaris Sig */}
-                        <div className="flex flex-col items-center w-[50px] relative">
-                          <span className={cn("text-[3.5px] font-bold uppercase leading-none", ktaBackBg ? "text-gray-400" : "text-slate-400")}>Sekretaris</span>
-                          <div className="h-5 flex items-center justify-center scale-90">
-                            {settings.ktaTandaTanganSekretaris ? (
-                              <img src={getCorsSafeUrl(settings.ktaTandaTanganSekretaris)} alt="Tanda Tangan Sekretaris" className="h-5 object-contain" crossOrigin="anonymous" />
-                            ) : (
-                              <DefaultSignatureSekretaris />
-                            )}
-                          </div>
-                          <span className={cn("text-[4px] font-black leading-none uppercase truncate w-full text-center", ktaBackBg ? "text-gray-800" : "text-white")}>{settings.ktaSekretarisNama}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
               </div>

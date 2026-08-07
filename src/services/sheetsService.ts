@@ -1484,6 +1484,10 @@ export const sheetsService = {
     }
   },
 
+  subscribeToSettings(callback: (settings: any) => void): () => void {
+    return firestoreService.subscribeToSettings(callback);
+  },
+
   async saveSettings(settings: any): Promise<any> {
     localStorage.setItem('hw_settings', JSON.stringify(settings));
     try {

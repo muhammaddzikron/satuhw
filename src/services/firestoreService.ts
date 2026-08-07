@@ -1441,6 +1441,30 @@ export const firestoreService = {
     return dataToSave;
   },
 
+  subscribeToSettings(callback: (settings: any) => void): () => void {
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const unsub = onSnapshot(doc(db, 'settings', 'app_settings'), (snap) => {
+          if (snap.exists()) {
+            const settings = snap.data();
+            localStorage.setItem('hw_settings', JSON.stringify(settings));
+            callback(settings);
+          }
+        }, (err) => {
+          this.checkQuotaError(err);
+        });
+        return unsub;
+      } catch (e) {
+        console.warn('subscribeToSettings error:', e);
+      }
+    }
+    const stored = localStorage.getItem('hw_settings');
+    if (stored) {
+      try { callback(JSON.parse(stored)); } catch (e) {}
+    }
+    return () => {};
+  },
+
   // --- JENIS KEGIATAN (ACTIVITY CATEGORIES) REALTIME ---
   async getActivityCategories(): Promise<string[]> {
     const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
