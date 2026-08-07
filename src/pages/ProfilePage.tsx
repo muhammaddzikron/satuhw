@@ -150,6 +150,8 @@ export default function ProfilePage() {
   // Form state
   const [formData, setFormData] = React.useState({
     namaLengkap: user?.namaLengkap || '',
+    tempatLahir: user?.tempatLahir || '',
+    tanggalLahir: user?.tanggalLahir || '',
     golongan: user?.golongan || 'Penghela',
     golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user?.golongan || '') ? user?.golongan : 'Penghela'),
     pendidikan: user?.pendidikan || 'SMA/SMK/MA',
@@ -171,6 +173,8 @@ export default function ProfilePage() {
       const rolesArr = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : ['umum']);
       setFormData({
         namaLengkap: user.namaLengkap || '',
+        tempatLahir: user.tempatLahir || '',
+        tanggalLahir: user.tanggalLahir || '',
         golongan: user.golongan || 'Penghela',
         golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user.golongan || '') ? user.golongan : 'Penghela'),
         pendidikan: user.pendidikan || 'SMA/SMK/MA',
@@ -202,6 +206,8 @@ export default function ProfilePage() {
           ...currentUser,
           ...freshUser,
           namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
+          tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
+          tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || '',
           nik: freshUser.nik || currentUser.nik,
           noHp: freshUser.noHp || currentUser.noHp,
           alamat: freshUser.alamat || currentUser.alamat,
@@ -210,6 +216,8 @@ export default function ProfilePage() {
           sosmed: freshUser.sosmed || currentUser.sosmed,
           pendidikan: freshUser.pendidikan || currentUser.pendidikan,
           golongan: freshUser.golongan || currentUser.golongan,
+          statusAktivasi: freshUser.statusAktivasi || currentUser.statusAktivasi || 'Belum Aktif',
+          statusPembayaran: freshUser.statusPembayaran || currentUser.statusPembayaran || 'Belum Bayar',
           golonganPelatih: (freshUser as any).golonganPelatih || (currentUser as any).golonganPelatih,
           photo: freshUser.photo || currentUser.photo || ''
         };
@@ -537,6 +545,21 @@ export default function ProfilePage() {
                         <ShieldAlert size={8} /> Belum Terverifikasi
                       </span>
                     )}
+
+                    {/* Activation / Payment Status Badge */}
+                    {user?.statusAktivasi === 'Aktif' || user?.statusPembayaran === 'Lunas' ? (
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                        🟢 Aktif
+                      </span>
+                    ) : user?.statusPembayaran === 'Lunas' ? (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-400 text-amber-950 text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                        🟡 Menunggu Aktivasi
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                        🔴 Belum Bayar
+                      </span>
+                    )}
                   </div>
                   {user?.roles && user.roles.length > 1 && (
                     <div className="mt-3">
@@ -720,6 +743,28 @@ export default function ProfilePage() {
               </select>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
+                <input 
+                  type="text"
+                  placeholder="Contoh: Semarang"
+                  value={formData.tempatLahir}
+                  onChange={(e) => setFormData({...formData, tempatLahir: e.target.value})}
+                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
+                <input 
+                  type="date"
+                  value={formData.tanggalLahir}
+                  onChange={(e) => setFormData({...formData, tanggalLahir: e.target.value})}
+                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
+                />
+              </div>
+            </div>
+
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp</label>
               <input 
@@ -829,6 +874,7 @@ export default function ProfilePage() {
               <UserIcon size={14} className="text-gray-300" />
             </div>
             <ProfileItem icon={Phone} label="WhatsApp" value={user?.noHp || ''} />
+            <ProfileItem icon={Calendar} label="Tempat, Tanggal Lahir" value={[user?.tempatLahir, user?.tanggalLahir].filter(Boolean).join(', ') || '-'} />
             <ProfileItem icon={MapPin} label="Alamat" value={user?.alamat || ''} />
             <ProfileItem icon={ExternalLink} label="Sosial Media" value={user?.sosmed || ''} />
           </div>

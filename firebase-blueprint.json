@@ -13,6 +13,8 @@
         "tingkatan": { "type": "string" },
         "asalDaerah": { "type": "string" },
         "status": { "type": "string" },
+        "statusPembayaran": { "type": "string" },
+        "statusAktivasi": { "type": "string" },
         "nik": { "type": "string" },
         "tempatLahir": { "type": "string" },
         "tanggalLahir": { "type": "string" },

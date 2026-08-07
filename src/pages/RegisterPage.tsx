@@ -23,9 +23,12 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
 import { useAuthStore } from '../store/useAuthStore';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
 import { CopyAccountButton } from '../components/CopyAccountButton';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -187,20 +190,38 @@ export default function RegisterPage() {
     setIsLoading(true);
     setValidationError('');
     try {
-      // 1. Check for duplicates (Email)
-      const apps = await sheetsService.getKTAApplications();
-      const isDup = apps.some((app: any) => {
-        const appEmail = (app.email || '').trim().toLowerCase();
-        return appEmail === formData.email.trim().toLowerCase();
-      });
+      const cleanEmail = formData.email.trim().toLowerCase();
+      const password = formData.password || '12345hw';
 
-      if (isDup) {
-        throw new Error('Email ini sudah terdaftar dalam sistem pengajuan KTA.');
+      // 1. Register with Firebase Authentication if available
+      let firebaseUid = `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        if (userCred?.user?.uid) {
+          firebaseUid = userCred.user.uid;
+        }
+      } catch (authErr: any) {
+        if (authErr?.code === 'auth/email-already-in-use') {
+          try {
+            const loginCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+            if (loginCred?.user?.uid) {
+              firebaseUid = loginCred.user.uid;
+            }
+          } catch (signInErr) {
+            console.warn('Firebase Auth user exists but password mismatch:', signInErr);
+          }
+        } else {
+          console.warn('Firebase Auth creation warning:', authErr?.message || authErr);
+        }
       }
 
-      // 2. Register user account (isVerified = false)
+      // 2. Register user account to Firestore with UID document ID
       const userPayload = {
+        id: firebaseUid,
+        uid: firebaseUid,
         namaLengkap: formData.namaLengkap,
+        tempatLahir: formData.tempatLahir,
+        tanggalLahir: formData.tanggalLahir,
         jenisKelamin: formData.jenisKelamin,
         golongan: formData.golongan,
         pendidikan: formData.pendidikan,
@@ -209,24 +230,32 @@ export default function RegisterPage() {
         alamat: formData.alamat,
         noHp: formData.noHp,
         sosmed: formData.sosmed,
-        email: formData.email,
-        password: formData.password || '12345hw',
+        email: cleanEmail,
+        password: password,
         photo: formData.photo,
         pelatihan: formData.pelatihan,
-        nik: formData.nik || ''
+        nik: formData.nik || '',
+        statusPembayaran: 'Belum Bayar',
+        statusAktivasi: 'Belum Aktif',
+        isVerified: false,
+        role: 'umum',
+        roles: ['umum'],
+        activeRole: 'umum'
       };
+
       await sheetsService.register(userPayload);
+      await firestoreService.saveMember(userPayload as any);
 
       // 3. Create KTA Application
       const ktaPayload = {
         id: '',
-        userId: 'user-' + formData.email.replace(/[^a-zA-Z0-9]/g, '_'),
+        userId: firebaseUid,
         nama: formData.namaLengkap,
         alamat: formData.alamat,
         tingkatan: formData.golongan,
         asalDaerah: formData.asalKwarda,
         noWa: formData.noHp,
-        email: formData.email,
+        email: cleanEmail,
         sosmed: formData.sosmed,
         photo: formData.photo,
         nik: formData.nik || '',
@@ -234,9 +263,15 @@ export default function RegisterPage() {
         tanggalLahir: formData.tanggalLahir,
         jenisKelamin: formData.jenisKelamin,
         qabilah: formData.qabilah,
-        jenisKta: formData.jenisKta
+        jenisKta: formData.jenisKta,
+        statusPembayaran: 'Belum Bayar',
+        status: 'pending'
       };
       await sheetsService.applyKTA(ktaPayload);
+
+      // Automatically authenticate user in state
+      setAuth(userPayload as any, `fs-token-${firebaseUid}`);
+
       setIsSuccess(true);
     } catch (err: any) {
       setValidationError(err.message || 'Pendaftaran gagal. Silakan coba lagi.');

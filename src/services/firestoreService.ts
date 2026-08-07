@@ -2233,6 +2233,8 @@ export const firestoreService = {
             id: memberId,
             email: kEmail || `${memberId}@hw.or.id`,
             namaLengkap: kName || 'Anggota HW',
+            tempatLahir: k.tempatLahir || '',
+            tanggalLahir: k.tanggalLahir || '',
             jenisKelamin: kGender,
             golongan: kGolongan,
             pelatihan: [],
@@ -2242,6 +2244,8 @@ export const firestoreService = {
             alamat: kAlamat,
             noHp: kNoHp,
             sosmed: '',
+            statusPembayaran: 'Lunas',
+            statusAktivasi: 'Aktif',
             isVerified: true,
             role: 'umum',
             roles: ['umum'],
@@ -2258,12 +2262,16 @@ export const firestoreService = {
           let updated = false;
 
           if (kName && m.namaLengkap !== kName) { m.namaLengkap = kName; updated = true; }
+          if (k.tempatLahir && m.tempatLahir !== k.tempatLahir) { m.tempatLahir = k.tempatLahir; updated = true; }
+          if (k.tanggalLahir && m.tanggalLahir !== k.tanggalLahir) { m.tanggalLahir = k.tanggalLahir; updated = true; }
           if (m.jenisKelamin !== kGender) { m.jenisKelamin = kGender; updated = true; }
           if (!m.asalKwarda || m.asalKwarda === '') { m.asalKwarda = kKwarda; updated = true; }
           if (!m.qabilah || m.qabilah === '') { m.qabilah = kQabilah; updated = true; }
           if (!m.noHp || m.noHp === '') { m.noHp = kNoHp; updated = true; }
           if (!m.alamat || m.alamat === '') { m.alamat = kAlamat; updated = true; }
           if (!m.isVerified) { m.isVerified = true; updated = true; }
+          if (m.statusAktivasi !== 'Aktif') { m.statusAktivasi = 'Aktif'; updated = true; }
+          if (m.statusPembayaran !== 'Lunas') { m.statusPembayaran = 'Lunas'; updated = true; }
           if (assignedKtaNumber && (!m.ktaNumber || m.ktaNumber !== assignedKtaNumber)) {
             m.ktaNumber = assignedKtaNumber;
             updated = true;

@@ -1912,7 +1912,15 @@ export default function AdminDashboard() {
     
     try {
       setLoading(true);
-      const updated = { ...member, isVerified: !member.isVerified };
+      const newVerified = !member.isVerified;
+      const updated = { 
+        ...member, 
+        isVerified: newVerified,
+        statusAktivasi: newVerified ? 'Aktif' : (member.statusAktivasi || 'Belum Aktif'),
+        statusPembayaran: newVerified ? 'Lunas' : (member.statusPembayaran || 'Belum Bayar')
+      };
+      await firestoreService.saveMember(updated as User);
+      await firestoreService.updateMember(member.id, updated);
       const res = await sheetsService.saveMember(updated);
       if (res.success || !res.error) {
         alert(`Status verifikasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
@@ -1924,6 +1932,42 @@ export default function AdminDashboard() {
     } catch (error: any) {
       console.error(error);
       alert('Gagal mengubah status verifikasi: ' + (error.message || 'Error tidak diketahui'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleActivation = async (id: string) => {
+    const member = members.find(m => m.id === id);
+    if (!member) return;
+    
+    try {
+      setLoading(true);
+      const isCurrentlyActive = member.statusAktivasi === 'Aktif' || member.statusPembayaran === 'Lunas';
+      const newStatusAktivasi = isCurrentlyActive ? 'Belum Aktif' : 'Aktif';
+      const newStatusPembayaran = isCurrentlyActive ? 'Belum Bayar' : 'Lunas';
+
+      const updated = { 
+        ...member, 
+        statusAktivasi: newStatusAktivasi,
+        statusPembayaran: newStatusPembayaran,
+        isVerified: !isCurrentlyActive ? true : member.isVerified
+      };
+
+      await firestoreService.saveMember(updated as User);
+      await firestoreService.updateMember(member.id, updated);
+      const res = await sheetsService.saveMember(updated);
+
+      if (res.success || !res.error) {
+        alert(`Status aktivasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${newStatusAktivasi.toUpperCase()}`);
+        const data = await sheetsService.getMembers();
+        setMembers(data || []);
+      } else {
+        alert('Gagal mengubah status aktivasi: ' + (res.message || 'Respons tidak valid'));
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert('Gagal mengubah status aktivasi: ' + (error.message || 'Error tidak diketahui'));
     } finally {
       setLoading(false);
     }

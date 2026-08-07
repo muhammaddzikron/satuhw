@@ -274,6 +274,10 @@ export default function App() {
               freshUser.asalKwarda !== currentUser.asalKwarda ||
               freshUser.role !== currentUser.role ||
               freshUser.isVerified !== currentUser.isVerified ||
+              freshUser.statusAktivasi !== currentUser.statusAktivasi ||
+              freshUser.statusPembayaran !== currentUser.statusPembayaran ||
+              freshUser.tempatLahir !== currentUser.tempatLahir ||
+              freshUser.tanggalLahir !== currentUser.tanggalLahir ||
               freshUser.ktaNumber !== currentUser.ktaNumber ||
               JSON.stringify(freshUser.roles) !== JSON.stringify(currentUser.roles) ||
               JSON.stringify(freshUser.upgradeRequests) !== JSON.stringify(currentUser.upgradeRequests);
@@ -283,7 +287,11 @@ export default function App() {
                 ...currentUser,
                 ...freshUser,
                 namaLengkap: freshUser.namaLengkap || currentUser.namaLengkap,
-                photo: freshUser.photo || currentUser.photo || ''
+                photo: freshUser.photo || currentUser.photo || '',
+                statusAktivasi: freshUser.statusAktivasi || currentUser.statusAktivasi || 'Belum Aktif',
+                statusPembayaran: freshUser.statusPembayaran || currentUser.statusPembayaran || 'Belum Bayar',
+                tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
+                tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || ''
               });
             }
           }

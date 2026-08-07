@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { ActivationModal } from '../components/ActivationModal';
 import { Materi } from '../types';
 import LoadingPage from './LoadingPage';
 import { safeJsonParse } from '../lib/utils';
@@ -63,6 +64,8 @@ export default function MateriPage() {
   const [search, setSearch] = useState('');
   const [selectedMateri, setSelectedMateri] = useState<Materi | null>(null);
   const [showLoginPromptModal, setShowLoginPromptModal] = useState<Materi | null>(null);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [activationFeatureName, setActivationFeatureName] = useState('Materi Premium');
   const [upgradeFees, setUpgradeFees] = useState<Record<string, string>>(UPGRADE_FEES_DEFAULT);
   const [waNumber, setWaNumber] = useState('6281234567890');
 
@@ -183,9 +186,18 @@ export default function MateriPage() {
   const handleItemClick = (item: Materi) => {
     if (item.kategori === 'umum_pandu' && !isAuthenticated) {
       setShowLoginPromptModal(item);
-    } else {
-      setSelectedMateri(item);
+      return;
     }
+
+    // Check account activation for premium materi
+    const isAccountActive = !user || user.role === 'admin' || user.role === 'superadmin' || user.statusAktivasi === 'Aktif' || user.statusPembayaran === 'Lunas';
+    if (isAuthenticated && !isAccountActive && item.kategori !== 'umum') {
+      setActivationFeatureName(`Materi: ${item.judul}`);
+      setShowActivationModal(true);
+      return;
+    }
+
+    setSelectedMateri(item);
   };
 
   const userRequests: string[] = useMemo(() => {
@@ -581,6 +593,13 @@ export default function MateriPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Activation Modal */}
+      <ActivationModal 
+        isOpen={showActivationModal} 
+        onClose={() => setShowActivationModal(false)} 
+        featureName={activationFeatureName} 
+      />
     </div>
   );
 }

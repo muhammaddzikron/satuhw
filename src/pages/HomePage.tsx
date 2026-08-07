@@ -23,6 +23,8 @@ import {
   Users,
   Calendar,
   Languages,
+  CheckCircle2,
+  Lock,
   Instagram,
   Youtube,
   MessageCircle,
@@ -51,6 +53,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { prayerService } from '../services/prayerService';
 import { sheetsService } from '../services/sheetsService';
+import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime } from '../lib/utils';
 
@@ -498,6 +501,61 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Account Activation Card */}
+      {isAuthenticated && user && user.role !== 'admin' && user.role !== 'superadmin' && (user.statusAktivasi !== 'Aktif' || user.statusPembayaran === 'Belum Bayar') && (
+        <div className="bg-gradient-to-br from-amber-500 via-orange-600 to-emerald-700 text-white rounded-[2rem] p-5 shadow-xl shadow-orange-500/10 mb-5 relative overflow-hidden">
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/20 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-amber-200">
+                  <Lock size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm tracking-wide">Aktivasi Akun</h3>
+                  <p className="text-[10px] text-amber-100 font-medium">Lengkapi pembayaran untuk membuka seluruh fitur</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 bg-amber-400 text-amber-950 font-black text-[10px] rounded-full uppercase tracking-wider shadow-xs">
+                {user.statusAktivasi === 'Belum Aktif' ? 'Belum Aktif' : 'Belum Bayar'}
+              </span>
+            </div>
+
+            <p className="text-xs text-white/90 leading-relaxed font-medium">
+              Akun Anda telah berhasil terdaftar. Silakan melakukan pembayaran biaya aktivasi ke rekening atas nama <strong>Kwarwil HW Jateng</strong> di bawah ini agar admin dapat segera mengaktifkan akun Anda.
+            </p>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-2.5 border border-white/15 space-y-1 text-center">
+              <p className="text-[9px] uppercase tracking-wider text-amber-200 font-sans font-bold">Bank Syariah Indonesia (BSI)</p>
+              <CopyAccountButton accountNumber="7307427448" textClassName="text-sm font-black text-white font-mono" />
+              <p className="text-[9.5px] text-white/80 font-sans">a.n. Kwarwil HW Jateng</p>
+            </div>
+
+            <div className="pt-1 flex flex-col sm:flex-row gap-2">
+              <button 
+                onClick={() => {
+                  const text = encodeURIComponent(`Assalamu'alaikum Admin HW Jateng, saya telah melakukan pembayaran aktivasi akun.\n\nNama: ${user.namaLengkap}\nEmail: ${user.email}\nNo HP: ${user.noHp || '-'}\nMohon bantuannya untuk proses aktivasi akun. Terima kasih.`);
+                  window.open(`https://wa.me/6289688754000?text=${text}`, '_blank');
+                }}
+                className="flex-1 bg-white text-orange-700 hover:bg-amber-50 font-black text-xs py-2.5 px-4 rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <CheckCircle2 size={15} />
+                Saya Sudah Bayar
+              </button>
+              <button 
+                onClick={() => {
+                  const text = encodeURIComponent(`Assalamu'alaikum Admin HW Jateng, saya ingin bertanya mengenai aktivasi akun KTA HW Jateng.\n\nNama: ${user.namaLengkap}\nEmail: ${user.email}`);
+                  window.open(`https://wa.me/6289688754000?text=${text}`, '_blank');
+                }}
+                className="flex-1 bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-4 rounded-xl border border-white/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <MessageCircle size={15} />
+                Hubungi Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Prayer Times Card */}
       <section className="gradient-bg p-5 rounded-[2rem] text-white shadow-xl shadow-hw-green/20 relative overflow-hidden">
