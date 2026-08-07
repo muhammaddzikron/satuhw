@@ -1427,7 +1427,7 @@ export const firestoreService = {
           parsed = parsed.filter((a: any) => a.id !== 'keg-1' && a.id !== 'keg-2' && a.id !== 'keg-3');
           const pelatihIdx = parsed.findIndex((a: any) => (a.namaKegiatan || '').toLowerCase().includes('silaturahmi pelatih') || a.id === 'keg-silaturahmi-pelatih');
           if (pelatihIdx >= 0) {
-            parsed[pelatihIdx] = { ...defaults[0], ...parsed[pelatihIdx], ...defaults[0] };
+            parsed[pelatihIdx] = { ...defaults[0], ...parsed[pelatihIdx] };
           } else {
             parsed.unshift(defaults[0]);
           }
