@@ -197,13 +197,14 @@ export default function LoginPage() {
         const roles = Array.isArray(found.roles) ? found.roles : (found.role ? [found.role] : ['umum']);
         const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin');
         
+        const isMedkom = (found.email && found.email.toLowerCase() === 'medkom@hwjateng.com') || found.id === '1777209184010';
         let detectedPassword = found.password;
-        if (!detectedPassword) {
-          if ((found.email && found.email.toLowerCase() === 'medkom@hwjateng.com') || found.id === '1777209184010') {
-            detectedPassword = '12345hwhw';
-          } else if (isAdmin || (found.email && found.email.toLowerCase() === 'admin@hw.org')) {
-            detectedPassword = 'adnimku';
-          } else {
+        if (isMedkom) {
+          detectedPassword = (found.password && found.password !== 'adnimku') ? found.password : '12345hwhw';
+        } else if (isAdmin || (found.email && found.email.toLowerCase() === 'admin@hw.org')) {
+          detectedPassword = found.password || 'adnimku';
+        } else {
+          if (!detectedPassword || detectedPassword === 'adnimku' || detectedPassword === 'admin') {
             detectedPassword = '12345hw';
           }
         }
@@ -273,29 +274,29 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
         <p className="text-gray-500 text-sm px-4">
           {showForgotModal 
             ? 'Masukkan Email dan Nomor HP terdaftar untuk mengecek password Anda' 
-            : 'Masuk untuk mengakses materi & fitur lengkap aplikasi'}
+            : 'Masukkan Email dan Password yang telah terdaftar dalam keanggotaan untuk masuk'}
         </p>
       </div>
 
       {!showForgotModal ? (
         <form onSubmit={handleLogin} className="w-full space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-500 text-xs p-3 rounded-xl border border-red-100 mb-4">
+            <div className="bg-red-50 text-red-600 text-xs p-3 rounded-xl border border-red-200 mb-4 font-medium">
               {error}
             </div>
           )}
           
           <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Email / No WhatsApp / NIK / ID</label>
+            <label className="text-xs font-bold text-gray-600 ml-1 uppercase tracking-wider">Email Terdaftar / ID Anggota</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email, WhatsApp, NIK, atau ID"
+                placeholder="Masukkan email atau ID anggota..."
                 required
-                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
+                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm font-medium"
               />
             </div>
           </div>
@@ -310,12 +311,12 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-12 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm"
+                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-12 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none transition-all text-sm font-medium"
               />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer p-1"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -324,10 +325,10 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
 
           <button 
             type="submit"
-            disabled={isLoading}
-            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            disabled={isLoading || !email.trim() || !password.trim()}
+            className="w-full gradient-bg text-white font-bold py-4 rounded-2xl shadow-lg shadow-hw-green/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Masuk Sekarang'}
           </button>
 
           {/* Card Cek Status Akun / Email */}
@@ -395,7 +396,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                     </p>
                     <div className="pt-2 border-t border-emerald-200/60 flex flex-col gap-1.5">
                       <p className="text-[10px] text-gray-600">
-                        👉 Email telah otomatis diisikan di form login di atas. Silakan masukkan password Anda untuk masuk.
+                        👉 Email telah otomatis diisikan di form login di atas. Klik tombol <strong>"Masuk Sekarang"</strong> di atas untuk login.
                       </p>
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                         <button

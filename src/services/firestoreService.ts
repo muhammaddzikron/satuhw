@@ -452,8 +452,19 @@ export const firestoreService = {
           if (matchedIdx >= 0) {
             const m = members[matchedIdx];
             const mEmail = (m.email || '').trim().toLowerCase();
+            const mId = String(m.id || '').trim().toLowerCase();
             const mRoles = Array.isArray(m.roles) ? m.roles : (m.role ? [m.role as UserRole] : ['umum']);
             const isAdmin = m.role === 'superadmin' || m.role === 'admin' || mRoles.includes('superadmin') || mRoles.includes('admin') || mEmail === 'admin@hw.org' || mEmail === 'admin@hw.or.id';
+            const isMedkom = mEmail === 'medkom@hwjateng.com' || mId === '1777209184010';
+
+            let assignedPass = m.password;
+            if (isMedkom) {
+              if (!assignedPass || assignedPass === 'adnimku') assignedPass = '12345hwhw';
+            } else if (isAdmin) {
+              if (!assignedPass) assignedPass = 'adnimku';
+            } else {
+              if (!assignedPass || assignedPass === 'adnimku' || assignedPass === 'admin') assignedPass = '12345hw';
+            }
 
             members[matchedIdx] = {
               ...m,
@@ -467,7 +478,7 @@ export const firestoreService = {
               photo: m.photo || k.photo || '',
               isVerified: m.isVerified !== undefined ? m.isVerified : (k.status === 'approved'),
               ktaNumber: m.ktaNumber || k.ktaNumber || '',
-              password: isAdmin ? (m.password || 'adnimku') : (m.password || '12345hw')
+              password: assignedPass
             };
           } else if (kEmail && kName && kName !== 'Tanpa Nama') {
             const newMember: User = {
@@ -514,20 +525,76 @@ export const firestoreService = {
         if (roles.length === 0) {
           roles = [role as UserRole];
         }
+
+        const mEmail = (m.email || '').trim().toLowerCase();
+        const mId = String(m.id || '').trim().toLowerCase();
+        const isAdmin = role === 'superadmin' || role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || mEmail === 'admin@hw.org' || mEmail === 'admin@hw.or.id';
+        const isMedkom = mEmail === 'medkom@hwjateng.com' || mId === '1777209184010';
+
+        let normPass = m.password;
+        if (isMedkom) {
+          if (!normPass || normPass === 'adnimku') normPass = '12345hwhw';
+        } else if (isAdmin) {
+          if (!normPass) normPass = 'adnimku';
+        } else {
+          if (!normPass || normPass === 'adnimku' || normPass === 'admin') normPass = '12345hw';
+        }
+
         return {
           ...m,
           role,
-          roles
+          roles,
+          password: normPass
         };
       });
     localStorage.setItem('mock_members', JSON.stringify(filteredMembers));
     return filteredMembers;
   },
 
-  async login(emailOrId: string, password: string): Promise<{ user: User; token: string } | null> {
+  async login(emailOrId: string, password?: string): Promise<{ user: User; token: string } | null> {
     const cleanInput = (emailOrId || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
+
+    if (!cleanInput) return null;
+
+    const validatePassForMember = (m: any): boolean => {
+      if (!m) return false;
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mId = String(m.id || '').trim().toLowerCase();
+      let roles: UserRole[] = m.roles || [];
+      if (typeof m.role === 'string' && m.role.startsWith('[')) {
+        try { roles = JSON.parse(m.role); } catch(e) {}
+      } else if (typeof m.role === 'string') {
+        roles = [m.role as UserRole];
+      }
+      if (roles.length === 0) roles = ['umum'];
+
+      const isAdmin = m.role === 'superadmin' || m.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
+      const isMedkom = mEmail === 'medkom@hwjateng.com' || mId === '1777209184010' || cleanInput === 'medkom@hwjateng.com' || cleanInput === 'medkom';
+      const storedPass = (m as any).password ? String((m as any).password).trim() : '';
+
+      if (isMedkom) {
+        if (storedPass && storedPass !== 'adnimku' && storedPass !== '12345hw') {
+          return cleanPass === storedPass || cleanPass === '12345hwhw';
+        }
+        return cleanPass === '12345hwhw' || cleanPass === '12345hw' || cleanPass === 'adnimku';
+      }
+
+      if (isAdmin) {
+        if (storedPass && storedPass !== '12345hw') {
+          return cleanPass === storedPass || cleanPass === 'adnimku' || cleanPass === 'admin';
+        }
+        return cleanPass === 'adnimku' || cleanPass === 'admin';
+      }
+
+      // Regular member
+      if (storedPass && storedPass !== 'adnimku' && storedPass !== 'admin') {
+        return cleanPass === storedPass || cleanPass === '12345hw';
+      }
+
+      return cleanPass === '12345hw';
+    };
 
     // Medkom Admin account credential override
     if ((cleanInput === 'medkom' || cleanInput === 'medkom@hwjateng.com' || cleanInput === 'user medkom') &&
@@ -548,12 +615,42 @@ export const firestoreService = {
         alamat: 'Kebumen',
         noHp: '081286854000',
         sosmed: '@medkomhwjateng',
-        isVerified: true
+        isVerified: true,
+        password: '12345hwhw'
       };
       this.saveMember(medkomUser).catch(() => {});
       return {
         token: 'medkom-admin-token',
         user: medkomUser
+      };
+    }
+
+    // Admin account override
+    if ((cleanInput === 'admin' || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id') &&
+        (cleanPass === 'adnimku' || cleanPass === 'admin')) {
+      const adminUser: User = {
+        id: 'admin-1',
+        namaLengkap: 'Administrator HW',
+        email: 'admin@hw.org',
+        role: 'superadmin',
+        roles: ['superadmin', 'admin'],
+        activeRole: 'superadmin',
+        jenisKelamin: 'L',
+        golongan: 'Pelatih',
+        pelatihan: ['Jaya Matahari 2'],
+        pendidikan: 'S1',
+        asalKwarda: 'Kwarwil Jawa Tengah',
+        qabilah: 'Kwarwil HW Jawa Tengah',
+        alamat: 'Semarang',
+        noHp: '08123456789',
+        sosmed: '@hwjateng',
+        isVerified: true,
+        password: 'adnimku'
+      };
+      this.saveMember(adminUser).catch(() => {});
+      return {
+        token: 'fs-token-admin-1',
+        user: adminUser
       };
     }
 
@@ -579,6 +676,9 @@ export const firestoreService = {
       if (Array.isArray(localMembers)) {
         const foundLocal = localMembers.find(checkMemberMatch);
         if (foundLocal) {
+          if (!validatePassForMember(foundLocal)) {
+            throw new Error('Password yang Anda masukkan salah.');
+          }
           let roles: UserRole[] = foundLocal.roles || [];
           if (typeof foundLocal.role === 'string' && foundLocal.role.startsWith('[')) {
             try { roles = JSON.parse(foundLocal.role); } catch(e) {}
@@ -587,63 +687,29 @@ export const firestoreService = {
           }
           if (roles.length === 0) roles = ['umum'];
 
-          const isAdmin = foundLocal.role === 'superadmin' || foundLocal.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
-          const storedPass = (foundLocal as any).password;
-
-          let isValidPassword = false;
-          if (isAdmin) {
-            const expectedAdminPass = storedPass || 'adnimku';
-            if (
-              !cleanPass ||
-              cleanPass === expectedAdminPass ||
-              (storedPass && cleanPass === storedPass) ||
-              cleanPass === 'adnimku' ||
-              cleanPass === '12345hw' ||
-              cleanPass === '12345hwhw' ||
-              cleanPass === 'admin' ||
-              cleanPass === 'admin123' ||
-              cleanPass === cleanInput
-            ) {
-              isValidPassword = true;
-            }
-          } else {
-            const expectedUserPass = storedPass || '12345hw';
-            if (
-              !cleanPass ||
-              cleanPass === expectedUserPass ||
-              (storedPass && cleanPass === storedPass) ||
-              cleanPass === '12345hw' ||
-              cleanPass === '12345hwhw' ||
-              cleanPass === 'adnimku' ||
-              cleanPass === 'alda' ||
-              cleanPass === 'password123' ||
-              cleanPass === '123456' ||
-              cleanPass === cleanInput
-            ) {
-              isValidPassword = true;
-            }
-          }
-
-          if (isValidPassword) {
-            const userObj: User = {
-              ...foundLocal,
-              roles,
-              activeRole: foundLocal.activeRole || roles[0] || 'umum'
-            };
-            return {
-              token: `fs-token-${userObj.id || Date.now()}`,
-              user: userObj
-            };
-          }
+          const userObj: User = {
+            ...foundLocal,
+            roles,
+            activeRole: foundLocal.activeRole || roles[0] || 'umum'
+          };
+          return {
+            token: `fs-token-${userObj.id || Date.now()}`,
+            user: userObj
+          };
         }
       }
-    } catch (e) {}
+    } catch (e: any) {
+      if (e.message && e.message.includes('Password')) throw e;
+    }
 
     try {
       const members = await this.getMembers();
       const found = members.find(checkMemberMatch);
 
       if (found) {
+        if (!validatePassForMember(found)) {
+          throw new Error('Password yang Anda masukkan salah.');
+        }
         let roles: UserRole[] = found.roles || [];
         if (typeof found.role === 'string' && found.role.startsWith('[')) {
           try { roles = JSON.parse(found.role); } catch(e) {}
@@ -652,60 +718,23 @@ export const firestoreService = {
         }
         if (roles.length === 0) roles = ['umum'];
 
-        const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
-        const storedPass = (found as any).password;
+        const userObj: User = {
+          ...found,
+          roles,
+          activeRole: found.activeRole || roles[0] || 'umum'
+        };
 
-        let isValidPassword = false;
-        if (isAdmin) {
-          const expectedAdminPass = storedPass || 'adnimku';
-          if (
-            !cleanPass ||
-            cleanPass === expectedAdminPass ||
-            (storedPass && cleanPass === storedPass) ||
-            cleanPass === 'adnimku' ||
-            cleanPass === '12345hw' ||
-            cleanPass === '12345hwhw' ||
-            cleanPass === 'admin' ||
-            cleanPass === 'admin123' ||
-            cleanPass === cleanInput
-          ) {
-            isValidPassword = true;
-          }
-        } else {
-          const expectedUserPass = storedPass || '12345hw';
-          if (
-            !cleanPass ||
-            cleanPass === expectedUserPass ||
-            (storedPass && cleanPass === storedPass) ||
-            cleanPass === '12345hw' ||
-            cleanPass === '12345hwhw' ||
-            cleanPass === 'adnimku' ||
-            cleanPass === 'alda' ||
-            cleanPass === 'password123' ||
-            cleanPass === '123456' ||
-            cleanPass === cleanInput
-          ) {
-            isValidPassword = true;
-          }
-        }
-
-        if (isValidPassword) {
-          const userObj: User = {
-            ...found,
-            roles,
-            activeRole: found.activeRole || roles[0] || 'umum'
-          };
-
-          return {
-            token: `fs-token-${userObj.id || Date.now()}`,
-            user: userObj
-          };
-        }
+        return {
+          token: `fs-token-${userObj.id || Date.now()}`,
+          user: userObj
+        };
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e.message && e.message.includes('Password')) throw e;
       console.error('Firestore login method error:', e);
     }
-    return null;
+
+    throw new Error('Email/ID Anda tidak terdaftar sebagai anggota. Silakan lakukan pendaftaran terlebih dahulu.');
   },
 
   async saveMember(member: User): Promise<User> {
@@ -1540,6 +1569,20 @@ export const firestoreService = {
       list.unshift(newAct);
     }
     localStorage.setItem('hw_activities', JSON.stringify(list));
+
+    // Also update trainingActivities inside app_settings in Cloud Firestore
+    try {
+      const currentSettings = await this.getSettings();
+      const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
+      const actIdx = currentActs.findIndex((a: any) => a.id === newAct.id);
+      if (actIdx >= 0) {
+        currentActs[actIdx] = { ...currentActs[actIdx], ...newAct };
+      } else {
+        currentActs.unshift(newAct);
+      }
+      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs });
+    } catch (e) {}
+
     return newAct;
   },
 
@@ -1555,6 +1598,14 @@ export const firestoreService = {
     const list = await this.getActivities();
     const filtered = list.filter(a => a.id !== id);
     localStorage.setItem('hw_activities', JSON.stringify(filtered));
+
+    try {
+      const currentSettings = await this.getSettings();
+      const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
+      const filteredActs = currentActs.filter((a: any) => a.id !== id);
+      await this.saveSettings({ ...currentSettings, trainingActivities: filteredActs });
+    } catch (e) {}
+
     return true;
   },
 
@@ -2152,6 +2203,19 @@ export const firestoreService = {
         const settings = JSON.parse(settingsStr);
         await setDoc(doc(db, 'settings', 'app_settings'), cleanData({ ...settings, id: 'app_settings' }), { merge: true });
         details.settings = true;
+      }
+
+      // HW Activities
+      const activitiesStr = localStorage.getItem('hw_activities') || '[]';
+      const activities: any[] = JSON.parse(activitiesStr);
+      if (activities.length > 0) {
+        const batch = writeBatch(db);
+        activities.forEach(a => {
+          if (a.id) {
+            batch.set(doc(db, 'hw_activities', String(a.id)), cleanData(a), { merge: true });
+          }
+        });
+        await batch.commit();
       }
 
       return {

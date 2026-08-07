@@ -467,44 +467,36 @@ export const sheetsService = {
       );
     });
 
+    if (!cleanPass) {
+      throw new Error('Password tidak boleh kosong.');
+    }
+
     if (found) {
       const roles = Array.isArray(found.roles) ? found.roles : (found.role ? [found.role] : ['umum']);
       const isAdmin = found.role === 'superadmin' || found.role === 'admin' || roles.includes('superadmin') || roles.includes('admin') || cleanInput === 'admin@hw.org' || cleanInput === 'admin@hw.or.id';
+      const isMedkom = (found.email && found.email.toLowerCase() === 'medkom@hwjateng.com') || found.id === '1777209184010';
 
       let isValid = false;
-      const storedPass = (found as any).password;
-      if (isAdmin) {
-        // ADMIN ACCOUNT: Enforce specific admin password or default fallbacks
-        const expectedAdminPass = storedPass || 'adnimku';
-        if (
-          !cleanPass ||
-          cleanPass === expectedAdminPass ||
-          (storedPass && cleanPass === storedPass) ||
-          cleanPass === 'adnimku' ||
-          cleanPass === '12345hw' ||
-          cleanPass === '12345hwhw' ||
-          cleanPass === 'admin' ||
-          cleanPass === 'admin123' ||
-          cleanPass === cleanInput
-        ) {
-          isValid = true;
+      const storedPass = (found as any).password ? String((found as any).password).trim() : '';
+
+      if (isMedkom) {
+        if (storedPass && storedPass !== 'adnimku' && storedPass !== '12345hw') {
+          isValid = (cleanPass === storedPass || cleanPass === '12345hwhw');
+        } else {
+          isValid = (cleanPass === '12345hwhw' || cleanPass === '12345hw' || cleanPass === 'adnimku');
+        }
+      } else if (isAdmin) {
+        if (storedPass && storedPass !== '12345hw') {
+          isValid = (cleanPass === storedPass || cleanPass === 'adnimku' || cleanPass === 'admin');
+        } else {
+          isValid = (cleanPass === 'adnimku' || cleanPass === 'admin');
         }
       } else {
-        // REGULAR MEMBER ACCOUNT: Accept stored pass, default password 12345hw, or common fallbacks
-        const expectedUserPass = storedPass || '12345hw';
-        if (
-          !cleanPass ||
-          cleanPass === expectedUserPass ||
-          (storedPass && cleanPass === storedPass) ||
-          cleanPass === '12345hw' ||
-          cleanPass === '12345hwhw' ||
-          cleanPass === 'adnimku' ||
-          cleanPass === 'alda' ||
-          cleanPass === 'password123' ||
-          cleanPass === '123456' ||
-          cleanPass === cleanInput
-        ) {
-          isValid = true;
+        // Regular member
+        if (storedPass && storedPass !== 'adnimku' && storedPass !== 'admin') {
+          isValid = (cleanPass === storedPass || cleanPass === '12345hw');
+        } else {
+          isValid = (cleanPass === '12345hw');
         }
       }
 
@@ -518,7 +510,7 @@ export const sheetsService = {
       }
     }
 
-    // Special fallback for super admin credentials
+    // Special fallback for super admin
     if ((cleanInput === 'admin@hw.org' || cleanInput === 'admin') && (cleanPass === 'admin' || cleanPass === 'adnimku')) {
       return {
         token: 'mock-token-admin',
@@ -569,7 +561,7 @@ export const sheetsService = {
     }
 
     // Add Alda Putri mock for testing as requested
-    if (cleanInput === 'aldaputri@gmail.com') {
+    if (cleanInput === 'aldaputri@gmail.com' && (cleanPass === '12345hw' || cleanPass === '12345')) {
       return {
         token: 'mock-token-alda',
         user: {
@@ -587,29 +579,6 @@ export const sheetsService = {
           noHp: '081234567890',
           sosmed: '@aldaputri',
           isVerified: true
-        }
-      };
-    }
-
-    // Default mock behavior for other emails during development
-    if (password === 'password123' || password === '123456' || password === 'admin' || password === 'alda') {
-      return {
-        token: 'mock-token-generic',
-        user: {
-          id: 'mock-' + Math.random().toString(36).substr(2, 9),
-          email: emailOrId,
-          namaLengkap: emailOrId.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-          role: 'umum',
-          jenisKelamin: 'L',
-          golongan: 'Pengenal',
-          pelatihan: [],
-          pendidikan: 'SMP',
-          asalKwarda: 'Banyumas',
-          qabilah: 'Umum',
-          alamat: 'Jawa Tengah',
-          noHp: '0812' + Math.floor(Math.random() * 100000000),
-          sosmed: '@' + emailOrId.split('@')[0],
-          isVerified: false
         }
       };
     }
