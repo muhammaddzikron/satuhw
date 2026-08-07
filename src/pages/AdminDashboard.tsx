@@ -6496,13 +6496,15 @@ export default function AdminDashboard() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1 sm:col-span-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center justify-between">
+                        <span>Nomor KTA</span>
+                        <span className="text-emerald-600 font-extrabold lowercase text-[9px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Otomatis & Permanen (11.xx.xxxx)</span>
+                      </label>
                       <input 
                         type="text" 
-                        value={formData.ktaNumber}
-                        onChange={(e) => setFormData({...formData, ktaNumber: e.target.value})}
-                        placeholder="001.HW.JATENG.2026"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
+                        readOnly
+                        value={formData.ktaNumber || 'Dibuat otomatis oleh sistem (11.xx.xxxx)'}
+                        className="w-full bg-gray-100/80 text-gray-700 font-mono font-black text-sm border border-gray-200 rounded-2xl py-3 px-4 outline-none cursor-not-allowed" 
                       />
                     </div>
                   </div>
@@ -8630,7 +8632,7 @@ export default function AdminDashboard() {
                                     className="font-mono font-black tracking-wider py-0.1"
                                     style={{ color: ktaFrontBg ? '#065f46' : '#fde68a', position: 'relative', zIndex: 20 }}
                                   >
-                                    {viewingKtaApp.ktaNumber || 'KTA-HW.JT.XXXX'}
+                                    {viewingKtaApp.nomorKTA || viewingKtaApp.ktaNumber || '11.14.0001'}
                                   </td>
                                 </tr>
                                 <tr>

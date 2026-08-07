@@ -20,7 +20,8 @@ import {
   Info,
   CreditCard,
   Camera,
-  Check
+  Check,
+  Calendar
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';

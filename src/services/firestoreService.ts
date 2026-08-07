@@ -6,11 +6,19 @@ import {
   setDoc,
   deleteDoc,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
+import {
+  getKwardaCode,
+  findNextAvailableNumber,
+  formatKtaNumber,
+  isValidKtaNumberFormat,
+  parseKtaNumber
+} from '../utils/ktaUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
@@ -740,9 +748,181 @@ export const firestoreService = {
     throw new Error('Email/ID Anda tidak terdaftar sebagai anggota. Silakan lakukan pendaftaran terlebih dahulu.');
   },
 
+  /**
+   * Generates a permanent KTA number for Jateng using a Firestore transaction.
+   * Format: 11.xx.xxxx
+   * Uses hole-filling (gap-filling) algorithm to assign the smallest available number for that Kwarda/Qabilah.
+   */
+  async allocateKtaNumberTransaction(
+    asalKwardaOrQabilah?: string,
+    existingKta?: string
+  ): Promise<{
+    nomorKTA: string;
+    ktaNumber: string;
+    kodeProvinsi: string;
+    kodeKwarda: string;
+    nomorUrut: number;
+  }> {
+    // Permanent check: if user/application already has a valid 11.xx.xxxx KTA, NEVER change it!
+    if (existingKta && isValidKtaNumberFormat(existingKta)) {
+      const parsed = parseKtaNumber(existingKta)!;
+      return {
+        nomorKTA: existingKta,
+        ktaNumber: existingKta,
+        kodeProvinsi: '11',
+        kodeKwarda: parsed.kodeKwarda,
+        nomorUrut: parsed.nomorUrut
+      };
+    }
+
+    const kodeKwarda = getKwardaCode(asalKwardaOrQabilah);
+    const counterRef = doc(db, 'kta_counters', kodeKwarda);
+
+    // Initial scan of existing sequence numbers across members & kta_applications
+    const existingSeqNumbers: number[] = [];
+    try {
+      const [memSnap, ktaSnap] = await Promise.all([
+        getDocs(collection(db, 'members')).catch(() => ({ docs: [] })),
+        getDocs(collection(db, 'kta_applications')).catch(() => ({ docs: [] }))
+      ]);
+
+      (memSnap as any).docs?.forEach((d: any) => {
+        const data = d.data();
+        const kNum = data.nomorKTA || data.ktaNumber;
+        const parsed = parseKtaNumber(kNum);
+        if (parsed && parsed.kodeKwarda === kodeKwarda) {
+          existingSeqNumbers.push(parsed.nomorUrut);
+        } else if (data.nomorUrut && (data.kodeKwarda === kodeKwarda || getKwardaCode(data.asalKwarda) === kodeKwarda)) {
+          existingSeqNumbers.push(Number(data.nomorUrut));
+        }
+      });
+
+      (ktaSnap as any).docs?.forEach((d: any) => {
+        const data = d.data();
+        const kNum = data.nomorKTA || data.ktaNumber;
+        const parsed = parseKtaNumber(kNum);
+        if (parsed && parsed.kodeKwarda === kodeKwarda) {
+          existingSeqNumbers.push(parsed.nomorUrut);
+        }
+      });
+    } catch (e) {
+      console.warn('Scan existing numbers warning:', e);
+    }
+
+    // LocalStorage fallback check
+    try {
+      const mems: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
+      mems.forEach(m => {
+        const kNum = m.nomorKTA || m.ktaNumber;
+        const parsed = parseKtaNumber(kNum);
+        if (parsed && parsed.kodeKwarda === kodeKwarda) {
+          existingSeqNumbers.push(parsed.nomorUrut);
+        }
+      });
+      const ktas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
+      ktas.forEach(k => {
+        const kNum = k.nomorKTA || k.ktaNumber;
+        const parsed = parseKtaNumber(kNum);
+        if (parsed && parsed.kodeKwarda === kodeKwarda) {
+          existingSeqNumbers.push(parsed.nomorUrut);
+        }
+      });
+    } catch (e) {}
+
+    let finalNumber = '';
+    let allocatedSeq = 1;
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const counterSnap = await transaction.get(counterRef);
+          const usedSet = new Set<number>(existingSeqNumbers);
+
+          if (counterSnap.exists()) {
+            const cData = counterSnap.data();
+            if (Array.isArray(cData.usedNumbers)) {
+              cData.usedNumbers.forEach((num: number) => usedSet.add(Number(num)));
+            }
+          }
+
+          const candidate = findNextAvailableNumber(usedSet);
+          allocatedSeq = candidate;
+          usedSet.add(candidate);
+
+          transaction.set(
+            counterRef,
+            {
+              id: kodeKwarda,
+              kodeKwarda,
+              kodeProvinsi: '11',
+              usedNumbers: Array.from(usedSet),
+              lastSequence: Math.max(...Array.from(usedSet)),
+              updatedAt: new Date().toISOString()
+            },
+            { merge: true }
+          );
+
+          finalNumber = formatKtaNumber(kodeKwarda, candidate);
+        });
+      } catch (txErr) {
+        console.warn('runTransaction warn/fallback:', txErr);
+      }
+    }
+
+    if (!finalNumber) {
+      const candidate = findNextAvailableNumber(existingSeqNumbers);
+      allocatedSeq = candidate;
+      finalNumber = formatKtaNumber(kodeKwarda, candidate);
+    }
+
+    return {
+      nomorKTA: finalNumber,
+      ktaNumber: finalNumber,
+      kodeProvinsi: '11',
+      kodeKwarda,
+      nomorUrut: allocatedSeq
+    };
+  },
+
   async saveMember(member: User): Promise<User> {
-    const memberId = member.id || `user-${Date.now()}`;
-    const dataToSave = cleanData({ ...member, id: memberId });
+    const memberId = member.id || member.uid || `user-${Date.now()}`;
+    const existingKta = member.nomorKTA || member.ktaNumber;
+
+    let ktaInfo: any = null;
+    if (existingKta && isValidKtaNumberFormat(existingKta)) {
+      const parsed = parseKtaNumber(existingKta)!;
+      ktaInfo = {
+        nomorKTA: existingKta,
+        ktaNumber: existingKta,
+        kodeProvinsi: '11',
+        kodeKwarda: parsed.kodeKwarda,
+        nomorUrut: parsed.nomorUrut
+      };
+    } else {
+      ktaInfo = await this.allocateKtaNumberTransaction(
+        member.asalKwarda || member.qabilah || member.asalQabilah,
+        existingKta
+      );
+    }
+
+    const dataToSave = cleanData({
+      ...member,
+      id: memberId,
+      uid: member.uid || memberId,
+      nama: member.nama || member.namaLengkap,
+      email: member.email,
+      nomorKTA: ktaInfo.nomorKTA,
+      ktaNumber: ktaInfo.ktaNumber,
+      kodeProvinsi: ktaInfo.kodeProvinsi,
+      kodeKwarda: ktaInfo.kodeKwarda,
+      nomorUrut: ktaInfo.nomorUrut,
+      asalKwarda: member.asalKwarda || '',
+      asalQabilah: member.asalQabilah || member.qabilah || '',
+      tanggalDaftar: member.tanggalDaftar || new Date().toISOString(),
+      status: member.status || (member.isVerified ? 'Aktif' : 'Pending'),
+      aktif: member.aktif !== undefined ? member.aktif : (member.isVerified || member.statusAktivasi === 'Aktif')
+    });
+
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
@@ -1078,11 +1258,29 @@ export const firestoreService = {
   },
 
   async createKTAApplication(appData: any): Promise<any> {
+    let ktaNum = appData.nomorKTA || appData.ktaNumber;
+    let ktaInfo: any = null;
+    if (appData.status === 'approved') {
+      if (ktaNum && isValidKtaNumberFormat(ktaNum)) {
+        const parsed = parseKtaNumber(ktaNum)!;
+        ktaInfo = { nomorKTA: ktaNum, ktaNumber: ktaNum, kodeProvinsi: '11', kodeKwarda: parsed.kodeKwarda, nomorUrut: parsed.nomorUrut };
+      } else {
+        ktaInfo = await this.allocateKtaNumberTransaction(appData.asalDaerah || appData.qabilah, ktaNum);
+      }
+    }
+
     const newApp = cleanData({
       ...appData,
       id: appData.id || `kta-${Date.now()}`,
       status: appData.status || 'pending',
-      tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
+      tanggalAjuan: appData.tanggalAjuan || new Date().toISOString(),
+      ...(ktaInfo ? {
+        nomorKTA: ktaInfo.nomorKTA,
+        ktaNumber: ktaInfo.ktaNumber,
+        kodeProvinsi: ktaInfo.kodeProvinsi,
+        kodeKwarda: ktaInfo.kodeKwarda,
+        nomorUrut: ktaInfo.nomorUrut
+      } : {})
     });
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -1152,9 +1350,18 @@ export const firestoreService = {
     if (qrCode !== undefined) updates.qrCode = qrCode;
 
     if (status === 'approved') {
-      if (!updates.ktaNumber) {
-        const existingNum = idx >= 0 ? list[idx].ktaNumber : undefined;
-        updates.ktaNumber = existingNum || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+      const existingNum = idx >= 0 ? (list[idx].nomorKTA || list[idx].ktaNumber) : (ktaNumber || updates.ktaNumber);
+      if (!existingNum || !isValidKtaNumberFormat(existingNum)) {
+        const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda || list[idx].qabilah) : '';
+        const allocated = await this.allocateKtaNumberTransaction(targetKwarda, existingNum);
+        updates.nomorKTA = allocated.nomorKTA;
+        updates.ktaNumber = allocated.ktaNumber;
+        updates.kodeProvinsi = allocated.kodeProvinsi;
+        updates.kodeKwarda = allocated.kodeKwarda;
+        updates.nomorUrut = allocated.nomorUrut;
+      } else {
+        updates.nomorKTA = existingNum;
+        updates.ktaNumber = existingNum;
       }
       if (!updates.verifiedAt) {
         updates.verifiedAt = new Date().toISOString();
@@ -2207,10 +2414,15 @@ export const firestoreService = {
         if (!kEmail && !kName) continue;
 
         let assignedKtaNumber = ktaNum;
-        if (!assignedKtaNumber) {
-          assignedKtaNumber = `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+        if (!assignedKtaNumber || !isValidKtaNumberFormat(assignedKtaNumber)) {
+          const allocated = await this.allocateKtaNumberTransaction(k.asalDaerah || k.asalKwarda || k.qabilah, assignedKtaNumber);
+          assignedKtaNumber = allocated.nomorKTA;
+          k.nomorKTA = assignedKtaNumber;
           k.ktaNumber = assignedKtaNumber;
-          ktaBatch.set(doc(db, 'kta_applications', String(kId || `kta-${Date.now()}`)), cleanData({ ...k, ktaNumber: assignedKtaNumber }), { merge: true });
+          k.kodeProvinsi = allocated.kodeProvinsi;
+          k.kodeKwarda = allocated.kodeKwarda;
+          k.nomorUrut = allocated.nomorUrut;
+          ktaBatch.set(doc(db, 'kta_applications', String(kId || `kta-${Date.now()}`)), cleanData({ ...k, nomorKTA: assignedKtaNumber, ktaNumber: assignedKtaNumber }), { merge: true });
         }
 
         const kGender = k.jenisKelamin === 'Perempuan' || k.jenisKelamin === 'P' ? 'P' : 'L';
@@ -2306,7 +2518,14 @@ export const firestoreService = {
 
         if (!hasKta) {
           const ktaId = `kta-${mId || Date.now()}`;
-          const ktaNum = m.ktaNumber || `KTA-HW.JT.${new Date().getFullYear().toString().substring(2)}${Math.floor(10 + Math.random() * 90)}.${Math.floor(1000 + Math.random() * 9000)}`;
+          let ktaNum = m.nomorKTA || m.ktaNumber;
+          let allocated: any = null;
+          if (!ktaNum || !isValidKtaNumberFormat(ktaNum)) {
+            allocated = await this.allocateKtaNumberTransaction(m.asalKwarda || m.qabilah, ktaNum);
+            ktaNum = allocated.nomorKTA;
+            m.nomorKTA = ktaNum;
+            m.ktaNumber = ktaNum;
+          }
           const newKtaApp = {
             id: ktaId,
             userId: mId,
@@ -2320,6 +2539,7 @@ export const firestoreService = {
             alamat: m.alamat || '',
             photo: m.photo || '',
             status: 'approved',
+            nomorKTA: ktaNum,
             ktaNumber: ktaNum,
             verifiedAt: new Date().toISOString()
           };

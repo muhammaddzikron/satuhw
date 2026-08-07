@@ -2,14 +2,17 @@ export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'jati1' | 'jati2' | 'jari1'
 
 export interface User {
   id: string;
+  uid?: string;
   email: string;
   namaLengkap: string;
+  nama?: string;
   jenisKelamin: 'L' | 'P';
   golongan: string;
   pelatihan: string[];
   pendidikan: string;
   asalKwarda: string;
   qabilah: string;
+  asalQabilah?: string;
   alamat: string;
   noHp: string;
   sosmed: string;
@@ -21,8 +24,19 @@ export interface User {
   photo?: string;
   nik?: string;
   ktaNumber?: string;
+  nomorKTA?: string;
+  kodeProvinsi?: string;
+  kodeKwarda?: string;
+  nomorUrut?: number;
+  tanggalDaftar?: string;
+  status?: string;
+  aktif?: boolean;
+  statusAktivasi?: string;
+  statusPembayaran?: string;
   verifiedAt?: string;
   password?: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
 }
 
 export interface Materi {
