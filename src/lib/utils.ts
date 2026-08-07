@@ -15,6 +15,68 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
+export function formatIndonesianDate(dateString?: string | number | Date | null, includeDay: boolean = false): string {
+  if (!dateString) {
+    const now = new Date();
+    return formatIndonesianDate(now, includeDay);
+  }
+
+  try {
+    let date: Date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else if (typeof dateString === 'number') {
+      date = new Date(dateString);
+    } else if (typeof dateString === 'string') {
+      const trimmed = dateString.trim();
+      if (!trimmed || trimmed.includes('...')) {
+        date = new Date();
+      } else {
+        date = new Date(trimmed);
+        if (isNaN(date.getTime()) && trimmed.includes('-')) {
+          const parts = trimmed.split('T')[0].split('-');
+          if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            date = new Date(y, m, d);
+          }
+        }
+      }
+    } else {
+      date = new Date();
+    }
+
+    if (isNaN(date.getTime())) {
+      date = new Date();
+    }
+
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+
+    if (includeDay) {
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const dayName = days[date.getDay()];
+      return `${dayName}, ${day} ${month} ${year}`;
+    }
+
+    return `${day} ${month} ${year}`;
+  } catch {
+    const now = new Date();
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return `${String(now.getDate()).padStart(2, '0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
+}
+
 export function formatTime(date: Date): string {
   return new Intl.DateTimeFormat('id-ID', {
     hour: '2-digit',

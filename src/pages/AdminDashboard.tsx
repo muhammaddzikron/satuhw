@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { KTACard } from '../components/KTACard';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -907,7 +908,7 @@ export default function AdminDashboard() {
 
       // Capture front card
       const frontCanvas = await safeHtml2Canvas(frontEl, {
-        scale: 3, // high quality
+        scale: 4, // 300+ DPI high quality
         useCORS: true,
         allowTaint: false,
         backgroundColor: null
@@ -915,7 +916,7 @@ export default function AdminDashboard() {
 
       // Capture back card
       const backCanvas = await safeHtml2Canvas(backEl, {
-        scale: 3, // high quality
+        scale: 4, // 300+ DPI high quality
         useCORS: true,
         allowTaint: false,
         backgroundColor: null
@@ -930,59 +931,68 @@ export default function AdminDashboard() {
         format: 'a4'
       });
 
-      // Add a beautiful title and instructions to the PDF page!
+      // Title and Headers (A4 Portrait = 210mm x 297mm)
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
+      pdf.setFontSize(15);
       pdf.setTextColor(15, 118, 110); // hw-green color
-      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 25, { align: 'center' });
+      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 20, { align: 'center' });
       
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 31, { align: 'center' });
-      
-      // Draw a decorative divider line
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setLineWidth(0.5);
-      pdf.line(20, 36, 190, 36);
-
-      // Let's put Front Card
-      // Standard ID-1 card size: 85.6 mm x 54 mm (ukuran KTA pada umumnya)
-      const cardWidth = 85.6; 
-      const cardHeight = 54;
-      const xPos = (210 - cardWidth) / 2; // centered
-      
-      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(9);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 46, { align: 'center' });
-      pdf.addImage(frontImgData, 'PNG', xPos, 50, cardWidth, cardHeight);
-
-      // Let's put Back Card
-      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 126, { align: 'center' });
-      pdf.addImage(backImgData, 'PNG', xPos, 130, cardWidth, cardHeight);
-
-      // Footer instructions on PDF
-      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 26, { align: 'center' });
       pdf.setFontSize(8);
       pdf.setTextColor(148, 163, 184);
-      pdf.text('Gunakan kertas tebal (Art Paper / PVC Card) untuk mencetak kartu fisik resmi.', 105, 205, { align: 'center' });
-      pdf.text('Validasi KTA dapat dilakukan dengan memindai QR Code di bagian belakang kartu.', 105, 210, { align: 'center' });
+      pdf.text('Standar Kartu Identitas ID-1 (85.60 mm × 53.98 mm) — Skala 1:1 (Actual Size)', 105, 30, { align: 'center' });
+
+      // Divider line
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.4);
+      pdf.line(20, 34, 190, 34);
+
+      // Standard ID-1 card dimensions (85.60 mm x 53.98 mm)
+      const cardWidth = 85.60; 
+      const cardHeight = 53.98;
+      const xPos = (210 - cardWidth) / 2; // Exactly centered (62.20 mm)
       
-      // Draw signature placeholder or stamp info at the bottom
-      pdf.setDrawColor(241, 245, 249);
+      // FRONT CARD (Top)
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 41, { align: 'center' });
+
+      pdf.addImage(frontImgData, 'PNG', xPos, 44, cardWidth, cardHeight);
+      pdf.setDrawColor(203, 213, 225);
+      pdf.setLineWidth(0.2);
+      pdf.rect(xPos, 44, cardWidth, cardHeight); // Cutting border guide
+
+      // BACK CARD (Bottom)
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 112, { align: 'center' });
+
+      pdf.addImage(backImgData, 'PNG', xPos, 115, cardWidth, cardHeight);
+      pdf.rect(xPos, 115, cardWidth, cardHeight); // Cutting border guide
+
+      // Footer Print Guidelines
+      pdf.setDrawColor(226, 232, 240);
       pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(20, 225, 170, 30, 4, 4, 'FD');
+      pdf.roundedRect(20, 185, 170, 48, 3, 3, 'FD');
       
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('INFORMASI PENTING:', 25, 232);
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(15, 118, 110);
+      pdf.text('PANDUAN CETAK & VERIFIKASI (SKALA 1:1):', 25, 192);
+
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
-      pdf.text('1. Kartu Tanda Anggota (KTA) ini merupakan identitas resmi anggota Gerakan Kepanduan Hizbul Wathan.', 25, 237);
-      pdf.text('2. Jagalah kerahasiaan nomor KTA Anda dan laporkan ke admin Kwarda jika ada ketidaksesuaian data.', 25, 242);
-      pdf.text('3. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan aktif Anda secara real-time.', 25, 247);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('1. Cetak dokumen ini pada kertas A4 (Art Paper 230-300 gsm / PVC Card) dengan opsi "100% / Actual Size".', 25, 198);
+      pdf.text('2. Ukuran hasil cetak sesuai standar kartu identitas nasional ID-1 (85.60 mm × 53.98 mm).', 25, 204);
+      pdf.text('3. Potong mengikuti garis tepi tipis kartu depan dan belakang, lalu rekatkan atau lakukan press laminating.', 25, 210);
+      pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 216);
+      pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 222);
 
       pdf.save(`KTA_HW_${(viewingKtaApp?.nama || 'Anggota').replace(/\s+/g, '_')}.pdf`);
     } catch (err: any) {
@@ -4082,7 +4092,7 @@ export default function AdminDashboard() {
                         {/* Interactive Card Container */}
                         <div className="flex justify-center py-4">
                           <div 
-                            className="w-full max-w-[350px] aspect-[1.586/1] cursor-pointer [perspective:1000px]"
+                            className="w-full max-w-[350px] aspect-[856/540] cursor-pointer [perspective:1000px]"
                             onClick={() => setPreviewFlipped(!previewFlipped)}
                           >
                             <div className={`relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d] ${
@@ -4090,225 +4100,35 @@ export default function AdminDashboard() {
                             }`}>
                               
                               {/* CARD FRONT PREVIEW */}
-                              <div 
-                                className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden shadow-lg border border-emerald-800/10 p-4 flex flex-col justify-between"
-                                style={settings.ktaTemplateFront ? {
-                                  backgroundImage: `url(${getCorsSafeUrl(settings.ktaTemplateFront)})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center',
-                                  backgroundColor: 'white'
-                                } : {
-                                  backgroundColor: 'white'
-                                }}
-                              >
-                                {/* Custom Date above pre-printed Sekretaris text on template background */}
-                                {settings.ktaTemplateFront && (
-                                  <div className="absolute bottom-[70px] right-[20px] z-20 text-right pointer-events-none">
-                                    <p className="text-[5.5px] font-bold text-gray-800 leading-none">
-                                      {(() => {
-                                        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                                        const d = new Date();
-                                        const currentDateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-                                        return `${settings.ktaKotaPenerbit || 'Semarang'}, ${currentDateStr}`;
-                                      })()}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* Default background ornament curves if no template front is uploaded */}
-                                {!settings.ktaTemplateFront && (
-                                  <>
-                                    <div className="absolute right-0 top-0 w-40 h-16 bg-gradient-to-l from-amber-100/60 to-transparent rounded-bl-full pointer-events-none" />
-                                    <div className="absolute left-0 bottom-0 right-0 h-20 bg-gradient-to-t from-emerald-500/10 via-teal-500/5 to-transparent pointer-events-none" />
-                                    <div className="absolute left-0 bottom-0 w-44 h-14 bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 rounded-tr-full opacity-70 pointer-events-none" />
-                                    <div className="absolute left-0 bottom-0 w-48 h-10 bg-gradient-to-tr from-amber-400 via-yellow-400 to-transparent rounded-tr-full opacity-30 pointer-events-none" />
-                                  </>
-                                )}
-
-                                {/* Header block */}
-                                <div className={cn("flex items-center gap-2 z-10 border-b pb-2", settings.ktaTemplateFront ? "border-transparent opacity-0 pointer-events-none" : "border-gray-100")}>
-                                  <img src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" alt="HW Logo" className="w-8 h-8 object-contain" />
-                                  <div>
-                                    <h5 className="text-[7.5px] font-black text-gray-800 uppercase tracking-wider leading-tight">GERAKAN KEPANDUAN HIZBUL WATHAN</h5>
-                                    <p className="text-[6.5px] font-black text-hw-green uppercase tracking-widest leading-none">KWARWIL JAWA TENGAH</p>
-                                  </div>
-                                </div>
-
-                                {/* Body block */}
-                                <div className={cn("flex gap-3 z-10", settings.ktaTemplateFront ? "-mt-1.5 mb-auto" : "my-1.5")}>
-                                  {/* Avatar placeholder */}
-                                  <div className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden border-2 border-emerald-600 shrink-0 flex items-center justify-center relative shadow-sm">
-                                    <div className="flex flex-col items-center justify-center text-emerald-600 p-1">
-                                      <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
-                                        <Users size={14} />
-                                      </div>
-                                      <span className="text-[5px] uppercase font-bold mt-1 text-center leading-none">Foto Anggota</span>
-                                    </div>
-                                    <span className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white text-[5px] uppercase font-black text-center py-0.5">
-                                      HW JATENG
-                                    </span>
-                                  </div>
-
-                                  {/* Data Personal */}
-                                  <div className="flex-1 min-w-0 flex flex-col justify-center text-gray-800 space-y-0.5">
-                                    <h4 className="text-[9.5px] font-black text-emerald-800 uppercase tracking-wider mb-1">KARTU ANGGOTA</h4>
-                                    
-                                    <table className="w-full text-left border-none border-collapse text-[7px] font-semibold text-gray-700">
-                                      <tbody>
-                                        <tr>
-                                          <td className="w-14 font-bold text-gray-500 uppercase py-0.25">Nomor</td>
-                                          <td className="w-2 text-center py-0.25">:</td>
-                                          <td className="font-mono font-black text-emerald-800 tracking-wider py-0.25">11.02.0027</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="font-bold text-gray-500 uppercase py-0.25">Nama</td>
-                                          <td className="text-center py-0.25">:</td>
-                                          <td className="font-black text-gray-800 uppercase py-0.25 truncate">Catur Teddy Pamungkas</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="font-bold text-gray-500 uppercase py-0.25">TTL</td>
-                                          <td className="text-center py-0.25">:</td>
-                                          <td className="font-bold text-gray-800 py-0.25">Banyumas, 17 September 2012</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="font-bold text-gray-500 uppercase py-0.25">Asal</td>
-                                          <td className="text-center py-0.25">:</td>
-                                          <td className="font-bold text-gray-800 py-0.25 truncate">Kabupaten Banyumas</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="font-bold text-gray-500 uppercase py-0.25">Tingkatan</td>
-                                          <td className="text-center py-0.25">:</td>
-                                          <td className="font-bold text-emerald-700 py-0.25">Pandu Pengenal</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="font-bold text-gray-500 uppercase py-0.25">Alamat</td>
-                                          <td className="text-center py-0.25">:</td>
-                                          <td className="font-bold text-gray-600 py-0.25 text-[6.5px] leading-tight line-clamp-2">Tambaksari Kidul RT 07 RW 03, Kembaran, Banyumas</td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-
-                                {/* Footer & Signatures Block */}
-                                <div className="pt-1 z-10 flex items-center justify-between relative">
-                                  <span className="text-[5px]"></span>
-                                  
-                                  {/* Right side signatures section */}
-                                  <div className={cn("flex flex-col items-end text-right w-[150px] shrink-0 relative", settings.ktaTemplateFront ? "opacity-0 pointer-events-none hidden" : "")}>
-                                    <p className="text-[5.5px] font-bold text-gray-800 leading-none">{'    '}{settings.ktaKotaPenerbit || 'Semarang'}, 13 Juli 2026</p>
-                                    
-                                    {/* Signatures & stamp overlapping row */}
-                                    <div className="flex items-center justify-between w-full h-8 relative mt-0.5 px-1">
-                                      {/* Stamp overlaying center */}
-                                      <div className="absolute left-[35%] top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-85">
-                                        {settings.ktaStempelImage ? (
-                                          <img src={settings.ktaStempelImage} alt="Stempel" className="w-9 h-9 object-contain rotate-[-12deg]" />
-                                        ) : (
-                                          <svg viewBox="0 0 100 100" className="w-8 h-8 text-blue-600/85 font-black uppercase tracking-wider relative rotate-[-12deg]">
-                                            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                                            <circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" strokeWidth="0.75" />
-                                            <g transform="translate(50,50) scale(0.65)">
-                                              <circle cx="0" cy="0" r="10" fill="none" stroke="currentColor" strokeWidth="1" />
-                                              {[...Array(12)].map((_, i) => (
-                                                <path key={i} d="M0 -15 L3 -25 L0 -21 L-3 -25 Z" fill="currentColor" transform={`rotate(${i * 30})`} />
-                                              ))}
-                                            </g>
-                                            <path id="stamp-path-top-admin" d="M 12 50 A 38 38 0 1 1 88 50" fill="none" stroke="none" />
-                                            <path id="stamp-path-bottom-admin" d="M 88 50 A 38 38 0 1 1 12 50" fill="none" stroke="none" />
-                                            <text className="text-[6.5px] fill-current font-bold" letterSpacing="1.2">
-                                              <textPath href="#stamp-path-top-admin" startOffset="50%" textAnchor="middle">KWARWIL JAWA TENGAH</textPath>
-                                            </text>
-                                            <text className="text-[6.5px] fill-current font-bold" letterSpacing="1.2">
-                                              <textPath href="#stamp-path-bottom-admin" startOffset="50%" textAnchor="middle">HIZBUL WATHAN</textPath>
-                                            </text>
-                                          </svg>
-                                        )}
-                                      </div>
-
-                                      {/* Ketua Signature Block */}
-                                      <div className="flex flex-col items-center w-1/2 relative">
-                                        <span className="text-[4px] font-bold uppercase text-gray-400">Ketua</span>
-                                        <div className="h-6 flex items-center justify-center">
-                                          {settings.ktaTandaTanganKetua ? (
-                                            <img src={settings.ktaTandaTanganKetua} alt="Tanda Tangan Ketua" className="h-6 object-contain" />
-                                          ) : (
-                                            <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                                              <path d="M10 25c10-2 20-15 25-15s5 20 15 5c5-5 15-10 20-5c5 5-2 15 5 15c5 0 15-10 20-15" />
-                                              <path d="M15 18c15 0 35 12 50 12" />
-                                            </svg>
-                                          )}
-                                        </div>
-                                        <span className="text-[4.5px] font-black text-gray-850 leading-none uppercase truncate w-full text-center">{settings.ktaKetuaNama}</span>
-                                        <span className="text-[3.5px] font-semibold text-gray-400 leading-none truncate w-full text-center">{settings.ktaKetuaNbm}</span>
-                                      </div>
-
-                                      {/* Sekretaris Signature Block */}
-                                      <div className="flex flex-col items-center w-1/2 relative">
-                                        <span className="text-[4px] font-bold uppercase text-gray-400">Sekretaris</span>
-                                        <div className="h-6 flex items-center justify-center">
-                                          {settings.ktaTandaTanganSekretaris ? (
-                                            <img src={settings.ktaTandaTanganSekretaris} alt="Tanda Tangan Sekretaris" className="h-6 object-contain" />
-                                          ) : (
-                                            <svg viewBox="0 0 100 40" className="w-16 h-8 text-blue-700 opacity-80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                                              <path d="M15 15c5 15 15 20 25 10c10-10 5-20 15-5s10 15 20 5s10-15 15-5" />
-                                              <path d="M10 22c15 2 30-5 45-2" />
-                                            </svg>
-                                          )}
-                                        </div>
-                                        <span className="text-[4.5px] font-black text-gray-850 leading-none uppercase truncate w-full text-center">{settings.ktaSekretarisNama}</span>
-                                        <span className="text-[3.5px] font-semibold text-gray-400 leading-none truncate w-full text-center">{settings.ktaSekretarisNbm}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
+                              <div className="absolute inset-0 w-full h-full [backface-visibility:hidden]">
+                                <KTACard 
+                                  application={{
+                                    ktaNumber: '11.02.0027',
+                                    nama: 'Catur Teddy Pamungkas',
+                                    tempatLahir: 'Banyumas',
+                                    tanggalLahir: '2012-09-17',
+                                    asalDaerah: 'Kabupaten Banyumas',
+                                    tingkatan: 'Pandu Pengenal',
+                                    alamat: 'Tambaksari Kidul RT 07 RW 03, Kembaran, Banyumas',
+                                    verifiedAt: '2026-07-13'
+                                  }} 
+                                  settings={settings} 
+                                  side="front" 
+                                  idSuffix="admin-settings-front"
+                                />
                               </div>
 
                               {/* CARD BACK PREVIEW */}
-                              <div 
-                                className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden shadow-lg border border-emerald-950/20 relative flex flex-col justify-between"
-                                style={settings.ktaTemplateBack ? {
-                                  backgroundImage: `url(${getCorsSafeUrl(settings.ktaTemplateBack)})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center',
-                                  backgroundColor: 'white'
-                                } : {
-                                  backgroundColor: '#fafaf9',
-                                  padding: '1rem'
-                                }}
-                              >
-                                {/* Default system back if no template uploaded - clean without member data */}
-                                {!settings.ktaTemplateBack && (
-                                  <>
-                                    <div className="absolute -left-10 -top-10 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
-                                    <div className="absolute right-0 bottom-0 w-40 h-16 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-tl-full pointer-events-none" />
-
-                                    {/* Rules and Pledge */}
-                                    <div className="space-y-1 z-10 px-1 mt-1 text-left leading-tight">
-                                      <h5 className="text-[7.5px] font-black uppercase text-emerald-800 tracking-wider text-center border-b border-gray-150 pb-0.5">Undang-Undang Pandu Hizbul Wathan</h5>
-                                      <ol className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[4.8px] text-gray-700 list-decimal pl-3 font-semibold leading-tight mt-1">
-                                        <li>Satu, Pandu Hizbul Wathan itu, dapat dipercaya.</li>
-                                        <li>Dua, Pandu Hizbul Wathan itu, setia dan teguh hati.</li>
-                                        <li>Tiga, Pandu Hizbul Wathan itu, siap menolong dan wajib berjasa.</li>
-                                        <li>Empat, Pandu Hizbul Wathan itu, suka perdamaian dan persaudaraan.</li>
-                                        <li>Lima, Pandu Hizbul Wathan itu, sopan santun dan perwira.</li>
-                                        <li>Enam, Pandu Hizbul Wathan itu, menyayangi semua makhluk.</li>
-                                        <li>Tujuh, Pandu Hizbul Wathan itu, melaksanakan perintah tanpa membantah.</li>
-                                        <li>Delapan, Pandu Hizbul Wathan itu, sabar dan pemaaf.</li>
-                                        <li>Sembilan, Pandu Hizbul Wathan itu, teliti dan hemat.</li>
-                                        <li>Sepuluh, Pandu Hizbul Wathan itu, suci dalam hati, pikiran, perkataan dan perbuatan.</li>
-                                      </ol>
-                                    </div>
-
-                                    <div className="border-t border-gray-100 pt-1 z-10 flex items-center justify-between relative mt-auto text-left">
-                                      <div className="leading-tight max-w-[130px]">
-                                        <p className="text-[4px] text-gray-400 uppercase font-bold">Diterbitkan oleh :</p>
-                                        <p className="text-[5.5px] font-black text-emerald-800 uppercase leading-none">Pimpinan Wilayah HW Jawa Tengah</p>
-                                        <p className="text-[4px] text-gray-400">Jl. Singosari No.33, Semarang</p>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
+                              <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                                <KTACard 
+                                  application={{
+                                    ktaNumber: '11.02.0027',
+                                    nama: 'Catur Teddy Pamungkas'
+                                  }} 
+                                  settings={settings} 
+                                  side="back" 
+                                  idSuffix="admin-settings-back"
+                                />
                               </div>
 
                             </div>
@@ -8693,7 +8513,7 @@ export default function AdminDashboard() {
                       <div 
                         id="kta-front-capture-admin"
                         className={cn(
-                          "w-[350px] h-[220px] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
+                          "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
                           ktaFrontBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-950 border-emerald-950/20"
                         )}
                         style={{ boxSizing: 'border-box' }}
@@ -8981,7 +8801,7 @@ export default function AdminDashboard() {
                       <div 
                         id="kta-back-capture-admin"
                         className={cn(
-                          "w-[350px] h-[220px] rounded-3xl overflow-hidden border relative flex flex-col justify-between shadow-lg select-none",
+                          "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border relative flex flex-col justify-between shadow-lg select-none",
                           ktaBackBg ? "bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20 p-4"
                         )}
                         style={{ boxSizing: 'border-box' }}

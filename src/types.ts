@@ -80,3 +80,36 @@ export interface TrainingActivity {
   deskripsi?: string;
   fee?: string;
 }
+
+export interface KTAApplication {
+  id?: string;
+  email?: string;
+  nama?: string;
+  nik?: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
+  asalDaerah?: string;
+  qabilah?: string;
+  tingkatan?: string;
+  alamat?: string;
+  photo?: string;
+  ktaNumber?: string;
+  status?: string;
+  appliedAt?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface SystemSettings {
+  ktaTemplateFront?: string;
+  ktaTemplateBack?: string;
+  ktaKotaPenerbit?: string;
+  ktaStempelImage?: string;
+  ktaTandaTanganKetua?: string;
+  ktaKetuaNama?: string;
+  ktaKetuaNbm?: string;
+  ktaTandaTanganSekretaris?: string;
+  ktaSekretarisNama?: string;
+  ktaSekretarisNbm?: string;
+  [key: string]: any;
+}

@@ -13,7 +13,7 @@ import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
-const withTimeout = <T>(promise: Promise<T>, ms: number = 1500): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Firestore operation timeout')), ms))
@@ -83,7 +83,7 @@ export const firestoreService = {
       let uploadedCount = 0;
 
       // 1. Members
-      const membersSnap = await withTimeout(getDocs(collection(db, 'members')), 1500);
+      const membersSnap = await withTimeout(getDocs(collection(db, 'members')), 8000);
       if (membersSnap.empty) {
         const localMembersStr = localStorage.getItem('mock_members');
         let initialMembers: any[] = [];
@@ -273,10 +273,12 @@ export const firestoreService = {
       this.checkQuotaError(error);
       if (this.isQuotaExceeded) {
         console.warn('[FIRESTORE] Daily quota limit reached. App running in local cache mode.');
+      } else if (error?.message?.includes('timeout') || error?.message?.includes('offline') || error?.message?.includes('network')) {
+        console.warn('[FIRESTORE] Initialization timed out or offline mode active. Using local cache.');
       } else {
-        console.error('Firestore init error:', error);
+        console.warn('[FIRESTORE] Initialization fallback to local cache:', error?.message || error);
       }
-      return { success: false, message: error.message };
+      return { success: false, message: error?.message || 'Firestore timeout' };
     }
   },
 
@@ -362,7 +364,7 @@ export const firestoreService = {
     let members: User[] = [];
     if (!this.getIsQuotaExceeded()) {
       try {
-        const snap = await withTimeout(getDocs(collection(db, 'members')), 1500);
+        const snap = await withTimeout(getDocs(collection(db, 'members')), 8000);
         if (!snap.empty) {
           const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
           const validMembers: User[] = [];
@@ -377,10 +379,10 @@ export const firestoreService = {
           }
           members = validMembers;
         }
-      } catch (err) {
+      } catch (err: any) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) {
-          console.error('Firestore getMembers error, fallback to cache:', err);
+          console.warn('[FIRESTORE] getMembers fallback to local cache:', err?.message || err);
         }
       }
     }
@@ -884,7 +886,7 @@ export const firestoreService = {
   async getMateri(): Promise<Materi[]> {
     if (!this.getIsQuotaExceeded()) {
       try {
-        const snap = await getDocs(collection(db, 'materi'));
+        const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
         if (!snap.empty) {
           const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
           localStorage.setItem('materi', JSON.stringify(materi));
@@ -946,7 +948,7 @@ export const firestoreService = {
   async getKTAApplications(): Promise<any[]> {
     if (!this.getIsQuotaExceeded()) {
       try {
-        const snap = await getDocs(collection(db, 'kta_applications'));
+        const snap = await withTimeout(getDocs(collection(db, 'kta_applications')), 8000);
         let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         const cleanKtas: any[] = [];
@@ -1212,7 +1214,7 @@ export const firestoreService = {
   async getTrainingApplications(): Promise<any[]> {
     if (!this.getIsQuotaExceeded()) {
       try {
-        const snap = await getDocs(collection(db, 'training_applications'));
+        const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
         if (!snap.empty) {
           const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           const cleanTrainings: any[] = [];
@@ -1343,7 +1345,7 @@ export const firestoreService = {
   async getContents(): Promise<Content[]> {
     if (!this.getIsQuotaExceeded()) {
       try {
-        const snap = await getDocs(collection(db, 'contents'));
+        const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
         if (!snap.empty) {
           const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
           localStorage.setItem('contents', JSON.stringify(contents));
