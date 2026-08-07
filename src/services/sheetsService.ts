@@ -211,6 +211,35 @@ export const sheetsService = {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
 
+    // Medkom admin credential override
+    if ((cleanEmail === 'medkom' || cleanEmail === 'medkom@hwjateng.com' || cleanEmail === 'user medkom') &&
+        (cleanPass === '12345hwhw' || cleanPass === '12345hw' || cleanPass === 'medkom@hwjateng.com100%')) {
+      const medkomUser: User = {
+        id: '1777209184010',
+        email: 'medkom@hwjateng.com',
+        namaLengkap: 'User medkom',
+        role: 'admin',
+        roles: ['admin'],
+        activeRole: 'admin',
+        jenisKelamin: 'P',
+        golongan: 'Pengenal',
+        pelatihan: ['Jati 1', 'Jati 2'],
+        pendidikan: 'S1',
+        asalKwarda: 'Kebumen',
+        qabilah: 'Medkom',
+        alamat: 'Kebumen',
+        noHp: '081286854000',
+        sosmed: '@medkomhwjateng',
+        isVerified: true,
+        password: '12345hwhw'
+      };
+      firestoreService.saveMember(medkomUser).catch(() => {});
+      return {
+        token: 'medkom-admin-token',
+        user: medkomUser
+      };
+    }
+
     // Add special check for super admin as requested
     if ((cleanEmail === 'admin' || cleanEmail === 'admin@hw.org') && (cleanPass === 'adnimku' || cleanPass === 'admin')) {
       const adminUser: User = {
@@ -1536,6 +1565,10 @@ export const sheetsService = {
 
   async registerActivity(appData: any): Promise<any> {
     return await firestoreService.registerActivity(appData);
+  },
+
+  async deleteActivityApplication(id: string): Promise<boolean> {
+    return await firestoreService.deleteActivityApplication(id);
   },
 
   getMockContents(): Content[] {

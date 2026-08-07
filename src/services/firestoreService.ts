@@ -500,7 +500,26 @@ export const firestoreService = {
       console.error('Error syncing KTA apps in getMembers:', e);
     }
 
-    const filteredMembers = members.filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
+    const filteredMembers = members
+      .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
+      .map(m => {
+        let role = m.role || 'umum';
+        let roles: UserRole[] = Array.isArray(m.roles) ? m.roles : [];
+        if (typeof role === 'string' && role.startsWith('[')) {
+          try {
+            roles = JSON.parse(role);
+            role = roles[0] || 'umum';
+          } catch(e) {}
+        }
+        if (roles.length === 0) {
+          roles = [role as UserRole];
+        }
+        return {
+          ...m,
+          role,
+          roles
+        };
+      });
     localStorage.setItem('mock_members', JSON.stringify(filteredMembers));
     return filteredMembers;
   },
@@ -509,6 +528,34 @@ export const firestoreService = {
     const cleanInput = (emailOrId || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
+
+    // Medkom Admin account credential override
+    if ((cleanInput === 'medkom' || cleanInput === 'medkom@hwjateng.com' || cleanInput === 'user medkom') &&
+        (cleanPass === '12345hwhw' || cleanPass === '12345hw' || cleanPass === 'medkom@hwjateng.com100%')) {
+      const medkomUser: User = {
+        id: '1777209184010',
+        email: 'medkom@hwjateng.com',
+        namaLengkap: 'User medkom',
+        role: 'admin',
+        roles: ['admin'],
+        activeRole: 'admin',
+        jenisKelamin: 'P',
+        golongan: 'Pengenal',
+        pelatihan: ['Jati 1', 'Jati 2'],
+        pendidikan: 'S1',
+        asalKwarda: 'Kebumen',
+        qabilah: 'Medkom',
+        alamat: 'Kebumen',
+        noHp: '081286854000',
+        sosmed: '@medkomhwjateng',
+        isVerified: true
+      };
+      this.saveMember(medkomUser).catch(() => {});
+      return {
+        token: 'medkom-admin-token',
+        user: medkomUser
+      };
+    }
 
     const checkMemberMatch = (m: any) => {
       if (!m) return false;
@@ -1563,6 +1610,21 @@ export const firestoreService = {
     }
 
     return cleanReg;
+  },
+
+  async deleteActivityApplication(id: string): Promise<boolean> {
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await deleteDoc(doc(db, 'activity_applications', id));
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteActivityApplication error:', err);
+      }
+    }
+    const list = await this.getActivityApplications();
+    const filtered = list.filter((a: any) => a.id !== id);
+    localStorage.setItem('activity_applications', JSON.stringify(filtered));
+    return true;
   },
 
   /**

@@ -136,6 +136,7 @@ import {
   Save,
   AlertTriangle,
   Pencil,
+  Loader2,
   Image as ImageIcon,
   Calendar,
   Edit
@@ -599,6 +600,10 @@ export default function AdminDashboard() {
   const [addParticipantTanggal, setAddParticipantTanggal] = useState('');
   const [addParticipantSearchQuery, setAddParticipantSearchQuery] = useState('');
   const [isSubmittingAddParticipant, setIsSubmittingAddParticipant] = useState(false);
+
+  // Activity Participant Edit States
+  const [editingActivityParticipant, setEditingActivityParticipant] = useState<any | null>(null);
+  const [isEditActivityParticipantModalOpen, setIsEditActivityParticipantModalOpen] = useState(false);
 
   // Grading Modal States
   const [isGradingModalOpen, setIsGradingModalOpen] = useState(false);
@@ -1242,6 +1247,44 @@ export default function AdminDashboard() {
       setActivitiesList(actData || []);
     } catch (err: any) {
       alert('Gagal menghapus kegiatan: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenEditActivityParticipantModal = (participant: any) => {
+    setEditingActivityParticipant({ ...participant });
+    setIsEditActivityParticipantModalOpen(true);
+  };
+
+  const handleSaveActivityParticipant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingActivityParticipant) return;
+    try {
+      setLoading(true);
+      await sheetsService.registerActivity(editingActivityParticipant);
+      alert('Data peserta kegiatan berhasil diperbarui!');
+      setIsEditActivityParticipantModalOpen(false);
+      setEditingActivityParticipant(null);
+      const updatedApps = await sheetsService.getActivityApplications();
+      setActivityApplicationsList(updatedApps || []);
+    } catch (err: any) {
+      alert('Gagal memperbarui data peserta: ' + (err.message || 'Cek koneksi'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteActivityParticipant = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data peserta kegiatan ini?')) return;
+    try {
+      setLoading(true);
+      await sheetsService.deleteActivityApplication(id);
+      alert('Data peserta berhasil dihapus!');
+      const updatedApps = await sheetsService.getActivityApplications();
+      setActivityApplicationsList(updatedApps || []);
+    } catch (err: any) {
+      alert('Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi'));
     } finally {
       setLoading(false);
     }
@@ -5756,9 +5799,22 @@ export default function AdminDashboard() {
                               </div>
                             </div>
 
-                            <div className="pt-1 flex items-center justify-between text-xs">
-                              <span className="text-[10px] text-gray-400 font-medium">No. WA / Telp:</span>
+                            <div className="pt-2 flex items-center justify-between text-xs border-t border-gray-100">
                               <span className="font-mono font-bold text-gray-900">{app.noHp || '-'}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditActivityParticipantModal(app)}
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                  <Edit size={12} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteActivityParticipant(app.id)}
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 size={12} /> Hapus
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -5782,6 +5838,7 @@ export default function AdminDashboard() {
                             <th className="p-4">Jabatan & Undangan</th>
                             <th className="p-4">No. HP / WA</th>
                             <th className="p-4">Tgl Daftar</th>
+                            <th className="p-4 text-center">Aksi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -5819,11 +5876,29 @@ export default function AdminDashboard() {
                                 <td className="p-4 text-gray-400 text-[11px]">
                                   {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
                                 </td>
+                                <td className="p-4 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => handleOpenEditActivityParticipantModal(app)}
+                                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="Edit Data Peserta"
+                                    >
+                                      <Edit size={13} /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteActivityParticipant(app.id)}
+                                      className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="Hapus Data Peserta"
+                                    >
+                                      <Trash2 size={13} /> Hapus
+                                    </button>
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           {activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants).length === 0 && (
                             <tr>
-                              <td colSpan={7} className="p-8 text-center text-gray-400 font-bold">
+                              <td colSpan={8} className="p-8 text-center text-gray-400 font-bold">
                                 Belum ada pendaftar kegiatan.
                               </td>
                             </tr>
@@ -7627,6 +7702,176 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* EDIT ACTIVITY PARTICIPANT MODAL */}
+        <AnimatePresence>
+          {isEditActivityParticipantModalOpen && editingActivityParticipant && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6 overflow-y-auto">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => { setIsEditActivityParticipantModalOpen(false); setEditingActivityParticipant(null); }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden p-6 z-10 max-h-[90vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+                  <div>
+                    <h3 className="text-base font-black text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                      ✏️ Edit Data Peserta Kegiatan
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                      Kelola dan perbarui data pendaftaran peserta kegiatan
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setIsEditActivityParticipantModalOpen(false); setEditingActivityParticipant(null); }}
+                    className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveActivityParticipant} className="space-y-4 overflow-y-auto my-4 pr-1 flex-1 text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nama Lengkap */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                      <input 
+                        type="text"
+                        required
+                        value={editingActivityParticipant.namaLengkap || editingActivityParticipant.nama || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, namaLengkap: e.target.value, nama: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                      <input 
+                        type="email"
+                        value={editingActivityParticipant.email || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, email: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* NIK */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK</label>
+                      <input 
+                        type="text"
+                        value={editingActivityParticipant.nik || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, nik: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* No WhatsApp */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. WhatsApp / HP</label>
+                      <input 
+                        type="text"
+                        required
+                        value={editingActivityParticipant.noHp || editingActivityParticipant.noWa || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, noHp: e.target.value, noWa: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Unsur / Asal Kwarda */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Unsur / Asal Daerah</label>
+                      <input 
+                        type="text"
+                        value={editingActivityParticipant.unsur || editingActivityParticipant.asalKwarda || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, unsur: e.target.value, asalKwarda: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Utusan / Qabilah */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Utusan / Qabilah / Instansi</label>
+                      <input 
+                        type="text"
+                        value={editingActivityParticipant.utusan || editingActivityParticipant.qabilahPtma || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, utusan: e.target.value, qabilahPtma: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Jabatan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jabatan</label>
+                      <input 
+                        type="text"
+                        value={editingActivityParticipant.jabatan || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, jabatan: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Kategori Undangan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori Undangan / Akses</label>
+                      <input 
+                        type="text"
+                        value={editingActivityParticipant.kategoriUndangan || ''}
+                        onChange={(e) => setEditingActivityParticipant({ ...editingActivityParticipant, kategoriUndangan: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Pilih Kegiatan */}
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kegiatan Yang Diikuti</label>
+                      <select
+                        value={editingActivityParticipant.activityId || ''}
+                        onChange={(e) => {
+                          const act = activitiesList.find(a => a.id === e.target.value);
+                          setEditingActivityParticipant({
+                            ...editingActivityParticipant,
+                            activityId: e.target.value,
+                            namaKegiatan: act ? act.namaKegiatan : editingActivityParticipant.namaKegiatan
+                          });
+                        }}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        {activitiesList.map(a => (
+                          <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-gray-100 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditActivityParticipantModalOpen(false); setEditingActivityParticipant(null); }}
+                      className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 rounded-2xl text-xs font-bold text-gray-500 transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-hw-green/20 cursor-pointer"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : 'Simpan Perubahan'}
+                    </button>
+                  </div>
+                </form>
               </motion.div>
             </div>
           )}
