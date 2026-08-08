@@ -3581,12 +3581,12 @@ export default function AdminDashboard() {
                       <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead>
                           <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                            <th className="p-4 pl-6">Foto</th>
-                            <th className="p-4">Anggota</th>
-                            <th className="p-4">Kwarda / Qabilah</th>
-                            <th className="p-4">Tingkatan</th>
-                            <th className="p-4">Status</th>
-                            <th className="p-4 text-right pr-6">Aksi Cepat</th>
+                            <th className="p-3.5 pl-5 w-14">Foto</th>
+                            <th className="p-3.5">Anggota</th>
+                            <th className="p-3.5">Kwarda / Qabilah</th>
+                            <th className="p-3.5">Tingkatan</th>
+                            <th className="p-3.5 w-32">Status</th>
+                            <th className="p-3.5 pr-5 text-center w-56">Aksi Cepat</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
@@ -3599,8 +3599,8 @@ export default function AdminDashboard() {
                           ) : (
                             ktaApps.filter(app => app.status === 'pending').slice(0, 8).map((app) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
-                                <td className="p-4 pl-6">
-                                  <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-sm shrink-0">
+                                <td className="p-3.5 pl-5">
+                                  <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs shrink-0">
                                     {app.photo ? (
                                       <img src={app.photo} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
@@ -3610,54 +3610,60 @@ export default function AdminDashboard() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 leading-none">{app.email || app.noWa}</div>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <div className="font-bold text-gray-700">{app.asalDaerah}</div>
                                   <div className="text-[10px] text-gray-400 font-medium">Qabilah: {app.qabilah || '-'}</div>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100">
                                     {app.tingkatan}
                                   </span>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-yellow-100 uppercase tracking-widest">
                                     Pending
                                   </span>
                                 </td>
-                                <td className="p-4 text-right pr-6">
-                                  <div className="flex gap-2 justify-end items-center">
+                                <td className="p-3.5 text-center pr-5">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                     <button
                                       onClick={() => {
                                         setViewingKtaApp(app);
                                         setIsViewKtaModalOpen(true);
                                         setFlippedAdmin(false);
                                       }}
-                                      className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                      title="Preview KTA"
                                     >
-                                      Review Card
+                                      <Eye size={12} />
+                                      <span>Preview</span>
                                     </button>
                                     <button
                                       onClick={() => handleApproveKTA(app.id)}
-                                      className="px-2.5 py-1.5 bg-hw-green text-white hover:bg-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm shadow-emerald-800/10 cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green text-white hover:bg-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                      title="Setujui KTA"
                                     >
-                                      Approve
+                                      <CheckCircle2 size={12} />
+                                      <span>Approve</span>
                                     </button>
                                     <button
                                       onClick={() => handleOpenRejectKTA(app.id)}
-                                      className="px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                      title="Tolak KTA"
                                     >
-                                      Tolak
+                                      <XCircle size={12} />
+                                      <span>Tolak</span>
                                     </button>
                                     <button
                                       onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Data Tidak Valid')}
-                                      className="px-2.5 py-1.5 bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1"
-                                      title="Hapus paksa data ini dari sistem"
+                                      className="inline-flex items-center justify-center p-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
+                                      title="Hapus KTA"
                                     >
-                                      <Trash2 size={12} /> Hapus
+                                      <Trash2 size={13} />
                                     </button>
                                   </div>
                                 </td>
@@ -3740,15 +3746,15 @@ export default function AdminDashboard() {
 
                     {/* Application List Table */}
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[950px]">
+                      <table className="w-full text-left border-collapse min-w-[850px]">
                         <thead>
                           <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                            <th className="p-4 pl-6">Foto</th>
-                            <th className="p-4">Nama & Kontak</th>
-                            <th className="p-4">Tingkatan & Jenis</th>
-                            <th className="p-4">Asal Kwarda / Qabilah</th>
-                            <th className="p-4">Status / No. KTA</th>
-                            <th className="p-4 text-right pr-6">Aksi</th>
+                            <th className="p-3.5 pl-5 w-14">Foto</th>
+                            <th className="p-3.5 min-w-[180px]">Nama & Kontak</th>
+                            <th className="p-3.5 min-w-[130px]">Tingkatan & Jenis</th>
+                            <th className="p-3.5 min-w-[160px]">Asal Kwarda / Qabilah</th>
+                            <th className="p-3.5 min-w-[150px] w-[170px]">Status / No. KTA</th>
+                            <th className="p-3.5 pr-5 text-center min-w-[200px] w-[220px]">Aksi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
@@ -3777,8 +3783,8 @@ export default function AdminDashboard() {
                               return matchSearch && matchStatus;
                             }).map((app) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
-                                <td className="p-4 pl-6">
-                                  <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200">
+                                <td className="p-3.5 pl-5">
+                                  <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs">
                                     {app.photo ? (
                                       <img src={app.photo} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
@@ -3788,12 +3794,12 @@ export default function AdminDashboard() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                   <div className="text-[10px] text-hw-green font-mono">{app.noWa}</div>
                                 </td>
-                                <td className="p-4 space-y-1">
+                                <td className="p-3.5 space-y-1">
                                   <div>
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100">
                                       {app.tingkatan}
@@ -3803,7 +3809,7 @@ export default function AdminDashboard() {
                                     KTA: <strong className="text-hw-green uppercase">{app.jenisKta || 'Digital'}</strong>
                                   </span>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   <div className="font-bold flex items-center gap-1 text-gray-800">
                                     <MapPin size={11} className="text-gray-450 shrink-0" />
                                     {app.asalDaerah}
@@ -3812,7 +3818,7 @@ export default function AdminDashboard() {
                                     Qabilah: {app.qabilah || '-'}
                                   </div>
                                 </td>
-                                <td className="p-4">
+                                <td className="p-3.5">
                                   {app.status === 'pending' ? (
                                     <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-yellow-150 uppercase tracking-widest animate-pulse">
                                       Belum Verifikasi
@@ -3839,34 +3845,39 @@ export default function AdminDashboard() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="p-4 text-right pr-6">
-                                  <div className="flex gap-1.5 justify-end items-center">
+                                <td className="p-3.5 pr-5 text-center">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                     {app.status === 'pending' && (
                                       <>
                                         <button
                                           onClick={() => handleApproveKTA(app.id)}
-                                          className="px-2.5 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                          title="Setujui KTA"
                                         >
-                                          Setujui
+                                          <CheckCircle2 size={12} />
+                                          <span>Setujui</span>
                                         </button>
                                         <button
                                           onClick={() => handleOpenRejectKTA(app.id)}
-                                          className="px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-100 font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+                                          title="Tolak KTA"
                                         >
-                                          Tolak
+                                          <XCircle size={12} />
+                                          <span>Tolak</span>
                                         </button>
                                       </>
                                     )}
                                     
-                                    {/* Edit Button for all statuses */}
                                     <button
                                       onClick={() => {
                                         setEditingKtaApp(app);
                                         setIsEditKtaModalOpen(true);
                                       }}
-                                      className="px-2 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                      title="Edit Data Anggota KTA"
                                     >
-                                      Edit
+                                      <Pencil size={11} />
+                                      <span>Edit</span>
                                     </button>
 
                                     <button
@@ -3875,22 +3886,17 @@ export default function AdminDashboard() {
                                         setIsViewKtaModalOpen(true);
                                         setFlippedAdmin(false);
                                       }}
-                                      className="px-2 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg hover:bg-emerald-100 font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                      title="Preview KTA"
                                     >
-                                      Preview
+                                      <Eye size={12} />
+                                      <span>Preview</span>
                                     </button>
+
                                     <button
-                                      onClick={async () => {
-                                        if (confirm('Hapus rincian pengajuan KTA ini?')) {
-                                          const stored = localStorage.getItem('kta_applications') || '[]';
-                                          let list = JSON.parse(stored);
-                                          list = list.filter((x: any) => x.id !== app.id);
-                                          localStorage.setItem('kta_applications', JSON.stringify(list));
-                                          alert('Dihapus!');
-                                          setKtaApps(list);
-                                        }
-                                      }}
-                                      className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg shrink-0 cursor-pointer"
+                                      onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Pengajuan KTA')}
+                                      className="inline-flex items-center justify-center p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-lg transition-all cursor-pointer active:scale-95 shrink-0"
+                                      title="Hapus KTA"
                                     >
                                       <Trash2 size={13} />
                                     </button>
