@@ -558,7 +558,7 @@ export default function KTAPage() {
 
     // Find if user already has an existing application in applications list
     const existingApp = applications.find((app: any) => isOwnApplication(app));
-    const targetAppId = (myApplication?.id && !myApplication.id.startsWith('kta-sync-'))
+    const targetAppId = (myApplication?.id && !String(myApplication.id).startsWith('kta-sync-'))
       ? myApplication.id
       : (existingApp?.id || (user?.id ? `kta-${user.id}` : `kta-${Date.now()}`));
 
