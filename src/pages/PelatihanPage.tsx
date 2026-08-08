@@ -30,7 +30,9 @@ import {
   FileCheck,
   ScrollText,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -697,7 +699,7 @@ export default function PelatihanPage() {
                             )}
                           </div>
 
-                          {/* Location & Date Metadata */}
+                          {/* Location, Date, Cost & Account Metadata */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 font-medium">
                             <div className="flex items-center gap-2 bg-gray-50/80 px-3 py-2 rounded-xl border border-gray-100">
                               <MapPin size={14} className="text-hw-green shrink-0" />
@@ -707,24 +709,54 @@ export default function PelatihanPage() {
                               <Calendar size={14} className="text-hw-green shrink-0" />
                               <span className="truncate">{act.tanggalPelatihan || 'Jadwal Reguler Kwarwil HW'}</span>
                             </div>
+                            <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
+                              <span className="text-xs font-bold">💰 Biaya:</span>
+                              <span className="font-extrabold text-emerald-950">{act.biayaPelatihan || 'Rp 50.000'}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
+                              <span className="text-xs font-bold">🏦 Rekening:</span>
+                              <span className="truncate text-[11px] font-mono">{act.rekeningPembiayaan || 'Bank BSI 7307427448'}</span>
+                            </div>
                           </div>
 
-                          {/* Status Details for Member */}
+                          {/* Status & Tagihan Details for Member */}
                           {userApplication && !isVerified && (
-                            <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200/60 text-xs text-amber-900 space-y-1">
+                            <div className="bg-amber-50/90 p-4 rounded-2xl border border-amber-200/80 text-xs text-amber-900 space-y-2.5 shadow-xs">
                               <div className="flex items-center justify-between">
-                                <span className="font-black text-[10px] uppercase tracking-wider text-amber-800">
-                                  Status Pendaftaran Anda:
+                                <span className="font-black text-[10px] uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                                  <CreditCard size={13} className="text-amber-700" />
+                                  <span>Tagihan & Status Pendaftaran Anda</span>
                                 </span>
-                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                                  userApplication.status === 'pending' ? 'bg-amber-200 text-amber-900' : 'bg-red-200 text-red-900'
+                                <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                  userApplication.status === 'pending' ? 'bg-amber-200 text-amber-900 border border-amber-300' : 'bg-red-200 text-red-900'
                                 }`}>
                                   {userApplication.status === 'pending' ? 'Menunggu Verifikasi Admin' : 'Ditolak'}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-amber-800/90 leading-tight">
-                                Pendaftaran dikirim pada {new Date(userApplication.tanggalAjuan || Date.now()).toLocaleDateString('id-ID')}. Mohon tunggu verifikasi dari Admin.
+                              <p className="text-[11px] text-amber-800 leading-relaxed">
+                                Pendaftaran dikirim pada <strong>{new Date(userApplication.tanggalAjuan || Date.now()).toLocaleDateString('id-ID')}</strong>. Silahkan lakukan transfer pembiayaan untuk memverifikasi kepesertaan Anda:
                               </p>
+                              
+                              <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-1 text-gray-800">
+                                <div className="flex justify-between text-[11px]">
+                                  <span className="text-gray-500 font-medium">Biaya Pelatihan:</span>
+                                  <span className="font-black text-emerald-700">{userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}</span>
+                                </div>
+                                <div className="flex justify-between text-[11px] pt-1 border-t border-gray-100">
+                                  <span className="text-gray-500 font-medium">Rekening Tujuan:</span>
+                                  <span className="font-bold text-gray-900 text-right">{userApplication.rekeningPembiayaan || act.rekeningPembiayaan || 'Bank BSI 7307427448 a.n. Kwarwil HW Jateng'}</span>
+                                </div>
+                              </div>
+
+                              <a
+                                href={`https://wa.me/${(userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Assalamu'alaikum Panitia, saya ${userApplication.nama || user?.namaLengkap} telah mendaftar pelatihan ${act.namaKegiatan}. Berikut bukti konfirmasi transfer pembiayaan (${userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}). Mohon konfirmasinya. Terima kasih.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+                              >
+                                <MessageCircle size={15} />
+                                <span>Konfirmasi Transfer via WhatsApp Panitia ({userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000'})</span>
+                              </a>
                             </div>
                           )}
 

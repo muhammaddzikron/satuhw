@@ -58,6 +58,9 @@ export default function DaftarPelatihanPage() {
     pelatihanAkanDiikuti: 'Jati 1',
     lokasiPelatihan: '',
     tanggalPelatihan: '',
+    biayaPelatihan: 'Rp 50.000',
+    rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+    noWhatsappPanitia: '089688754000',
     pendidikan: 'SMA/SMK/MA',
     asalKwarda: '',
     qabilah: '',
@@ -118,6 +121,9 @@ export default function DaftarPelatihanPage() {
         let prefillLocation = activityFromState?.lokasiPelatihan || locations[0] || '';
         let prefillDate = activityFromState?.tanggalPelatihan || dates[0] || '';
         let prefillTraining = activityFromState?.jenisPelatihan || activityFromState?.namaKegiatan || mergedTypes[0] || 'Jaya Melati 1';
+        let prefillBiaya = activityFromState?.biayaPelatihan || 'Rp 50.000';
+        let prefillRekening = activityFromState?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+        let prefillWa = activityFromState?.noWhatsappPanitia || '089688754000';
 
         if (activityFromState?.id) {
           setSelectedActivityId(activityFromState.id);
@@ -128,6 +134,9 @@ export default function DaftarPelatihanPage() {
             prefillLocation = firstOpen.lokasiPelatihan || prefillLocation;
             prefillDate = firstOpen.tanggalPelatihan || prefillDate;
             prefillTraining = firstOpen.jenisPelatihan || firstOpen.namaKegiatan || prefillTraining;
+            prefillBiaya = firstOpen.biayaPelatihan || prefillBiaya;
+            prefillRekening = firstOpen.rekeningPembiayaan || prefillRekening;
+            prefillWa = firstOpen.noWhatsappPanitia || prefillWa;
           }
         }
 
@@ -153,6 +162,9 @@ export default function DaftarPelatihanPage() {
             pelatihanAkanDiikuti: prefillTraining,
             lokasiPelatihan: prefillLocation,
             tanggalPelatihan: prefillDate,
+            biayaPelatihan: prefillBiaya,
+            rekeningPembiayaan: prefillRekening,
+            noWhatsappPanitia: prefillWa,
             agreeChecked: true // Auto-check for convenience for logged in user
           }));
         } else {
@@ -160,7 +172,10 @@ export default function DaftarPelatihanPage() {
             ...prev,
             pelatihanAkanDiikuti: prefillTraining,
             lokasiPelatihan: prefillLocation,
-            tanggalPelatihan: prefillDate
+            tanggalPelatihan: prefillDate,
+            biayaPelatihan: prefillBiaya,
+            rekeningPembiayaan: prefillRekening,
+            noWhatsappPanitia: prefillWa
           }));
         }
       } catch (err) {
@@ -181,7 +196,10 @@ export default function DaftarPelatihanPage() {
       ...prev,
       pelatihanAkanDiikuti: act.jenisPelatihan || act.namaKegiatan || prev.pelatihanAkanDiikuti,
       lokasiPelatihan: act.lokasiPelatihan || prev.lokasiPelatihan,
-      tanggalPelatihan: act.tanggalPelatihan || prev.tanggalPelatihan
+      tanggalPelatihan: act.tanggalPelatihan || prev.tanggalPelatihan,
+      biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
+      rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+      noWhatsappPanitia: act.noWhatsappPanitia || '089688754000'
     }));
   };
 
@@ -198,7 +216,10 @@ export default function DaftarPelatihanPage() {
         ...prev,
         pelatihanAkanDiikuti: jenis,
         lokasiPelatihan: matchingAct.lokasiPelatihan || prev.lokasiPelatihan,
-        tanggalPelatihan: matchingAct.tanggalPelatihan || prev.tanggalPelatihan
+        tanggalPelatihan: matchingAct.tanggalPelatihan || prev.tanggalPelatihan,
+        biayaPelatihan: matchingAct.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: matchingAct.noWhatsappPanitia || '089688754000'
       }));
     } else {
       setSelectedActivityId(null);
@@ -288,6 +309,9 @@ export default function DaftarPelatihanPage() {
         pelatihanAkanDiikuti: formData.pelatihanAkanDiikuti,
         lokasiPelatihan: formData.lokasiPelatihan || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || '',
         tanggalPelatihan: formData.tanggalPelatihan || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || '',
+        biayaPelatihan: formData.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: formData.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: formData.noWhatsappPanitia || '089688754000',
         tempatLahir: formData.tempatLahir,
         tanggalLahir: formData.tanggalLahir,
         jenisKelamin: formData.jenisKelamin,
@@ -306,6 +330,10 @@ export default function DaftarPelatihanPage() {
   };
 
   if (isSuccess) {
+    const waClean = (formData.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62');
+    const waMessage = encodeURIComponent(`Assalamu'alaikum Panitia, saya ${formData.namaLengkap} telah melakukan pendaftaran pelatihan ${formData.pelatihanAkanDiikuti} (${formData.lokasiPelatihan}). Berikut saya lampirkan bukti transfer pembayaran (${formData.biayaPelatihan}). Mohon konfirmasinya. Terima kasih.`);
+    const waLink = `https://wa.me/${waClean}?text=${waMessage}`;
+
     return (
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }} 
@@ -327,24 +355,27 @@ export default function DaftarPelatihanPage() {
               <p className="text-[10px] uppercase font-black tracking-wider text-gray-400">Rincian Kegiatan:</p>
               <p className="font-bold text-gray-800 text-xs">📍 {formData.lokasiPelatihan}</p>
               <p className="font-medium text-gray-600 text-xs">📅 {formData.tanggalPelatihan}</p>
+              <p className="font-extrabold text-emerald-700 text-xs">💰 Biaya: {formData.biayaPelatihan}</p>
             </div>
 
             <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-800 space-y-3">
-              <p className="font-bold text-emerald-900 text-xs">Instruksi Pembayaran & Aktivasi:</p>
+              <p className="font-bold text-emerald-900 text-xs">Tagihan & Instruksi Pembayaran:</p>
               <p className="text-[11px] leading-normal">
-                Silahkan lakukan pembayaran pendaftaran sebesar <span className="font-extrabold text-emerald-900">Rp 50.000,-</span> ke rekening resmi berikut:
+                Silahkan lakukan pembayaran pendaftaran sebesar <span className="font-extrabold text-emerald-950">{formData.biayaPelatihan}</span> ke rekening resmi berikut:
               </p>
               <div className="bg-white p-3 rounded-xl border border-emerald-100 text-center font-mono">
-                <span className="block text-[9px] uppercase tracking-wider text-gray-400 font-sans">Bank Syariah Indonesia (BSI)</span>
-                <div>
-                  <CopyAccountButton accountNumber="7307427448" textClassName="text-base font-black text-hw-dark font-mono" />
-                </div>
-                <span className="block text-[10px] text-gray-600 font-sans mt-0.5">an. Kwarwil HW Jateng</span>
+                <span className="block text-[10px] font-bold text-gray-700 font-sans mb-1">{formData.rekeningPembiayaan}</span>
               </div>
               <p className="text-[11px] leading-normal pt-1">
-                Setelah transfer, kirimkan konfirmasi bukti pembayaran melalui WhatsApp ke nomor:
-                <a href="https://wa.me/6289688754000" target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-950 underline mt-1.5 bg-white py-2 rounded-xl border border-emerald-100">
-                  Medkom HW Jateng (089688754000)
+                Setelah transfer, kirimkan konfirmasi bukti pembayaran melalui WhatsApp ke Panitia:
+                <a 
+                  href={waLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  <MessageCircle size={15} />
+                  <span>Konfirmasi Transfer WA Panitia ({formData.noWhatsappPanitia || '089688754000'})</span>
                 </a>
               </p>
             </div>
@@ -518,108 +549,33 @@ export default function DaftarPelatihanPage() {
                 </select>
               </div>
 
-              {/* Pelatihan Yang Akan Diikuti Selection (Jenis Pelatihan dari Admin) */}
-              <div className="space-y-2 pt-1">
+              {/* Rincian Agenda Pelatihan Terpilih */}
+              <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl space-y-2 text-left">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                    Jenis Pelatihan (Diatur Admin)
-                  </label>
-                  <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-full">
-                    {(settings.trainingTypes || []).length} Pilihan
+                  <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
+                    Agenda Pelatihan Terpilih
+                  </span>
+                  <span className="text-[9px] font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-full uppercase shadow-xs">
+                    {formData.pelatihanAkanDiikuti || 'Jaya Melati 1'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2']).map((jenis: string) => {
-                    const isSelected = formData.pelatihanAkanDiikuti === jenis || 
-                      formData.pelatihanAkanDiikuti?.toLowerCase().trim() === jenis.toLowerCase().trim();
-
-                    const actCount = (settings.trainingActivities || []).filter((a: any) => 
-                      (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim()
-                    ).length;
-
-                    return (
-                      <button
-                        key={jenis}
-                        type="button"
-                        onClick={() => handleSelectJenisPelatihan(jenis)}
-                        className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer relative ${
-                          isSelected 
-                            ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm ring-1 ring-hw-green/20' 
-                            : 'border-transparent bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {actCount > 0 && (
-                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={`${actCount} Agenda Pelatihan`} />
-                        )}
-                        <GraduationCap size={18} className={isSelected ? 'text-hw-green' : 'text-gray-400'} />
-                        <span className="text-xs font-bold leading-tight">{jenis}</span>
-                        {actCount > 0 ? (
-                          <span className="text-[8px] font-semibold text-emerald-700 leading-none bg-emerald-100/70 px-1.5 py-0.5 rounded-full mt-0.5">
-                            {actCount} Agenda
-                          </span>
-                        ) : (
-                          <span className="text-[8px] opacity-50 leading-none">Reguler</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Admin (Manajemen Pelatihan) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📍 Tempat / Lokasi Pelatihan (Manajemen Admin)
-                  </label>
-                  {availableLocations.length > 0 ? (
-                    <select 
-                      name="lokasiPelatihan" 
-                      value={formData.lokasiPelatihan} 
-                      onChange={handleChange} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                    >
-                      {availableLocations.map((loc: string) => (
-                        <option key={loc} value={loc}>{loc}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      name="lokasiPelatihan"
-                      value={formData.lokasiPelatihan}
-                      onChange={handleChange}
-                      placeholder="Contoh: Pusdiklat HW Jateng"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    📅 Tanggal Pelaksanaan (Manajemen Admin)
-                  </label>
-                  {availableDates.length > 0 ? (
-                    <select 
-                      name="tanggalPelatihan" 
-                      value={formData.tanggalPelatihan} 
-                      onChange={handleChange} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                    >
-                      {availableDates.map((dt: string) => (
-                        <option key={dt} value={dt}>{dt}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      name="tanggalPelatihan"
-                      value={formData.tanggalPelatihan}
-                      onChange={handleChange}
-                      placeholder="Contoh: 12-14 Juli 2026"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                    />
-                  )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-gray-800 pt-1 border-t border-emerald-200/50">
+                  <div className="flex items-center gap-1.5 text-emerald-900">
+                    <MapPin size={14} className="text-hw-green shrink-0" />
+                    <span>{formData.lokasiPelatihan || 'Pusdiklat HW Jateng'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-900">
+                    <Calendar size={14} className="text-hw-green shrink-0" />
+                    <span>{formData.tanggalPelatihan || 'Jadwal Reguler Kwarwil HW'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-900">
+                    <span className="text-[11px]">💰 Biaya:</span>
+                    <span className="font-extrabold text-emerald-950">{formData.biayaPelatihan || 'Rp 50.000'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-900">
+                    <span className="text-[11px]">🏦 Rekening:</span>
+                    <span className="truncate text-[11px] font-mono">{formData.rekeningPembiayaan || 'Bank BSI 7307427448'}</span>
+                  </div>
                 </div>
               </div>
 
@@ -857,108 +813,33 @@ export default function DaftarPelatihanPage() {
                     </select>
                   </div>
 
-                  {/* Pelatihan Yang Akan Diikuti Selection (Jenis Pelatihan dari Admin) */}
-                  <div className="space-y-2 pt-2">
+                  {/* Rincian Agenda Pelatihan Terpilih */}
+                  <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl space-y-2 text-left">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                        Jenis Pelatihan (Diatur Admin)
-                      </label>
-                      <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-full">
-                        {(settings.trainingTypes || []).length} Pilihan
+                      <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
+                        Agenda Pelatihan Terpilih
+                      </span>
+                      <span className="text-[9px] font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-full uppercase shadow-xs">
+                        {formData.pelatihanAkanDiikuti || 'Jaya Melati 1'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2']).map((jenis: string) => {
-                        const isSelected = formData.pelatihanAkanDiikuti === jenis || 
-                          formData.pelatihanAkanDiikuti?.toLowerCase().trim() === jenis.toLowerCase().trim();
-
-                        const actCount = (settings.trainingActivities || []).filter((a: any) => 
-                          (a.jenisPelatihan || '').toLowerCase().trim() === jenis.toLowerCase().trim()
-                        ).length;
-
-                        return (
-                          <button
-                            key={jenis}
-                            type="button"
-                            onClick={() => handleSelectJenisPelatihan(jenis)}
-                            className={`p-3 rounded-2xl flex flex-col items-center justify-center border-2 transition-all gap-1 text-center cursor-pointer relative ${
-                              isSelected 
-                                ? 'border-hw-green bg-hw-green/5 text-hw-green shadow-sm ring-1 ring-hw-green/20' 
-                                : 'border-transparent bg-gray-50 text-gray-600 hover:bg-gray-100'
-                            }`}
-                          >
-                            {actCount > 0 && (
-                              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={`${actCount} Agenda Pelatihan`} />
-                            )}
-                            <GraduationCap size={18} className={isSelected ? 'text-hw-green' : 'text-gray-400'} />
-                            <span className="text-xs font-bold leading-tight">{jenis}</span>
-                            {actCount > 0 ? (
-                              <span className="text-[8px] font-semibold text-emerald-700 leading-none bg-emerald-100/70 px-1.5 py-0.5 rounded-full mt-0.5">
-                                {actCount} Agenda
-                              </span>
-                            ) : (
-                              <span className="text-[8px] opacity-50 leading-none">Reguler</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Pilihan Lokasi & Tanggal Pelaksanaan dari Manajemen Admin */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                        📍 Tempat / Lokasi Pelatihan (Manajemen Admin)
-                      </label>
-                      {availableLocations.length > 0 ? (
-                        <select 
-                          name="lokasiPelatihan" 
-                          value={formData.lokasiPelatihan} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                        >
-                          {availableLocations.map((loc: string) => (
-                            <option key={loc} value={loc}>{loc}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          name="lokasiPelatihan"
-                          value={formData.lokasiPelatihan}
-                          onChange={handleChange}
-                          placeholder="Pusdiklat HW Jateng"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                        📅 Tanggal / Pelaksanaan (Manajemen Admin)
-                      </label>
-                      {availableDates.length > 0 ? (
-                        <select 
-                          name="tanggalPelatihan" 
-                          value={formData.tanggalPelatihan} 
-                          onChange={handleChange} 
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                        >
-                          {availableDates.map((dt: string) => (
-                            <option key={dt} value={dt}>{dt}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          name="tanggalPelatihan"
-                          value={formData.tanggalPelatihan}
-                          onChange={handleChange}
-                          placeholder="12-14 Juli 2026"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold text-gray-800"
-                        />
-                      )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-gray-800 pt-1 border-t border-emerald-200/50">
+                      <div className="flex items-center gap-1.5 text-emerald-900">
+                        <MapPin size={14} className="text-hw-green shrink-0" />
+                        <span>{formData.lokasiPelatihan || 'Pusdiklat HW Jateng'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-emerald-900">
+                        <Calendar size={14} className="text-hw-green shrink-0" />
+                        <span>{formData.tanggalPelatihan || 'Jadwal Reguler Kwarwil HW'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-emerald-900">
+                        <span className="text-[11px]">💰 Biaya:</span>
+                        <span className="font-extrabold text-emerald-950">{formData.biayaPelatihan || 'Rp 50.000'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-emerald-900">
+                        <span className="text-[11px]">🏦 Rekening:</span>
+                        <span className="truncate text-[11px] font-mono">{formData.rekeningPembiayaan || 'Bank BSI 7307427448'}</span>
+                      </div>
                     </div>
                   </div>
 

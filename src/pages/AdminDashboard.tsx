@@ -571,6 +571,7 @@ export default function AdminDashboard() {
 
   // Add participant states
   const [isAddParticipantModalOpen, setIsAddParticipantModalOpen] = useState(false);
+  const [addParticipantMode, setAddParticipantMode] = useState<'select' | 'manual'>('select');
   const [addParticipantSelectedMemberId, setAddParticipantSelectedMemberId] = useState('');
   const [addParticipantLevel, setAddParticipantLevel] = useState<'Jati 1' | 'Jati 2' | 'Jari 1'>('Jati 1');
   const [addParticipantPelatihGolongan, setAddParticipantPelatihGolongan] = useState('Tunas Athfal');
@@ -578,6 +579,29 @@ export default function AdminDashboard() {
   const [addParticipantTanggal, setAddParticipantTanggal] = useState('');
   const [addParticipantSearchQuery, setAddParticipantSearchQuery] = useState('');
   const [isSubmittingAddParticipant, setIsSubmittingAddParticipant] = useState(false);
+  const [addParticipantForm, setAddParticipantForm] = useState({
+    nama: '',
+    nik: '',
+    nbm: '',
+    email: '',
+    noWa: '',
+    tempatLahir: '',
+    tanggalLahir: '',
+    jenisKelamin: 'L',
+    asalDaerah: '',
+    qabilah: '',
+    pendidikan: '',
+    photo: '',
+    pelatihanAkanDiikuti: 'Jati 1',
+    pelatihGolongan: 'Tunas Athfal',
+    golonganAnggota: 'Pengenal',
+    lokasiPelatihan: '',
+    tanggalPelatihan: '',
+    biayaPelatihan: 'Rp 50.000',
+    rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+    status: 'approved',
+    statusPembayaran: 'Lunas'
+  });
 
   // Activity Participant Edit States
   const [editingActivityParticipant, setEditingActivityParticipant] = useState<any | null>(null);
@@ -604,7 +628,10 @@ export default function AdminDashboard() {
     lokasiPelatihan: '',
     tanggalPelatihan: '',
     status: 'Buka' as 'Buka' | 'Tutup',
-    deskripsi: ''
+    deskripsi: '',
+    biayaPelatihan: 'Rp 50.000',
+    rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+    noWhatsappPanitia: '089688754000'
   });
 
   // Schedule Editing States
@@ -676,14 +703,16 @@ export default function AdminDashboard() {
   };
 
   const handleAddParticipant = async () => {
-    if (!addParticipantSelectedMemberId) {
-      alert('Silakan pilih anggota terlebih dahulu.');
+    let member = members.find(m => String(m.id) === String(addParticipantSelectedMemberId));
+    
+    if (addParticipantMode === 'select' && !member) {
+      alert('Silakan pilih anggota dari daftar terlebih dahulu.');
       return;
     }
-    
-    const member = members.find(m => String(m.id) === String(addParticipantSelectedMemberId));
-    if (!member) {
-      alert('Data anggota tidak ditemukan.');
+
+    const nama = addParticipantMode === 'select' ? (member?.namaLengkap || addParticipantForm.nama) : addParticipantForm.nama;
+    if (!nama.trim()) {
+      alert('Nama lengkap peserta wajib diisi.');
       return;
     }
 
@@ -691,33 +720,47 @@ export default function AdminDashboard() {
       setIsSubmittingAddParticipant(true);
       
       const payload = {
-        userId: member.id,
-        nama: member.namaLengkap,
-        noWa: member.noHp || '',
-        email: member.email || '',
-        sosmed: member.sosmed || '',
-        tingkatan: member.golongan || 'Pengenal',
-        pelatihGolongan: addParticipantPelatihGolongan,
-        asalDaerah: member.asalKwarda || '',
-        pelatihanAkanDiikuti: addParticipantLevel,
-        lokasiPelatihan: addParticipantLokasi || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || '',
-        tanggalPelatihan: addParticipantTanggal || (Array.isArray(settings.trainingDates) && settings.trainingDates[0]) || '',
-        tempatLahir: member.tempatLahir || '',
-        tanggalLahir: member.tanggalLahir || '',
-        jenisKelamin: member.jenisKelamin || 'L',
-        qabilah: member.qabilah || '',
-        photo: member.photo || '',
-        agreeChecked: true
+        id: `training-${Date.now()}`,
+        userId: member?.id || `user-manual-${Date.now()}`,
+        nama: nama,
+        nik: addParticipantForm.nik || member?.nik || '',
+        nbm: addParticipantForm.nbm || member?.nbm || '',
+        noWa: addParticipantMode === 'select' ? (member?.noHp || addParticipantForm.noWa) : addParticipantForm.noWa,
+        email: addParticipantMode === 'select' ? (member?.email || addParticipantForm.email) : addParticipantForm.email,
+        sosmed: member?.sosmed || '',
+        golonganAnggota: addParticipantForm.golonganAnggota || member?.golongan || 'Pengenal',
+        tingkatan: addParticipantForm.golonganAnggota || member?.golongan || 'Pengenal',
+        pelatihGolongan: addParticipantForm.pelatihGolongan || addParticipantPelatihGolongan,
+        asalDaerah: addParticipantMode === 'select' ? (member?.asalKwarda || addParticipantForm.asalDaerah) : addParticipantForm.asalDaerah,
+        pelatihanAkanDiikuti: addParticipantForm.pelatihanAkanDiikuti || addParticipantLevel,
+        lokasiPelatihan: addParticipantForm.lokasiPelatihan || addParticipantLokasi || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || 'Pusdiklat HW Jateng',
+        tanggalPelatihan: addParticipantForm.tanggalPelatihan || addParticipantTanggal || (Array.isArray(settings.trainingDates) && settings.trainingDates[0]) || 'Jadwal Reguler',
+        biayaPelatihan: addParticipantForm.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: addParticipantForm.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        tempatLahir: addParticipantMode === 'select' ? (member?.tempatLahir || addParticipantForm.tempatLahir) : addParticipantForm.tempatLahir,
+        tanggalLahir: addParticipantMode === 'select' ? (member?.tanggalLahir || addParticipantForm.tanggalLahir) : addParticipantForm.tanggalLahir,
+        jenisKelamin: addParticipantMode === 'select' ? (member?.jenisKelamin || addParticipantForm.jenisKelamin) : (addParticipantForm.jenisKelamin || 'L'),
+        qabilah: addParticipantMode === 'select' ? (member?.qabilah || addParticipantForm.qabilah) : addParticipantForm.qabilah,
+        pendidikan: addParticipantMode === 'select' ? (member?.pendidikan || addParticipantForm.pendidikan) : addParticipantForm.pendidikan,
+        photo: addParticipantForm.photo || member?.photo || '',
+        status: addParticipantForm.status || 'approved',
+        statusPembayaran: addParticipantForm.statusPembayaran || 'Lunas',
+        agreeChecked: true,
+        tanggalAjuan: new Date().toISOString()
       };
 
-      const res = await sheetsService.applyTraining(payload);
-      if (res.success || res.application) {
+      const res = await sheetsService.saveTrainingApplicationAndSyncMember(payload);
+      if (res.success || res.application || res.id) {
         alert('Berhasil mendaftarkan peserta ke pelatihan!');
         setIsAddParticipantModalOpen(false);
         setAddParticipantSelectedMemberId('');
-        // Reload training applications
-        const tData = await sheetsService.getTrainingApplications();
+        // Reload training applications & members
+        const [tData, mData] = await Promise.all([
+          sheetsService.getTrainingApplications(),
+          sheetsService.getMembers()
+        ]);
         setTrainingApps(tData || []);
+        setMembers(mData || []);
       } else {
         alert(res.message || 'Gagal mendaftarkan peserta.');
       }
@@ -4481,6 +4524,7 @@ export default function AdminDashboard() {
                                 <td className="p-4">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
+                                  <div className="text-[10px] text-gray-500">NIK: <span className="font-mono font-bold">{app.nik || '-'}</span> | NBM: <span className="font-mono font-bold">{app.nbm || '-'}</span></div>
                                   <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}</span></div>
                                   <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{app.jenisKelamin === 'L' ? 'Laki-Laki' : app.jenisKelamin === 'P' ? 'Perempuan' : '-'}</span></div>
                                   <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
@@ -4496,7 +4540,7 @@ export default function AdminDashboard() {
                                 </td>
 
                                 <td className="p-4">
-                                  <div className="font-bold text-gray-800">{app.golonganAnggota || 'Golongan Tidak Ada'}</div>
+                                  <div className="font-bold text-gray-800">{app.golonganAnggota || app.tingkatan || 'Golongan Tidak Ada'}</div>
                                   <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Pelatih Golongan:</div>
                                   <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px] font-black uppercase tracking-wider">
                                     {app.pelatihGolongan || 'Tunas Athfal'}
@@ -4589,31 +4633,68 @@ export default function AdminDashboard() {
                                   <div className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Qabilah: {app.qabilah || '-'}</div>
                                 </td>
 
-                                <td className="p-4">
-                                  {app.status === 'pending' ? (
-                                    <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-yellow-100 uppercase tracking-widest animate-pulse">
-                                      Menunggu Bayar
-                                    </span>
-                                  ) : app.status === 'approved' ? (
-                                    <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-green-100 uppercase tracking-widest">
-                                      Disetujui
-                                    </span>
-                                  ) : (
-                                    <div className="space-y-1">
-                                      <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-rose-100 uppercase tracking-widest">
+                                <td className="p-4 space-y-1.5">
+                                  {/* Status Verifikasi */}
+                                  <div>
+                                    <div className="text-[8px] font-black uppercase text-gray-400 tracking-wider mb-0.5">Verifikasi:</div>
+                                    {app.status === 'pending' ? (
+                                      <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-yellow-200 uppercase tracking-wider">
+                                        Menunggu
+                                      </span>
+                                    ) : app.status === 'approved' ? (
+                                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-emerald-200 uppercase tracking-wider">
+                                        Disetujui
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-rose-200 uppercase tracking-wider">
                                         Ditolak
                                       </span>
-                                      {app.remark && (
-                                        <div className="text-[10px] text-rose-600 font-medium max-w-[150px] truncate italic" title={app.remark}>
-                                          "{app.remark}"
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
+
+                                  {/* Status Pembayaran (Manual Toggle by Admin) */}
+                                  <div>
+                                    <div className="text-[8px] font-black uppercase text-gray-400 tracking-wider mb-0.5">Pembayaran:</div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const newStatusPembayaran = app.statusPembayaran === 'Lunas' ? 'Belum Lunas' : 'Lunas';
+                                        const updatedApp = { ...app, statusPembayaran: newStatusPembayaran };
+                                        setLoading(true);
+                                        await sheetsService.saveTrainingApplicationAndSyncMember(updatedApp);
+                                        const tApps = await sheetsService.getTrainingApplications();
+                                        setTrainingApps(tApps || []);
+                                        setLoading(false);
+                                      }}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 ${
+                                        app.statusPembayaran === 'Lunas'
+                                          ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                                          : 'bg-amber-100/80 text-amber-800 border-amber-300 hover:bg-amber-200'
+                                      }`}
+                                      title="Klik untuk ubah status Lunas / Belum Lunas"
+                                    >
+                                      <span>{app.statusPembayaran === 'Lunas' ? '💰 LUNAS' : '⏳ BELUM LUNAS'}</span>
+                                    </button>
+                                  </div>
                                 </td>
 
                                 <td className="p-4 text-right pr-6">
                                   <div className="flex flex-wrap gap-1.5 justify-end">
+                                    {/* WhatsApp Tagihan Button */}
+                                    {app.noWa && (
+                                      <a
+                                        href={`https://wa.me/${String(app.noWa || '').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(
+                                          `Assalamu'alaikum Sdr/i ${app.nama}, konfirmasi tagihan pendaftaran pelatihan ${app.pelatihanAkanDiikuti} HW Jateng.\n\n📍 Lokasi: ${app.lokasiPelatihan || 'Pusdiklat HW Jateng'}\n📅 Tanggal: ${app.tanggalPelatihan || 'Jadwal Reguler'}\n💰 Biaya: ${app.biayaPelatihan || 'Rp 50.000'}\n💳 Status Pembayaran: ${app.statusPembayaran || (app.status === 'approved' ? 'Lunas' : 'Belum Lunas')}\n🏦 Rekening Transfer: ${app.rekeningPembiayaan || 'Bank BSI 7307427448 a.n. Kwarwil HW Jateng'}\n\nMohon informasi/konfirmasi pembayarannya. Terima kasih.`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all flex items-center gap-1 shrink-0"
+                                        title="Kirim Chat WA Tagihan Pembayaran"
+                                      >
+                                        <MessageCircle size={11} className="text-emerald-600" />
+                                        <span>WA Tagihan</span>
+                                      </a>
+                                    )}
                                     {app.status !== 'approved' && (
                                       <button
                                         onClick={() => handleApproveTraining(app.id)}
@@ -5434,7 +5515,10 @@ export default function AdminDashboard() {
                                   lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
                                   tanggalPelatihan: (settings.trainingDates || [])[0] || '',
                                   status: 'Buka',
-                                  deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah'
+                                  deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
+                                  biayaPelatihan: 'Rp 50.000',
+                                  rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                                  noWhatsappPanitia: '089688754000'
                                 });
                                 setIsActivityModalOpen(true);
                               }}
@@ -5467,7 +5551,10 @@ export default function AdminDashboard() {
                                         lokasiPelatihan: act.lokasiPelatihan || '',
                                         tanggalPelatihan: act.tanggalPelatihan || '',
                                         status: act.status || 'Buka',
-                                        deskripsi: act.deskripsi || ''
+                                        deskripsi: act.deskripsi || '',
+                                        biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
+                                        rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                                        noWhatsappPanitia: act.noWhatsappPanitia || '089688754000'
                                       });
                                       setIsActivityModalOpen(true);
                                     }}
@@ -5511,6 +5598,18 @@ export default function AdminDashboard() {
                                 <p className="flex items-center gap-1.5 font-semibold">
                                   <span className="text-gray-400">📅 Tanggal:</span>
                                   <strong className="text-gray-800">{act.tanggalPelatihan || '-'}</strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">💰 Biaya:</span>
+                                  <strong className="text-emerald-700">{act.biayaPelatihan || 'Rp 50.000'}</strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">🏦 Rekening:</span>
+                                  <strong className="text-gray-800">{act.rekeningPembiayaan || 'Bank BSI 7307427448 a.n. Kwarwil HW Jateng'}</strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">📱 WA Panitia:</span>
+                                  <strong className="text-gray-800">{act.noWhatsappPanitia || '089688754000'}</strong>
                                 </p>
                                 {act.deskripsi && (
                                   <p className="text-[10px] text-gray-500 italic pt-1 border-t border-gray-100">
@@ -7601,7 +7700,7 @@ export default function AdminDashboard() {
         {/* ADD PARTICIPANT MODAL */}
         <AnimatePresence>
           {isAddParticipantModalOpen && (
-            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6 overflow-y-auto">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -7613,15 +7712,15 @@ export default function AdminDashboard() {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-lg bg-white rounded-[2rem] shadow-2xl overflow-hidden p-6 z-10"
+                className="relative w-full max-w-xl bg-white rounded-[2rem] shadow-2xl overflow-hidden p-6 z-10 max-h-[90vh] flex flex-col"
               >
-                <div className="space-y-5">
+                <div className="space-y-4 flex-1 overflow-y-auto pr-1 text-left">
                   <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                     <div>
                       <h3 className="text-base font-black text-gray-800 uppercase tracking-wider flex items-center gap-2">
                         <UserPlus className="text-hw-green" size={18} /> Tambah Peserta Pelatihan
                       </h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Daftarkan Anggota KTA yang Sudah Terdaftar</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Penambahan Peserta Manual dari Admin</p>
                     </div>
                     <button 
                       onClick={() => { setIsAddParticipantModalOpen(false); setAddParticipantSelectedMemberId(''); }}
@@ -7631,177 +7730,369 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    {/* Search Field */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cari Anggota Terdaftar (KTA)</label>
-                      <div className="relative">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                        <input 
-                          type="text" 
-                          placeholder="Ketik nama, email, atau WhatsApp anggota..."
-                          value={addParticipantSearchQuery}
-                          onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10" 
-                        />
-                        {addParticipantSearchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setAddParticipantSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                  {/* Mode Selector Tabs */}
+                  <div className="bg-gray-100 p-1 rounded-2xl grid grid-cols-2 gap-1 text-xs font-black uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => setAddParticipantMode('select')}
+                      className={`py-2 px-3 rounded-xl transition-all cursor-pointer ${
+                        addParticipantMode === 'select'
+                          ? 'bg-white text-hw-green shadow-xs'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      🔍 Pilih Anggota KTA
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddParticipantMode('manual')}
+                      className={`py-2 px-3 rounded-xl transition-all cursor-pointer ${
+                        addParticipantMode === 'manual'
+                          ? 'bg-white text-hw-green shadow-xs'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      ✍️ Input Peserta Baru
+                    </button>
+                  </div>
 
-                    {/* Member selection list / Selected Indicator */}
-                    {addParticipantSelectedMemberId ? (
-                      (() => {
-                        const m = members.find(x => String(x.id) === String(addParticipantSelectedMemberId));
-                        if (!m) return null;
-                        return (
-                          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3">
-                            <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={16} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap}</p>
-                              <p className="text-[10px] text-emerald-700 truncate">{m.email} | WA: {m.noHp || '-'}</p>
-                              <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
-                                Kwarda: {m.asalKwarda || '-'} | Qabilah: {m.qabilah || '-'}
-                              </p>
-                            </div>
+                  {addParticipantMode === 'select' ? (
+                    <div className="space-y-4">
+                      {/* Search Field */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cari Anggota Terdaftar (KTA)</label>
+                        <div className="relative">
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                          <input 
+                            type="text" 
+                            placeholder="Ketik nama, email, NIK, atau WhatsApp..."
+                            value={addParticipantSearchQuery}
+                            onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800" 
+                          />
+                          {addParticipantSearchQuery && (
                             <button
                               type="button"
-                              onClick={() => setAddParticipantSelectedMemberId('')}
-                              className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-800 tracking-wider bg-rose-50 px-2 py-1 rounded-lg border border-rose-150/30"
+                              onClick={() => setAddParticipantSearchQuery('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
                             >
-                              Ganti
+                              <X size={14} />
                             </button>
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hasil Pencarian Anggota</label>
-                        <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50 max-h-40 overflow-y-auto bg-gray-50/50 p-1">
-                          {members.filter(m => {
-                            if (!addParticipantSearchQuery.trim()) return true;
-                            const q = addParticipantSearchQuery.toLowerCase();
-                            return (
-                              String(m.namaLengkap || '').toLowerCase().includes(q) ||
-                              String(m.email || '').toLowerCase().includes(q) ||
-                              String(m.noHp || '').includes(q)
-                            );
-                          }).slice(0, 10).length === 0 ? (
-                            <p className="text-center text-[11px] font-bold text-gray-400 py-6">Tidak ada anggota terdaftar yang cocok</p>
-                          ) : (
-                            members.filter(m => {
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Selected Member Display */}
+                      {addParticipantSelectedMemberId ? (
+                        (() => {
+                          const m = members.find(x => String(x.id) === String(addParticipantSelectedMemberId));
+                          if (!m) return null;
+                          return (
+                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3">
+                              <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={16} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap}</p>
+                                <p className="text-[10px] text-emerald-700 truncate">{m.email} | WA: {m.noHp || '-'}</p>
+                                <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
+                                  Kwarda: {m.asalKwarda || '-'} | Qabilah: {m.qabilah || '-'}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setAddParticipantSelectedMemberId('')}
+                                className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-800 tracking-wider bg-rose-50 px-2 py-1 rounded-lg border border-rose-150/30"
+                              >
+                                Ganti
+                              </button>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hasil Pencarian Anggota</label>
+                          <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50 max-h-40 overflow-y-auto bg-gray-50/50 p-1">
+                            {members.filter(m => {
                               if (!addParticipantSearchQuery.trim()) return true;
                               const q = addParticipantSearchQuery.toLowerCase();
                               return (
                                 String(m.namaLengkap || '').toLowerCase().includes(q) ||
                                 String(m.email || '').toLowerCase().includes(q) ||
-                                String(m.noHp || '').includes(q)
+                                String(m.noHp || '').includes(q) ||
+                                String(m.nik || '').includes(q)
                               );
-                            }).slice(0, 5).map(m => (
-                              <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => {
-                                  setAddParticipantSelectedMemberId(m.id);
-                                  setAddParticipantPelatihGolongan(m.pelatihGolongan || 'Tunas Athfal');
-                                }}
-                                className="w-full p-2.5 flex items-center justify-between hover:bg-white rounded-xl text-left transition-colors"
-                              >
-                                <div>
-                                  <p className="text-xs font-extrabold text-gray-800">{m.namaLengkap}</p>
-                                  <p className="text-[10px] text-gray-500">{m.email} | WA: {m.noHp || '-'}</p>
-                                </div>
-                                <span className="text-[9px] font-black uppercase tracking-wider text-hw-green bg-hw-green/5 border border-hw-green/10 px-2 py-1 rounded-lg">Pilih</span>
-                              </button>
-                            ))
-                          )}
+                            }).slice(0, 10).length === 0 ? (
+                              <p className="text-center text-[11px] font-bold text-gray-400 py-6">Tidak ada anggota terdaftar yang cocok</p>
+                            ) : (
+                              members.filter(m => {
+                                if (!addParticipantSearchQuery.trim()) return true;
+                                const q = addParticipantSearchQuery.toLowerCase();
+                                return (
+                                  String(m.namaLengkap || '').toLowerCase().includes(q) ||
+                                  String(m.email || '').toLowerCase().includes(q) ||
+                                  String(m.noHp || '').includes(q) ||
+                                  String(m.nik || '').includes(q)
+                                );
+                              }).slice(0, 5).map(m => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setAddParticipantSelectedMemberId(m.id);
+                                    setAddParticipantPelatihGolongan(m.pelatihGolongan || 'Tunas Athfal');
+                                    setAddParticipantForm(prev => ({
+                                      ...prev,
+                                      nama: m.namaLengkap || '',
+                                      nik: m.nik || '',
+                                      nbm: m.nbm || '',
+                                      email: m.email || '',
+                                      noWa: m.noHp || '',
+                                      tempatLahir: m.tempatLahir || '',
+                                      tanggalLahir: m.tanggalLahir || '',
+                                      jenisKelamin: m.jenisKelamin || 'L',
+                                      asalDaerah: m.asalKwarda || '',
+                                      qabilah: m.qabilah || '',
+                                      pendidikan: m.pendidikan || '',
+                                      photo: m.photo || '',
+                                      golonganAnggota: m.golongan || 'Pengenal'
+                                    }));
+                                  }}
+                                  className="w-full p-2.5 flex items-center justify-between hover:bg-white rounded-xl text-left transition-colors cursor-pointer"
+                                >
+                                  <div>
+                                    <p className="text-xs font-extrabold text-gray-800">{m.namaLengkap}</p>
+                                    <p className="text-[10px] text-gray-500">{m.email} | WA: {m.noHp || '-'}</p>
+                                  </div>
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-hw-green bg-hw-green/5 border border-hw-green/10 px-2 py-1 rounded-lg">Pilih</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
                         </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Manual Entry Form */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Nama lengkap peserta..."
+                          value={addParticipantForm.nama}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nama: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
                       </div>
-                    )}
 
-                    {/* Training Level */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pilih Tingkat Pelatihan</label>
-                      <select 
-                        value={addParticipantLevel}
-                        onChange={(e) => setAddParticipantLevel(e.target.value as any)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10"
-                      >
-                        <option value="Jati 1">Jati 1 (Jaya Melati 1)</option>
-                        <option value="Jati 2">Jati 2 (Jaya Melati 2)</option>
-                        <option value="Jari 1">Jari 1 (Jaya Matahari 1)</option>
-                      </select>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. WhatsApp *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="08..."
+                          value={addParticipantForm.noWa}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, noWa: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                        <input
+                          type="email"
+                          placeholder="email@domain.com"
+                          value={addParticipantForm.email}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, email: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
+                        <input
+                          type="text"
+                          placeholder="NIK KTP..."
+                          value={addParticipantForm.nik}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nik: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NBM</label>
+                        <input
+                          type="text"
+                          placeholder="NBM..."
+                          value={addParticipantForm.nbm}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nbm: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
+                        <input
+                          type="text"
+                          placeholder="Kota/Kab lahir..."
+                          value={addParticipantForm.tempatLahir}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tempatLahir: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
+                        <input
+                          type="date"
+                          value={addParticipantForm.tanggalLahir}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalLahir: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jenis Kelamin</label>
+                        <select
+                          value={addParticipantForm.jenisKelamin}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, jenisKelamin: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        >
+                          <option value="L">Laki-laki</option>
+                          <option value="P">Perempuan</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asal Kwarda</label>
+                        <input
+                          type="text"
+                          placeholder="Asal Kwarda/Kabupaten..."
+                          value={addParticipantForm.asalDaerah}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, asalDaerah: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah</label>
+                        <input
+                          type="text"
+                          placeholder="Qabilah/Sekolah..."
+                          value={addParticipantForm.qabilah}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, qabilah: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan Anggota</label>
+                        <input
+                          type="text"
+                          placeholder="Pengenal, Penghela..."
+                          value={addParticipantForm.golonganAnggota}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, golonganAnggota: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                      </div>
                     </div>
+                  )}
 
-                    {/* Pelatih Golongan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatih Golongan</label>
-                      <select 
-                        value={addParticipantPelatihGolongan}
-                        onChange={(e) => setAddParticipantPelatihGolongan(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10"
-                      >
-                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* Program Pelatihan & Status Section */}
+                  <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100 space-y-3">
+                    <p className="text-[10px] font-black text-emerald-900 uppercase tracking-wider">Pengaturan Program & Pembayaran</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      {/* Training Level */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Program Pelatihan</label>
+                        <select 
+                          value={addParticipantForm.pelatihanAkanDiikuti}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, pelatihanAkanDiikuti: e.target.value })}
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                        >
+                          <option value="Jati 1">Jati 1 (Jaya Melati 1)</option>
+                          <option value="Jati 2">Jati 2 (Jaya Melati 2)</option>
+                          <option value="Jari 1">Jari 1 (Jaya Matahari 1)</option>
+                        </select>
+                      </div>
 
-                    {/* Lokasi Pelatihan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lokasi Pelatihan</label>
-                      <select 
-                        value={addParticipantLokasi || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || ''}
-                        onChange={(e) => setAddParticipantLokasi(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10"
-                      >
-                        {Array.isArray(settings.trainingLocations) && settings.trainingLocations.length > 0 ? (
-                          settings.trainingLocations.map(loc => (
-                            <option key={loc} value={loc}>{loc}</option>
-                          ))
-                        ) : (
-                          <option value="">Belum ada lokasi yang dikonfigurasi</option>
-                        )}
-                      </select>
-                    </div>
+                      {/* Pelatih Golongan */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Pelatih Golongan</label>
+                        <select 
+                          value={addParticipantForm.pelatihGolongan}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, pelatihGolongan: e.target.value })}
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                        >
+                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                    {/* Tanggal Pelatihan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Pelaksanaan</label>
-                      <select 
-                        value={addParticipantTanggal || (Array.isArray(settings.trainingDates) && settings.trainingDates[0]) || ''}
-                        onChange={(e) => setAddParticipantTanggal(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10"
-                      >
-                        {Array.isArray(settings.trainingDates) && settings.trainingDates.length > 0 ? (
-                          settings.trainingDates.map(dt => (
-                            <option key={dt} value={dt}>{dt}</option>
-                          ))
-                        ) : (
-                          <option value="">Belum ada tanggal yang dikonfigurasi</option>
-                        )}
-                      </select>
+                      {/* Lokasi Pelatihan */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Lokasi Pelatihan</label>
+                        <input 
+                          type="text"
+                          value={addParticipantForm.lokasiPelatihan}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, lokasiPelatihan: e.target.value })}
+                          placeholder="Lokasi..."
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                        />
+                      </div>
+
+                      {/* Tanggal Pelatihan */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Tanggal Pelatihan</label>
+                        <input 
+                          type="text"
+                          value={addParticipantForm.tanggalPelatihan}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalPelatihan: e.target.value })}
+                          placeholder="Jadwal..."
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                        />
+                      </div>
+
+                      {/* Biaya Pelatihan */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                        <input 
+                          type="text"
+                          value={addParticipantForm.biayaPelatihan}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, biayaPelatihan: e.target.value })}
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                        />
+                      </div>
+
+                      {/* Status Pembayaran */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Status Pembayaran</label>
+                        <select 
+                          value={addParticipantForm.statusPembayaran}
+                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, statusPembayaran: e.target.value })}
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-black text-xs outline-none text-emerald-900"
+                        >
+                          <option value="Lunas">💰 Lunas</option>
+                          <option value="Belum Lunas">⏳ Belum Lunas</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <div className="flex gap-2 pt-2 border-t border-gray-100 shrink-0">
                     <button
+                      type="button"
                       onClick={() => { setIsAddParticipantModalOpen(false); setAddParticipantSelectedMemberId(''); }}
-                      className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-500 transition-colors"
+                      className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-500 transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
+                      type="button"
                       onClick={handleAddParticipant}
-                      disabled={isSubmittingAddParticipant || !addParticipantSelectedMemberId}
-                      className="flex-2 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-hw-green/10 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                      disabled={isSubmittingAddParticipant || (addParticipantMode === 'select' && !addParticipantSelectedMemberId) || (addParticipantMode === 'manual' && !addParticipantForm.nama.trim())}
+                      className="flex-2 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-hw-green/10 disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {isSubmittingAddParticipant ? 'Mendaftarkan...' : 'Daftarkan Peserta'}
                     </button>
@@ -8036,6 +8327,57 @@ export default function AdminDashboard() {
                 </div>
 
                 <form onSubmit={handleSaveEditTraining} className="space-y-4 overflow-y-auto my-4 pr-1 flex-1 text-left">
+                  {/* Photo Preview and Upload */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-150 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="w-20 h-24 bg-white rounded-xl overflow-hidden border border-gray-200 shrink-0 shadow-xs flex items-center justify-center">
+                      {editingTrainingApp.photo ? (
+                        <img src={editingTrainingApp.photo} alt="Foto Peserta" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <UserIcon size={32} className="text-gray-300" />
+                      )}
+                    </div>
+                    <div className="space-y-2 w-full text-xs">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Foto Peserta (URL atau Unggah File)</label>
+                      <input 
+                        type="text"
+                        placeholder="https://... atau data:image/..."
+                        value={editingTrainingApp.photo || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, photo: e.target.value })}
+                        className="w-full bg-white border border-gray-200 rounded-xl py-2 px-3 font-medium text-xs outline-none focus:ring-2 focus:ring-hw-green/20 text-gray-800"
+                      />
+                      <div className="flex items-center gap-2">
+                        <label className="px-3 py-1.5 bg-hw-green/10 text-hw-green hover:bg-hw-green/20 rounded-xl font-bold text-[10px] cursor-pointer uppercase tracking-wider inline-flex items-center gap-1 transition-all">
+                          <Upload size={13} />
+                          <span>Pilih Foto dari Perangkat</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setEditingTrainingApp({ ...editingTrainingApp, photo: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        {editingTrainingApp.photo && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingTrainingApp({ ...editingTrainingApp, photo: '' })}
+                            className="text-[10px] text-rose-600 font-bold hover:underline"
+                          >
+                            Hapus Foto
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Nama Lengkap */}
                     <div className="space-y-1">
@@ -8069,6 +8411,30 @@ export default function AdminDashboard() {
                         required
                         value={editingTrainingApp.noWa || ''}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, noWa: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* NIK */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.nik || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nik: e.target.value })}
+                        placeholder="NIK KTP..."
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* NBM */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NBM (Nomor Baku Muhammadiyah)</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.nbm || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nbm: e.target.value })}
+                        placeholder="NBM..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
                     </div>
@@ -8110,7 +8476,7 @@ export default function AdminDashboard() {
 
                     {/* Asal Daerah */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asal Daerah (Kabupaten)</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asal Daerah (Kabupaten/Kwarda)</label>
                       <input 
                         type="text"
                         value={editingTrainingApp.asalDaerah || ''}
@@ -8167,6 +8533,68 @@ export default function AdminDashboard() {
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, golonganAnggota: e.target.value, tingkatan: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
+                    </div>
+
+                    {/* Lokasi Pelatihan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lokasi Pelatihan</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.lokasiPelatihan || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, lokasiPelatihan: e.target.value })}
+                        placeholder="misal: Pusdiklat HW Jateng..."
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Tanggal Pelatihan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Pelatihan</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.tanggalPelatihan || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tanggalPelatihan: e.target.value })}
+                        placeholder="misal: 15-18 Agustus 2025..."
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Biaya Pelatihan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.biayaPelatihan || 'Rp 50.000'}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, biayaPelatihan: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Status Verifikasi / Approval */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Verifikasi</label>
+                      <select 
+                        value={editingTrainingApp.status || 'approved'}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, status: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        <option value="approved">Disetujui (Approved)</option>
+                        <option value="pending">Menunggu Verifikasi (Pending)</option>
+                        <option value="rejected">Ditolak (Rejected)</option>
+                      </select>
+                    </div>
+
+                    {/* Status Pembayaran */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Pembayaran</label>
+                      <select 
+                        value={editingTrainingApp.statusPembayaran || (editingTrainingApp.status === 'approved' ? 'Lunas' : 'Belum Lunas')}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, statusPembayaran: e.target.value })}
+                        className="w-full bg-emerald-50/50 border border-emerald-200 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-emerald-900"
+                      >
+                        <option value="Lunas">💰 Lunas</option>
+                        <option value="Belum Lunas">⏳ Belum Lunas</option>
+                      </select>
                     </div>
                   </div>
 
@@ -9143,6 +9571,39 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Biaya Pelatihan</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Rp 150.000"
+                    value={activityForm.biayaPelatihan}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, biayaPelatihan: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Rekening Pembiayaan / Pembayaran</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
+                    value={activityForm.rekeningPembiayaan}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, rekeningPembiayaan: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nomor WhatsApp Panitia (Konfirmasi Transfer)</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 089688754000"
+                    value={activityForm.noWhatsappPanitia}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, noWhatsappPanitia: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Deskripsi Kegiatan Singkat</label>
                   <textarea
                     rows={2}
@@ -9212,6 +9673,9 @@ export default function AdminDashboard() {
                         lokasi: newAct.lokasiPelatihan || '',
                         tanggalPelatihan: newAct.tanggalPelatihan || '',
                         lokasiPelatihan: newAct.lokasiPelatihan || '',
+                        biayaPelatihan: newAct.biayaPelatihan || 'Rp 50.000',
+                        rekeningPembiayaan: newAct.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                        noWhatsappPanitia: newAct.noWhatsappPanitia || '089688754000',
                         status: newAct.status || 'Buka',
                         deskripsi: newAct.deskripsi || '',
                         kuota: '100 Peserta',
