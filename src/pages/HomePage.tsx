@@ -862,7 +862,7 @@ export default function HomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-amber-500" />
+            <Sparkles size={18} className="text-teal-600" />
             <h3 className="font-display font-bold text-gray-800">Semarak HW Jateng</h3>
           </div>
         </div>
@@ -871,92 +871,92 @@ export default function HomePage() {
           {/* 1. Banner Kegiatan HW Jateng */}
           <Link 
             to="/kegiatan" 
-            className="flex items-center justify-between bg-gradient-to-r from-emerald-950 via-emerald-800 to-amber-500 text-white p-4 rounded-3xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all border border-amber-400/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-400/20 border border-amber-300/30 rounded-2xl text-amber-300 shrink-0">
-                <Calendar size={20} />
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <Calendar size={18} />
               </div>
               <div className="text-left space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
-                  <span className="bg-amber-400 text-emerald-950 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                  <span className="bg-white text-teal-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
                     Terbaru
                   </span>
                 </div>
-                <p className="text-[9px] text-amber-100/90 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-amber-300 shrink-0" />
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
 
-          {/* 2. Banner Pelatihan HW Jateng (Orange - Kuning) */}
+          {/* 2. Banner Pelatihan HW Jateng */}
           <button 
             onClick={() => setShowTrainingModal(true)}
-            className="w-full text-left flex items-center justify-between bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 text-white p-4 rounded-3xl shadow-md shadow-orange-500/15 hover:shadow-lg transition-all border border-amber-300/40 hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
+            className="w-full text-left flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-2xl text-white border border-white/20 shrink-0">
-                <GraduationCap size={20} />
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <GraduationCap size={18} />
               </div>
               <div className="text-left space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">
                     Pelatihan HW Jateng
                   </h4>
-                  <span className="bg-white text-orange-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                  <span className="bg-white text-teal-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
                     Resmi
                   </span>
                 </div>
-                <p className="text-[9px] text-orange-50 font-semibold leading-none">
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">
                   Jaya Melati 1, 2, Jaya Matahari 1 dan Jaya Pertiwi
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-orange-100 shrink-0" />
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </button>
 
           {/* 3. Banner KTA Digital HW Jateng */}
           <Link 
             to={isAuthenticated ? "/kta" : "/register"} 
-            className="flex items-center justify-between bg-gradient-to-r from-hw-green via-emerald-700 to-emerald-800 text-white p-4 rounded-3xl shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all border border-emerald-600/30 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/10 rounded-2xl text-white border border-white/10 shrink-0">
-                <CreditCard size={20} />
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <CreditCard size={18} />
               </div>
               <div className="text-left space-y-0.5">
-                <h4 className="text-xs font-black uppercase tracking-wider">KTA Digital HW Jateng</h4>
+                <h4 className="text-xs font-black uppercase tracking-wider text-white">KTA Digital HW Jateng</h4>
                 <p className="text-[9px] text-emerald-100 font-semibold leading-none">Syarat Utama mengakses Materi Umum HW</p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-emerald-200 shrink-0" />
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
 
-          {/* 4. Banner Pelatih Nasional HW Jateng (Emas Gradasi) */}
+          {/* 4. Banner Pelatih Nasional HW Jateng */}
           <Link 
             to="/pelatih-nasional" 
-            className="flex items-center justify-between bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-500 text-amber-950 p-4 rounded-3xl shadow-md shadow-amber-500/20 hover:shadow-lg transition-all border border-yellow-300/60 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-950 text-amber-300 rounded-2xl shadow-xs shrink-0">
-                <Award size={20} />
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <Award size={18} />
               </div>
               <div className="text-left space-y-0.5">
                 <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-amber-950">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">
                     Pelatih Nasional HW Jateng
                   </h4>
-                  <span className="bg-amber-950 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                  <span className="bg-white text-teal-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
                     Direktori
                   </span>
                 </div>
-                <p className="text-[9px] text-amber-950/80 font-bold leading-none">
+                <p className="text-[9px] text-emerald-100 font-bold leading-none">
                   Data Pelatih Kategori Jaya Matahari 1 & 2
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-amber-950 shrink-0" />
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
         </div>
       </section>
@@ -1209,14 +1209,14 @@ export default function HomePage() {
               className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
             >
               {/* Header */}
-              <div className="p-5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white flex items-center justify-between relative">
+              <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white flex items-center justify-between relative">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white/20 rounded-2xl text-white backdrop-blur-md">
                     <GraduationCap size={22} />
                   </div>
                   <div>
                     <h3 className="font-display font-black text-base uppercase tracking-wider">Jenis Pelatihan HW Jateng</h3>
-                    <p className="text-[10px] text-orange-100 font-medium">Diatur & dikelola resmi dari Dasbor Admin HW Jateng</p>
+                    <p className="text-[10px] text-emerald-100 font-medium">Diatur & dikelola resmi dari Dasbor Admin HW Jateng</p>
                   </div>
                 </div>
                 <button
@@ -1274,7 +1274,7 @@ export default function HomePage() {
 
                           <button
                             onClick={() => handleSelectTrainingForRegistration(act)}
-                            className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-orange-500/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
+                            className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-teal-600/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
                           >
                             <GraduationCap size={16} /> Daftar Pelatihan Ini <ChevronRight size={14} />
                           </button>

@@ -877,7 +877,7 @@ export default function KTAPage() {
       </div>
 
       {/* Hero Banner KTA */}
-      <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-6 text-white shadow-xl space-y-2">
+      <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 p-6 text-white shadow-xl space-y-2">
         <div className="flex items-center gap-2">
           <CreditCard className="text-emerald-200" size={22} />
           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">

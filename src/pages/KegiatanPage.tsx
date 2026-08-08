@@ -291,7 +291,7 @@ export default function KegiatanPage() {
       </div>
 
       {/* Hero Banner */}
-      <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-6 text-white shadow-xl">
+      <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 p-6 text-white shadow-xl">
         <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
           <Sparkles size={200} />
         </div>

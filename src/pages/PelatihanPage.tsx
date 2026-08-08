@@ -538,7 +538,7 @@ export default function PelatihanPage() {
       </div>
 
       {/* Page Header */}
-      <div className="flex flex-col gap-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-6 rounded-[2.5rem] text-white shadow-xl">
+      <div className="flex flex-col gap-1.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 p-6 rounded-[2.5rem] text-white shadow-xl">
         <div className="flex items-center gap-2">
           <GraduationCap className="text-emerald-200 animate-pulse" size={24} />
           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">Satu HW Training</span>

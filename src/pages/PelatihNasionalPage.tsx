@@ -409,7 +409,7 @@ export default function PelatihNasionalPage() {
       </div>
 
       {/* Green-Blue Gradient Hero Banner */}
-      <section className="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 text-white p-6 rounded-[2.5rem] shadow-xl shadow-teal-500/20 border border-white/20 relative overflow-hidden">
+      <section className="bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white p-6 rounded-[2.5rem] shadow-xl shadow-teal-500/20 border border-white/20 relative overflow-hidden">
         <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2">
             <div className="p-2.5 bg-white/20 backdrop-blur-md text-white rounded-2xl shadow-sm">
