@@ -27,6 +27,8 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
+import { User } from '../types';
 import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, formatIndonesianDate } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG, getKwardaCode, parseKtaNumber } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
@@ -95,10 +97,67 @@ const truncateText = (text: string, maxLen: number): string => {
 export default function KTAPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, updateUser } = useAuthStore();
+  // Fast initial cached state lookup
+  const getInitialMyApplication = () => {
+    if (!isAuthenticated || !user) return null;
+    try {
+      const stored = localStorage.getItem('kta_applications');
+      if (stored) {
+        const apps = JSON.parse(stored);
+        if (Array.isArray(apps)) {
+          const found = apps.find((app: any) => {
+            const userIdMatch = app.userId && user.id && String(app.userId) === String(user.id);
+            const emailMatch = app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim();
+            const namaMatch = app.nama && user.namaLengkap && app.nama.toLowerCase().trim() === user.namaLengkap.toLowerCase().trim();
+            return userIdMatch || emailMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
+          });
+          if (found) return found;
+        }
+      }
+      if (user.isVerified) {
+        const getRegionalCode = (kab: string): string => {
+          const name = (kab || '').toLowerCase();
+          if (name.includes('klaten')) return '11.14';
+          if (name.includes('wonosobo')) return '11.29';
+          if (name.includes('banjarnegara')) return '11.01';
+          if (name.includes('brebes')) return '11.06';
+          if (name.includes('tegal')) return '11.35';
+          return '11.14';
+        };
+        const regionCode = getRegionalCode(user.asalKwarda || '');
+        const randomSeq = String(Math.floor(1000 + Math.random() * 9000));
+        return {
+          id: `kta-sync-${user.id || 'verified'}`,
+          userId: user.id || '',
+          nama: user.namaLengkap || '',
+          noWa: user.noHp || '',
+          email: user.email || '',
+          sosmed: user.sosmed || '',
+          photo: user.photo || '',
+          tingkatan: user.role && user.role.includes('jati') ? 'Pandu Dewasa' : 'Anggota',
+          asalDaerah: user.asalKwarda || '',
+          status: 'approved',
+          tanggalAjuan: new Date().toISOString(),
+          ktaNumber: (user as any).ktaNumber || `${regionCode}.${randomSeq}`,
+          remark: '',
+          nik: (user as any).nik || '',
+          tempatLahir: (user as any).tempatLahir || '',
+          tanggalLahir: (user as any).tanggalLahir || '',
+          jenisKelamin: user.jenisKelamin === 'P' ? 'Perempuan' : 'Laki-laki',
+          jenisKta: 'DIGITAL',
+          qabilah: user.qabilah || '',
+          alamat: user.alamat || '',
+        };
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const initialApp = getInitialMyApplication();
   const [applications, setApplications] = useState<any[]>([]);
-  const [myApplication, setMyApplication] = useState<any | null>(null);
+  const [myApplication, setMyApplication] = useState<any | null>(initialApp);
   const validationUrl = `${window.location.origin}/kta?id=${myApplication?.id || myApplication?.ktaNumber || ''}`;
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialApp);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [flipped, setFlipped] = useState(false);
@@ -119,25 +178,25 @@ export default function KTAPage() {
   const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
   
   // Photo preview
-  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photo || null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photo || initialApp?.photo || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [formData, setFormData] = useState({
-    nama: user?.namaLengkap || '',
-    alamat: user?.alamat || '',
-    tingkatan: user?.golongan || 'Dewasa',
-    asalDaerah: user?.asalKwarda || 'Banyumas',
-    noWa: user?.noHp || '',
-    email: user?.email || '',
-    sosmed: user?.sosmed || '',
-    photo: user?.photo || '',
-    nik: user?.nik || '',
-    tempatLahir: user?.tempatLahir || '',
-    tanggalLahir: user?.tanggalLahir || '',
-    jenisKelamin: user?.jenisKelamin === 'P' ? 'Perempuan' : 'Laki-laki',
-    qabilah: user?.qabilah || '',
+    nama: user?.namaLengkap || initialApp?.nama || '',
+    alamat: user?.alamat || initialApp?.alamat || '',
+    tingkatan: user?.golongan || initialApp?.tingkatan || 'Dewasa',
+    asalDaerah: user?.asalKwarda || initialApp?.asalDaerah || 'Banyumas',
+    noWa: user?.noHp || initialApp?.noWa || '',
+    email: user?.email || initialApp?.email || '',
+    sosmed: user?.sosmed || initialApp?.sosmed || '',
+    photo: user?.photo || initialApp?.photo || '',
+    nik: user?.nik || initialApp?.nik || '',
+    tempatLahir: user?.tempatLahir || initialApp?.tempatLahir || '',
+    tanggalLahir: user?.tanggalLahir || initialApp?.tanggalLahir || '',
+    jenisKelamin: (user?.jenisKelamin === 'P' || initialApp?.jenisKelamin === 'Perempuan') ? 'Perempuan' : 'Laki-laki',
+    qabilah: user?.qabilah || initialApp?.qabilah || '',
     jenisKta: 'Digital'
   });
 
@@ -146,10 +205,12 @@ export default function KTAPage() {
   const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
-    const syncProfileAndApplications = async () => {
+    let isMounted = true;
+    const syncProfileAndApplications = async (isBackground = false) => {
       try {
         if (isAuthenticated && user) {
           const members = await sheetsService.getMembers();
+          if (!isMounted) return;
           const freshUser = members.find(
             (m) => m.id === user.id || m.email?.toLowerCase() === user.email?.toLowerCase()
           );
@@ -197,29 +258,34 @@ export default function KTAPage() {
       } catch (e) {
         console.error('Error synchronizing profile under KTA:', e);
       }
-      await fetchApplications();
+      if (isMounted) {
+        await fetchApplications(isBackground || !!myApplication);
+      }
     };
 
-    syncProfileAndApplications();
+    syncProfileAndApplications(!!myApplication);
 
     const unsubMembers = sheetsService.subscribeToMembers(() => {
-      syncProfileAndApplications();
+      syncProfileAndApplications(true);
     });
 
     const unsubSettings = sheetsService.subscribeToSettings((newSettings: any) => {
-      if (newSettings) {
+      if (newSettings && isMounted) {
         setSettings((prev: any) => ({ ...prev, ...newSettings }));
       }
     });
 
     return () => {
+      isMounted = false;
       unsubMembers();
       unsubSettings();
     };
   }, [isAuthenticated, user?.id, user?.email]);
 
-  const fetchApplications = async () => {
-    setLoading(true);
+  const fetchApplications = async (isBackground = false) => {
+    if (!isBackground && !myApplication) {
+      setLoading(true);
+    }
     try {
       try {
         const settingsData = await sheetsService.getSettings();
@@ -537,7 +603,8 @@ export default function KTAPage() {
         
         // Auto update local user status (if logged in, keep them updated)
         if (isAuthenticated && user) {
-          updateUser({
+          const updatedUserObj: User = {
+            ...user,
             namaLengkap: formData.nama,
             alamat: formData.alamat,
             noHp: formData.noWa,
@@ -546,13 +613,18 @@ export default function KTAPage() {
             qabilah: formData.qabilah,
             sosmed: formData.sosmed,
             nik: formData.nik,
+            tempatLahir: formData.tempatLahir,
+            tanggalLahir: formData.tanggalLahir,
             photo: photoPreview || user.photo || '',
             isVerified: createdApp.status === 'approved' ? true : user.isVerified
-          });
+          };
+          updateUser(updatedUserObj);
+          firestoreService.saveMember(updatedUserObj).catch(() => {});
+          sheetsService.saveMember(updatedUserObj).catch(() => {});
         }
         
-        // Re-fetch to coordinate
-        fetchApplications();
+        // Re-fetch in background without triggering full loading spinner
+        fetchApplications(true);
         setShowEditForm(false);
       } else {
         throw new Error(res.message || 'Respons tidak valid dari server');

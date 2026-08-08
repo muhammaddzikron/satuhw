@@ -595,7 +595,8 @@ export const sheetsService = {
     const response = await axios.post(API_URL!, JSON.stringify(data), {
       headers: {
         'Content-Type': 'text/plain',
-      }
+      },
+      timeout: 5000
     });
     
     // Check if the response itself contains an error field (common pattern in GAS responses)
@@ -754,7 +755,7 @@ export const sheetsService = {
       return members.map((m: any) => this.mapUser(m));
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`);
+      const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 4000 });
       if (Array.isArray(response.data)) {
         const sheetMembers = response.data.map((m: any) => this.mapUser(m));
         // Merge Firestore & Local Storage member updates
@@ -959,7 +960,7 @@ export const sheetsService = {
       return await firestoreService.getKTAApplications();
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`);
+      const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 4000 });
       if (Array.isArray(response.data)) {
         const apps = response.data;
         // Merge photos from Firestore if empty in Google Sheets response
@@ -1408,7 +1409,7 @@ export const sheetsService = {
       return result;
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`);
+      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`, { timeout: 4000 });
       const apiSettings = response.data || {};
       const merged = {
         ...fsSettings,

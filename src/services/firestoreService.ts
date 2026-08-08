@@ -21,7 +21,7 @@ import {
 } from '../utils/ktaUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
-const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Firestore operation timeout')), ms))
@@ -1416,7 +1416,7 @@ export const firestoreService = {
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) {
-          console.error('Firestore getKTAApplications error, fallback to cache:', err);
+          console.warn('[FIRESTORE] getKTAApplications fallback to cache:', (err as any)?.message || err);
         }
       }
     }
@@ -1692,7 +1692,7 @@ export const firestoreService = {
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) {
-          console.error('Firestore getTrainingApplications error, fallback to cache:', err);
+          console.warn('[FIRESTORE] getTrainingApplications fallback to cache:', (err as any)?.message || err);
         }
       }
     }
