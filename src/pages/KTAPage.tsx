@@ -28,6 +28,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, formatIndonesianDate } from '../lib/utils';
+import { KWARDA_QABILAH_JATENG, getKwardaCode, parseKtaNumber } from '../utils/ktaUtils';
+export { KWARDA_QABILAH_JATENG };
 import LoadingPage from './LoadingPage';
 import { jsPDF } from 'jspdf';
 import { KTACard } from '../components/KTACard';
@@ -40,67 +42,6 @@ const TINGKATAN_LIST = [
   'Penghela', 
   'Penuntun', 
   'Dewasa'
-];
-
-export const KWARDA_QABILAH_JATENG = [
-  { code: '01', name: 'Kabupaten Banjarnegara' },
-  { code: '02', name: 'Kabupaten Banyumas' },
-  { code: '03', name: 'Kabupaten Batang' },
-  { code: '04', name: 'Kabupaten Blora' },
-  { code: '05', name: 'Kabupaten Boyolali' },
-  { code: '06', name: 'Kabupaten Brebes' },
-  { code: '07', name: 'Kabupaten Cilacap' },
-  { code: '08', name: 'Kabupaten Demak' },
-  { code: '09', name: 'Kabupaten Grobogan' },
-  { code: '10', name: 'Kabupaten Jepara' },
-  { code: '11', name: 'Kabupaten Karanganyar' },
-  { code: '12', name: 'Kabupaten Kebumen' },
-  { code: '13', name: 'Kabupaten Kendal' },
-  { code: '14', name: 'Kabupaten Klaten' },
-  { code: '15', name: 'Kabupaten Kudus' },
-  { code: '16', name: 'Kabupaten Magelang' },
-  { code: '17', name: 'Kabupaten Pati' },
-  { code: '18', name: 'Kabupaten Pekalongan' },
-  { code: '19', name: 'Kabupaten Pemalang' },
-  { code: '20', name: 'Kabupaten Purbalingga' },
-  { code: '21', name: 'Kabupaten Purworejo' },
-  { code: '22', name: 'Kabupaten Rembang' },
-  { code: '23', name: 'Kabupaten Semarang' },
-  { code: '24', name: 'Kabupaten Sragen' },
-  { code: '25', name: 'Kabupaten Sukoharjo' },
-  { code: '26', name: 'Kabupaten Tegal' },
-  { code: '27', name: 'Kabupaten Temanggung' },
-  { code: '28', name: 'Kabupaten Wonogiri' },
-  { code: '29', name: 'Kabupaten Wonosobo' },
-  { code: '30', name: 'Kota Magelang' },
-  { code: '31', name: 'Kota Pekalongan' },
-  { code: '32', name: 'Kota Salatiga' },
-  { code: '33', name: 'Kota Semarang' },
-  { code: '34', name: 'Kota Surakarta' },
-  { code: '35', name: 'Kota Tegal' },
-  { code: '36', name: 'Universitas Muhammadiyah Surakarta (UMS)' },
-  { code: '37', name: 'Universitas Muhammadiyah Magelang (UNIMMA)' },
-  { code: '38', name: 'Universitas Muhammadiyah Purwokerto (UMP)' },
-  { code: '39', name: 'Universitas Muhammadiyah Purworejo (UMPWR)' },
-  { code: '40', name: 'Universitas Muhammadiyah Semarang (UNIMUS)' },
-  { code: '41', name: 'Universitas Muhammadiyah Klaten (UMKLA)' },
-  { code: '42', name: 'Universitas Muhammadiyah Kudus (UMKU)' },
-  { code: '43', name: 'Universitas Aisyiyah Surakarta (AISKA)' },
-  { code: '44', name: 'Universitas Muhammadiyah Gombong Kebumen (UNIMUGO)' },
-  { code: '45', name: 'Universitas Muhammadiyah Kendal Batang (UMKABA)' },
-  { code: '46', name: 'Universitas Muhammadiyah Karanganyar (UMUKA)' },
-  { code: '47', name: 'ITS PKU Muhammadiyah Surakarta (ITSPKU)' },
-  { code: '48', name: 'STAIM Blora' },
-  { code: '49', name: 'STKIP Muhammadiyah Blora (STKIPMUHBLORA)' },
-  { code: '50', name: 'STIE Muhammadiyah Cilacap' },
-  { code: '51', name: 'Universitas Muhammadiyah Pekajangan Pekalongan (UMPP)' },
-  { code: '52', name: 'Universitas Muhammadiyah Brebes (UMBS)' },
-  { code: '53', name: 'Akademi Ilmu Statistik dan Bisnis Muhammadiyah Semarang (ITESA)' },
-  { code: '54', name: 'Politeknik Muhammadiyah Magelang' },
-  { code: '55', name: 'Akkes Muhammadiyah Temanggung' },
-  { code: '56', name: 'Institut Tehnologi dan Bisnis (ITB) Muhammadiyah Grobogan' },
-  { code: '57', name: 'Stikes Muhammadiyah Wonosobo' },
-  { code: '58', name: 'Universitas Muhammadiyah Tegal' }
 ];
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);

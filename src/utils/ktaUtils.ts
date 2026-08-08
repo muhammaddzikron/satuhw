@@ -64,16 +64,15 @@ export const KWARDA_QABILAH_JATENG: KwardaMapping[] = [
   { code: '58', name: 'Universitas Muhammadiyah Tegal' }
 ];
 
-/**
- * Maps a given Kwarda or Qabilah name string to its 2-digit code string ('01'..'58').
- */
-export function getKwardaCode(asalKwardaOrQabilah?: string): string {
-  if (!asalKwardaOrQabilah) return '14'; // Default to Klaten if not specified
+function resolveSingleCode(input?: string): string | null {
+  if (!input) return null;
+  const clean = input.trim().toLowerCase();
+  if (!clean) return null;
 
-  const clean = asalKwardaOrQabilah.trim().toLowerCase();
-
-  // 1. Direct code check e.g. "14" or "01"
-  const directByCode = KWARDA_QABILAH_JATENG.find(item => item.code === clean);
+  // 1. Direct code check e.g. "01".."58"
+  const directByCode = KWARDA_QABILAH_JATENG.find(
+    item => item.code === clean || item.code === clean.padStart(2, '0')
+  );
   if (directByCode) return directByCode.code;
 
   // 2. Exact name match
@@ -82,11 +81,9 @@ export function getKwardaCode(asalKwardaOrQabilah?: string): string {
   );
   if (exactName) return exactName.code;
 
-  // 3. Substring / keyword match
-  // Try matching university/PTMA acronyms first
+  // 3. PTMA match (codes 36 to 58)
   const ptmaMatch = KWARDA_QABILAH_JATENG.slice(35).find(item => {
     const itemName = item.name.toLowerCase();
-    // Check inside parenthesis e.g. "(UMS)"
     const matchParen = itemName.match(/\(([^)]+)\)/);
     if (matchParen && clean.includes(matchParen[1].toLowerCase())) {
       return true;
@@ -95,10 +92,9 @@ export function getKwardaCode(asalKwardaOrQabilah?: string): string {
   });
   if (ptmaMatch) return ptmaMatch.code;
 
-  // Try matching Kwarda / District names
+  // 4. Kwarda match (codes 01 to 35)
   const kwardaMatch = KWARDA_QABILAH_JATENG.slice(0, 35).find(item => {
     const itemName = item.name.toLowerCase();
-    // Compare core city/regency name e.g. "klaten" in "Kabupaten Klaten"
     const coreName = itemName.replace(/^(kabupaten|kota)\s+/i, '').trim();
     if (clean.includes(coreName) || itemName.includes(clean)) {
       return true;
@@ -107,8 +103,28 @@ export function getKwardaCode(asalKwardaOrQabilah?: string): string {
   });
   if (kwardaMatch) return kwardaMatch.code;
 
-  // Fallback to '14' (Klaten) or '01'
-  return '14';
+  return null;
+}
+
+/**
+ * Maps given Kwarda and/or Qabilah parameters to its 2-digit code string ('01'..'58').
+ * Priority is given to Qabilah PTMA if present, falling back to Kwarda or default.
+ */
+export function getKwardaCode(asalKwardaOrQabilah?: string, qabilahParam?: string): string {
+  // If qabilahParam is passed, check it first for a match
+  if (qabilahParam) {
+    const qCode = resolveSingleCode(qabilahParam);
+    if (qCode) return qCode;
+  }
+
+  // Next check asalKwardaOrQabilah
+  if (asalKwardaOrQabilah) {
+    const aCode = resolveSingleCode(asalKwardaOrQabilah);
+    if (aCode) return aCode;
+  }
+
+  // Fallback to '01'
+  return '01';
 }
 
 /**

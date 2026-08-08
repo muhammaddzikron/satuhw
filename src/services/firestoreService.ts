@@ -753,7 +753,8 @@ export const firestoreService = {
    */
   async allocateKtaNumberTransaction(
     asalKwardaOrQabilah?: string,
-    existingKta?: string
+    qabilahOrExistingKta?: string,
+    existingKtaParam?: string
   ): Promise<{
     nomorKTA: string;
     ktaNumber: string;
@@ -761,6 +762,16 @@ export const firestoreService = {
     kodeKwarda: string;
     nomorUrut: number;
   }> {
+    let asalKwarda = asalKwardaOrQabilah;
+    let qabilah = qabilahOrExistingKta;
+    let existingKta = existingKtaParam;
+
+    // Handle 2-arg call where 2nd arg is an existing KTA number format e.g. "11.25.0001"
+    if (!existingKtaParam && qabilahOrExistingKta && isValidKtaNumberFormat(qabilahOrExistingKta)) {
+      existingKta = qabilahOrExistingKta;
+      qabilah = undefined;
+    }
+
     // Permanent check: if user/application already has a valid 11.xx.xxxx KTA, NEVER change it!
     if (existingKta && isValidKtaNumberFormat(existingKta)) {
       const parsed = parseKtaNumber(existingKta)!;
@@ -773,7 +784,7 @@ export const firestoreService = {
       };
     }
 
-    const kodeKwarda = getKwardaCode(asalKwardaOrQabilah);
+    const kodeKwarda = getKwardaCode(asalKwarda, qabilah);
     const counterRef = doc(db, 'kta_counters', kodeKwarda);
 
     // Initial scan of existing sequence numbers across members & kta_applications
@@ -790,7 +801,7 @@ export const firestoreService = {
         const parsed = parseKtaNumber(kNum);
         if (parsed && parsed.kodeKwarda === kodeKwarda) {
           existingSeqNumbers.push(parsed.nomorUrut);
-        } else if (data.nomorUrut && (data.kodeKwarda === kodeKwarda || getKwardaCode(data.asalKwarda) === kodeKwarda)) {
+        } else if (data.nomorUrut && (data.kodeKwarda === kodeKwarda || getKwardaCode(data.asalKwarda, data.qabilah || data.qabilahPtma) === kodeKwarda)) {
           existingSeqNumbers.push(Number(data.nomorUrut));
         }
       });
@@ -1046,7 +1057,8 @@ export const firestoreService = {
       };
     } else {
       ktaInfo = await this.allocateKtaNumberTransaction(
-        member.asalKwarda || member.qabilah || member.asalQabilah,
+        member.asalKwarda,
+        member.qabilah || member.asalQabilah,
         existingKta
       );
     }
@@ -1423,7 +1435,11 @@ export const firestoreService = {
         const parsed = parseKtaNumber(ktaNum)!;
         ktaInfo = { nomorKTA: ktaNum, ktaNumber: ktaNum, kodeProvinsi: '11', kodeKwarda: parsed.kodeKwarda, nomorUrut: parsed.nomorUrut };
       } else {
-        ktaInfo = await this.allocateKtaNumberTransaction(appData.asalDaerah || appData.qabilah, ktaNum);
+        ktaInfo = await this.allocateKtaNumberTransaction(
+          appData.asalDaerah || appData.asalKwarda,
+          appData.qabilah || appData.qabilahPtma,
+          ktaNum
+        );
       }
     }
 
@@ -1510,8 +1526,9 @@ export const firestoreService = {
     if (status === 'approved') {
       const existingNum = idx >= 0 ? (list[idx].nomorKTA || list[idx].ktaNumber) : (ktaNumber || updates.ktaNumber);
       if (!existingNum || !isValidKtaNumberFormat(existingNum)) {
-        const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda || list[idx].qabilah) : '';
-        const allocated = await this.allocateKtaNumberTransaction(targetKwarda, existingNum);
+        const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : '';
+        const targetQabilah = idx >= 0 ? (list[idx].qabilah || list[idx].qabilahPtma) : '';
+        const allocated = await this.allocateKtaNumberTransaction(targetKwarda, targetQabilah, existingNum);
         updates.nomorKTA = allocated.nomorKTA;
         updates.ktaNumber = allocated.ktaNumber;
         updates.kodeProvinsi = allocated.kodeProvinsi;
@@ -2619,7 +2636,7 @@ export const firestoreService = {
 
         let assignedKtaNumber = ktaNum;
         if (!assignedKtaNumber || !isValidKtaNumberFormat(assignedKtaNumber)) {
-          const allocated = await this.allocateKtaNumberTransaction(k.asalDaerah || k.asalKwarda || k.qabilah, assignedKtaNumber);
+          const allocated = await this.allocateKtaNumberTransaction(k.asalDaerah || k.asalKwarda, k.qabilah || k.qabilahPtma, assignedKtaNumber);
           assignedKtaNumber = allocated.nomorKTA;
           k.nomorKTA = assignedKtaNumber;
           k.ktaNumber = assignedKtaNumber;
@@ -2725,7 +2742,7 @@ export const firestoreService = {
           let ktaNum = m.nomorKTA || m.ktaNumber;
           let allocated: any = null;
           if (!ktaNum || !isValidKtaNumberFormat(ktaNum)) {
-            allocated = await this.allocateKtaNumberTransaction(m.asalKwarda || m.qabilah, ktaNum);
+            allocated = await this.allocateKtaNumberTransaction(m.asalKwarda, m.qabilah, ktaNum);
             ktaNum = allocated.nomorKTA;
             m.nomorKTA = ktaNum;
             m.ktaNumber = ktaNum;
