@@ -148,7 +148,9 @@ import {
   Loader2,
   Image as ImageIcon,
   Calendar,
-  Edit
+  Edit,
+  Upload,
+  RotateCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
@@ -4059,75 +4061,237 @@ export default function AdminDashboard() {
 
               {/* Sub-tab content 4: Template KTA */}
               {activeKtaSubTab === 'template' && (
-                <div className="p-6 space-y-8 flex-1 overflow-y-auto flex flex-col items-center justify-center min-h-[500px]">
-                  <div className="w-full max-w-[420px] space-y-6">
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                        <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+                <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                  {/* Top Header & Save Bar */}
+                  <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon size={18} className="text-hw-green" />
+                        <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider font-display">
+                          PENGELOLAAN TEMPLATE KTA HW JATENG
+                        </h3>
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium">
+                        Atur gambar latar belakang (background) Kartu Tanda Anggota untuk Tampilan Depan dan Tampilan Belakang secara terpisah.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Yakin ingin mereset kedua template ke Master Template Default HW Jateng?')) {
+                            setSettings((prev: any) => ({
+                              ...prev,
+                              ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+                              ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg'
+                            }));
+                          }
+                        }}
+                        className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <RotateCcw size={14} />
+                        <span>Reset Master Default</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateSettings()}
+                        disabled={isSavingSettings}
+                        className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-emerald-800/15 flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {isSavingSettings ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save size={15} />
+                            <span>Simpan Perubahan</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Two Separate Cards Side-by-Side: Depan & Belakang */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* 1. TAMPILAN DEPAN (FRONT TEMPLATE) */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                           <div className="flex items-center gap-2">
-                            <ImageIcon size={16} className="text-hw-green" />
-                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Live Preview KTA</h4>
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                              1. Tampilan Depan (Front View)
+                            </h4>
                           </div>
-                          <button
-                            onClick={() => setPreviewFlipped(!previewFlipped)}
-                            className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold uppercase transition-all"
-                          >
-                            Balik Kartu (Flipping)
-                          </button>
+                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-black uppercase rounded-full">
+                            Template Depan
+                          </span>
                         </div>
 
-                        {/* Interactive Card Container */}
-                        <div className="flex justify-center py-4">
-                          <div 
-                            className="w-full max-w-[350px] aspect-[856/540] cursor-pointer [perspective:1000px]"
-                            onClick={() => setPreviewFlipped(!previewFlipped)}
-                          >
-                            <div className={`relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d] ${
-                              previewFlipped ? "[transform:rotateY(180deg)]" : ""
-                            }`}>
-                              
-                              {/* CARD FRONT PREVIEW */}
-                              <div className="absolute inset-0 w-full h-full [backface-visibility:hidden]">
-                                <KTACard 
-                                  application={{
-                                    ktaNumber: '11.02.0027',
-                                    nama: 'Catur Teddy Pamungkas',
-                                    tempatLahir: 'Banyumas',
-                                    tanggalLahir: '2012-09-17',
-                                    asalDaerah: 'Kabupaten Banyumas',
-                                    tingkatan: 'Pandu Pengenal',
-                                    alamat: 'Tambaksari Kidul RT 07 RW 03, Kembaran, Banyumas',
-                                    verifiedAt: '2026-07-13'
-                                  }} 
-                                  settings={settings} 
-                                  side="front" 
-                                  idSuffix="admin-settings-front"
-                                />
-                              </div>
-
-                              {/* CARD BACK PREVIEW */}
-                              <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                                <KTACard 
-                                  application={{
-                                    ktaNumber: '11.02.0027',
-                                    nama: 'Catur Teddy Pamungkas'
-                                  }} 
-                                  settings={settings} 
-                                  side="back" 
-                                  idSuffix="admin-settings-back"
-                                />
-                              </div>
-
-                            </div>
+                        {/* Live Preview Front */}
+                        <div className="flex justify-center py-3 bg-stone-900 rounded-2xl p-4 border border-stone-800 shadow-inner">
+                          <div className="w-full max-w-[340px] aspect-[856/540]">
+                            <KTACard 
+                              application={{
+                                ktaNumber: '11.02.0027',
+                                nama: 'Catur Teddy Pamungkas',
+                                tempatLahir: 'Banyumas',
+                                tanggalLahir: '2012-09-17',
+                                asalDaerah: 'Kabupaten Banyumas',
+                                tingkatan: 'Pandu Pengenal',
+                                alamat: 'Tambaksari Kidul RT 07 RW 03, Kembaran, Banyumas',
+                                verifiedAt: '2026-07-13'
+                              }} 
+                              settings={settings} 
+                              side="front" 
+                              idSuffix="admin-template-front"
+                            />
                           </div>
                         </div>
 
-                        <div className="bg-amber-50/50 border border-amber-100 p-3 rounded-2xl text-[10px] text-amber-800 font-semibold leading-relaxed">
-                          <p className="font-bold uppercase tracking-wider mb-0.5">💡 Tips Desain Template:</p>
-                          Jika Anda mengunggah Master Template KTA kustom, pastikan gambar memiliki dimensi ideal <strong>1050 x 660 piksel</strong> (aspek rasio ID card resmi) dengan bagian tengah bersih untuk memudahkan penempatan teks data personal anggota.
+                        {/* Upload & Controls Front */}
+                        <div className="space-y-3 pt-2">
+                          <label className="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">
+                            Upload Gambar Template Depan
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <label className="flex-1 px-4 py-2.5 bg-gray-50 border border-dashed border-gray-300 hover:border-hw-green hover:bg-emerald-50/40 rounded-2xl cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold text-gray-600">
+                              <Upload size={15} className="text-hw-green" />
+                              <span>Pilih File Gambar Depan</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => handleKtaImageUpload(e, 'ktaTemplateFront')} 
+                                className="hidden" 
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettings(prev => ({
+                                  ...prev,
+                                  ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png'
+                                }));
+                              }}
+                              className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl text-[10px] font-bold uppercase transition-all shrink-0 cursor-pointer"
+                              title="Gunakan Master Template Depan Default"
+                            >
+                              Default Depan
+                            </button>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              URL Gambar / Base64 (Depan)
+                            </label>
+                            <input
+                              type="text"
+                              value={settings.ktaTemplateFront || ''}
+                              onChange={(e) => setSettings({ ...settings, ktaTemplateFront: e.target.value })}
+                              placeholder="https://... atau data:image/..."
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-gray-700 outline-none focus:ring-2 focus:ring-hw-green/20"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
 
+                    {/* 2. TAMPILAN BELAKANG (BACK TEMPLATE) */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>
+                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                              2. Tampilan Belakang (Back View)
+                            </h4>
+                          </div>
+                          <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-black uppercase rounded-full">
+                            Template Belakang
+                          </span>
+                        </div>
+
+                        {/* Live Preview Back */}
+                        <div className="flex justify-center py-3 bg-stone-900 rounded-2xl p-4 border border-stone-800 shadow-inner">
+                          <div className="w-full max-w-[340px] aspect-[856/540]">
+                            <KTACard 
+                              application={{
+                                ktaNumber: '11.02.0027',
+                                nama: 'Catur Teddy Pamungkas'
+                              }} 
+                              settings={settings} 
+                              side="back" 
+                              idSuffix="admin-template-back"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Upload & Controls Back */}
+                        <div className="space-y-3 pt-2">
+                          <label className="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">
+                            Upload Gambar Template Belakang
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <label className="flex-1 px-4 py-2.5 bg-gray-50 border border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50/40 rounded-2xl cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold text-gray-600">
+                              <Upload size={15} className="text-purple-600" />
+                              <span>Pilih File Gambar Belakang</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => handleKtaImageUpload(e, 'ktaTemplateBack')} 
+                                className="hidden" 
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettings(prev => ({
+                                  ...prev,
+                                  ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg'
+                                }));
+                              }}
+                              className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl text-[10px] font-bold uppercase transition-all shrink-0 cursor-pointer"
+                              title="Gunakan Master Template Belakang Default"
+                            >
+                              Default Belakang
+                            </button>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              URL Gambar / Base64 (Belakang)
+                            </label>
+                            <input
+                              type="text"
+                              value={settings.ktaTemplateBack || ''}
+                              onChange={(e) => setSettings({ ...settings, ktaTemplateBack: e.target.value })}
+                              placeholder="https://... atau data:image/..."
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-gray-700 outline-none focus:ring-2 focus:ring-purple-500/20"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Guidance Box */}
+                  <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-3xl text-xs text-amber-900 font-semibold leading-relaxed flex items-start gap-3">
+                    <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-extrabold uppercase tracking-wider text-[11px] text-amber-800 mb-0.5">
+                        💡 Panduan Dimensi & Format Template:
+                      </p>
+                      <p className="text-[11px] leading-relaxed">
+                        Master Template KTA disarankan memiliki ukuran ideal <strong>1050 x 660 piksel</strong> (rasio ID card standar 856:540). Bagian tengah pada template depan sebaiknya bersih agar tulisan data anggota dapat dibaca dengan jelas. Setelah mengunggah file gambar baru, pastikan untuk menekan tombol <strong>Simpan Perubahan</strong> agar perubahan tersimpan di sistem.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
