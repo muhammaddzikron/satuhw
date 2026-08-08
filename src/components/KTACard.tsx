@@ -1,6 +1,6 @@
 import React from 'react';
 import { User as UserIcon } from 'lucide-react';
-import { cn, getCorsSafeUrl, formatIndonesianDate } from '../lib/utils';
+import { cn, getCorsSafeUrl, formatIndonesianDate, formatTempatTanggalLahir } from '../lib/utils';
 import { KTAApplication, SystemSettings } from '../types';
 
 export interface KTACardProps {
@@ -239,7 +239,7 @@ export const KTACard: React.FC<KTACardProps> = ({
                     className="font-bold py-0.1"
                     style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
                   >
-                    {truncateText(app.tempatLahir || '-', 15)}, {app.tanggalLahir ? formatIndonesianDate(app.tanggalLahir) : '-'}
+                    {formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}
                   </td>
                 </tr>
                 <tr>

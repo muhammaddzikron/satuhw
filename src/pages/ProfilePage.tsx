@@ -27,6 +27,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
 import { User } from '../types';
+import { formatTempatTanggalLahir } from '../lib/utils';
 import { Navigate, Link } from 'react-router-dom';
 import { cn, safeJsonParse } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
@@ -882,7 +883,7 @@ export default function ProfilePage() {
               <UserIcon size={14} className="text-gray-300" />
             </div>
             <ProfileItem icon={Phone} label="WhatsApp" value={user?.noHp || ''} />
-            <ProfileItem icon={Calendar} label="Tempat, Tanggal Lahir" value={[user?.tempatLahir, user?.tanggalLahir].filter(Boolean).join(', ') || '-'} />
+            <ProfileItem icon={Calendar} label="Tempat, Tanggal Lahir" value={formatTempatTanggalLahir(user?.tempatLahir, user?.tanggalLahir)} />
             <ProfileItem icon={MapPin} label="Alamat" value={user?.alamat || ''} />
             <ProfileItem icon={ExternalLink} label="Sosial Media" value={user?.sosmed || ''} />
           </div>

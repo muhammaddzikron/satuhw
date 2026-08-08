@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
+import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -14,6 +15,23 @@ const formatIndonesianDate = (dateStr?: string, fallbackToCurrent: boolean = fal
   if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') {
     return fallbackToCurrent ? getCurrentIndonesianDate() : '-';
   }
+
+  if (dateStr.includes('T')) {
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      try {
+        return new Intl.DateTimeFormat('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }).format(parsed);
+      } catch {
+        // fallback
+      }
+    }
+  }
+
   const cleanStr = dateStr.split('T')[0].split(' ')[0].trim();
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -4463,7 +4481,7 @@ export default function AdminDashboard() {
                                 <td className="p-4">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                  <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{app.tempatLahir || '-'}, {app.tanggalLahir || '-'}</span></div>
+                                  <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}</span></div>
                                   <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{app.jenisKelamin === 'L' ? 'Laki-Laki' : app.jenisKelamin === 'P' ? 'Perempuan' : '-'}</span></div>
                                   <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
                                     <a 
@@ -8767,7 +8785,7 @@ export default function AdminDashboard() {
                                     className="font-bold py-0.1"
                                     style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
                                   >
-                                    {truncateText(viewingKtaApp.tempatLahir || '-', 15)}, {truncateText(formatIndonesianDate(viewingKtaApp.tanggalLahir), 25)}
+                                    {formatTempatTanggalLahir(viewingKtaApp.tempatLahir, viewingKtaApp.tanggalLahir)}
                                   </td>
                                 </tr>
                                 <tr>

@@ -15,10 +15,19 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
+export function cleanTempatLahir(tempat?: string | null): string {
+  if (!tempat) return '';
+  let cleaned = tempat.trim();
+  // Remove "Kabupaten ", "Kab. ", "Kab " prefixes (case insensitive)
+  cleaned = cleaned.replace(/^(kabupaten|kab\.|kab)\s+/i, '');
+  // Clean up leading/trailing commas or spaces
+  cleaned = cleaned.replace(/^[\s,]+|[\s,]+$/g, '');
+  return cleaned;
+}
+
 export function formatIndonesianDate(dateString?: string | number | Date | null, includeDay: boolean = false): string {
   if (!dateString) {
-    const now = new Date();
-    return formatIndonesianDate(now, includeDay);
+    return '';
   }
 
   try {
@@ -29,26 +38,50 @@ export function formatIndonesianDate(dateString?: string | number | Date | null,
       date = new Date(dateString);
     } else if (typeof dateString === 'string') {
       const trimmed = dateString.trim();
-      if (!trimmed || trimmed.includes('...')) {
-        date = new Date();
+      if (!trimmed || trimmed === '-' || trimmed.includes('...')) {
+        return '';
+      }
+
+      // If it's already in Indonesian formatted date format like "12 Agustus 1991"
+      if (/^\d{1,2}\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+\d{4}$/i.test(trimmed)) {
+        return trimmed;
+      }
+
+      if (trimmed.includes('T')) {
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) {
+          try {
+            const options: Intl.DateTimeFormatOptions = {
+              timeZone: 'Asia/Jakarta',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            };
+            if (includeDay) {
+              options.weekday = 'long';
+            }
+            return new Intl.DateTimeFormat('id-ID', options).format(parsed);
+          } catch {
+            date = parsed;
+          }
+        } else {
+          return trimmed;
+        }
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        const parts = trimmed.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        date = new Date(y, m, d);
       } else {
         date = new Date(trimmed);
-        if (isNaN(date.getTime()) && trimmed.includes('-')) {
-          const parts = trimmed.split('T')[0].split('-');
-          if (parts.length === 3) {
-            const y = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10) - 1;
-            const d = parseInt(parts[2], 10);
-            date = new Date(y, m, d);
-          }
-        }
       }
     } else {
-      date = new Date();
+      return '';
     }
 
     if (isNaN(date.getTime())) {
-      date = new Date();
+      return typeof dateString === 'string' ? dateString : '';
     }
 
     const months = [
@@ -56,7 +89,7 @@ export function formatIndonesianDate(dateString?: string | number | Date | null,
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     
-    const day = String(date.getDate()).padStart(2, '0');
+    const day = date.getDate();
     const month = months[date.getMonth()];
     const year = date.getFullYear();
 
@@ -68,13 +101,30 @@ export function formatIndonesianDate(dateString?: string | number | Date | null,
 
     return `${day} ${month} ${year}`;
   } catch {
-    const now = new Date();
-    const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return `${String(now.getDate()).padStart(2, '0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    return typeof dateString === 'string' ? dateString : '';
   }
+}
+
+export function formatTempatTanggalLahir(tempat?: string | null, tanggal?: string | null): string {
+  if (!tempat && !tanggal) return '-';
+
+  // Handle case where combined string is passed as `tempat` e.g. "Kabupaten Klaten, 1991-08-11T17:00:00.000Z"
+  if (tempat && !tanggal && tempat.includes(',')) {
+    const commaIndex = tempat.indexOf(',');
+    const extractedTempat = tempat.substring(0, commaIndex).trim();
+    const extractedTanggal = tempat.substring(commaIndex + 1).trim();
+    return formatTempatTanggalLahir(extractedTempat, extractedTanggal);
+  }
+
+  const cleanPlace = cleanTempatLahir(tempat);
+  const formattedDate = tanggal ? formatIndonesianDate(tanggal) : '';
+
+  if (cleanPlace && formattedDate) {
+    return `${cleanPlace}, ${formattedDate}`;
+  }
+  if (cleanPlace) return cleanPlace;
+  if (formattedDate) return formattedDate;
+  return '-';
 }
 
 export function formatTime(date: Date): string {
