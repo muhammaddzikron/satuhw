@@ -53,7 +53,7 @@ export const ActivationModal: React.FC<ActivationModalProps> = ({
           </p>
 
           <p className="text-[11px] text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/80 text-center font-medium leading-relaxed">
-            Biaya ini termasuk biaya KTA Digital, segera Ajukan KTA Digital HW Jateng, nikmati fitur lainnya.
+            Biaya aktivasi termasuk biaya KTA Digital.
           </p>
 
           {/* Account Transfer Box */}

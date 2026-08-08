@@ -116,6 +116,38 @@ export default function HomePage() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [runningText, setRunningText] = useState<string>('');
+  const [myKtaApp, setMyKtaApp] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      sheetsService.getKTAApplications().then((apps) => {
+        const userApp = (apps || []).find(
+          (app: any) => app.userId === user.id || (app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim())
+        );
+        if (userApp) {
+          setMyKtaApp(userApp);
+        }
+      }).catch(e => console.error('Error fetching KTA app on home:', e));
+    }
+  }, [isAuthenticated, user?.id, user?.email]);
+
+  const isRegistrationApproved = Boolean(
+    user?.isVerified || 
+    user?.statusAktivasi === 'Aktif' || 
+    user?.statusPembayaran === 'Lunas'
+  );
+  const isKtaApproved = Boolean(
+    myKtaApp?.status === 'approved' || 
+    myKtaApp?.ktaNumber || 
+    (user as any)?.ktaNumber
+  );
+
+  const shouldShowActivationCard = isAuthenticated && 
+    user && 
+    user.role !== 'admin' && 
+    user.role !== 'superadmin' && 
+    !isRegistrationApproved && 
+    !isKtaApproved;
   
   // PWA Install States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -502,7 +534,7 @@ export default function HomePage() {
       </section>
 
       {/* Account Activation Card */}
-      {isAuthenticated && user && user.role !== 'admin' && user.role !== 'superadmin' && (user.statusAktivasi !== 'Aktif' || user.statusPembayaran === 'Belum Bayar') && (
+      {shouldShowActivationCard && (
         <div className="bg-gradient-to-br from-amber-500 via-orange-600 to-emerald-700 text-white rounded-[2rem] p-5 shadow-xl shadow-orange-500/10 mb-5 relative overflow-hidden">
           <div className="relative z-10 space-y-3">
             <div className="flex items-center justify-between border-b border-white/20 pb-2.5">
@@ -524,7 +556,7 @@ export default function HomePage() {
               Akun Anda telah berhasil terdaftar. Silakan melakukan pembayaran biaya aktivasi senilai <strong>Rp 10.000</strong> ke rekening atas nama <strong>Kwarwil HW Jateng</strong> di bawah ini agar admin dapat segera mengaktifkan akun Anda.
             </p>
             <p className="text-[11px] text-amber-100 font-semibold bg-white/10 px-3 py-2 rounded-xl border border-white/15 leading-snug">
-              Biaya ini termasuk biaya KTA Digital, segera Ajukan KTA Digital HW Jateng, nikmati fitur lainnya.
+              Biaya aktivasi termasuk biaya KTA Digital.
             </p>
 
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-2.5 border border-white/15 space-y-1 text-center">
