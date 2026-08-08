@@ -891,20 +891,27 @@ export default function KTAPage() {
             </div>
           )}
 
-          {/* Interactive Card Section */}
-          <div className="flex flex-col items-center justify-center py-4">
-            <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-3">Klik kartu untuk membalik</p>
-            
-            <div 
-              className="w-full max-w-[350px] aspect-[856/540] cursor-pointer [perspective:1000px]"
-              onClick={() => setFlipped(!flipped)}
-            >
-              <div className={cn(
-                "relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d]",
-                flipped ? "[transform:rotateY(180deg)]" : ""
-              )}>
-                {/* CARD FRONT CONTAINER */}
-                <div className="absolute inset-0 w-full h-full [backface-visibility:hidden]">
+          {/* Dark Container Preview Section (Matching Admin Dashboard) */}
+          <div className="bg-stone-900 rounded-[2rem] p-5 sm:p-6 max-w-[850px] mx-auto w-full border border-white/10 shadow-2xl relative text-white space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2">
+                <Printer size={18} className="text-hw-green" />
+                <h3 className="text-sm font-black uppercase tracking-wider font-display text-white">PREVIEW & CETAK KTA HW</h3>
+              </div>
+              <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9.5px] uppercase font-black tracking-wider px-3 py-1 rounded-full">
+                <ShieldCheck size={12} /> TERVERIFIKASI
+              </span>
+            </div>
+
+            {/* Side-by-Side Cards Display */}
+            <div className="flex flex-col items-center gap-6 overflow-x-auto pb-2">
+              <div className="flex flex-wrap justify-center gap-6 w-full">
+                {/* FRONT CARD */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
+                    TAMPILAN DEPAN (FRONT)
+                  </span>
                   <KTACard 
                     application={myApplication} 
                     settings={settings} 
@@ -914,8 +921,11 @@ export default function KTAPage() {
                   />
                 </div>
 
-                {/* CARD BACK CONTAINER */}
-                <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                {/* BACK CARD */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
+                    TAMPILAN BELAKANG (BACK)
+                  </span>
                   <KTACard 
                     application={myApplication} 
                     settings={settings} 
@@ -925,58 +935,50 @@ export default function KTAPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-3 max-w-[340px] mx-auto">
-            <button 
-              onClick={handleDownloadPDF}
-              disabled={isGeneratingPdf}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-hw-green text-white rounded-2xl hover:bg-emerald-700 disabled:bg-emerald-900/50 transition-all shadow-lg shadow-emerald-700/15 text-xs font-extrabold uppercase tracking-wider cursor-pointer"
-            >
-              {isGeneratingPdf ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  Mengunduh PDF...
-                </>
-              ) : (
-                <>
-                  <Download size={16} />
-                  Unduh KTA Resmi (PDF)
-                </>
-              )}
-            </button>
-            
-            <div className="grid grid-cols-2 gap-3">
+            {/* Actions Bar */}
+            <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button 
+                  onClick={() => setShowEditForm(true)}
+                  className="px-4 py-3 bg-white/10 hover:bg-white/15 text-stone-200 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  <Edit size={14} />
+                  <span>Ubah Data & Foto</span>
+                </button>
+                <button 
+                  onClick={handlePrint}
+                  className="px-4 py-3 bg-white/10 hover:bg-white/15 text-stone-200 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  <Printer size={14} />
+                  <span>Cetak Kartu</span>
+                </button>
+              </div>
+
               <button 
-                onClick={handlePrint}
-                className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors shadow-sm text-xs font-bold text-gray-700 cursor-pointer"
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPdf}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-hw-green hover:bg-emerald-600 text-white rounded-2xl disabled:bg-emerald-900/50 transition-all shadow-lg shadow-emerald-900/30 text-xs font-extrabold uppercase tracking-wider cursor-pointer active:scale-95"
               >
-                <Printer size={16} />
-                Cetak Kartu
-              </button>
-              <button 
-                onClick={() => setFlipped(!flipped)}
-                className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors shadow-sm text-xs font-bold text-gray-700 cursor-pointer"
-              >
-                <RefreshCw size={16} />
-                Balik Kartu
+                {isGeneratingPdf ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Mengunduh PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    <span>Download KTA (PDF Resmi)</span>
+                  </>
+                )}
               </button>
             </div>
-
-            <button 
-              onClick={() => setShowEditForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-rose-50 hover:bg-rose-100/40 border border-rose-100/50 text-rose-600 rounded-2xl transition-all shadow-sm text-xs font-extrabold uppercase tracking-wider cursor-pointer"
-            >
-              <Edit size={16} />
-              Ubah Data Diri & Foto KTA
-            </button>
           </div>
 
-          <div className="p-3 bg-blue-50 border border-blue-100/50 rounded-2xl flex items-start gap-2.5 max-w-[340px] mx-auto">
+          <div className="p-3 bg-blue-50 border border-blue-100/50 rounded-2xl flex items-start gap-2.5 max-w-[850px] mx-auto">
             <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-blue-700 leading-no flex-1 font-medium">
-              <strong>Tips:</strong> Untuk mencetak kartu fisik, Anda dapat memilih "Cetak Kartu" lalu simpan sebagai PDF, atau cetak langsung menggunakan printer ID Card / kertas tebal.
+            <p className="text-[10px] text-blue-700 leading-normal flex-1 font-medium">
+              <strong>Tips Cetak:</strong> Untuk hasil cetak kartu fisik terbaik, silakan pilih <strong>Download KTA (PDF Resmi)</strong> lalu cetak file PDF pada kertas A4 / PVC dengan opsi skala "100% / Actual Size".
             </p>
           </div>
         </div>
