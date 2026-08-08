@@ -335,7 +335,7 @@ export default function PelatihanPage() {
     if (!a || !u) return false;
     if (a.email && u.email && a.email.toLowerCase().trim() === u.email.toLowerCase().trim()) return true;
     if (a.userId && String(a.userId) === String(u.id)) return true;
-    if (a.noWa && u.noHp && a.noWa.replace(/[^0-9]/g, '') === u.noHp.replace(/[^0-9]/g, '')) return true;
+    if (a.noWa && u.noHp && String(a.noWa).replace(/[^0-9]/g, '') === String(u.noHp).replace(/[^0-9]/g, '')) return true;
     if (a.nik && u.nik && String(a.nik).trim() === String(u.nik).trim()) return true;
     if (a.nama && u.namaLengkap && a.nama.toLowerCase().trim() === u.namaLengkap.toLowerCase().trim()) return true;
     return false;

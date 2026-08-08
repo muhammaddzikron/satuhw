@@ -570,8 +570,8 @@ export default function AdminDashboard() {
       const personKey = (
         app.userId ? `id_${app.userId}` :
         (app.nik && String(app.nik).trim()) ? `nik_${String(app.nik).trim()}` :
-        (app.email && app.email.trim()) ? `email_${app.email.toLowerCase().trim()}` :
-        (app.noWa && app.noWa.trim()) ? `wa_${app.noWa.replace(/[^0-9]/g, '')}` :
+        (app.email && String(app.email).trim()) ? `email_${String(app.email).toLowerCase().trim()}` :
+        (app.noWa && String(app.noWa).trim()) ? `wa_${String(app.noWa).replace(/[^0-9]/g, '')}` :
         `name_${name.toLowerCase()}`
       );
       const progKey = (app.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');

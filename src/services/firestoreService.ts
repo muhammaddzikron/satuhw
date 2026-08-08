@@ -1707,8 +1707,8 @@ export const firestoreService = {
             const personKey = (
               item.userId ? `id_${item.userId}` :
               (item.nik && String(item.nik).trim()) ? `nik_${String(item.nik).trim()}` :
-              (item.email && item.email.trim()) ? `email_${item.email.toLowerCase().trim()}` :
-              (item.noWa && item.noWa.trim()) ? `wa_${item.noWa.replace(/[^0-9]/g, '')}` :
+              (item.email && String(item.email).trim()) ? `email_${String(item.email).toLowerCase().trim()}` :
+              (item.noWa && String(item.noWa).trim()) ? `wa_${String(item.noWa).replace(/[^0-9]/g, '')}` :
               `name_${name.toLowerCase()}`
             );
             const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
@@ -1766,8 +1766,8 @@ export const firestoreService = {
         const personKey = (
           t.userId ? `id_${t.userId}` :
           (t.nik && String(t.nik).trim()) ? `nik_${String(t.nik).trim()}` :
-          (t.email && t.email.trim()) ? `email_${t.email.toLowerCase().trim()}` :
-          (t.noWa && t.noWa.trim()) ? `wa_${t.noWa.replace(/[^0-9]/g, '')}` :
+          (t.email && String(t.email).trim()) ? `email_${String(t.email).toLowerCase().trim()}` :
+          (t.noWa && String(t.noWa).trim()) ? `wa_${String(t.noWa).replace(/[^0-9]/g, '')}` :
           `name_${name.toLowerCase()}`
         );
         const progKey = (t.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
