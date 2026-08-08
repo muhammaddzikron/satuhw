@@ -453,18 +453,16 @@ export const sheetsService = {
       } catch(e) {}
     }
 
-    // Find member by Email, NIK, WhatsApp number, or ID
+    // Find member by Email, WhatsApp number, or ID
     const found = members.find((m: any) => {
       if (!m) return false;
       const mEmail = (m.email || '').trim().toLowerCase();
       const mHp = String(m.noHp || m.nohp || m.noWa || '').replace(/[^0-9]/g, '');
-      const mNik = String(m.nik || '').trim();
       const mId = String(m.id || '').trim().toLowerCase();
 
       return (
         (mEmail && mEmail === cleanInput) ||
         (mId && mId === cleanInput) ||
-        (mNik && mNik === cleanInput) ||
         (mHp && cleanDigits && mHp.length > 5 && mHp === cleanDigits)
       );
     });
@@ -785,7 +783,6 @@ export const sheetsService = {
               if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
               if (!sm.photo && match.photo) sm.photo = match.photo;
               if (!(sm as any).golonganPelatih && (match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
-              if (!sm.nik && match.nik) sm.nik = match.nik;
               if (!sm.ktaNumber && match.ktaNumber) sm.ktaNumber = match.ktaNumber;
               if (!sm.noHp && match.noHp) sm.noHp = match.noHp;
               if (!sm.alamat && match.alamat) sm.alamat = match.alamat;
@@ -808,7 +805,6 @@ export const sheetsService = {
               );
               if (ktaMatch) {
                 if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
-                if (!sm.nik && ktaMatch.nik) sm.nik = ktaMatch.nik;
                 if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
                 if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
                 if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
@@ -1142,15 +1138,11 @@ export const sheetsService = {
       const dataEmail = String(trainingData.email || '').trim().toLowerCase();
       const isEmailMatch = dataEmail && itemEmail && dataEmail !== '-' && itemEmail !== '-' && dataEmail === itemEmail;
       
-      const itemNik = String(item.nik || '').trim();
-      const dataNik = String(trainingData.nik || '').trim();
-      const isNikMatch = dataNik && itemNik && dataNik !== '-' && itemNik !== '-' && dataNik === itemNik;
-      
       const itemWa = String(item.noWa || item.noHp || '').trim();
       const dataWa = String(trainingData.noWa || trainingData.noHp || '').trim();
       const isWaMatch = dataWa && itemWa && dataWa !== '-' && itemWa !== '-' && dataWa === itemWa;
       
-      return !!(isUserMatch || isEmailMatch || isNikMatch || isWaMatch);
+      return !!(isUserMatch || isEmailMatch || isWaMatch);
     });
     
     if (duplicate) {
@@ -1606,6 +1598,14 @@ export const sheetsService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
+    try {
+      const apps = await firestoreService.getActivityApplications();
+      if (apps && apps.length > 0) {
+        return apps;
+      }
+    } catch (e) {
+      console.warn('getActivityApplications Firestore error, trying fallback:', e);
+    }
     if (IS_API_VALID) {
       try {
         const apps = await this.fetch('getActivityApplications');
@@ -1616,34 +1616,26 @@ export const sheetsService = {
           return apps;
         }
       } catch (e) {
-        console.warn('getActivityApplications Sheets API error, falling back to Firestore:', (e as any)?.message || e);
+        console.warn('getActivityApplications Sheets API error:', (e as any)?.message || e);
       }
     }
     return await firestoreService.getActivityApplications();
   },
 
   async registerActivity(appData: any): Promise<any> {
+    const saved = await firestoreService.registerActivity(appData);
     if (IS_API_VALID) {
-      try {
-        const res = await this.post({ action: 'registerActivity', ...appData });
-        await firestoreService.registerActivity(appData);
-        return res;
-      } catch (e) {
-        console.warn('registerActivity Sheets API error, falling back to Firestore:', (e as any)?.message || e);
-      }
+      this.post({ action: 'registerActivity', ...appData }).catch(() => {});
     }
-    return await firestoreService.registerActivity(appData);
+    return saved;
   },
 
   async deleteActivityApplication(id: string): Promise<boolean> {
+    const res = await firestoreService.deleteActivityApplication(id);
     if (IS_API_VALID) {
-      try {
-        await this.post({ action: 'deleteActivityApplication', id });
-      } catch (e) {
-        console.warn('deleteActivityApplication Sheets API error:', (e as any)?.message || e);
-      }
+      this.post({ action: 'deleteActivityApplication', id }).catch(() => {});
     }
-    return await firestoreService.deleteActivityApplication(id);
+    return res;
   },
 
   getMockContents(): Content[] {

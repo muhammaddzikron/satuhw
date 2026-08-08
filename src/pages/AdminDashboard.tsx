@@ -394,7 +394,6 @@ export default function AdminDashboard() {
     isVerified: true,
     upgradeRequests: [] as string[],
     photo: '',
-    nik: '',
     tempatLahir: '',
     tanggalLahir: '',
     statusKta: 'approved',
@@ -742,7 +741,6 @@ export default function AdminDashboard() {
         pelatihanAkanDiikuti: addParticipantLevel,
         lokasiPelatihan: addParticipantLokasi || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || '',
         tanggalPelatihan: addParticipantTanggal || (Array.isArray(settings.trainingDates) && settings.trainingDates[0]) || '',
-        nik: member.nik || '',
         tempatLahir: member.tempatLahir || '',
         tanggalLahir: member.tanggalLahir || '',
         jenisKelamin: member.jenisKelamin || 'L',
@@ -847,7 +845,6 @@ export default function AdminDashboard() {
             ...matchingMember,
             ...(editingKtaApp.photo ? { photo: editingKtaApp.photo } : {}),
             ...(editingKtaApp.nama ? { namaLengkap: editingKtaApp.nama } : {}),
-            ...(editingKtaApp.nik ? { nik: editingKtaApp.nik } : {}),
             ...(editingKtaApp.noWa ? { noHp: editingKtaApp.noWa } : {}),
             ...(editingKtaApp.asalDaerah ? { asalKwarda: editingKtaApp.asalDaerah } : {}),
             ...(editingKtaApp.qabilah ? { qabilah: editingKtaApp.qabilah } : {})
@@ -1728,8 +1725,7 @@ export default function AdminDashboard() {
       
       const matchingKta = ktaApps.find((app: any) => 
         (member.id && app.userId === member.id) || 
-        (app.email && member.email && app.email.toLowerCase().trim() === member.email.toLowerCase().trim()) ||
-        (member.nik && app.nik && String(member.nik).trim() === String(app.nik).trim())
+        (app.email && member.email && String(app.email).toLowerCase().trim() === String(member.email).toLowerCase().trim())
       );
 
       const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : [];
@@ -1754,7 +1750,6 @@ export default function AdminDashboard() {
         isVerified: matchingKta?.status === 'approved' ? true : (member.isVerified ?? true),
         upgradeRequests: Array.isArray(member.upgradeRequests) ? member.upgradeRequests : [],
         photo: matchingKta?.photo || member.photo || member.foto || '',
-        nik: matchingKta?.nik || member.nik || '',
         tempatLahir: matchingKta?.tempatLahir || member.tempatLahir || '',
         tanggalLahir: matchingKta?.tanggalLahir || member.tanggalLahir || '',
         statusKta: matchingKta?.status || (member.isVerified ? 'approved' : 'pending'),
@@ -1782,7 +1777,6 @@ export default function AdminDashboard() {
         isVerified: true,
         upgradeRequests: [],
         photo: '',
-        nik: '',
         tempatLahir: '',
         tanggalLahir: '',
         statusKta: 'approved',
@@ -1804,7 +1798,6 @@ export default function AdminDashboard() {
             ...editingMember, 
             ...formData,
             id: memberId,
-            nik: formData.nik,
             photo: formData.photo,
             noHp: formData.noHp,
             asalKwarda: formData.asalKwarda,
@@ -1821,7 +1814,6 @@ export default function AdminDashboard() {
         : { 
             ...formData, 
             id: memberId,
-            nik: formData.nik,
             photo: formData.photo,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
@@ -1849,8 +1841,7 @@ export default function AdminDashboard() {
       // Centralized KTA application update/create
       const matchingKta = ktaApps.find(app => 
         (payload.id && app.userId === payload.id) || 
-        (app.email && payload.email && app.email.toLowerCase().trim() === payload.email.toLowerCase().trim()) ||
-        (formData.nik && app.nik && formData.nik.trim() === app.nik.trim())
+        (app.email && payload.email && String(app.email).toLowerCase().trim() === String(payload.email).toLowerCase().trim())
       );
 
       const ktaPayload = {
@@ -1859,7 +1850,6 @@ export default function AdminDashboard() {
         userId: payload.id,
         nama: payload.namaLengkap,
         email: payload.email,
-        nik: formData.nik || payload.nik || matchingKta?.nik || '',
         noWa: payload.noHp || formData.noHp || '',
         asalDaerah: payload.asalKwarda || formData.asalKwarda || '',
         qabilah: payload.qabilah || formData.qabilah || '',
@@ -2150,18 +2140,16 @@ export default function AdminDashboard() {
         (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
         (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
         (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.nik || '').includes(ktaSearchQuery) ||
         (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
       const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
       return matchSearch && matchStatus;
     });
 
-    const headers = ['No', 'Nomor KTA', 'Nama Lengkap', 'NIK', 'Email', 'No. WhatsApp', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Tingkatan', 'Asal Kwarda', 'Qabilah', 'Alamat', 'Jenis KTA', 'Status', 'Tanggal Ajuan'];
+    const headers = ['No', 'Nomor KTA', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Tingkatan', 'Asal Kwarda', 'Qabilah', 'Alamat', 'Jenis KTA', 'Status', 'Tanggal Ajuan'];
     const data = targetApps.map((k, idx) => [
       idx + 1,
       k.ktaNumber || '-',
       k.nama || '-',
-      k.nik ? `'${k.nik}` : '-',
       k.email || '-',
       k.noWa ? `'${k.noWa}` : '-',
       k.tempatLahir || '-',
@@ -2200,19 +2188,17 @@ export default function AdminDashboard() {
         (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
         (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
         (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.nik || '').includes(ktaSearchQuery) ||
         (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
       const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
       return matchSearch && matchStatus;
     });
 
     const doc = new jsPDF() as any;
-    const headers = [['No', 'Nomor KTA', 'Nama Lengkap', 'NIK', 'Tingkatan', 'Kwarda / Qabilah', 'Status']];
+    const headers = [['No', 'Nomor KTA', 'Nama Lengkap', 'Tingkatan', 'Kwarda / Qabilah', 'Status']];
     const data = targetApps.map((k, idx) => [
       idx + 1,
       k.ktaNumber || '-',
       k.nama || '-',
-      k.nik || '-',
       k.tingkatan || '-',
       `${k.asalDaerah || '-'}${k.qabilah ? ` (${k.qabilah})` : ''}`,
       k.status === 'pending' ? 'Menunggu' : k.status === 'approved' ? 'Disetujui' : 'Ditolak'
@@ -7576,7 +7562,6 @@ export default function AdminDashboard() {
                             return (
                               String(m.namaLengkap || '').toLowerCase().includes(q) ||
                               String(m.email || '').toLowerCase().includes(q) ||
-                              String(m.nik || '').includes(q) ||
                               String(m.noHp || '').includes(q)
                             );
                           }).slice(0, 10).length === 0 ? (
@@ -7588,7 +7573,6 @@ export default function AdminDashboard() {
                               return (
                                 String(m.namaLengkap || '').toLowerCase().includes(q) ||
                                 String(m.email || '').toLowerCase().includes(q) ||
-                                String(m.nik || '').includes(q) ||
                                 String(m.noHp || '').includes(q)
                               );
                             }).slice(0, 5).map(m => (

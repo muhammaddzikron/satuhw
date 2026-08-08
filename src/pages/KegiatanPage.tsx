@@ -35,7 +35,7 @@ export default function KegiatanPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const isAdmin = user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.role === 'admin' || user?.email === 'muhammaddzikron@gmail.com';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
 
   const [activities, setActivities] = useState<any[]>([]);
   const [activityApps, setActivityApps] = useState<any[]>([]);
@@ -153,6 +153,7 @@ export default function KegiatanPage() {
         namaKegiatan: selectedActivity.namaKegiatan,
         userId: user?.id || `user-act-${Date.now()}`,
         namaLengkap: formData.namaLengkap,
+        email: user?.email || '',
         unsur: formData.unsur,
         utusan: formData.unsur === 'Kwarda HW' ? formData.utusan : '',
         qabilahPtma: formData.unsur === 'Qabilah PTMA' ? formData.qabilahPtma : '',
@@ -167,14 +168,14 @@ export default function KegiatanPage() {
 
       const result = await sheetsService.registerActivity(payload);
       setRegSuccess({
-        id: result.id || `actreg-${Date.now()}`,
+        id: result?.id || `actreg-${Date.now()}`,
         activity: selectedActivity,
         participant: payload
       });
       const updatedApps = await sheetsService.getActivityApplications();
       if (updatedApps) setActivityApps(updatedApps);
     } catch (e: any) {
-      alert('Gagal mendaftar kegiatan: ' + e.message);
+      alert('Gagal mendaftar kegiatan: ' + (e.message || 'Terjadi kesalahan'));
     } finally {
       setIsSubmitting(false);
     }
@@ -212,6 +213,10 @@ export default function KegiatanPage() {
       };
 
       await sheetsService.saveActivity(payload);
+      const freshActs = await sheetsService.getActivities();
+      if (freshActs && freshActs.length > 0) {
+        setActivities(freshActs);
+      }
       alert(editingActivity ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
       setIsAddActivityModalOpen(false);
       setEditingActivity(null);

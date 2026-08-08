@@ -209,7 +209,6 @@ export default function ProfilePage() {
           namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
           tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
           tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || '',
-          nik: freshUser.nik || currentUser.nik,
           noHp: freshUser.noHp || currentUser.noHp,
           alamat: freshUser.alamat || currentUser.alamat,
           asalKwarda: freshUser.asalKwarda || currentUser.asalKwarda,

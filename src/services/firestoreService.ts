@@ -669,13 +669,11 @@ export const firestoreService = {
       if (!m) return false;
       const mEmail = (m.email || '').trim().toLowerCase();
       const mHp = String(m.noHp || m.nohp || m.noWa || '').replace(/[^0-9]/g, '');
-      const mNik = String(m.nik || '').trim();
       const mId = String(m.id || '').trim().toLowerCase();
 
       return (
         (mEmail && mEmail === cleanInput) ||
         (mId && mId === cleanInput) ||
-        (mNik && mNik === cleanInput) ||
         (mHp && cleanDigits && mHp.length > 5 && mHp === cleanDigits)
       );
     };
@@ -2156,40 +2154,52 @@ export const firestoreService = {
       }
     ];
 
+    let localActs: any[] = [];
     try {
-      const snap = await getDocs(collection(db, 'hw_activities'));
-      if (!snap.empty) {
-        return snap.docs.map(d => {
-          const data = d.data();
-          return {
-            id: d.id,
-            ...data,
-            namaKegiatan: data.namaKegiatan || data.title || '',
-            title: data.title || data.namaKegiatan || '',
-            deskripsi: data.deskripsi || data.description || '',
-            description: data.description || data.deskripsi || '',
-            lokasi: data.lokasi || data.location || '',
-            location: data.location || data.lokasi || '',
-            tanggal: data.tanggal || data.startDate || '',
-            startDate: data.startDate || data.tanggal || '',
-            gambarUrl: data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
-            imageUrl: data.imageUrl || data.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
-            kategori: data.kategori || data.category || 'Silaturahmi',
-            category: data.category || data.kategori || 'Silaturahmi',
-            status: data.status || 'Buka'
-          };
-        });
-      }
+      const stored = localStorage.getItem('hw_activities') || '[]';
+      localActs = JSON.parse(stored);
+    } catch (e) {}
 
-      for (const def of defaults) {
-        await setDoc(doc(db, 'hw_activities', def.id), cleanData(def), { merge: true }).catch(() => {});
+    let fsActs: any[] = [];
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await getDocs(collection(db, 'hw_activities'));
+        if (!snap.empty) {
+          fsActs = snap.docs.map(d => {
+            const data = d.data();
+            return {
+              id: d.id,
+              ...data,
+              namaKegiatan: data.namaKegiatan || data.title || '',
+              title: data.title || data.namaKegiatan || '',
+              deskripsi: data.deskripsi || data.description || '',
+              description: data.description || data.deskripsi || '',
+              lokasi: data.lokasi || data.location || '',
+              location: data.location || data.lokasi || '',
+              tanggal: data.tanggal || data.startDate || '',
+              startDate: data.startDate || data.tanggal || '',
+              gambarUrl: data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              imageUrl: data.imageUrl || data.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              kategori: data.kategori || data.category || 'Silaturahmi',
+              category: data.category || data.kategori || 'Silaturahmi',
+              status: data.status || 'Buka'
+            };
+          });
+        }
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.warn('Firestore getActivities warning:', err);
       }
-      return defaults;
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore getActivities error:', err);
-      return defaults;
     }
+
+    const map = new Map<string, any>();
+    defaults.forEach(a => map.set(a.id, a));
+    localActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+    fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+
+    const result = Array.from(map.values());
+    localStorage.setItem('hw_activities', JSON.stringify(result));
+    return result;
   },
 
   async saveActivity(activityData: any): Promise<any> {
@@ -2232,11 +2242,24 @@ export const firestoreService = {
     });
 
     try {
-      await setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true });
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore saveActivity error:', err);
-      throw new Error('Gagal menyimpan ke Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
+      const stored = localStorage.getItem('hw_activities') || '[]';
+      const localActs = JSON.parse(stored);
+      const idx = localActs.findIndex((a: any) => a.id === actId);
+      if (idx >= 0) {
+        localActs[idx] = newAct;
+      } else {
+        localActs.unshift(newAct);
+      }
+      localStorage.setItem('hw_activities', JSON.stringify(localActs));
+    } catch (e) {}
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true });
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.warn('Firestore saveActivity warning:', err);
+      }
     }
 
     // Sync trainingActivities inside app_settings if applicable
@@ -2257,11 +2280,18 @@ export const firestoreService = {
 
   async deleteActivity(id: string): Promise<boolean> {
     try {
-      await deleteDoc(doc(db, 'hw_activities', id));
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore deleteActivity error:', err);
-      throw new Error('Gagal menghapus kegiatan dari Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
+      const stored = localStorage.getItem('hw_activities') || '[]';
+      const localActs = JSON.parse(stored).filter((a: any) => a.id !== id);
+      localStorage.setItem('hw_activities', JSON.stringify(localActs));
+    } catch (e) {}
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await deleteDoc(doc(db, 'hw_activities', id));
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.warn('Firestore deleteActivity warning:', err);
+      }
     }
 
     try {
@@ -2322,41 +2352,43 @@ export const firestoreService = {
       }
     ];
 
+    let localApps: any[] = [];
     try {
-      const snap = await getDocs(collection(db, 'activity_applications'));
-      let list: any[] = [];
-      if (!snap.empty) {
-        list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      }
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      localApps = JSON.parse(stored);
+    } catch (e) {}
 
-      for (const def of defaultApps) {
-        const exists = list.some((p: any) => 
-          p.id === def.id || (p.namaLengkap && p.namaLengkap.toLowerCase().trim() === def.namaLengkap.toLowerCase().trim())
-        );
-        if (!exists) {
-          list.push(def);
-          setDoc(doc(db, 'activity_applications', def.id), cleanData(def)).catch(() => {});
+    let fsApps: any[] = [];
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await getDocs(collection(db, 'activity_applications'));
+        if (!snap.empty) {
+          fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.warn('Firestore getActivityApplications warning:', err);
       }
-
-      // Normalize activityIds
-      list = list.map((a: any) => {
-        if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
-          return {
-            ...a,
-            activityId: 'keg-silaturahmi-pelatih',
-            namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
-          };
-        }
-        return a;
-      });
-
-      return list;
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore getActivityApplications error:', err);
-      return defaultApps;
     }
+
+    const map = new Map<string, any>();
+    defaultApps.forEach(a => map.set(a.id, a));
+    localApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
+    fsApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
+
+    let list = Array.from(map.values()).map((a: any) => {
+      if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
+        return {
+          ...a,
+          activityId: 'keg-silaturahmi-pelatih',
+          namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+        };
+      }
+      return a;
+    });
+
+    localStorage.setItem('activity_applications', JSON.stringify(list));
+    return list;
   },
 
   async registerActivity(appData: any): Promise<any> {
@@ -2369,11 +2401,24 @@ export const firestoreService = {
     });
 
     try {
-      await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore registerActivity error:', err);
-      throw new Error('Gagal mendaftar kegiatan di Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      const localApps = JSON.parse(stored);
+      const idx = localApps.findIndex((a: any) => a.id === regId);
+      if (idx >= 0) {
+        localApps[idx] = cleanReg;
+      } else {
+        localApps.unshift(cleanReg);
+      }
+      localStorage.setItem('activity_applications', JSON.stringify(localApps));
+    } catch (e) {}
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.warn('Firestore registerActivity warning:', err);
+      }
     }
 
     // Automatically create/ensure KTA Application & Member Profile for participant
@@ -2384,7 +2429,6 @@ export const firestoreService = {
         id: `kta-${email ? email.replace(/[^a-zA-Z0-9]/g, '_') : Date.now()}`,
         userId: cleanReg.userId || `user-${Date.now()}`,
         nama: nama,
-        nik: cleanReg.nik || '',
         noWa: cleanReg.noHp || cleanReg.noWa || '',
         email: email || '',
         asalDaerah: cleanReg.asalKwarda || cleanReg.asalDaerah || 'Jawa Tengah',

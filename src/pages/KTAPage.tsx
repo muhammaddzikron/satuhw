@@ -313,9 +313,8 @@ export default function KTAPage() {
         let found = apps.find((app: any) => {
           const userIdMatch = app.userId && user.id && String(app.userId) === String(user.id);
           const emailMatch = app.email && user.email && app.email.toLowerCase().trim() === user.email.toLowerCase().trim();
-          const nikMatch = app.nik && (user as any).nik && String(app.nik).trim() === String((user as any).nik).trim();
           const namaMatch = app.nama && user.namaLengkap && app.nama.toLowerCase().trim() === user.namaLengkap.toLowerCase().trim();
-          return userIdMatch || emailMatch || nikMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
+          return userIdMatch || emailMatch || (namaMatch && (app.asalDaerah === user.asalKwarda || app.noWa === user.noHp || !app.noWa));
         });
 
         // Determine best photo from all centralized sources (Member Profile photo takes top priority)
@@ -473,11 +472,6 @@ export default function KTAPage() {
       return digits;
     };
 
-    const normalizeNikGlobal = (nikStr: any) => {
-      return nikStr ? String(nikStr).replace(/\D/g, '') : '';
-    };
-
-    const normalizedFormNik = normalizeNikGlobal(formData.nik);
     const normalizedFormEmail = (formData.email || '').trim().toLowerCase();
     const normalizedFormPhone = normalizePhoneGlobal(formData.noWa);
 
@@ -497,10 +491,6 @@ export default function KTAPage() {
         const appEmailLower = (app.email || '').trim().toLowerCase();
         const myAppEmailLower = (myApplication.email || '').trim().toLowerCase();
         if (appEmailLower && myAppEmailLower && appEmailLower === myAppEmailLower) return true;
-
-        const appNik = normalizeNikGlobal(app.nik);
-        const myAppNik = normalizeNikGlobal(myApplication.nik);
-        if (appNik && myAppNik && appNik === myAppNik) return true;
 
         const appPhone = normalizePhoneGlobal(app.noWa || app.noHp);
         const myAppPhone = normalizePhoneGlobal(myApplication.noWa || myApplication.noHp);

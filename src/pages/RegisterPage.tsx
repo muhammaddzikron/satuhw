@@ -56,7 +56,6 @@ export default function RegisterPage() {
     sosmed: '',
     email: '',
     password: '',
-    nik: '',
     tempatLahir: '',
     tanggalLahir: '',
     jenisKta: 'Digital',
