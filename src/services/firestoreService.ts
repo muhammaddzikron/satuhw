@@ -479,18 +479,18 @@ export const firestoreService = {
 
             members[matchedIdx] = {
               ...m,
-              namaLengkap: m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' ? m.namaLengkap : (kName || 'Anggota HW'),
-              nik: m.nik || k.nik || '',
-              noHp: m.noHp || k.noWa || k.noHp || '',
-              alamat: m.alamat || k.alamat || '',
-              qabilah: m.qabilah || k.qabilah || '',
-              asalKwarda: m.asalKwarda || k.asalDaerah || '',
-              tempatLahir: m.tempatLahir || k.tempatLahir || k.tempatlahir || '',
-              tanggalLahir: m.tanggalLahir || k.tanggalLahir || k.tanggallahir || '',
-              golongan: m.golongan || k.tingkatan || 'Dewasa',
-              photo: m.photo || k.photo || '',
+              namaLengkap: (kName && kName !== 'Tanpa Nama' && kName !== '-') ? kName : (m.namaLengkap || 'Anggota HW'),
+              nik: k.nik || m.nik || '',
+              noHp: k.noWa || k.noHp || m.noHp || '',
+              alamat: k.alamat || m.alamat || '',
+              qabilah: k.qabilah || m.qabilah || '',
+              asalKwarda: k.asalDaerah || m.asalKwarda || '',
+              tempatLahir: k.tempatLahir || k.tempatlahir || m.tempatLahir || '',
+              tanggalLahir: k.tanggalLahir || k.tanggallahir || m.tanggalLahir || '',
+              golongan: k.tingkatan || m.golongan || 'Dewasa',
+              photo: k.photo || m.photo || '',
               isVerified: m.isVerified !== undefined ? m.isVerified : (k.status === 'approved'),
-              ktaNumber: m.ktaNumber || k.ktaNumber || '',
+              ktaNumber: k.ktaNumber || m.ktaNumber || '',
               password: assignedPass
             };
           } else if (kEmail && kName && kName !== 'Tanpa Nama') {
@@ -1399,12 +1399,14 @@ export const firestoreService = {
                   ...k, 
                   nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
                   email: k.email || match.email || '',
-                  photo: match.photo || k.photo || '',
+                  photo: k.photo || match.photo || '',
                   noWa: k.noWa || match.noHp || '',
                   asalDaerah: k.asalDaerah || match.asalKwarda || '',
                   qabilah: k.qabilah || match.qabilah || '',
                   tempatLahir: k.tempatLahir || match.tempatLahir || '',
-                  tanggalLahir: k.tanggalLahir || match.tanggalLahir || ''
+                  tanggalLahir: k.tanggalLahir || match.tanggalLahir || '',
+                  nik: k.nik || match.nik || '',
+                  alamat: k.alamat || match.alamat || ''
                 };
               }
               return k;
@@ -1491,6 +1493,15 @@ export const firestoreService = {
           const memberSync: Partial<User> = {};
           if (newApp.photo) memberSync.photo = newApp.photo;
           if (newApp.nama) memberSync.namaLengkap = newApp.nama;
+          if (newApp.nik) memberSync.nik = newApp.nik;
+          if (newApp.noWa || newApp.noHp) memberSync.noHp = newApp.noWa || newApp.noHp;
+          if (newApp.alamat) memberSync.alamat = newApp.alamat;
+          if (newApp.qabilah) memberSync.qabilah = newApp.qabilah;
+          if (newApp.asalDaerah || newApp.asalKwarda) memberSync.asalKwarda = newApp.asalDaerah || newApp.asalKwarda;
+          if (newApp.tempatLahir) memberSync.tempatLahir = newApp.tempatLahir;
+          if (newApp.tanggalLahir) memberSync.tanggalLahir = newApp.tanggalLahir;
+          if (newApp.jenisKelamin) memberSync.jenisKelamin = (newApp.jenisKelamin === 'Perempuan' || newApp.jenisKelamin === 'P') ? 'P' : 'L';
+          if (newApp.sosmed) memberSync.sosmed = newApp.sosmed;
           if (newApp.status === 'approved') memberSync.isVerified = true;
           if (newApp.ktaNumber) memberSync.ktaNumber = newApp.ktaNumber;
           if (newApp.verifiedAt) memberSync.verifiedAt = newApp.verifiedAt;

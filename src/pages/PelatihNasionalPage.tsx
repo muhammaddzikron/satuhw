@@ -408,33 +408,33 @@ export default function PelatihNasionalPage() {
         </div>
       </div>
 
-      {/* Gold Gradient Hero Banner */}
-      <section className="bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-400 text-amber-950 p-6 rounded-[2.5rem] shadow-xl shadow-amber-500/20 border border-yellow-300/60 relative overflow-hidden">
+      {/* Green-Blue Gradient Hero Banner */}
+      <section className="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 text-white p-6 rounded-[2.5rem] shadow-xl shadow-teal-500/20 border border-white/20 relative overflow-hidden">
         <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2">
-            <div className="p-2.5 bg-amber-950 text-amber-300 rounded-2xl shadow-sm">
+            <div className="p-2.5 bg-white/20 backdrop-blur-md text-white rounded-2xl shadow-sm">
               <Award size={22} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest bg-amber-950/15 text-amber-950 px-2.5 py-1 rounded-full border border-amber-950/20">
+            <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 text-white px-2.5 py-1 rounded-full border border-white/30">
               Kategori Pelatih
             </span>
           </div>
 
           <div>
-            <h1 className="text-xl sm:text-2xl font-display font-black text-amber-950 uppercase tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-2xl font-display font-black text-white uppercase tracking-tight leading-tight">
               Pelatih Nasional HW Jateng
             </h1>
-            <p className="text-xs text-amber-950/80 font-medium mt-1 leading-relaxed">
-              Direktori Anggota Hizbul Wathan dengan kualifikasi Kepelatihan Tingkat <span className="font-extrabold text-amber-950 underline">Jaya Matahari 1</span> & <span className="font-extrabold text-amber-950 underline">Jaya Matahari 2</span>.
+            <p className="text-xs text-emerald-100 font-medium mt-1 leading-relaxed">
+              Direktori Anggota Hizbul Wathan dengan kualifikasi Kepelatihan Tingkat <span className="font-extrabold text-white underline">Jaya Matahari 1</span> & <span className="font-extrabold text-white underline">Jaya Matahari 2</span>.
             </p>
           </div>
 
           <div className="pt-1 flex items-center gap-3 flex-wrap text-xs font-bold">
-            <div className="bg-amber-950 text-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={14} />
+            <div className="bg-white text-teal-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+              <Sparkles size={14} className="text-teal-600" />
               <span>{pelatihList.length} Pelatih Terdaftar</span>
             </div>
-            <div className="bg-white/40 backdrop-blur-xs text-amber-950 px-3 py-1.5 rounded-xl border border-amber-950/10">
+            <div className="bg-white/20 backdrop-blur-xs text-white px-3 py-1.5 rounded-xl border border-white/20">
               Jawa Tengah
             </div>
           </div>

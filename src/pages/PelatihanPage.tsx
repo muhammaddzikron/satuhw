@@ -538,13 +538,13 @@ export default function PelatihanPage() {
       </div>
 
       {/* Page Header */}
-      <div className="flex flex-col gap-1.5 bg-gradient-to-br from-hw-green/10 to-emerald-600/5 p-6 rounded-[2.5rem] border border-hw-green/20">
+      <div className="flex flex-col gap-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-6 rounded-[2.5rem] text-white shadow-xl">
         <div className="flex items-center gap-2">
-          <GraduationCap className="text-hw-green animate-pulse" size={24} />
-          <span className="text-[10px] font-black uppercase tracking-widest text-hw-green">Satu HW Training</span>
+          <GraduationCap className="text-emerald-200 animate-pulse" size={24} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">Satu HW Training</span>
         </div>
-        <h2 className="text-2xl font-black text-hw-dark leading-none font-display">Portal Pelatihan Jaya Melati 1/2 HW Jateng</h2>
-        <p className="text-xs text-gray-500 font-medium">
+        <h2 className="text-2xl font-black text-white leading-none font-display">Portal Pelatihan Jaya Melati 1/2 HW Jateng</h2>
+        <p className="text-xs text-emerald-100 font-medium">
           Daftar kegiatan pelatihan resmi, akses modul kurikulum, kumpulkan tugas, presensi sesi, dan cetak piagam.
         </p>
       </div>

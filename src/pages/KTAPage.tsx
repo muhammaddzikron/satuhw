@@ -217,41 +217,43 @@ export default function KTAPage() {
           if (freshUser) {
             const currentUser = useAuthStore.getState().user || user;
             const mergedUser = {
-              ...currentUser,
               ...freshUser,
-              namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
-              nik: freshUser.nik || currentUser.nik || '',
-              noHp: freshUser.noHp || currentUser.noHp || '',
-              alamat: freshUser.alamat || currentUser.alamat || '',
-              tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
-              tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || '',
-              asalKwarda: freshUser.asalKwarda || currentUser.asalKwarda || '',
-              qabilah: freshUser.qabilah || currentUser.qabilah || '',
-              sosmed: freshUser.sosmed || currentUser.sosmed || '',
-              pendidikan: freshUser.pendidikan || currentUser.pendidikan || '',
-              golongan: freshUser.golongan || currentUser.golongan || '',
-              golonganPelatih: (freshUser as any).golonganPelatih || (currentUser as any).golonganPelatih || '',
-              photo: freshUser.photo || currentUser.photo || ''
+              ...currentUser,
+              namaLengkap: (currentUser.namaLengkap && currentUser.namaLengkap !== 'Tanpa Nama') ? currentUser.namaLengkap : (freshUser.namaLengkap || 'Anggota HW'),
+              nik: currentUser.nik || freshUser.nik || '',
+              noHp: currentUser.noHp || freshUser.noHp || '',
+              alamat: currentUser.alamat || freshUser.alamat || '',
+              tempatLahir: currentUser.tempatLahir || freshUser.tempatLahir || '',
+              tanggalLahir: currentUser.tanggalLahir || freshUser.tanggalLahir || '',
+              asalKwarda: currentUser.asalKwarda || freshUser.asalKwarda || '',
+              qabilah: currentUser.qabilah || freshUser.qabilah || '',
+              sosmed: currentUser.sosmed || freshUser.sosmed || '',
+              pendidikan: currentUser.pendidikan || freshUser.pendidikan || '',
+              golongan: currentUser.golongan || freshUser.golongan || '',
+              golonganPelatih: (currentUser as any).golonganPelatih || (freshUser as any).golonganPelatih || '',
+              photo: currentUser.photo || freshUser.photo || ''
             };
             updateUser(mergedUser);
-            // Pre-fill form fields with latest profile details
-            setFormData(prev => ({
-              ...prev,
-              nama: mergedUser.namaLengkap || prev.nama,
-              alamat: mergedUser.alamat || prev.alamat,
-              asalDaerah: mergedUser.asalKwarda || prev.asalDaerah,
-              noWa: mergedUser.noHp || prev.noWa,
-              email: mergedUser.email || prev.email,
-              sosmed: mergedUser.sosmed || prev.sosmed,
-              nik: mergedUser.nik || prev.nik || '',
-              tempatLahir: mergedUser.tempatLahir || prev.tempatLahir || '',
-              tanggalLahir: mergedUser.tanggalLahir || prev.tanggalLahir || '',
-              jenisKelamin: mergedUser.jenisKelamin === 'P' ? 'Perempuan' : (mergedUser.jenisKelamin === 'L' ? 'Laki-laki' : prev.jenisKelamin),
-              qabilah: mergedUser.qabilah || prev.qabilah || '',
-              photo: mergedUser.photo || prev.photo || '',
-            }));
-            if (freshUser.photo) {
-              setPhotoPreview(freshUser.photo);
+            // Pre-fill form fields with latest profile details if form is closed
+            if (!showEditForm) {
+              setFormData(prev => ({
+                ...prev,
+                nama: mergedUser.namaLengkap || prev.nama,
+                alamat: mergedUser.alamat || prev.alamat,
+                asalDaerah: mergedUser.asalKwarda || prev.asalDaerah,
+                noWa: mergedUser.noHp || prev.noWa,
+                email: mergedUser.email || prev.email,
+                sosmed: mergedUser.sosmed || prev.sosmed,
+                nik: mergedUser.nik || prev.nik || '',
+                tempatLahir: mergedUser.tempatLahir || prev.tempatLahir || '',
+                tanggalLahir: mergedUser.tanggalLahir || prev.tanggalLahir || '',
+                jenisKelamin: mergedUser.jenisKelamin === 'P' ? 'Perempuan' : (mergedUser.jenisKelamin === 'L' ? 'Laki-laki' : prev.jenisKelamin),
+                qabilah: mergedUser.qabilah || prev.qabilah || '',
+                photo: mergedUser.photo || prev.photo || '',
+              }));
+            }
+            if (mergedUser.photo) {
+              setPhotoPreview(mergedUser.photo);
             }
           }
         }
@@ -383,23 +385,25 @@ export default function KTAPage() {
           }
           setMyApplication(found);
 
-          // Pre-fill form fields with application data / fresh user data
-          setFormData(prev => ({
-            ...prev,
-            nama: found.nama || freshUser?.namaLengkap || prev.nama,
-            alamat: found.alamat || freshUser?.alamat || prev.alamat,
-            tingkatan: found.tingkatan || prev.tingkatan,
-            asalDaerah: found.asalDaerah || freshUser?.asalKwarda || prev.asalDaerah,
-            noWa: found.noWa || freshUser?.noHp || prev.noWa,
-            email: found.email || freshUser?.email || prev.email,
-            sosmed: found.sosmed || freshUser?.sosmed || prev.sosmed,
-            nik: found.nik || freshUser?.nik || prev.nik,
-            tempatLahir: found.tempatLahir || freshUser?.tempatLahir || prev.tempatLahir,
-            tanggalLahir: found.tanggalLahir || freshUser?.tanggalLahir || prev.tanggalLahir,
-            jenisKelamin: found.jenisKelamin || freshUser?.jenisKelamin || prev.jenisKelamin,
-            qabilah: found.qabilah || freshUser?.qabilah || prev.qabilah,
-            jenisKta: found.jenisKta || prev.jenisKta,
-          }));
+          // Pre-fill form fields with application data / fresh user data if edit form is not actively open
+          if (!showEditForm) {
+            setFormData(prev => ({
+              ...prev,
+              nama: found.nama || freshUser?.namaLengkap || prev.nama,
+              alamat: found.alamat || freshUser?.alamat || prev.alamat,
+              tingkatan: found.tingkatan || prev.tingkatan,
+              asalDaerah: found.asalDaerah || freshUser?.asalKwarda || prev.asalDaerah,
+              noWa: found.noWa || freshUser?.noHp || prev.noWa,
+              email: found.email || freshUser?.email || prev.email,
+              sosmed: found.sosmed || freshUser?.sosmed || prev.sosmed,
+              nik: found.nik || freshUser?.nik || prev.nik,
+              tempatLahir: found.tempatLahir || freshUser?.tempatLahir || prev.tempatLahir,
+              tanggalLahir: found.tanggalLahir || freshUser?.tanggalLahir || prev.tanggalLahir,
+              jenisKelamin: (found.jenisKelamin === 'Perempuan' || found.jenisKelamin === 'P') ? 'Perempuan' : ((found.jenisKelamin === 'Laki-laki' || found.jenisKelamin === 'L') ? 'Laki-laki' : prev.jenisKelamin),
+              qabilah: found.qabilah || freshUser?.qabilah || prev.qabilah,
+              jenisKta: found.jenisKta || prev.jenisKta,
+            }));
+          }
         }
       }
     } catch (e) {
@@ -449,6 +453,46 @@ export default function KTAPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleOpenEditForm = () => {
+    const latestUser = useAuthStore.getState().user || user;
+    const app = myApplication;
+    const initNama = app?.nama || latestUser?.namaLengkap || formData.nama || '';
+    const initAlamat = app?.alamat || latestUser?.alamat || formData.alamat || '';
+    const initTingkatan = app?.tingkatan || latestUser?.golongan || formData.tingkatan || 'Dewasa';
+    const initAsalDaerah = app?.asalDaerah || latestUser?.asalKwarda || formData.asalDaerah || 'Banyumas';
+    const initNoWa = app?.noWa || latestUser?.noHp || formData.noWa || '';
+    const initEmail = app?.email || latestUser?.email || formData.email || '';
+    const initSosmed = app?.sosmed || latestUser?.sosmed || formData.sosmed || '';
+    const initNik = app?.nik || latestUser?.nik || formData.nik || '';
+    const initTempatLahir = app?.tempatLahir || latestUser?.tempatLahir || formData.tempatLahir || '';
+    const initTanggalLahir = app?.tanggalLahir || latestUser?.tanggalLahir || formData.tanggalLahir || '';
+    const initJenisKelamin = (app?.jenisKelamin === 'Perempuan' || app?.jenisKelamin === 'P' || latestUser?.jenisKelamin === 'P') ? 'Perempuan' : 'Laki-laki';
+    const initQabilah = app?.qabilah || latestUser?.qabilah || formData.qabilah || '';
+    const initPhoto = photoPreview || app?.photo || latestUser?.photo || formData.photo || '';
+
+    setFormData({
+      nama: initNama,
+      alamat: initAlamat,
+      tingkatan: initTingkatan,
+      asalDaerah: initAsalDaerah,
+      noWa: initNoWa,
+      email: initEmail,
+      sosmed: initSosmed,
+      photo: initPhoto,
+      nik: initNik,
+      tempatLahir: initTempatLahir,
+      tanggalLahir: initTanggalLahir,
+      jenisKelamin: initJenisKelamin,
+      qabilah: initQabilah,
+      jenisKta: app?.jenisKta || 'Digital'
+    });
+
+    if (initPhoto) {
+      setPhotoPreview(initPhoto);
+    }
+    setShowEditForm(true);
   };
 
   const handleApply = async (e: React.FormEvent) => {
@@ -589,8 +633,23 @@ export default function KTAPage() {
     try {
       const res = await sheetsService.applyKTA(payload);
       if (res.success || res.application) {
-        const createdApp = res.application || payload;
+        const createdApp = { ...payload, ...(res.application || {}) };
         setMyApplication(createdApp);
+
+        // Update local cache kta_applications immediately
+        try {
+          const localAppsStr = localStorage.getItem('kta_applications') || '[]';
+          const localApps = JSON.parse(localAppsStr);
+          if (Array.isArray(localApps)) {
+            const idx = localApps.findIndex((a: any) => String(a.id) === String(createdApp.id) || (a.email && createdApp.email && a.email.toLowerCase().trim() === createdApp.email.toLowerCase().trim()));
+            if (idx >= 0) {
+              localApps[idx] = { ...localApps[idx], ...createdApp };
+            } else {
+              localApps.unshift(createdApp);
+            }
+            localStorage.setItem('kta_applications', JSON.stringify(localApps));
+          }
+        } catch (e) {}
         
         const successMsg = isEditingMode
           ? 'Data pengajuan KTA berhasil diperbarui.'
@@ -615,17 +674,33 @@ export default function KTAPage() {
             nik: formData.nik,
             tempatLahir: formData.tempatLahir,
             tanggalLahir: formData.tanggalLahir,
+            jenisKelamin: formData.jenisKelamin === 'Perempuan' ? 'P' : 'L',
             photo: photoPreview || user.photo || '',
             isVerified: createdApp.status === 'approved' ? true : user.isVerified
           };
           updateUser(updatedUserObj);
+
+          // Update local cache mock_members immediately
+          try {
+            const mockStr = localStorage.getItem('mock_members') || '[]';
+            const mockList = JSON.parse(mockStr);
+            if (Array.isArray(mockList)) {
+              const mIdx = mockList.findIndex((m: any) => m.id === user.id || (m.email && user.email && m.email.toLowerCase().trim() === user.email.toLowerCase().trim()));
+              if (mIdx >= 0) {
+                mockList[mIdx] = { ...mockList[mIdx], ...updatedUserObj };
+              } else {
+                mockList.push(updatedUserObj);
+              }
+              localStorage.setItem('mock_members', JSON.stringify(mockList));
+            }
+          } catch (e) {}
+
           firestoreService.saveMember(updatedUserObj).catch(() => {});
           sheetsService.saveMember(updatedUserObj).catch(() => {});
         }
         
-        // Re-fetch in background without triggering full loading spinner
-        fetchApplications(true);
         setShowEditForm(false);
+        fetchApplications(true);
       } else {
         throw new Error(res.message || 'Respons tidak valid dari server');
       }
@@ -801,6 +876,22 @@ export default function KTAPage() {
         </Link>
       </div>
 
+      {/* Hero Banner KTA */}
+      <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-6 text-white shadow-xl space-y-2">
+        <div className="flex items-center gap-2">
+          <CreditCard className="text-emerald-200" size={22} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">
+            Kwartir Wilayah HW Jateng
+          </span>
+        </div>
+        <h1 className="text-xl sm:text-2xl font-black font-display text-white">
+          Kartu Tanda Anggota (KTA) HW Digital
+        </h1>
+        <p className="text-xs text-emerald-100 font-medium leading-relaxed">
+          Sistem Penerbitan & Registrasi KTA Resmi Pandu Hizbul Wathan Jawa Tengah. Dapatkan identitas anggota terverifikasi dan akses fitur lengkap.
+        </p>
+      </div>
+
       {message && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
@@ -896,7 +987,7 @@ export default function KTAPage() {
 
               <div className="text-center">
                 <button
-                  onClick={() => setShowEditForm(true)}
+                  onClick={handleOpenEditForm}
                   className="inline-flex items-center gap-1 text-[11px] font-black text-hw-green hover:underline cursor-pointer"
                 >
                   <Edit size={12} /> Ubah Data Pengajuan
@@ -929,7 +1020,7 @@ export default function KTAPage() {
 
               <div className="text-center pt-2">
                 <button
-                  onClick={() => setShowEditForm(true)}
+                  onClick={handleOpenEditForm}
                   className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-center text-[10px] font-bold leading-none flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
                 >
                   <Edit size={12} /> Ubah Data & Kirim Ulang
@@ -1012,7 +1103,7 @@ export default function KTAPage() {
             <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 w-full sm:w-auto">
                 <button 
-                  onClick={() => setShowEditForm(true)}
+                  onClick={handleOpenEditForm}
                   className="px-4 py-3 bg-white/10 hover:bg-white/15 text-stone-200 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                 >
                   <Edit size={14} />
