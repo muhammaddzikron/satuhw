@@ -239,7 +239,7 @@ export const KTACard: React.FC<KTACardProps> = ({
                     className="font-bold py-0.1"
                     style={{ color: ktaFrontBg ? '#111827' : '#ffffff', position: 'relative', zIndex: 20 }}
                   >
-                    {truncateText(app.tempatLahir || '-', 15)}, {formatIndonesianDate(app.tanggalLahir)}
+                    {truncateText(app.tempatLahir || '-', 15)}, {app.tanggalLahir ? formatIndonesianDate(app.tanggalLahir) : '-'}
                   </td>
                 </tr>
                 <tr>

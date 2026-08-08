@@ -280,10 +280,12 @@ export default function ProfilePage() {
       
       const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
 
-      // Ensure we have a payload that includes identifier
+      // Ensure we have a payload that includes identifier and preserves existing values
       const payload = {
         ...user,
         ...formData,
+        tempatLahir: formData.tempatLahir?.trim() || user?.tempatLahir || '',
+        tanggalLahir: formData.tanggalLahir || user?.tanggalLahir || '',
         role: formData.roles[0] || formData.role || 'umum',
         roles: formData.roles,
         activeRole: formData.roles[0] || formData.role || 'umum',
@@ -344,8 +346,8 @@ export default function ProfilePage() {
               ...(formData.asalKwarda ? { asalDaerah: formData.asalKwarda } : {}),
               ...(formData.qabilah ? { qabilah: formData.qabilah } : {}),
               ...(formData.alamat ? { alamat: formData.alamat } : {}),
-              ...(formData.tempatLahir ? { tempatLahir: formData.tempatLahir } : {}),
-              ...(formData.tanggalLahir ? { tanggalLahir: formData.tanggalLahir } : {})
+              ...(payload.tempatLahir ? { tempatLahir: payload.tempatLahir } : {}),
+              ...(payload.tanggalLahir ? { tanggalLahir: payload.tanggalLahir } : {})
             };
             await sheetsService.saveKTAApplication(updatedApp);
             await firestoreService.createKTAApplication(updatedApp);
@@ -359,7 +361,10 @@ export default function ProfilePage() {
       // Update local state - Merge with current user to keep fields not in formData
       const { password, ...formDataWithoutPassword } = formData;
       updateUser({
+        ...user,
         ...formDataWithoutPassword,
+        tempatLahir: payload.tempatLahir,
+        tanggalLahir: payload.tanggalLahir,
         role: formData.roles[0] || formData.role || 'umum',
         roles: formData.roles,
         activeRole: formData.roles[0] || formData.role || 'umum',

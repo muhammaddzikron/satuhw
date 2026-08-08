@@ -485,6 +485,8 @@ export const firestoreService = {
               alamat: m.alamat || k.alamat || '',
               qabilah: m.qabilah || k.qabilah || '',
               asalKwarda: m.asalKwarda || k.asalDaerah || '',
+              tempatLahir: m.tempatLahir || k.tempatLahir || k.tempatlahir || '',
+              tanggalLahir: m.tanggalLahir || k.tanggalLahir || k.tanggallahir || '',
               golongan: m.golongan || k.tingkatan || 'Dewasa',
               photo: m.photo || k.photo || '',
               isVerified: m.isVerified !== undefined ? m.isVerified : (k.status === 'approved'),
@@ -506,6 +508,8 @@ export const firestoreService = {
               alamat: k.alamat || '',
               qabilah: k.qabilah || '',
               asalKwarda: k.asalDaerah || '',
+              tempatLahir: k.tempatLahir || k.tempatlahir || '',
+              tanggalLahir: k.tanggalLahir || k.tanggallahir || '',
               photo: k.photo || '',
               isVerified: k.status === 'approved',
               ktaNumber: k.ktaNumber || '',
@@ -1398,7 +1402,9 @@ export const firestoreService = {
                   photo: match.photo || k.photo || '',
                   noWa: k.noWa || match.noHp || '',
                   asalDaerah: k.asalDaerah || match.asalKwarda || '',
-                  qabilah: k.qabilah || match.qabilah || ''
+                  qabilah: k.qabilah || match.qabilah || '',
+                  tempatLahir: k.tempatLahir || match.tempatLahir || '',
+                  tanggalLahir: k.tanggalLahir || match.tanggalLahir || ''
                 };
               }
               return k;
