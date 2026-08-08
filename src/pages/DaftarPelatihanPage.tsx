@@ -20,7 +20,8 @@ import {
   AlertCircle,
   Check,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { CopyAccountButton } from '../components/CopyAccountButton';

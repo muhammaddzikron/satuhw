@@ -316,37 +316,93 @@ export default function PelatihanPage() {
 
   const program = TRAINING_PROGRAMS.find(p => p.id === selectedLevel) || TRAINING_PROGRAMS[0];
 
+  const normalizeLevelCode = (str?: string): string => {
+    if (!str) return 'jati1';
+    const clean = str.toLowerCase().trim();
+    if (clean.includes('jati 2') || clean.includes('jati2') || clean.includes('jaya melati 2') || clean.includes('jm 2') || clean.includes('jm2')) {
+      return 'jati2';
+    }
+    if (clean.includes('jari 1') || clean.includes('jari1') || clean.includes('jaya matahari 1') || clean.includes('jmh 1')) {
+      return 'jari1';
+    }
+    if (clean.includes('jati 1') || clean.includes('jati1') || clean.includes('jaya melati 1') || clean.includes('jm 1') || clean.includes('jm1')) {
+      return 'jati1';
+    }
+    return clean.replace(/\s+/g, '');
+  };
+
+  const isUserAppMatch = (a: any, u: any): boolean => {
+    if (!a || !u) return false;
+    if (a.email && u.email && a.email.toLowerCase().trim() === u.email.toLowerCase().trim()) return true;
+    if (a.userId && String(a.userId) === String(u.id)) return true;
+    if (a.noWa && u.noHp && a.noWa.replace(/[^0-9]/g, '') === u.noHp.replace(/[^0-9]/g, '')) return true;
+    if (a.nik && u.nik && String(a.nik).trim() === String(u.nik).trim()) return true;
+    if (a.nama && u.namaLengkap && a.nama.toLowerCase().trim() === u.namaLengkap.toLowerCase().trim()) return true;
+    return false;
+  };
+
+  const approvedUserApps = user ? applications.filter((a: any) => {
+    if (!isUserAppMatch(a, user)) return false;
+    return (
+      a.status === 'approved' || 
+      a.status === 'terverifikasi' || 
+      a.status === 'disetujui' ||
+      a.statusPembayaran === 'Lunas' ||
+      a.statusKelulusan === 'Lulus'
+    );
+  }) : [];
+
+  const openApprovedPortal = (app: any, targetTab: 'beranda' | 'materi' | 'sesi' | 'tugas' | 'piagam' = 'materi') => {
+    const normLevel = normalizeLevelCode(app?.pelatihanAkanDiikuti);
+    const matchedAct = trainingActivities.find(act => normalizeLevelCode(act.jenisPelatihan) === normLevel) || {
+      id: app?.id || 'act-approved',
+      namaKegiatan: app?.pelatihanAkanDiikuti ? `Pelatihan ${app.pelatihanAkanDiikuti}` : 'Pelatihan HW Jateng',
+      jenisPelatihan: app?.pelatihanAkanDiikuti || 'Jati 1',
+      status: 'Buka',
+      deskripsi: 'Kegiatan Pelatihan HW Jateng Terverifikasi',
+      lokasiPelatihan: app?.lokasiPelatihan || 'Pusdiklat HW Jateng',
+      tanggalPelatihan: app?.tanggalPelatihan || 'Sesuai Jadwal',
+      biayaPelatihan: app?.biayaPelatihan || 'Rp 50.000',
+      rekeningPembiayaan: app?.rekeningPembiayaan || 'Bank BSI 7307427448',
+      noWhatsappPanitia: app?.noWhatsappPanitia || '089688754000'
+    };
+
+    setSelectedActivity(matchedAct);
+    if (['jati1', 'jati2', 'jari1'].includes(normLevel)) {
+      const levelName = normLevel === 'jati2' ? 'Jati 2' : normLevel === 'jari1' ? 'Jari 1' : 'Jati 1';
+      setSelectedLevel(levelName as any);
+    }
+    setUserApp(app);
+    setActiveTab(targetTab);
+  };
+
   // Check if user is verified for a specific level or selected activity
   const isUserVerifiedForActivity = (activityJenis: string): { isVerified: boolean; userApplication: any | null } => {
     if (!user) return { isVerified: false, userApplication: null };
 
-    const normTarget = activityJenis.toLowerCase().replace(/\s+/g, ''); // e.g. 'jati1'
+    const targetKey = normalizeLevelCode(activityJenis);
 
     // Check if user has an application
     const myApp = applications.find((a: any) => {
-      const isUserMatch = (a.email && a.email.toLowerCase() === user.email.toLowerCase()) || 
-                          (a.userId && String(a.userId) === String(user.id));
-      if (!isUserMatch) return false;
-      
-      const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
-      return appLevel === normTarget || appLevel.includes(normTarget) || normTarget.includes(appLevel);
+      if (!isUserAppMatch(a, user)) return false;
+      const appKey = normalizeLevelCode(a.pelatihanAkanDiikuti);
+      return appKey === targetKey || appKey.includes(targetKey) || targetKey.includes(appKey);
     });
 
     const isApproved = myApp && (
       myApp.status === 'approved' || 
       myApp.status === 'terverifikasi' || 
       myApp.status === 'disetujui' ||
+      myApp.statusPembayaran === 'Lunas' ||
       myApp.statusKelulusan === 'Lulus'
     );
 
-    // Also check if admin
     const isAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'sugli' || user.role === 'kwarda' || perspective === 'admin';
 
-    // Check role or completed pelatihan array
     const userRoles = user.roles || [user.role];
-    const hasRoleMatch = userRoles.some(r => r.toLowerCase().replace(/\s+/g, '') === normTarget);
+    const hasRoleMatch = userRoles.some(r => normalizeLevelCode(r) === targetKey);
     const userPelatihan = user.pelatihan || [];
-    const hasPelatihanMatch = userPelatihan.some(p => p.toLowerCase().replace(/\s+/g, '') === normTarget);
+    const hasPelatihanMatch = userPelatihan.some(p => normalizeLevelCode(p) === targetKey);
 
     const isVerified = Boolean(isApproved || isAdmin || hasRoleMatch || hasPelatihanMatch);
 
@@ -623,6 +679,71 @@ export default function PelatihanPage() {
             /* MODE A: DAFTAR KEGIATAN PELATIHAN HW JATENG (MAIN DEFAULT VIEW)       */
             /* --------------------------------------------------------------------- */
             <div className="space-y-5 animate-fade-in">
+              {/* Approved Participant Quick Access Banner */}
+              {approvedUserApps.length > 0 && (
+                <div className="bg-gradient-to-br from-emerald-800 via-hw-green to-teal-800 text-white p-6 rounded-[2rem] shadow-md border border-emerald-400/30 space-y-4 relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/40 pb-4">
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md text-amber-300 rounded-full text-[10px] font-black uppercase tracking-wider">
+                        <Sparkles size={13} className="text-amber-300" /> PESERTA TERVERIFIKASI & DISETUJUI
+                      </span>
+                      <h3 className="font-display font-black text-white text-lg leading-tight">
+                        Fitur & Portal Peserta Pelatihan Anda
+                      </h3>
+                      <p className="text-xs text-emerald-100 font-medium">
+                        Selamat! Status pendaftaran Anda ({approvedUserApps.map(a => a.pelatihanAkanDiikuti || 'Jati 1').join(', ')}) telah disetujui Admin. Akses cepat fitur peserta pelatihan di bawah ini:
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quick Access Feature Buttons */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                    <button
+                      onClick={() => openApprovedPortal(approvedUserApps[0], 'materi')}
+                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
+                        <BookOpen size={16} />
+                      </div>
+                      <div className="text-xs font-black uppercase tracking-wider">Materi</div>
+                      <div className="text-[10px] text-emerald-100">Modul & PDF</div>
+                    </button>
+
+                    <button
+                      onClick={() => openApprovedPortal(approvedUserApps[0], 'sesi')}
+                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
+                        <CheckCircle2 size={16} />
+                      </div>
+                      <div className="text-xs font-black uppercase tracking-wider">Absen</div>
+                      <div className="text-[10px] text-emerald-100">Presensi Sesi</div>
+                    </button>
+
+                    <button
+                      onClick={() => openApprovedPortal(approvedUserApps[0], 'tugas')}
+                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-blue-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
+                        <FileText size={16} />
+                      </div>
+                      <div className="text-xs font-black uppercase tracking-wider">Tugas</div>
+                      <div className="text-[10px] text-emerald-100">Upload Tugas</div>
+                    </button>
+
+                    <button
+                      onClick={() => openApprovedPortal(approvedUserApps[0], 'piagam')}
+                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-purple-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
+                        <Award size={16} />
+                      </div>
+                      <div className="text-xs font-black uppercase tracking-wider">Piagam</div>
+                      <div className="text-[10px] text-emerald-100">E-Sertifikat</div>
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
                   <div>

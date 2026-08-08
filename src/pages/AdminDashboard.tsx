@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -556,8 +556,64 @@ export default function AdminDashboard() {
       });
   }, [ktaApps]);
 
-  // Training Management States
-  const [trainingApps, setTrainingApps] = useState<any[]>([]);
+  // Training Management States & Deduplication
+  const [trainingAppsRaw, setTrainingAppsRaw] = useState<any[]>([]);
+
+  const deduplicateTrainingApps = useCallback((apps: any[]) => {
+    if (!Array.isArray(apps)) return [];
+    const map = new Map<string, any>();
+    for (const app of apps) {
+      if (!app) continue;
+      const name = (app.nama || app.namaLengkap || '').trim();
+      if (!isValidName(name)) continue;
+
+      const personKey = (
+        app.userId ? `id_${app.userId}` :
+        (app.nik && String(app.nik).trim()) ? `nik_${String(app.nik).trim()}` :
+        (app.email && app.email.trim()) ? `email_${app.email.toLowerCase().trim()}` :
+        (app.noWa && app.noWa.trim()) ? `wa_${app.noWa.replace(/[^0-9]/g, '')}` :
+        `name_${name.toLowerCase()}`
+      );
+      const progKey = (app.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
+      const compositeKey = `${personKey}___${progKey}`;
+
+      if (!map.has(compositeKey)) {
+        map.set(compositeKey, app);
+      } else {
+        const existing = map.get(compositeKey);
+        const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
+        const scoreCurrent = statusScore(app.status);
+        const scoreExisting = statusScore(existing.status);
+
+        if (scoreCurrent > scoreExisting) {
+          map.set(compositeKey, app);
+        } else if (scoreCurrent === scoreExisting) {
+          const currentRichness = (app.nik ? 2 : 0) + (app.photo ? 2 : 0) + (app.nbm ? 1 : 0);
+          const existingRichness = (existing.nik ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+          if (currentRichness > existingRichness) {
+            map.set(compositeKey, app);
+          } else {
+            const currentTime = new Date(app.tanggalAjuan || app.updatedAt || 0).getTime();
+            const existingTime = new Date(existing.tanggalAjuan || existing.updatedAt || 0).getTime();
+            if (currentTime > existingTime) {
+              map.set(compositeKey, app);
+            }
+          }
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, []);
+
+  const setTrainingApps = useCallback((data: any | ((prev: any[]) => any[])) => {
+    if (typeof data === 'function') {
+      setTrainingAppsRaw(prev => deduplicateTrainingApps(data(prev)));
+    } else {
+      setTrainingAppsRaw(deduplicateTrainingApps(data));
+    }
+  }, [deduplicateTrainingApps]);
+
+  const trainingApps = trainingAppsRaw;
   const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
   const [trainingFilterStatus, setTrainingFilterStatus] = useState('Semua');
   const [trainingRejectId, setTrainingRejectId] = useState<string | null>(null);

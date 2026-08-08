@@ -46,6 +46,12 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
   return result;
 };
 
+const isValidName = (n?: string): boolean => {
+  if (!n) return false;
+  const lower = n.trim().toLowerCase();
+  return lower !== '' && lower !== 'tanpa nama' && lower !== '-' && lower !== 'null' && lower !== 'undefined';
+};
+
 export const firestoreService = {
   // Sync state flag
   isInitialized: false,
@@ -1687,16 +1693,59 @@ export const firestoreService = {
         const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
         if (!snap.empty) {
           const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          const cleanTrainings: any[] = [];
+          const map = new Map<string, any>();
+          const duplicateDocIdsToDelete: string[] = [];
+
           for (const t of rawTrainings) {
             const item = t as any;
             const name = (item.nama || item.namaLengkap || '').trim();
-            if (!name || name === 'Tanpa Nama' || name === '-') {
+            if (!isValidName(name)) {
               deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
+              continue;
+            }
+
+            const personKey = (
+              item.userId ? `id_${item.userId}` :
+              (item.nik && String(item.nik).trim()) ? `nik_${String(item.nik).trim()}` :
+              (item.email && item.email.trim()) ? `email_${item.email.toLowerCase().trim()}` :
+              (item.noWa && item.noWa.trim()) ? `wa_${item.noWa.replace(/[^0-9]/g, '')}` :
+              `name_${name.toLowerCase()}`
+            );
+            const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
+            const compositeKey = `${personKey}___${progKey}`;
+
+            if (!map.has(compositeKey)) {
+              map.set(compositeKey, t);
             } else {
-              cleanTrainings.push(t);
+              const existing = map.get(compositeKey);
+              const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
+              const scoreCurrent = statusScore(item.status);
+              const scoreExisting = statusScore(existing.status);
+
+              if (scoreCurrent > scoreExisting) {
+                if (existing.id && existing.id !== t.id) duplicateDocIdsToDelete.push(existing.id);
+                map.set(compositeKey, t);
+              } else if (scoreCurrent === scoreExisting) {
+                const currentRichness = (item.nik ? 2 : 0) + (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
+                const existingRichness = (existing.nik ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+                if (currentRichness > existingRichness) {
+                  if (existing.id && existing.id !== t.id) duplicateDocIdsToDelete.push(existing.id);
+                  map.set(compositeKey, t);
+                } else {
+                  if (item.id && item.id !== existing.id) duplicateDocIdsToDelete.push(item.id);
+                }
+              } else {
+                if (item.id && item.id !== existing.id) duplicateDocIdsToDelete.push(item.id);
+              }
             }
           }
+
+          // Purge duplicate docs in background
+          for (const dupId of duplicateDocIdsToDelete) {
+            if (dupId) deleteDoc(doc(db, 'training_applications', dupId)).catch(() => {});
+          }
+
+          const cleanTrainings = Array.from(map.values());
           localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
           return cleanTrainings;
         }
@@ -1710,7 +1759,24 @@ export const firestoreService = {
     const stored = localStorage.getItem('training_applications') || '[]';
     try {
       const parsed = JSON.parse(stored);
-      return parsed.filter((t: any) => t && t.nama && t.nama !== 'Tanpa Nama' && t.nama !== '-');
+      const map = new Map<string, any>();
+      for (const t of parsed) {
+        if (!t || !isValidName(t.nama || t.namaLengkap)) continue;
+        const name = (t.nama || t.namaLengkap || '').trim();
+        const personKey = (
+          t.userId ? `id_${t.userId}` :
+          (t.nik && String(t.nik).trim()) ? `nik_${String(t.nik).trim()}` :
+          (t.email && t.email.trim()) ? `email_${t.email.toLowerCase().trim()}` :
+          (t.noWa && t.noWa.trim()) ? `wa_${t.noWa.replace(/[^0-9]/g, '')}` :
+          `name_${name.toLowerCase()}`
+        );
+        const progKey = (t.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
+        const compositeKey = `${personKey}___${progKey}`;
+        if (!map.has(compositeKey)) {
+          map.set(compositeKey, t);
+        }
+      }
+      return Array.from(map.values());
     } catch (e) {
       return [];
     }
