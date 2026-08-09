@@ -469,7 +469,7 @@ export default function KegiatanPage() {
                     <Users size={14} className="text-emerald-600" />
                     <span>Pendaftar ({activityApps.filter(a => a.activityId === activity.id).length})</span>
                   </button>
-                  {(isAdmin || activity.createdBy === user?.email || !activity.createdBy) && (
+                  {isAdmin && (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEditActivity(activity)}
