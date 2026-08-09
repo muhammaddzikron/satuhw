@@ -393,6 +393,8 @@ export default function AdminDashboard() {
     kuota: '100 Peserta',
     deskripsi: '',
     gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+    themeSongUrl: '',
+    themeSongTitle: '',
     penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
   });
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
@@ -1277,6 +1279,8 @@ export default function AdminDashboard() {
         kuota: activity.kuota || '100 Peserta',
         deskripsi: activity.deskripsi || '',
         gambarUrl: activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        themeSongUrl: activity.themeSongUrl || activity.themeSong || '',
+        themeSongTitle: activity.themeSongTitle || activity.themeSongName || '',
         penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah'
       });
     } else {
@@ -1291,6 +1295,8 @@ export default function AdminDashboard() {
         kuota: '100 Peserta',
         deskripsi: '',
         gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        themeSongUrl: '',
+        themeSongTitle: '',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
       });
     }
@@ -6252,6 +6258,33 @@ export default function AdminDashboard() {
                         placeholder="https://..."
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                          Link URL Themesong / Audio MP3
+                        </label>
+                        <input 
+                          type="url" 
+                          value={kegiatanFormData.themeSongUrl}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongUrl: e.target.value })}
+                          placeholder="https://.../lagu-kegiatan.mp3"
+                          className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                          Judul Themesong / Mars
+                        </label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.themeSongTitle}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongTitle: e.target.value })}
+                          placeholder="Contoh: Mars Hizbul Wathan"
+                          className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                      </div>
                     </div>
 
                     <div>

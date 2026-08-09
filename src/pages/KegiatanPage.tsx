@@ -24,7 +24,10 @@ import {
   UserCheck,
   Plus,
   Edit3,
-  Trash2
+  Trash2,
+  Music,
+  Download,
+  Volume2
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -63,11 +66,38 @@ export default function KegiatanPage() {
     penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
     gambarUrl: '',
     deskripsi: '',
-    status: 'Buka'
+    status: 'Buka',
+    themeSongUrl: '',
+    themeSongTitle: ''
   });
   const [isSavingActivity, setIsSavingActivity] = useState(false);
 
-  // Kwarda list (Kabupaten/Kota se-Jateng) and Qabilah PTMA list
+  const handleDownloadThemeSong = async (url: string, fileName?: string) => {
+    if (!url) return;
+    try {
+      const name = fileName || 'Themesong_Kegiatan.mp3';
+      const cleanName = name.toLowerCase().endsWith('.mp3') ? name : `${name}.mp3`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Fetch failed');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = cleanName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.download = fileName || 'Themesong_Kegiatan.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
   const kwardaOptions = KWARDA_QABILAH_JATENG.slice(0, 35).map(item => item.name);
   const qabilahPtmaOptions = KWARDA_QABILAH_JATENG.slice(35).map(item => item.name);
 
@@ -255,7 +285,9 @@ export default function KegiatanPage() {
       penyelenggara: act.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
       gambarUrl: act.gambarUrl || act.imageUrl || '',
       deskripsi: act.deskripsi || act.description || '',
-      status: act.status || 'Buka'
+      status: act.status || 'Buka',
+      themeSongUrl: act.themeSongUrl || act.themeSong || '',
+      themeSongTitle: act.themeSongTitle || act.themeSongName || ''
     });
     setIsAddActivityModalOpen(true);
   };
@@ -412,6 +444,11 @@ export default function KegiatanPage() {
                       <UserCheck size={12} /> Dibuat oleh Anda
                     </div>
                   )}
+                  {activity.themeSongUrl && (
+                    <div className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs border border-emerald-400/30">
+                      <Music size={12} className="animate-pulse" /> Themesong MP3
+                    </div>
+                  )}
                 </div>
                 <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
                   activity.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
@@ -562,6 +599,51 @@ export default function KegiatanPage() {
                     {selectedActivity.deskripsi}
                   </p>
                 </div>
+
+                {/* Themesong Section */}
+                {selectedActivity.themeSongUrl ? (
+                  <div className="space-y-3 bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 p-4 rounded-2xl text-white shadow-xl border border-emerald-700/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl shrink-0 border border-emerald-500/30">
+                          <Music size={20} className="animate-pulse" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 block">
+                            Themesong Official Kegiatan
+                          </span>
+                          <h5 className="text-xs font-black font-display text-white truncate">
+                            {selectedActivity.themeSongTitle || 'Mars / Themesong Kegiatan'}
+                          </h5>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadThemeSong(selectedActivity.themeSongUrl, selectedActivity.themeSongTitle || 'Themesong_Kegiatan.mp3')}
+                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-xl flex items-center gap-1.5 shadow-lg transition-all cursor-pointer shrink-0 active:scale-95"
+                        title="Download MP3 Themesong"
+                      >
+                        <Download size={14} />
+                        <span>Download MP3</span>
+                      </button>
+                    </div>
+
+                    <div className="pt-1">
+                      <audio 
+                        controls 
+                        controlsList="nodownload" 
+                        src={selectedActivity.themeSongUrl} 
+                        className="w-full h-10 rounded-xl bg-slate-800/90 accent-emerald-400"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-100 p-3.5 rounded-2xl flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <Music size={16} className="text-gray-400" />
+                      <span className="font-medium text-[11px]">Themesong: Belum ada lagu tema ditambahkan.</span>
+                    </div>
+                  </div>
+                )}
 
 
               </div>
@@ -1124,6 +1206,33 @@ export default function KegiatanPage() {
                     placeholder="https://images.unsplash.com/..."
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                      Link URL Themesong / MP3 (Opsional)
+                    </label>
+                    <input
+                      type="url"
+                      value={newActivityForm.themeSongUrl}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, themeSongUrl: e.target.value })}
+                      placeholder="https://.../lagu-kegiatan.mp3"
+                      className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                      Judul Themesong / Mars (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      value={newActivityForm.themeSongTitle}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, themeSongTitle: e.target.value })}
+                      placeholder="Contoh: Mars Hizbul Wathan"
+                      className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
                 </div>
 
                 <div>
