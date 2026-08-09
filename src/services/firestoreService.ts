@@ -2193,17 +2193,27 @@ export const firestoreService = {
 
     try {
       const unsub = onSnapshot(collection(db, 'activity_applications'), (snap) => {
-        let list: any[] = [];
+        let fsApps: any[] = [];
         if (!snap.empty) {
-          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } else {
           defaultApps.forEach(def => {
             setDoc(doc(db, 'activity_applications', def.id), cleanData(def), { merge: true }).catch(() => {});
           });
-          list = [...defaultApps];
         }
 
-        list = list.map((a: any) => {
+        let localApps: any[] = [];
+        try {
+          const stored = localStorage.getItem('activity_applications') || '[]';
+          localApps = JSON.parse(stored);
+        } catch (e) {}
+
+        const map = new Map<string, any>();
+        defaultApps.forEach(a => map.set(a.id, a));
+        localApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
+        fsApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
+
+        let list = Array.from(map.values()).map((a: any) => {
           if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
             return {
               ...a,
@@ -2213,6 +2223,10 @@ export const firestoreService = {
           }
           return a;
         });
+
+        try {
+          localStorage.setItem('activity_applications', JSON.stringify(list));
+        } catch (e) {}
 
         callback(list);
       }, (err) => {
@@ -2548,11 +2562,17 @@ export const firestoreService = {
 
   async deleteActivityApplication(id: string): Promise<boolean> {
     try {
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      const localApps = JSON.parse(stored);
+      const filtered = localApps.filter((a: any) => a && a.id !== id);
+      localStorage.setItem('activity_applications', JSON.stringify(filtered));
+    } catch (e) {}
+
+    try {
       await deleteDoc(doc(db, 'activity_applications', id));
     } catch (err: any) {
       this.checkQuotaError(err);
       console.error('Firestore deleteActivityApplication error:', err);
-      throw new Error('Gagal menghapus pendaftaran dari Cloud Firestore: ' + (err.message || 'Koneksi terputus'));
     }
     return true;
   },
