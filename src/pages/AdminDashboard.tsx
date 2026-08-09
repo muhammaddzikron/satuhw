@@ -760,6 +760,89 @@ export default function AdminDashboard() {
     }
   };
 
+  const getAvailableTrainingOptions = () => {
+    const options: { id: string; name: string; label: string; act?: any }[] = [];
+    const addedNames = new Set<string>();
+
+    // 1. Registered training activities from settings
+    (settings.trainingActivities || []).forEach((act: any) => {
+      const name = act.namaKegiatan || act.jenisPelatihan;
+      if (name && !addedNames.has(name)) {
+        addedNames.add(name);
+        options.push({
+          id: act.id || name,
+          name: name,
+          label: `${name} ${act.lokasiPelatihan ? `📍 ${act.lokasiPelatihan}` : ''} ${act.biayaPelatihan ? `(💰 ${act.biayaPelatihan})` : ''}`,
+          act
+        });
+      }
+    });
+
+    // 2. Additional training types from settings or defaults
+    const types = settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
+    types.forEach((t: string) => {
+      if (!addedNames.has(t)) {
+        addedNames.add(t);
+        options.push({ id: t, name: t, label: t });
+      }
+    });
+
+    return options;
+  };
+
+  const handleAddParticipantTrainingChange = (val: string) => {
+    const activeActs = settings.trainingActivities || [];
+    const matchingAct = activeActs.find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+    ) || (activitiesList || []).find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+    );
+
+    if (matchingAct) {
+      setAddParticipantForm(prev => ({
+        ...prev,
+        pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
+        lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
+        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
+        biayaPelatihan: matchingAct.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+      }));
+    } else {
+      setAddParticipantForm(prev => ({
+        ...prev,
+        pelatihanAkanDiikuti: val,
+        lokasiPelatihan: prev.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
+        tanggalPelatihan: prev.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
+        biayaPelatihan: prev.biayaPelatihan || 'Rp 50.000'
+      }));
+    }
+  };
+
+  const handleEditParticipantTrainingChange = (val: string) => {
+    const activeActs = settings.trainingActivities || [];
+    const matchingAct = activeActs.find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+    ) || (activitiesList || []).find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+    );
+
+    if (matchingAct) {
+      setEditingTrainingApp((prev: any) => ({
+        ...prev,
+        pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
+        lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || prev?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
+        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || prev?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
+        biayaPelatihan: matchingAct.biayaPelatihan || prev?.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || prev?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+      }));
+    } else {
+      setEditingTrainingApp((prev: any) => ({
+        ...prev,
+        pelatihanAkanDiikuti: val
+      }));
+    }
+  };
+
   const handleAddParticipant = async () => {
     let member = members.find(m => String(m.id) === String(addParticipantSelectedMemberId));
     
@@ -4586,15 +4669,40 @@ export default function AdminDashboard() {
 
                       <button
                         onClick={() => {
-                          setIsAddParticipantModalOpen(true);
                           setAddParticipantSelectedMemberId('');
                           setAddParticipantSearchQuery('');
-                          setAddParticipantLokasi(settings.trainingLocations?.[0] || '');
-                          setAddParticipantTanggal(settings.trainingDates?.[0] || '');
-                          setAddParticipantLevel('Jati 1');
-                          setAddParticipantPelatihGolongan('Tunas Athfal');
+                          setAddParticipantMode('select');
+
+                          // Auto-detect training program, location, date, and fee from active activities/settings
+                          const activeActs = settings.trainingActivities || [];
+                          const firstAct = activeActs.find((a: any) => a.status !== 'Tutup') || activeActs[0];
+
+                          const prefillTraining = firstAct?.namaKegiatan || firstAct?.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1';
+                          const prefillLocation = firstAct?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng';
+                          const prefillDate = firstAct?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler';
+                          const prefillBiaya = firstAct?.biayaPelatihan || 'Rp 50.000';
+                          const prefillRekening = firstAct?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+
+                          setAddParticipantLokasi(prefillLocation);
+                          setAddParticipantTanggal(prefillDate);
+
+                          setAddParticipantForm({
+                            nama: '', nik: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+                            jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
+                            pelatihanAkanDiikuti: prefillTraining,
+                            pelatihGolongan: 'Tunas Athfal',
+                            golonganAnggota: 'Pengenal',
+                            lokasiPelatihan: prefillLocation,
+                            tanggalPelatihan: prefillDate,
+                            biayaPelatihan: prefillBiaya,
+                            rekeningPembiayaan: prefillRekening,
+                            status: 'approved',
+                            statusPembayaran: 'Lunas'
+                          });
+
+                          setIsAddParticipantModalOpen(true);
                         }}
-                        className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 shrink-0 self-start sm:self-center"
+                        className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
                       >
                         <UserPlus size={14} /> Tambah Peserta
                       </button>
@@ -8155,20 +8263,28 @@ export default function AdminDashboard() {
                   )}
 
                   {/* Program Pelatihan & Status Section */}
-                  <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100 space-y-3">
-                    <p className="text-[10px] font-black text-emerald-900 uppercase tracking-wider">Pengaturan Program & Pembayaran</p>
+                  <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-emerald-900 uppercase tracking-wider">Pengaturan Program, Lokasi & Pembayaran</p>
+                      <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        ✨ Auto-Detect
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {/* Training Level */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Program Pelatihan</label>
+                      {/* Training Level / Activity Selection */}
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Program / Kegiatan Pelatihan *</label>
                         <select 
                           value={addParticipantForm.pelatihanAkanDiikuti}
-                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, pelatihanAkanDiikuti: e.target.value })}
-                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
+                          onChange={(e) => handleAddParticipantTrainingChange(e.target.value)}
+                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800 focus:ring-2 focus:ring-emerald-400"
                         >
-                          <option value="Jati 1">Jati 1 (Jaya Melati 1)</option>
-                          <option value="Jati 2">Jati 2 (Jaya Melati 2)</option>
-                          <option value="Jari 1">Jari 1 (Jaya Matahari 1)</option>
+                          {getAvailableTrainingOptions().map(opt => (
+                            <option key={opt.id} value={opt.name}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -8188,37 +8304,82 @@ export default function AdminDashboard() {
 
                       {/* Lokasi Pelatihan */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Lokasi Pelatihan</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Lokasi Pelatihan / Tempat</label>
+                          {addParticipantForm.lokasiPelatihan && (
+                            <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
+                          )}
+                        </div>
                         <input 
                           type="text"
+                          list="add-participant-locations-list"
                           value={addParticipantForm.lokasiPelatihan}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, lokasiPelatihan: e.target.value })}
-                          placeholder="Lokasi..."
+                          placeholder="misal: Pusdiklat HW Jateng..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
                         />
+                        <datalist id="add-participant-locations-list">
+                          {(settings.trainingLocations || ['Pusdiklat HW Jateng']).map((loc: string, idx: number) => (
+                            <option key={idx} value={loc} />
+                          ))}
+                          {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                            act.lokasiPelatihan ? <option key={`act-loc-${idx}`} value={act.lokasiPelatihan} /> : null
+                          ))}
+                        </datalist>
                       </div>
 
                       {/* Tanggal Pelatihan */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Tanggal Pelatihan</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Tanggal / Jadwal Pelatihan</label>
+                          {addParticipantForm.tanggalPelatihan && (
+                            <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
+                          )}
+                        </div>
                         <input 
                           type="text"
+                          list="add-participant-dates-list"
                           value={addParticipantForm.tanggalPelatihan}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalPelatihan: e.target.value })}
-                          placeholder="Jadwal..."
+                          placeholder="misal: 15-18 Agustus 2026..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
                         />
+                        <datalist id="add-participant-dates-list">
+                          {(settings.trainingDates || ['Jadwal Reguler']).map((dt: string, idx: number) => (
+                            <option key={idx} value={dt} />
+                          ))}
+                          {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                            act.tanggalPelatihan ? <option key={`act-dt-${idx}`} value={act.tanggalPelatihan} /> : null
+                          ))}
+                        </datalist>
                       </div>
 
                       {/* Biaya Pelatihan */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                          {addParticipantForm.biayaPelatihan && (
+                            <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
+                          )}
+                        </div>
                         <input 
                           type="text"
+                          list="add-participant-fees-list"
                           value={addParticipantForm.biayaPelatihan}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, biayaPelatihan: e.target.value })}
+                          placeholder="misal: Rp 50.000..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
                         />
+                        <datalist id="add-participant-fees-list">
+                          <option value="Rp 50.000" />
+                          <option value="Rp 100.000" />
+                          <option value="Rp 150.000" />
+                          <option value="Rp 200.000" />
+                          <option value="Gratis" />
+                          {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                            act.biayaPelatihan ? <option key={`act-fee-${idx}`} value={act.biayaPelatihan} /> : null
+                          ))}
+                        </datalist>
                       </div>
 
                       {/* Status Pembayaran */}
@@ -8654,15 +8815,17 @@ export default function AdminDashboard() {
 
                     {/* Pelatihan Akan Diikuti */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Akan Diikuti</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Akan Diikuti *</label>
                       <select 
-                        value={editingTrainingApp.pelatihanAkanDiikuti || 'Jati 1'}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, pelatihanAkanDiikuti: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        value={editingTrainingApp.pelatihanAkanDiikuti || ''}
+                        onChange={(e) => handleEditParticipantTrainingChange(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
                       >
-                        <option value="Jati 1">Jati 1 (Jaya Melati 1)</option>
-                        <option value="Jati 2">Jati 2 (Jaya Melati 2)</option>
-                        <option value="Jari 1">Jari 1 (Jaya Matahari 1)</option>
+                        {getAvailableTrainingOptions().map(opt => (
+                          <option key={opt.id} value={opt.name}>
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -8693,26 +8856,44 @@ export default function AdminDashboard() {
 
                     {/* Lokasi Pelatihan */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lokasi Pelatihan</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lokasi Pelatihan / Tempat</label>
                       <input 
                         type="text"
+                        list="edit-participant-locations-list"
                         value={editingTrainingApp.lokasiPelatihan || ''}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, lokasiPelatihan: e.target.value })}
                         placeholder="misal: Pusdiklat HW Jateng..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
+                      <datalist id="edit-participant-locations-list">
+                        {(settings.trainingLocations || ['Pusdiklat HW Jateng']).map((loc: string, idx: number) => (
+                          <option key={idx} value={loc} />
+                        ))}
+                        {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                          act.lokasiPelatihan ? <option key={`act-loc-edit-${idx}`} value={act.lokasiPelatihan} /> : null
+                        ))}
+                      </datalist>
                     </div>
 
                     {/* Tanggal Pelatihan */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Pelatihan</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal / Jadwal Pelatihan</label>
                       <input 
                         type="text"
+                        list="edit-participant-dates-list"
                         value={editingTrainingApp.tanggalPelatihan || ''}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tanggalPelatihan: e.target.value })}
-                        placeholder="misal: 15-18 Agustus 2025..."
+                        placeholder="misal: 15-18 Agustus 2026..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
+                      <datalist id="edit-participant-dates-list">
+                        {(settings.trainingDates || ['Jadwal Reguler']).map((dt: string, idx: number) => (
+                          <option key={idx} value={dt} />
+                        ))}
+                        {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                          act.tanggalPelatihan ? <option key={`act-dt-edit-${idx}`} value={act.tanggalPelatihan} /> : null
+                        ))}
+                      </datalist>
                     </div>
 
                     {/* Biaya Pelatihan */}
@@ -8720,10 +8901,21 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
                       <input 
                         type="text"
+                        list="edit-participant-fees-list"
                         value={editingTrainingApp.biayaPelatihan || 'Rp 50.000'}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, biayaPelatihan: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
+                      <datalist id="edit-participant-fees-list">
+                        <option value="Rp 50.000" />
+                        <option value="Rp 100.000" />
+                        <option value="Rp 150.000" />
+                        <option value="Rp 200.000" />
+                        <option value="Gratis" />
+                        {(settings.trainingActivities || []).map((act: any, idx: number) => (
+                          act.biayaPelatihan ? <option key={`act-fee-edit-${idx}`} value={act.biayaPelatihan} /> : null
+                        ))}
+                      </datalist>
                     </div>
 
                     {/* Status Verifikasi / Approval */}
