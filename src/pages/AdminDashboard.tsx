@@ -4035,11 +4035,11 @@ export default function AdminDashboard() {
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
                           {ktaApps.filter(app => {
                             const matchSearch = 
-                              app.nama.toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-                            const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
+                              (app?.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                              (app?.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                              (app?.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                              (app?.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
+                            const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
                             return matchSearch && matchStatus;
                           }).length === 0 ? (
                             <tr>
@@ -4050,11 +4050,11 @@ export default function AdminDashboard() {
                           ) : (
                             ktaApps.filter(app => {
                               const matchSearch = 
-                                app.nama.toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-                              const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
+                                (app?.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                                (app?.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                                (app?.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
+                                (app?.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
+                              const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
                               return matchSearch && matchStatus;
                             }).map((app) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
@@ -4725,10 +4725,10 @@ export default function AdminDashboard() {
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                           {trainingApps.filter(app => {
                             const matchSearch = 
-                              app.nama.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                              (app.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                              (app.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-                            const matchStatus = trainingFilterStatus === 'Semua' || app.status === trainingFilterStatus;
+                              (app?.nama || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                              (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                              (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
+                            const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
                             return matchSearch && matchStatus;
                           }).length === 0 ? (
                             <tr>
@@ -4739,10 +4739,10 @@ export default function AdminDashboard() {
                           ) : (
                             trainingApps.filter(app => {
                               const matchSearch = 
-                                app.nama.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                                (app.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                                (app.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-                              const matchStatus = trainingFilterStatus === 'Semua' || app.status === trainingFilterStatus;
+                                (app?.nama || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                                (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                                (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
+                              const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
                               return matchSearch && matchStatus;
                             }).map((app) => (
                               <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
