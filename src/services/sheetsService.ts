@@ -1080,7 +1080,7 @@ export const sheetsService = {
 
     try {
       if (IS_API_VALID) {
-        await this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark }).catch(() => {});
+        this.post({ action: 'updateKTAStatus', id, status, ktaNumber, remark }).catch(e => console.warn('Background updateKTAStatus post error:', e));
       }
     } catch (e) {
       console.warn('Sheets API updateKTAStatus warning:', e);
@@ -1167,11 +1167,7 @@ export const sheetsService = {
   async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', param3?: string, param4?: string): Promise<any> {
     const remark = param3 || param4;
     if (IS_API_VALID) {
-      try {
-        await this.post({ action: 'updateTrainingStatus', id, status, remark }).catch(() => {});
-      } catch (e) {
-        console.warn('updateTrainingStatus API warning:', e);
-      }
+      this.post({ action: 'updateTrainingStatus', id, status, remark }).catch(e => console.warn('Background updateTrainingStatus post error:', e));
     }
     if (status === 'deleted') {
       await firestoreService.deleteTrainingApplication(id);
@@ -1542,19 +1538,10 @@ export const sheetsService = {
   },
 
   async syncApprovedKtasToMembers(): Promise<any> {
-    if (this.isMock()) {
-      return await firestoreService.syncApprovedKtasToMembers();
+    if (IS_API_VALID) {
+      this.post({ action: 'syncApprovedKtasToMembers' }).catch(e => console.warn('Background syncApprovedKtasToMembers warning:', e));
     }
-    
-    try {
-      const res = await this.post({
-        action: 'syncApprovedKtasToMembers'
-      });
-      await firestoreService.syncApprovedKtasToMembers();
-      return res;
-    } catch (e) {
-      return await firestoreService.syncApprovedKtasToMembers();
-    }
+    return await firestoreService.syncApprovedKtasToMembers();
   },
 
   async backupNow(): Promise<any> {

@@ -519,14 +519,21 @@ export default function PelatihanPage() {
   const handleUpdateStatus = async (appId: string, status: 'approved' | 'rejected') => {
     if (!window.confirm(`Apakah Anda yakin ingin ${status === 'approved' ? 'menyetujui & memverifikasi' : 'menolak'} pendaftaran ini?`)) return;
     try {
-      setActionLoading(true);
-      await sheetsService.updateTrainingStatus(appId, status, status === 'approved' ? 'Pendaftaran disetujui oleh admin' : 'Pendaftaran ditolak');
+      // 1. Optimistic state updates
+      setApplications(prev => prev.map(a => String(a.id) === String(appId) ? { ...a, status } : a));
+      if (userApp && String(userApp.id) === String(appId)) {
+        setUserApp((prev: any) => ({ ...prev, status }));
+      }
       alert(`Pendaftaran berhasil ${status === 'approved' ? 'disetujui' : 'ditolak'}!`);
-      loadData();
+
+      // 2. Background sync
+      (async () => {
+        await sheetsService.updateTrainingStatus(appId, status, status === 'approved' ? 'Pendaftaran disetujui oleh admin' : 'Pendaftaran ditolak');
+        loadData();
+      })().catch(err => console.warn('Background update training status warning:', err));
+
     } catch (err: any) {
       alert('Gagal mengupdate status: ' + err.message);
-    } finally {
-      setActionLoading(false);
     }
   };
 

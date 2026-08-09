@@ -832,26 +832,56 @@ export default function AdminDashboard() {
 
   const handleApproveKTA = async (appId: string) => {
     try {
-      setLoading(true);
-      const res = await sheetsService.updateKTAStatus(appId, 'approved');
-      if (res.success || res.application) {
-        // Automatically synchronize approved KTAs to members so they enter the general member list immediately
+      const nowIso = new Date().toISOString();
+      const targetApp = ktaApps.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId)));
+      const fallbackKtaNum = targetApp?.nomorKTA || targetApp?.ktaNumber || `KTA-HW-${Date.now().toString().slice(-6)}`;
+
+      // 1. Optimistic instant local state update (0ms delay)
+      setKtaApps(prev => prev.map(k => {
+        if (String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId))) {
+          return {
+            ...k,
+            status: 'approved',
+            verifiedAt: nowIso,
+            nomorKTA: k.nomorKTA || k.ktaNumber || fallbackKtaNum,
+            ktaNumber: k.ktaNumber || k.nomorKTA || fallbackKtaNum
+          };
+        }
+        return k;
+      }));
+
+      if (targetApp) {
+        setMembers(prev => prev.map(m => {
+          if ((targetApp.userId && String(m.id) === String(targetApp.userId)) ||
+              (targetApp.email && m.email && m.email.trim().toLowerCase() === targetApp.email.trim().toLowerCase())) {
+            return {
+              ...m,
+              isVerified: true,
+              statusKta: 'approved',
+              verifiedAt: nowIso
+            };
+          }
+          return m;
+        }));
+      }
+
+      alert('Pengajuan KTA berhasil disetujui!');
+
+      // 2. Perform backend synchronization non-blockingly in background
+      (async () => {
+        await sheetsService.updateKTAStatus(appId, 'approved');
         await sheetsService.syncApprovedKtasToMembers();
-        alert('Pengajuan KTA berhasil disetujui dan data otomatis masuk ke anggota umum!');
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
         ]);
-        setKtaApps(ktaData || []);
-        setMembers(membersData || []);
-      } else {
-        alert('Gagal menyetujui KTA : ' + (res.message || 'Respons tidak valid'));
-      }
+        if (ktaData?.length) setKtaApps(ktaData);
+        if (membersData?.length) setMembers(membersData);
+      })().catch(err => console.warn('Background KTA approve sync warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal menyetujui KTA: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -864,28 +894,30 @@ export default function AdminDashboard() {
   const handleRejectKTA = async () => {
     if (!rejectId) return;
     try {
-      setLoading(true);
-      const res = await sheetsService.updateKTAStatus(rejectId, 'rejected', rejectReason);
-      if (res.success || res.application) {
-        alert('Pengajuan KTA berhasil ditolak.');
-        setIsRejectModalOpen(false);
-        setRejectId(null);
-        setRejectReason('');
-        setKtaApps(prev => prev.map(k => String(k.id) === String(rejectId) ? { ...k, status: 'rejected', remark: rejectReason } : k));
+      const curId = rejectId;
+      const curReason = rejectReason;
+
+      // 1. Optimistic update
+      setKtaApps(prev => prev.map(k => String(k.id) === String(curId) ? { ...k, status: 'rejected', remark: curReason } : k));
+      setIsRejectModalOpen(false);
+      setRejectId(null);
+      setRejectReason('');
+      alert('Pengajuan KTA berhasil ditolak.');
+
+      // 2. Background sync
+      (async () => {
+        await sheetsService.updateKTAStatus(curId, 'rejected', curReason);
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
         ]);
-        setKtaApps(ktaData || []);
-        setMembers(membersData || []);
-      } else {
-        alert('Gagal menolak KTA: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (ktaData?.length) setKtaApps(ktaData);
+        if (membersData?.length) setMembers(membersData);
+      })().catch(err => console.warn('Background KTA reject sync warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal menolak KTA: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -893,46 +925,45 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingKtaApp) return;
     try {
-      setLoading(true);
-      const res = await sheetsService.saveKTAApplication(editingKtaApp);
+      const appToSave = { ...editingKtaApp };
 
-      // Sync to matching Member profile
-      if (editingKtaApp.email || editingKtaApp.userId) {
-        const matchingMember = members.find(m => 
-          (editingKtaApp.userId && m.id === editingKtaApp.userId) || 
-          (m.email && editingKtaApp.email && m.email.toLowerCase().trim() === editingKtaApp.email.toLowerCase().trim())
-        );
-        if (matchingMember) {
-          const updatedMember = {
-            ...matchingMember,
-            ...(editingKtaApp.photo ? { photo: editingKtaApp.photo } : {}),
-            ...(editingKtaApp.nama ? { namaLengkap: editingKtaApp.nama } : {}),
-            ...(editingKtaApp.noWa ? { noHp: editingKtaApp.noWa } : {}),
-            ...(editingKtaApp.asalDaerah ? { asalKwarda: editingKtaApp.asalDaerah } : {}),
-            ...(editingKtaApp.qabilah ? { qabilah: editingKtaApp.qabilah } : {})
-          };
-          await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+      // 1. Optimistic update
+      setKtaApps(prev => prev.map(k => String(k.id) === String(appToSave.id) ? appToSave : k));
+      setIsEditKtaModalOpen(false);
+      setEditingKtaApp(null);
+      alert('Data KTA berhasil diperbarui!');
+
+      // 2. Background save & sync
+      (async () => {
+        await sheetsService.saveKTAApplication(appToSave);
+        if (appToSave.email || appToSave.userId) {
+          const matchingMember = members.find(m => 
+            (appToSave.userId && m.id === appToSave.userId) || 
+            (m.email && appToSave.email && m.email.toLowerCase().trim() === appToSave.email.toLowerCase().trim())
+          );
+          if (matchingMember) {
+            const updatedMember = {
+              ...matchingMember,
+              ...(appToSave.photo ? { photo: appToSave.photo } : {}),
+              ...(appToSave.nama ? { namaLengkap: appToSave.nama } : {}),
+              ...(appToSave.noWa ? { noHp: appToSave.noWa } : {}),
+              ...(appToSave.asalDaerah ? { asalKwarda: appToSave.asalDaerah } : {}),
+              ...(appToSave.qabilah ? { qabilah: appToSave.qabilah } : {})
+            };
+            await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+          }
         }
-      }
-
-      if (res.success || res.application) {
-        alert('Data KTA berhasil diperbarui!');
-        setIsEditKtaModalOpen(false);
-        setEditingKtaApp(null);
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
         ]);
-        setKtaApps(ktaData || []);
-        setMembers(membersData || []);
-      } else {
-        alert('Gagal memperbarui data KTA: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (ktaData?.length) setKtaApps(ktaData);
+        if (membersData?.length) setMembers(membersData);
+      })().catch(err => console.warn('Background edit KTA sync warning:', err));
+
     } catch (err: any) {
       console.error(err);
       alert('Gagal memperbarui data KTA: ' + (err.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1065,22 +1096,24 @@ export default function AdminDashboard() {
   const handleRejectMember = async (m: any) => {
     if (!window.confirm(`Apakah Anda yakin ingin menolak & menghapus pendaftaran anggota ${m.namaLengkap || 'ini'}?`)) return;
     try {
-      setLoading(true);
-      await sheetsService.deleteMember(m.id);
+      // 1. Optimistic instant local removal
+      setMembers(prev => prev.filter(mem => mem.id !== m.id));
       alert(`Pendaftaran ${m.namaLengkap || 'Anggota'} telah ditolak & dihapus dari antrean.`);
-      const refreshed = await sheetsService.getMembers();
-      setMembers(refreshed || []);
+
+      // 2. Background delete & refresh
+      (async () => {
+        await sheetsService.deleteMember(m.id);
+        const refreshed = await sheetsService.getMembers();
+        if (refreshed?.length) setMembers(refreshed);
+      })().catch(err => console.warn('Background delete member warning:', err));
     } catch (err: any) {
       console.error(err);
       alert('Gagal menolak pendaftaran: ' + (err.message || 'Error'));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleApproveUpgrade = async (m: any, roleToApprove: string) => {
     try {
-      setLoading(true);
       let currentRoles: string[] = [];
       if (Array.isArray(m.roles)) {
         currentRoles = [...m.roles];
@@ -1101,90 +1134,117 @@ export default function AdminDashboard() {
         roles: currentRoles,
         upgradeRequests: remainingRequests
       };
-      await firestoreService.saveMember(updatedMember as User);
-      await firestoreService.updateMember(m.id, updatedMember);
-      await sheetsService.saveMember(updatedMember);
 
-      // Instantly update local members state
+      // 1. Instantly update local members state
       setMembers(prev => prev.map(mem => mem.id === m.id ? updatedMember : mem));
-
       alert(`Permohonan upgrade ${ROLE_LABELS[roleToApprove] || roleToApprove} untuk ${m.namaLengkap || 'Anggota'} berhasil disetujui!`);
-      const refreshed = await sheetsService.getMembers();
-      setMembers(refreshed || []);
+
+      // 2. Background save & refresh
+      (async () => {
+        await firestoreService.saveMember(updatedMember as User);
+        await firestoreService.updateMember(m.id, updatedMember);
+        await sheetsService.saveMember(updatedMember);
+        const refreshed = await sheetsService.getMembers();
+        if (refreshed?.length) setMembers(refreshed);
+      })().catch(err => console.warn('Background approve upgrade sync warning:', err));
+
     } catch (err: any) {
       console.error(err);
       alert('Gagal menyetujui upgrade: ' + (err.message || 'Error'));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleRejectUpgrade = async (m: any, roleToReject: string) => {
     try {
-      setLoading(true);
       const remainingRequests = (Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).filter((r: string) => r !== roleToReject);
       const updatedMember = {
         ...m,
         upgradeRequests: remainingRequests
       };
-      await firestoreService.saveMember(updatedMember as User);
-      await firestoreService.updateMember(m.id, updatedMember);
-      await sheetsService.saveMember(updatedMember);
 
-      // Instantly update local members state
+      // 1. Instantly update local members state
       setMembers(prev => prev.map(mem => mem.id === m.id ? updatedMember : mem));
-
       alert(`Permohonan upgrade ${ROLE_LABELS[roleToReject] || roleToReject} untuk ${m.namaLengkap || 'Anggota'} ditolak.`);
-      const refreshed = await sheetsService.getMembers();
-      setMembers(refreshed || []);
+
+      // 2. Background save
+      (async () => {
+        await firestoreService.saveMember(updatedMember as User);
+        await firestoreService.updateMember(m.id, updatedMember);
+        await sheetsService.saveMember(updatedMember);
+        const refreshed = await sheetsService.getMembers();
+        if (refreshed?.length) setMembers(refreshed);
+      })().catch(err => console.warn('Background reject upgrade sync warning:', err));
+
     } catch (err: any) {
       console.error(err);
       alert('Gagal menolak upgrade: ' + (err.message || 'Error'));
-    } finally {
-      setLoading(false);
     }
   };
 
   // Training App Handlers
   const handleApproveTraining = async (appId: string) => {
     try {
-      setLoading(true);
-      const res = await sheetsService.updateTrainingStatus(appId, 'approved');
-      if (res.success || res.application) {
-        alert('Pendaftaran pelatihan berhasil disetujui!');
+      // 1. Optimistic local update
+      setTrainingApps(prev => prev.map(t => {
+        if (String(t.id) === String(appId)) {
+          return {
+            ...t,
+            status: 'approved',
+            statusPembayaran: 'Lunas'
+          };
+        }
+        return t;
+      }));
+
+      const targetApp = trainingApps.find(t => String(t.id) === String(appId));
+      if (targetApp) {
+        setMembers(prev => prev.map(m => {
+          if ((targetApp.userId && String(m.id) === String(targetApp.userId)) ||
+              (targetApp.email && m.email && m.email.trim().toLowerCase() === targetApp.email.trim().toLowerCase())) {
+            return {
+              ...m,
+              isVerified: true
+            };
+          }
+          return m;
+        }));
+      }
+
+      alert('Pendaftaran pelatihan berhasil disetujui!');
+
+      // 2. Background save
+      (async () => {
+        await sheetsService.updateTrainingStatus(appId, 'approved');
         const [tApps, mData] = await Promise.all([
           sheetsService.getTrainingApplications(),
           sheetsService.getMembers()
         ]);
-        setTrainingApps(tApps || []);
-        setMembers(mData || []);
-      } else {
-        alert('Gagal menyetujui pendaftaran: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (tApps?.length) setTrainingApps(tApps);
+        if (mData?.length) setMembers(mData);
+      })().catch(err => console.warn('Background approve training sync warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal menyetujui pendaftaran: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handlePendingTraining = async (appId: string) => {
     try {
-      setLoading(true);
-      const res = await sheetsService.updateTrainingStatus(appId, 'pending');
-      if (res.success || res.application) {
-        alert('Status pendaftaran dikembalikan ke Menunggu!');
+      // 1. Optimistic update
+      setTrainingApps(prev => prev.map(t => String(t.id) === String(appId) ? { ...t, status: 'pending' } : t));
+      alert('Status pendaftaran dikembalikan ke Menunggu!');
+
+      // 2. Background sync
+      (async () => {
+        await sheetsService.updateTrainingStatus(appId, 'pending');
         const tApps = await sheetsService.getTrainingApplications();
-        setTrainingApps(tApps || []);
-      } else {
-        alert('Gagal mengubah status pendaftaran ke Menunggu: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (tApps?.length) setTrainingApps(tApps);
+      })().catch(err => console.warn('Background pending training sync warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal mengubah status pendaftaran ke Menunggu: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1192,46 +1252,51 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingTrainingApp) return;
     try {
-      setLoading(true);
-      const res = await sheetsService.saveTrainingApplicationAndSyncMember(editingTrainingApp);
-      if (res.success || res.application) {
-        alert('Data peserta pelatihan dan data anggota berhasil diperbarui!');
-        setIsEditTrainingModalOpen(false);
-        setEditingTrainingApp(null);
+      const appToSave = { ...editingTrainingApp };
+
+      // 1. Optimistic update
+      setTrainingApps(prev => prev.map(t => String(t.id) === String(appToSave.id) ? appToSave : t));
+      setIsEditTrainingModalOpen(false);
+      setEditingTrainingApp(null);
+      alert('Data peserta pelatihan dan data anggota berhasil diperbarui!');
+
+      // 2. Background save
+      (async () => {
+        await sheetsService.saveTrainingApplicationAndSyncMember(appToSave);
         const [tApps, mData] = await Promise.all([
           sheetsService.getTrainingApplications(),
           sheetsService.getMembers()
         ]);
-        setTrainingApps(tApps || []);
-        setMembers(mData || []);
-      } else {
-        alert('Gagal menyimpan data: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (tApps?.length) setTrainingApps(tApps);
+        if (mData?.length) setMembers(mData);
+      })().catch(err => console.warn('Background save training edit sync warning:', err));
+
     } catch (err: any) {
       console.error(err);
       alert('Gagal menyimpan data: ' + (err.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleSaveSchedule = async (appId: string) => {
     try {
-      setLoading(true);
-      const res = await sheetsService.updateTrainingSchedule(appId, editLokasi, editTanggal);
-      if (res.success || res.application) {
-        alert('Jadwal dan lokasi pelatihan berhasil diperbarui!');
-        setEditingScheduleAppId(null);
+      const targetLokasi = editLokasi;
+      const targetTanggal = editTanggal;
+
+      // Optimistic update
+      setTrainingApps(prev => prev.map(t => String(t.id) === String(appId) ? { ...t, lokasiPelatihan: targetLokasi, tanggalPelatihan: targetTanggal } : t));
+      setEditingScheduleAppId(null);
+      alert('Jadwal dan lokasi pelatihan berhasil diperbarui!');
+
+      // Background save
+      (async () => {
+        await sheetsService.updateTrainingSchedule(appId, targetLokasi, targetTanggal);
         const tApps = await sheetsService.getTrainingApplications();
-        setTrainingApps(tApps || []);
-      } else {
-        alert('Gagal memperbarui jadwal: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (tApps?.length) setTrainingApps(tApps);
+      })().catch(err => console.warn('Background save schedule warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal memperbarui jadwal: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1244,24 +1309,26 @@ export default function AdminDashboard() {
   const handleRejectTraining = async () => {
     if (!trainingRejectId) return;
     try {
-      setLoading(true);
-      const res = await sheetsService.updateTrainingStatus(trainingRejectId, 'rejected', trainingRejectReason);
-      if (res.success || res.application) {
-        alert('Pendaftaran pelatihan berhasil ditolak.');
-        setIsTrainingRejectModalOpen(false);
-        setTrainingRejectId(null);
-        setTrainingRejectReason('');
-        setTrainingApps(prev => prev.map(t => String(t.id) === String(trainingRejectId) ? { ...t, status: 'rejected', remark: trainingRejectReason } : t));
+      const curId = trainingRejectId;
+      const curReason = trainingRejectReason;
+
+      // 1. Optimistic update
+      setTrainingApps(prev => prev.map(t => String(t.id) === String(curId) ? { ...t, status: 'rejected', remark: curReason } : t));
+      setIsTrainingRejectModalOpen(false);
+      setTrainingRejectId(null);
+      setTrainingRejectReason('');
+      alert('Pendaftaran pelatihan berhasil ditolak.');
+
+      // 2. Background sync
+      (async () => {
+        await sheetsService.updateTrainingStatus(curId, 'rejected', curReason);
         const tApps = await sheetsService.getTrainingApplications();
-        setTrainingApps(tApps || []);
-      } else {
-        alert('Gagal menolak pendaftaran: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (tApps?.length) setTrainingApps(tApps);
+      })().catch(err => console.warn('Background reject training sync warning:', err));
+
     } catch (e: any) {
       console.error(e);
       alert('Gagal menolak pendaftaran: ' + (e.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1967,7 +2034,6 @@ export default function AdminDashboard() {
     if (!member) return;
     
     try {
-      setLoading(true);
       const newVerified = !member.isVerified;
       const updated = { 
         ...member, 
@@ -1975,21 +2041,23 @@ export default function AdminDashboard() {
         statusAktivasi: newVerified ? 'Aktif' : (member.statusAktivasi || 'Belum Aktif'),
         statusPembayaran: newVerified ? 'Lunas' : (member.statusPembayaran || 'Belum Bayar')
       };
-      await firestoreService.saveMember(updated as User);
-      await firestoreService.updateMember(member.id, updated);
-      const res = await sheetsService.saveMember(updated);
-      if (res.success || !res.error) {
-        alert(`Status verifikasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
+
+      // 1. Instantly update local members state
+      setMembers(prev => prev.map(m => m.id === id ? updated : m));
+      alert(`Status verifikasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
+
+      // 2. Background save
+      (async () => {
+        await firestoreService.saveMember(updated as User);
+        await firestoreService.updateMember(member.id, updated);
+        await sheetsService.saveMember(updated);
         const data = await sheetsService.getMembers();
-        setMembers(data || []);
-      } else {
-        alert('Gagal mengubah status verifikasi: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (data?.length) setMembers(data);
+      })().catch(err => console.warn('Background verify sync warning:', err));
+
     } catch (error: any) {
       console.error(error);
       alert('Gagal mengubah status verifikasi: ' + (error.message || 'Error tidak diketahui'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1998,7 +2066,6 @@ export default function AdminDashboard() {
     if (!member) return;
     
     try {
-      setLoading(true);
       const isCurrentlyActive = member.statusAktivasi === 'Aktif' || member.statusPembayaran === 'Lunas';
       const newStatusAktivasi = isCurrentlyActive ? 'Belum Aktif' : 'Aktif';
       const newStatusPembayaran = isCurrentlyActive ? 'Belum Bayar' : 'Lunas';
@@ -2010,22 +2077,22 @@ export default function AdminDashboard() {
         isVerified: !isCurrentlyActive ? true : member.isVerified
       };
 
-      await firestoreService.saveMember(updated as User);
-      await firestoreService.updateMember(member.id, updated);
-      const res = await sheetsService.saveMember(updated);
+      // 1. Instantly update local members state
+      setMembers(prev => prev.map(m => m.id === id ? updated : m));
+      alert(`Status aktivasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${newStatusAktivasi.toUpperCase()}`);
 
-      if (res.success || !res.error) {
-        alert(`Status aktivasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${newStatusAktivasi.toUpperCase()}`);
+      // 2. Background save
+      (async () => {
+        await firestoreService.saveMember(updated as User);
+        await firestoreService.updateMember(member.id, updated);
+        await sheetsService.saveMember(updated);
         const data = await sheetsService.getMembers();
-        setMembers(data || []);
-      } else {
-        alert('Gagal mengubah status aktivasi: ' + (res.message || 'Respons tidak valid'));
-      }
+        if (data?.length) setMembers(data);
+      })().catch(err => console.warn('Background toggle activation sync warning:', err));
+
     } catch (error: any) {
       console.error(error);
       alert('Gagal mengubah status aktivasi: ' + (error.message || 'Error tidak diketahui'));
-    } finally {
-      setLoading(false);
     }
   };
 
