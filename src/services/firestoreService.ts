@@ -1700,16 +1700,20 @@ export const firestoreService = {
             const item = t as any;
             const name = (item.nama || item.namaLengkap || '').trim();
             if (!isValidName(name)) {
-              deleteDoc(doc(db, 'training_applications', t.id)).catch(() => {});
               continue;
             }
 
+            const nikStr = String(item.nik || '').trim();
+            const emailStr = String(item.email || '').toLowerCase().trim();
+            const waDigits = String(item.noWa || '').replace(/[^0-9]/g, '');
+
             const personKey = (
-              item.userId ? `id_${item.userId}` :
-              (item.nik && String(item.nik).trim()) ? `nik_${String(item.nik).trim()}` :
-              (item.email && String(item.email).trim()) ? `email_${String(item.email).toLowerCase().trim()}` :
-              (item.noWa && String(item.noWa).trim()) ? `wa_${String(item.noWa).replace(/[^0-9]/g, '')}` :
-              `name_${name.toLowerCase()}`
+              (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
+              (nikStr && nikStr !== '-' && nikStr.length >= 6) ? `nik_${nikStr}` :
+              (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
+              (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
+              (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
+              `app_${item.id || Date.now()}`
             );
             const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
             const compositeKey = `${personKey}___${progKey}`;
@@ -1723,26 +1727,15 @@ export const firestoreService = {
               const scoreExisting = statusScore(existing.status);
 
               if (scoreCurrent > scoreExisting) {
-                if (existing.id && existing.id !== t.id) duplicateDocIdsToDelete.push(existing.id);
                 map.set(compositeKey, t);
               } else if (scoreCurrent === scoreExisting) {
                 const currentRichness = (item.nik ? 2 : 0) + (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
                 const existingRichness = (existing.nik ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
                 if (currentRichness > existingRichness) {
-                  if (existing.id && existing.id !== t.id) duplicateDocIdsToDelete.push(existing.id);
                   map.set(compositeKey, t);
-                } else {
-                  if (item.id && item.id !== existing.id) duplicateDocIdsToDelete.push(item.id);
                 }
-              } else {
-                if (item.id && item.id !== existing.id) duplicateDocIdsToDelete.push(item.id);
               }
             }
-          }
-
-          // Purge duplicate docs in background
-          for (const dupId of duplicateDocIdsToDelete) {
-            if (dupId) deleteDoc(doc(db, 'training_applications', dupId)).catch(() => {});
           }
 
           const cleanTrainings = Array.from(map.values());

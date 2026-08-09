@@ -569,12 +569,17 @@ export default function AdminDashboard() {
       const name = (app.nama || app.namaLengkap || '').trim();
       if (!isValidName(name)) continue;
 
+      const nikStr = String(app.nik || '').trim();
+      const emailStr = String(app.email || '').toLowerCase().trim();
+      const waDigits = String(app.noWa || '').replace(/[^0-9]/g, '');
+
       const personKey = (
-        app.userId ? `id_${app.userId}` :
-        (app.nik && String(app.nik).trim()) ? `nik_${String(app.nik).trim()}` :
-        (app.email && String(app.email).trim()) ? `email_${String(app.email).toLowerCase().trim()}` :
-        (app.noWa && String(app.noWa).trim()) ? `wa_${String(app.noWa).replace(/[^0-9]/g, '')}` :
-        `name_${name.toLowerCase()}`
+        (app.userId && String(app.userId).trim()) ? `id_${String(app.userId).trim()}` :
+        (nikStr && nikStr !== '-' && nikStr.length >= 6) ? `nik_${nikStr}` :
+        (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
+        (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
+        (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
+        `app_${app.id || Date.now()}`
       );
       const progKey = (app.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
       const compositeKey = `${personKey}___${progKey}`;
@@ -892,16 +897,55 @@ export default function AdminDashboard() {
 
       const res = await sheetsService.saveTrainingApplicationAndSyncMember(payload);
       if (res.success || res.application || res.id) {
+        const savedApp = res.application || payload;
+        
+        // Optimistic UI update so table immediately reflects the newly added participant
+        setTrainingApps(prev => {
+          const filtered = prev.filter(x => x && x.id !== savedApp.id);
+          return [savedApp, ...filtered];
+        });
+
         alert('Berhasil mendaftarkan peserta ke pelatihan!');
         setIsAddParticipantModalOpen(false);
         setAddParticipantSelectedMemberId('');
-        // Reload training applications & members
-        const [tData, mData] = await Promise.all([
-          sheetsService.getTrainingApplications(),
-          sheetsService.getMembers()
-        ]);
-        setTrainingApps(tData || []);
-        setMembers(mData || []);
+        setAddParticipantForm({
+          nama: '', nik: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+          jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
+          pelatihanAkanDiikuti: 'Jaya Melati 1',
+          pelatihGolongan: 'Tunas Athfal',
+          golonganAnggota: 'Pengenal',
+          lokasiPelatihan: '',
+          tanggalPelatihan: '',
+          biayaPelatihan: '',
+          rekeningPembiayaan: '',
+          status: 'approved',
+          statusPembayaran: 'Lunas'
+        });
+
+        // Background sync to pull latest state
+        try {
+          const [tData, mData] = await Promise.all([
+            sheetsService.getTrainingApplications(),
+            sheetsService.getMembers()
+          ]);
+          if (tData && Array.isArray(tData)) {
+            setTrainingApps(prev => {
+              const map = new Map<string, any>();
+              map.set(savedApp.id, savedApp);
+              tData.forEach((item: any) => {
+                if (item && item.id && !map.has(item.id)) {
+                  map.set(item.id, item);
+                }
+              });
+              return Array.from(map.values());
+            });
+          }
+          if (mData && Array.isArray(mData)) {
+            setMembers(mData);
+          }
+        } catch (e) {
+          console.warn('Background sync error after adding participant:', e);
+        }
       } else {
         alert(res.message || 'Gagal mendaftarkan peserta.');
       }

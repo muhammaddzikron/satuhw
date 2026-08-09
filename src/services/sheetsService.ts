@@ -1056,6 +1056,24 @@ export const sheetsService = {
             golongan: appData.golonganAnggota || m.golongan
           };
           await firestoreService.saveMember(updated);
+        } else if (appData.nama && appData.nama.trim()) {
+          const newMember: any = {
+            id: userId || `user-manual-${Date.now()}`,
+            namaLengkap: appData.nama.trim(),
+            email: appData.email || '',
+            noHp: appData.noWa || '',
+            nik: appData.nik || '',
+            nbm: appData.nbm || '',
+            tempatLahir: appData.tempatLahir || '',
+            tanggalLahir: appData.tanggalLahir || '',
+            jenisKelamin: appData.jenisKelamin || 'L',
+            qabilah: appData.qabilah || '',
+            asalKwarda: appData.asalDaerah || '',
+            golongan: appData.golonganAnggota || 'Pengenal',
+            statusKTA: 'Diproses',
+            createdAt: new Date().toISOString()
+          };
+          await firestoreService.saveMember(newMember);
         }
       } catch (err) {
         console.error('Error syncing member in Firestore:', err);
