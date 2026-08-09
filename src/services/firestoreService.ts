@@ -2143,6 +2143,89 @@ export const firestoreService = {
     }
   },
 
+  deduplicateActivityApps(rawApps: any[]): any[] {
+    if (!Array.isArray(rawApps)) return [];
+
+    let deletedIds: string[] = [];
+    try {
+      const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+      deletedIds = JSON.parse(delStr);
+    } catch (e) {}
+
+    const validApps = rawApps.filter(a => a && a.id && !deletedIds.includes(a.id));
+
+    const deduped: any[] = [];
+
+    for (const rawItem of validApps) {
+      let actId = rawItem.activityId || 'keg-silaturahmi-pelatih';
+      if (actId === 'keg-1' || actId === 'keg-silaturahmi-pelatih') {
+        actId = 'keg-silaturahmi-pelatih';
+      }
+
+      const itemNama = (rawItem.namaLengkap || rawItem.nama || 'Anggota HW').trim();
+      const itemEmail = (rawItem.email || '').trim().toLowerCase();
+      const itemPhone = String(rawItem.noHp || rawItem.noWa || '').replace(/[^0-9]/g, '');
+      const itemUserId = (rawItem.userId && !rawItem.userId.includes('user-act-') && !rawItem.userId.includes('user-manual-')) ? String(rawItem.userId).trim() : '';
+
+      const normalizedItem = {
+        ...rawItem,
+        activityId: actId,
+        namaKegiatan: (actId === 'keg-silaturahmi-pelatih')
+          ? 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+          : (rawItem.namaKegiatan || 'Kegiatan HW Jateng'),
+        namaLengkap: itemNama,
+        email: rawItem.email || '',
+        noHp: rawItem.noHp || rawItem.noWa || '',
+        noWa: rawItem.noWa || rawItem.noHp || ''
+      };
+
+      // Check if this item matches an existing entry in deduped for the same activity
+      const existingIdx = deduped.findIndex(ex => {
+        if (ex.activityId !== actId) return false;
+
+        if (ex.id === normalizedItem.id) return true;
+
+        const exNama = (ex.namaLengkap || ex.nama || '').trim().toLowerCase();
+        const exEmail = (ex.email || '').trim().toLowerCase();
+        const exPhone = String(ex.noHp || ex.noWa || '').replace(/[^0-9]/g, '');
+        const exUserId = (ex.userId && !ex.userId.includes('user-act-') && !ex.userId.includes('user-manual-')) ? String(ex.userId).trim() : '';
+
+        const normNama = itemNama.toLowerCase();
+
+        const matchUserId = itemUserId && exUserId && itemUserId === exUserId;
+        const matchEmail = itemEmail && exEmail && itemEmail === exEmail;
+        const matchPhone = itemPhone.length >= 8 && exPhone.length >= 8 && itemPhone === exPhone;
+        const matchName = normNama && exNama && normNama === exNama && (normNama !== 'anggota hw' && normNama !== 'peserta');
+
+        return Boolean(matchUserId || matchEmail || matchPhone || matchName);
+      });
+
+      if (existingIdx >= 0) {
+        const existing = deduped[existingIdx];
+        const isItemDefault = normalizedItem.id.startsWith('actreg-dzikron') || normalizedItem.id.startsWith('actreg-burhan') || normalizedItem.id.startsWith('actreg-jalu');
+
+        deduped[existingIdx] = {
+          ...existing,
+          ...normalizedItem,
+          id: (!isItemDefault) ? normalizedItem.id : existing.id,
+          userId: itemUserId || existing.userId || normalizedItem.userId,
+          namaLengkap: normalizedItem.namaLengkap || existing.namaLengkap,
+          email: itemEmail || existing.email || normalizedItem.email,
+          noHp: itemPhone || existing.noHp || normalizedItem.noHp,
+          unsur: (normalizedItem.unsur && normalizedItem.unsur !== '-') ? normalizedItem.unsur : existing.unsur,
+          utusan: (normalizedItem.utusan && normalizedItem.utusan !== '-') ? normalizedItem.utusan : existing.utusan,
+          jabatan: (normalizedItem.jabatan && normalizedItem.jabatan !== '-') ? normalizedItem.jabatan : existing.jabatan,
+          kategoriUndangan: (normalizedItem.kategoriUndangan && normalizedItem.kategoriUndangan !== '-') ? normalizedItem.kategoriUndangan : existing.kategoriUndangan,
+          tanggalDaftar: existing.tanggalDaftar || normalizedItem.tanggalDaftar || new Date().toISOString()
+        };
+      } else {
+        deduped.push(normalizedItem);
+      }
+    }
+
+    return deduped;
+  },
+
   subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
     const defaultApps = [
       {
@@ -2196,10 +2279,6 @@ export const firestoreService = {
         let fsApps: any[] = [];
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        } else {
-          defaultApps.forEach(def => {
-            setDoc(doc(db, 'activity_applications', def.id), cleanData(def), { merge: true }).catch(() => {});
-          });
         }
 
         let localApps: any[] = [];
@@ -2208,21 +2287,8 @@ export const firestoreService = {
           localApps = JSON.parse(stored);
         } catch (e) {}
 
-        const map = new Map<string, any>();
-        defaultApps.forEach(a => map.set(a.id, a));
-        localApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
-        fsApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
-
-        let list = Array.from(map.values()).map((a: any) => {
-          if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
-            return {
-              ...a,
-              activityId: 'keg-silaturahmi-pelatih',
-              namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
-            };
-          }
-          return a;
-        });
+        const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
+        const list = this.deduplicateActivityApps(mergedRaw);
 
         try {
           localStorage.setItem('activity_applications', JSON.stringify(list));
@@ -2485,28 +2551,50 @@ export const firestoreService = {
       }
     }
 
-    const map = new Map<string, any>();
-    defaultApps.forEach(a => map.set(a.id, a));
-    localApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
-    fsApps.forEach(a => { if (a && a.id) map.set(a.id, a); });
-
-    let list = Array.from(map.values()).map((a: any) => {
-      if (a.activityId === 'keg-1' || a.activityId === 'keg-silaturahmi-pelatih' || !a.activityId) {
-        return {
-          ...a,
-          activityId: 'keg-silaturahmi-pelatih',
-          namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
-        };
-      }
-      return a;
-    });
+    const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
+    const list = this.deduplicateActivityApps(mergedRaw);
 
     localStorage.setItem('activity_applications', JSON.stringify(list));
     return list;
   },
 
   async registerActivity(appData: any): Promise<any> {
-    const regId = appData.id || `actreg-${Date.now()}`;
+    let regId = appData.id;
+
+    // Check if participant already exists in current list for this activity to prevent duplicate IDs
+    try {
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      const localApps: any[] = JSON.parse(stored);
+      const actId = appData.activityId || 'keg-silaturahmi-pelatih';
+      const cleanEmail = (appData.email || '').trim().toLowerCase();
+      const cleanPhone = String(appData.noHp || appData.noWa || '').replace(/[^0-9]/g, '');
+      const cleanName = (appData.namaLengkap || appData.nama || '').trim().toLowerCase();
+
+      const existing = localApps.find((a: any) => {
+        if (!a) return false;
+        const aActId = a.activityId || 'keg-silaturahmi-pelatih';
+        if (aActId !== actId) return false;
+
+        const aEmail = (a.email || '').trim().toLowerCase();
+        const aPhone = String(a.noHp || a.noWa || '').replace(/[^0-9]/g, '');
+        const aName = (a.namaLengkap || a.nama || '').trim().toLowerCase();
+
+        return (
+          (cleanEmail && aEmail && cleanEmail === aEmail) ||
+          (cleanPhone.length >= 8 && aPhone.length >= 8 && cleanPhone === aPhone) ||
+          (cleanName && aName && cleanName === aName && cleanName !== 'anggota hw')
+        );
+      });
+
+      if (existing && existing.id) {
+        regId = existing.id;
+      }
+    } catch (e) {}
+
+    if (!regId) {
+      regId = `actreg-${Date.now()}`;
+    }
+
     const cleanReg = cleanData({
       ...appData,
       id: regId,
@@ -2516,14 +2604,15 @@ export const firestoreService = {
 
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
-      const localApps = JSON.parse(stored);
+      const localApps: any[] = JSON.parse(stored);
       const idx = localApps.findIndex((a: any) => a.id === regId);
       if (idx >= 0) {
         localApps[idx] = cleanReg;
       } else {
         localApps.unshift(cleanReg);
       }
-      localStorage.setItem('activity_applications', JSON.stringify(localApps));
+      const dedupedLocal = this.deduplicateActivityApps(localApps);
+      localStorage.setItem('activity_applications', JSON.stringify(dedupedLocal));
     } catch (e) {}
 
     if (!this.getIsQuotaExceeded()) {
