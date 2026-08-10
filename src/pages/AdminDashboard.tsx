@@ -4854,7 +4854,7 @@ export default function AdminDashboard() {
                                 <td className="p-4">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                  <div className="text-[10px] text-gray-500">NBM: <span className="font-mono font-bold">{app.nbm || app.ktaNumber || app.nomorKTA || '-'}</span></div>
+                                  <div className="text-[10px] text-gray-500">No. KTA: <span className="font-mono font-bold">{app.nbm || app.ktaNumber || app.nomorKTA || '-'}</span></div>
                                   <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}</span></div>
                                   <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{(app.jenisKelamin === 'L' || app.jenisKelamin === 'Laki-Laki' || app.jenisKelamin === 'Laki-laki') ? 'Laki-Laki' : (app.jenisKelamin === 'P' || app.jenisKelamin === 'Perempuan') ? 'Perempuan' : (app.jenisKelamin || '-')}</span></div>
                                   <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
@@ -8195,7 +8195,7 @@ export default function AdminDashboard() {
                           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                           <input 
                             type="text" 
-                            placeholder="Ketik nama, email, NBM, atau WhatsApp..."
+                            placeholder="Ketik nama, email, No. KTA, atau WhatsApp..."
                             value={addParticipantSearchQuery}
                             onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
                             className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800" 
@@ -8228,7 +8228,7 @@ export default function AdminDashboard() {
                                 <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap || m.nama}</p>
                                 <p className="text-[10px] text-emerald-700 truncate">{m.email} | WA: {m.noHp || '-'}</p>
                                 <p className="text-[10px] font-medium text-emerald-800 mt-1">
-                                  NBM: <span className="font-bold">{dispNbm}</span> | TTL: <span className="font-bold">{dispTtl}</span> | JK: <span className="font-bold">{dispJk}</span>
+                                  No. KTA: <span className="font-bold">{dispNbm}</span> | TTL: <span className="font-bold">{dispTtl}</span> | JK: <span className="font-bold">{dispJk}</span>
                                 </p>
                                 <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
                                   Kwarda: {addParticipantForm.asalDaerah || m.asalKwarda || '-'} | Qabilah: {addParticipantForm.qabilah || m.qabilah || '-'}
@@ -8362,10 +8362,10 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NBM</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA</label>
                         <input
                           type="text"
-                          placeholder="NBM..."
+                          placeholder="Nomor KTA..."
                           value={addParticipantForm.nbm}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nbm: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
@@ -8910,14 +8910,14 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* NBM */}
+                    {/* Nomor KTA */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NBM (Nomor Baku Muhammadiyah)</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA / NBM</label>
                       <input 
                         type="text"
                         value={editingTrainingApp.nbm || ''}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nbm: e.target.value })}
-                        placeholder="NBM..."
+                        placeholder="Nomor KTA..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
                     </div>

@@ -1094,8 +1094,9 @@ export const sheetsService = {
   },
 
   async getTrainingApplications(): Promise<any[]> {
+    const fsTrainings = await firestoreService.getTrainingApplications();
     if (!IS_API_VALID) {
-      return await firestoreService.getTrainingApplications();
+      return fsTrainings;
     }
     try {
       const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
@@ -1106,12 +1107,20 @@ export const sheetsService = {
         })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
         
         apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
-        return apiTrainings;
+
+        const map = new Map<string, any>();
+        fsTrainings.forEach(t => {
+          if (t && t.id) map.set(t.id, t);
+        });
+        apiTrainings.forEach(t => {
+          if (t && t.id && !map.has(t.id)) map.set(t.id, t);
+        });
+        return Array.from(map.values());
       }
-      return await firestoreService.getTrainingApplications();
+      return fsTrainings;
     } catch (e) {
       console.warn('getTrainingApplications API error, falling back to Firestore:', (e as any)?.message || e);
-      return await firestoreService.getTrainingApplications();
+      return fsTrainings;
     }
   },
 

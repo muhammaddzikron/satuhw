@@ -1866,54 +1866,23 @@ export const firestoreService = {
 
   // --- TRAINING APPLICATIONS ---
   async getTrainingApplications(): Promise<any[]> {
+    let localStored: any[] = [];
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      localStored = JSON.parse(stored);
+      if (!Array.isArray(localStored)) localStored = [];
+    } catch (e) {
+      localStored = [];
+    }
+
+    let combined: any[] = [...localStored];
+
     if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
         if (!snap.empty) {
-          const rawTrainings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          const map = new Map<string, any>();
-          const duplicateDocIdsToDelete: string[] = [];
-
-          for (const t of rawTrainings) {
-            const item = t as any;
-            const name = (item.nama || item.namaLengkap || '').trim();
-            if (!isValidName(name)) {
-              continue;
-            }
-
-            const personKey = (
-              (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
-              (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
-              (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
-              (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
-              `app_${item.id || Date.now()}`
-            );
-            const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
-            const compositeKey = `${personKey}___${progKey}`;
-
-            if (!map.has(compositeKey)) {
-              map.set(compositeKey, t);
-            } else {
-              const existing = map.get(compositeKey);
-              const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
-              const scoreCurrent = statusScore(item.status);
-              const scoreExisting = statusScore(existing.status);
-
-              if (scoreCurrent > scoreExisting) {
-                map.set(compositeKey, t);
-              } else if (scoreCurrent === scoreExisting) {
-                const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
-                const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
-                if (currentRichness > existingRichness) {
-                  map.set(compositeKey, t);
-                }
-              }
-            }
-          }
-
-          const cleanTrainings = Array.from(map.values());
-          localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
-          return cleanTrainings;
+          const rawFs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          combined = [...rawFs, ...localStored];
         }
       } catch (err) {
         this.checkQuotaError(err);
@@ -1922,29 +1891,54 @@ export const firestoreService = {
         }
       }
     }
-    const stored = localStorage.getItem('training_applications') || '[]';
-    try {
-      const parsed = JSON.parse(stored);
-      const map = new Map<string, any>();
-      for (const t of parsed) {
-        if (!t || !isValidName(t.nama || t.namaLengkap)) continue;
-        const name = (t.nama || t.namaLengkap || '').trim();
-        const personKey = (
-          t.userId ? `id_${t.userId}` :
-          (t.email && String(t.email).trim()) ? `email_${String(t.email).toLowerCase().trim()}` :
-          (t.noWa && String(t.noWa).trim()) ? `wa_${String(t.noWa).replace(/[^0-9]/g, '')}` :
-          `name_${name.toLowerCase()}`
-        );
-        const progKey = (t.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
-        const compositeKey = `${personKey}___${progKey}`;
-        if (!map.has(compositeKey)) {
-          map.set(compositeKey, t);
+
+    const map = new Map<string, any>();
+    for (const t of combined) {
+      if (!t) continue;
+      const item = t as any;
+      const name = (item.nama || item.namaLengkap || '').trim();
+      if (!isValidName(name)) {
+        continue;
+      }
+
+      const emailStr = String(item.email || '').toLowerCase().trim();
+      const waDigits = String(item.noWa || item.noHp || '').replace(/[^0-9]/g, '');
+
+      const personKey = (
+        (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
+        (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
+        (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
+        (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
+        `app_${item.id || Date.now()}`
+      );
+      const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
+      const compositeKey = `${personKey}___${progKey}`;
+
+      if (!map.has(compositeKey)) {
+        map.set(compositeKey, item);
+      } else {
+        const existing = map.get(compositeKey);
+        const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
+        const scoreCurrent = statusScore(item.status);
+        const scoreExisting = statusScore(existing.status);
+
+        if (scoreCurrent > scoreExisting) {
+          map.set(compositeKey, item);
+        } else if (scoreCurrent === scoreExisting) {
+          const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
+          const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+          if (currentRichness > existingRichness) {
+            map.set(compositeKey, item);
+          }
         }
       }
-      return Array.from(map.values());
-    } catch (e) {
-      return [];
     }
+
+    const cleanTrainings = Array.from(map.values());
+    try {
+      localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
+    } catch (e) {}
+    return cleanTrainings;
   },
 
   async createTrainingApplication(appData: any): Promise<any> {
@@ -1954,6 +1948,16 @@ export const firestoreService = {
       status: appData.status || 'pending',
       tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
     });
+
+    // Save locally first so it's instantly persistent even before network finishes
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      const existing: any[] = JSON.parse(stored);
+      const filtered = Array.isArray(existing) ? existing.filter(x => x && x.id !== newApp.id) : [];
+      filtered.unshift(newApp);
+      localStorage.setItem('training_applications', JSON.stringify(filtered));
+    } catch (e) {}
+
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'training_applications', newApp.id), newApp);
@@ -1962,9 +1966,7 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore createTrainingApplication error:', err);
       }
     }
-    const list = await this.getTrainingApplications();
-    list.unshift(newApp);
-    localStorage.setItem('training_applications', JSON.stringify(list));
+
     return newApp;
   },
 
@@ -2447,7 +2449,16 @@ export const firestoreService = {
       deletedIds = JSON.parse(delStr);
     } catch (e) {}
 
-    const validApps = rawApps.filter(a => a && a.id && !deletedIds.includes(a.id));
+    const removedIds = ['actreg-suanda', 'actreg-danang', 'actreg-bayu', 'actreg-subagio'];
+    const removedNames = ['suanda gumelar', 'danang ari wibowo', 'bayu ghifari javalino', 'subagio joko suprapto'];
+
+    const validApps = rawApps.filter(a => {
+      if (!a || !a.id) return false;
+      if (deletedIds.includes(a.id) || removedIds.includes(a.id)) return false;
+      const name = String(a.namaLengkap || a.nama || '').trim().toLowerCase();
+      if (removedNames.includes(name)) return false;
+      return true;
+    });
 
     const deduped: any[] = [];
 
@@ -2597,66 +2608,6 @@ export const firestoreService = {
         noHp: '085169772703',
         status: 'approved',
         tanggalDaftar: '2026-08-05T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-suanda',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-suanda',
-        namaLengkap: 'Suanda Gumelar',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Banyumas',
-        asalKwarda: 'Kabupaten Banyumas',
-        jabatan: 'Anggota',
-        kategoriUndangan: 'Pandu Senior HW Jateng',
-        noHp: '081327111222',
-        status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-danang',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-danang',
-        namaLengkap: 'Danang Ari Wibowo',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Magelang',
-        asalKwarda: 'Kabupaten Magelang',
-        jabatan: 'Anggota',
-        kategoriUndangan: 'Pelatih Nasional HW Jateng',
-        noHp: '081227333444',
-        status: 'approved',
-        tanggalDaftar: '2026-08-07T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-bayu',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-bayu',
-        namaLengkap: 'Bayu Ghifari Javalino',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Banyumas',
-        asalKwarda: 'Kabupaten Banyumas',
-        jabatan: 'Anggota',
-        kategoriUndangan: 'Pandu Senior HW Jateng',
-        noHp: '081234567890',
-        status: 'approved',
-        tanggalDaftar: '2026-08-08T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-subagio',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-subagio',
-        namaLengkap: 'Subagio Joko Suprapto',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Kebumen',
-        asalKwarda: 'Kabupaten Kebumen',
-        jabatan: 'Anggota',
-        kategoriUndangan: 'Pandu Senior HW Jateng',
-        noHp: '081567890123',
-        status: 'approved',
-        tanggalDaftar: '2026-08-09T08:00:00.000Z'
       }
     ];
   },
