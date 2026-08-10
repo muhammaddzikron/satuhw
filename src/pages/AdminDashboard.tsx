@@ -1535,14 +1535,14 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteActivity = async (id: string) => {
+  const handleDeleteActivity = async (id: string, title?: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) return;
     try {
       setLoading(true);
-      await sheetsService.deleteActivity(id);
+      await sheetsService.deleteActivity(id, title);
 
       // Keep React settings state in sync
-      const filteredActs = (settings.trainingActivities || []).filter((a: any) => a.id !== id);
+      const filteredActs = (settings.trainingActivities || []).filter((a: any) => a.id !== id && (!title || (a.namaKegiatan || a.title) !== title));
       setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
 
       alert('Kegiatan berhasil dihapus dari Cloud Firestore');
@@ -5872,7 +5872,7 @@ export default function AdminDashboard() {
                                         try {
                                           setLoading(true);
                                           await sheetsService.saveSettings(updatedSettings);
-                                          if (act.id) await sheetsService.deleteActivity(act.id);
+                                          await sheetsService.deleteActivity(act.id || '', act.namaKegiatan || act.title || act.jenisPelatihan);
                                           alert('Kegiatan berhasil dihapus dari cloud!');
                                         } catch (e: any) {
                                           alert('Gagal menghapus kegiatan: ' + e.message);
@@ -6176,7 +6176,7 @@ export default function AdminDashboard() {
                                 <Edit size={14} /> Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteActivity(act.id)}
+                                onClick={() => handleDeleteActivity(act.id, act.namaKegiatan || act.title || act.jenisPelatihan)}
                                 className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                               >
                                 <Trash2 size={14} /> Hapus

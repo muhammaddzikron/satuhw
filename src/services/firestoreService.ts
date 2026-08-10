@@ -32,6 +32,24 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => 
 // Global session registry to prevent duplicate allocation within the same session context
 const sessionAllocatedKtaNumbers = new Set<string>();
 
+// Helper to check if an activity is marked as deleted by ID or Title
+function isActivityDeleted(act: any, deletedIds: string[] = [], deletedTitles: string[] = []): boolean {
+  if (!act) return true;
+  if (act.id && deletedIds.includes(act.id)) return true;
+
+  const title = (act.namaKegiatan || act.title || act.jenisPelatihan || '').trim().toLowerCase();
+  if (title) {
+    for (const dt of deletedTitles) {
+      if (!dt) continue;
+      const dtNorm = dt.trim().toLowerCase();
+      if (dtNorm && (title === dtNorm || title.includes(dtNorm) || dtNorm.includes(title))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
 const cleanData = <T extends Record<string, any>>(obj: T): T => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -2038,6 +2056,11 @@ export const firestoreService = {
         const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
         if (docSnap.exists()) {
           const settings = docSnap.data();
+          const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
+          const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
+          if (Array.isArray(settings.trainingActivities)) {
+            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+          }
           localStorage.setItem('hw_settings', JSON.stringify(settings));
           return settings;
         }
@@ -2047,7 +2070,17 @@ export const firestoreService = {
       }
     }
     const stored = localStorage.getItem('hw_settings');
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
+        const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
+        if (Array.isArray(parsed.trainingActivities)) {
+          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+        }
+        return parsed;
+      } catch (e) {}
+    }
     return {
       ktaPrefix: '11.',
       ktaCounter: 100,
@@ -2081,6 +2114,11 @@ export const firestoreService = {
         const unsub = onSnapshot(doc(db, 'settings', 'app_settings'), (snap) => {
           if (snap.exists()) {
             const settings = snap.data();
+            const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
+            const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
+            if (Array.isArray(settings.trainingActivities)) {
+              settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+            }
             localStorage.setItem('hw_settings', JSON.stringify(settings));
             callback(settings);
           }
@@ -2094,7 +2132,15 @@ export const firestoreService = {
     }
     const stored = localStorage.getItem('hw_settings');
     if (stored) {
-      try { callback(JSON.parse(stored)); } catch (e) {}
+      try {
+        const parsed = JSON.parse(stored);
+        const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
+        const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
+        if (Array.isArray(parsed.trainingActivities)) {
+          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+        }
+        callback(parsed);
+      } catch (e) {}
     }
     return () => {};
   },
@@ -2204,9 +2250,11 @@ export const firestoreService = {
     try {
       const unsub = onSnapshot(collection(db, 'hw_activities'), (snap) => {
         let deletedIds: string[] = [];
+        let deletedTitles: string[] = [];
         try {
           if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
             deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+            deletedTitles = JSON.parse(localStorage.getItem('hw_deleted_activity_titles') || '[]');
           }
         } catch (e) {}
 
@@ -2256,7 +2304,7 @@ export const firestoreService = {
         const map = new Map<string, any>();
 
         defaults.forEach(a => {
-          if (!deletedIds.includes(a.id)) {
+          if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
             if (snap.empty && localActs.length === 0) {
               map.set(a.id, a);
             } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
@@ -2266,14 +2314,14 @@ export const firestoreService = {
         });
 
         localActs.forEach(a => {
-          if (a && a.id && !deletedIds.includes(a.id)) {
+          if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
             const prev = map.get(a.id) || {};
             map.set(a.id, { ...prev, ...a });
           }
         });
 
         fsActs.forEach(a => {
-          if (a && a.id && !deletedIds.includes(a.id)) {
+          if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
             const prev = map.get(a.id) || {};
             const merged = { ...prev, ...a };
             const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
@@ -2293,7 +2341,7 @@ export const firestoreService = {
           }
         });
 
-        const list = Array.from(map.values()).filter(a => a && a.id && !deletedIds.includes(a.id));
+        const list = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
             localStorage.setItem('hw_activities', JSON.stringify(list));
@@ -2475,20 +2523,30 @@ export const firestoreService = {
   // --- KEGIATAN HW JATENG ---
   async getActivities(): Promise<any[]> {
     let deletedIds: string[] = [];
+    let deletedTitles: string[] = [];
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+        deletedTitles = JSON.parse(localStorage.getItem('hw_deleted_activity_titles') || '[]');
       }
     } catch (e) {}
 
     try {
       const s = await this.getSettings();
-      if (s && Array.isArray(s.deletedActivityIds)) {
-        s.deletedActivityIds.forEach((dId: string) => {
-          if (!deletedIds.includes(dId)) deletedIds.push(dId);
-        });
+      if (s) {
+        if (Array.isArray(s.deletedActivityIds)) {
+          s.deletedActivityIds.forEach((dId: string) => {
+            if (dId && !deletedIds.includes(dId)) deletedIds.push(dId);
+          });
+        }
+        if (Array.isArray(s.deletedActivityTitles)) {
+          s.deletedActivityTitles.forEach((dT: string) => {
+            if (dT && !deletedTitles.includes(dT)) deletedTitles.push(dT);
+          });
+        }
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+          localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
         }
       }
     } catch (e) {}
@@ -2576,7 +2634,7 @@ export const firestoreService = {
 
     const map = new Map<string, any>();
     defaults.forEach(a => {
-      if (!deletedIds.includes(a.id)) {
+      if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
         if (fsActs.length === 0 && localActs.length === 0) {
           map.set(a.id, a);
         } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
@@ -2586,14 +2644,14 @@ export const firestoreService = {
     });
 
     localActs.forEach(a => {
-      if (a && a.id && !deletedIds.includes(a.id)) {
+      if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
         const prev = map.get(a.id) || {};
         map.set(a.id, { ...prev, ...a });
       }
     });
 
     fsActs.forEach(a => {
-      if (a && a.id && !deletedIds.includes(a.id)) {
+      if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
         const prev = map.get(a.id) || {};
         const merged = { ...prev, ...a };
         const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
@@ -2613,7 +2671,7 @@ export const firestoreService = {
       }
     });
 
-    const result = Array.from(map.values()).filter(a => a && a.id && !deletedIds.includes(a.id));
+    const result = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem('hw_activities', JSON.stringify(result));
@@ -2624,14 +2682,21 @@ export const firestoreService = {
 
   async saveActivity(activityData: any): Promise<any> {
     const actId = activityData.id || `keg-${Date.now()}`;
+    const actTitle = (activityData.namaKegiatan || activityData.title || activityData.jenisPelatihan || '').trim();
     const nowIso = new Date().toISOString();
 
-    // Un-mark actId from deletedActivityIds if re-saving
+    // Un-mark actId and actTitle from deleted lists if re-saving/creating
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('hw_deleted_activities') || '[]';
         const deletedIds = JSON.parse(stored).filter((dId: string) => dId !== actId);
         localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+
+        if (actTitle) {
+          const storedTitles = localStorage.getItem('hw_deleted_activity_titles') || '[]';
+          const deletedTitles = JSON.parse(storedTitles).filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase());
+          localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
+        }
       }
     } catch (e) {}
 
@@ -2749,64 +2814,140 @@ export const firestoreService = {
       const currentSettings = await this.getSettings();
       const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
       const deletedIds = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds.filter((dId: string) => dId !== actId) : [];
+      const deletedTitles = Array.isArray(currentSettings.deletedActivityTitles) ? currentSettings.deletedActivityTitles.filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase()) : [];
       const actIdx = currentActs.findIndex((a: any) => a.id === actId);
       if (actIdx >= 0) {
         currentActs[actIdx] = { ...currentActs[actIdx], ...newAct };
       } else {
         currentActs.unshift(newAct);
       }
-      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs, deletedActivityIds: deletedIds });
+      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs, deletedActivityIds: deletedIds, deletedActivityTitles: deletedTitles });
     } catch (e) {}
 
     return newAct;
   },
 
-  async deleteActivity(id: string): Promise<boolean> {
-    if (!id) return true;
+  async deleteActivity(id: string, title?: string): Promise<boolean> {
+    if (!id && !title) return true;
 
-    // 1. Record in deleted IDs list in local storage
+    // 1. Record in deleted IDs & Titles lists
     let deletedIds: string[] = [];
+    let deletedTitles: string[] = [];
+
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
-        if (!deletedIds.includes(id)) {
-          deletedIds.push(id);
-          localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+        deletedTitles = JSON.parse(localStorage.getItem('hw_deleted_activity_titles') || '[]');
+      }
+    } catch (e) {}
+
+    let currentSettings: any = null;
+    try {
+      currentSettings = await this.getSettings();
+      if (currentSettings) {
+        if (Array.isArray(currentSettings.deletedActivityIds)) {
+          currentSettings.deletedActivityIds.forEach((dId: string) => {
+            if (dId && !deletedIds.includes(dId)) deletedIds.push(dId);
+          });
+        }
+        if (Array.isArray(currentSettings.deletedActivityTitles)) {
+          currentSettings.deletedActivityTitles.forEach((dT: string) => {
+            if (dT && !deletedTitles.includes(dT)) deletedTitles.push(dT);
+          });
         }
       }
     } catch (e) {}
 
-    // 2. Delete document from Firestore
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await withTimeout(deleteDoc(doc(db, 'hw_activities', id)), 8000);
-      } catch (err: any) {
-        this.checkQuotaError(err);
-        console.error('Firestore deleteActivity ERROR:', err);
-      }
+    if (id && !deletedIds.includes(id)) {
+      deletedIds.push(id);
     }
 
-    // 3. Clear local cache
+    const targetTitleNorm = (title || '').trim().toLowerCase();
+    if (targetTitleNorm && !deletedTitles.some(t => t.toLowerCase() === targetTitleNorm)) {
+      deletedTitles.push(title!.trim());
+    }
+
+    // Scan all known activities to find matching IDs & titles
+    let localActs: any[] = [];
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem('hw_activities') || '[]';
-        const localActs = JSON.parse(stored).filter((a: any) => a && a.id !== id);
-        localStorage.setItem('hw_activities', JSON.stringify(localActs));
+        localActs = JSON.parse(localStorage.getItem('hw_activities') || '[]');
       }
     } catch (e) {}
 
-    // 4. Update trainingActivities and deletedActivityIds in app_settings
+    let fsActs: any[] = [];
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await withTimeout(getDocs(collection(db, 'hw_activities')), 8000);
+        if (!snap.empty) {
+          fsActs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+      } catch (e) {}
+    }
+
+    const settingsActs = (currentSettings && Array.isArray(currentSettings.trainingActivities)) ? currentSettings.trainingActivities : [];
+    const allKnown = [...localActs, ...fsActs, ...settingsActs];
+    const docsToDeleteInFs = new Set<string>();
+    if (id) docsToDeleteInFs.add(id);
+
+    allKnown.forEach((act: any) => {
+      if (!act) return;
+      const actId = act.id;
+      const actTitle = (act.namaKegiatan || act.title || act.jenisPelatihan || '').trim();
+      const actTitleNorm = actTitle.toLowerCase();
+
+      const isIdMatch = id && actId === id;
+      const isTitleMatch = targetTitleNorm && (actTitleNorm === targetTitleNorm || actTitleNorm.includes(targetTitleNorm) || targetTitleNorm.includes(actTitleNorm));
+
+      if (isIdMatch || isTitleMatch) {
+        if (actId && !deletedIds.includes(actId)) {
+          deletedIds.push(actId);
+        }
+        if (actId) {
+          docsToDeleteInFs.add(actId);
+        }
+        if (actTitle && !deletedTitles.some(t => t.toLowerCase() === actTitleNorm)) {
+          deletedTitles.push(actTitle);
+        }
+      }
+    });
+
+    // Delete documents from Firestore hw_activities
+    if (!this.getIsQuotaExceeded()) {
+      for (const docId of Array.from(docsToDeleteInFs)) {
+        try {
+          await withTimeout(deleteDoc(doc(db, 'hw_activities', docId)), 8000);
+        } catch (err: any) {
+          this.checkQuotaError(err);
+          console.error(`Firestore deleteActivity docId ${docId} ERROR:`, err);
+        }
+      }
+    }
+
+    // Clear local cache
     try {
-      const currentSettings = await this.getSettings();
-      const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
-      const filteredActs = currentActs.filter((a: any) => a && a.id !== id);
-      const existingDeleted = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds : [];
-      const mergedDeleted = Array.from(new Set([...existingDeleted, ...deletedIds, id]));
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+        localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
+
+        const stored = localStorage.getItem('hw_activities') || '[]';
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((a: any) => !isActivityDeleted(a, deletedIds, deletedTitles));
+        localStorage.setItem('hw_activities', JSON.stringify(filtered));
+      }
+    } catch (e) {}
+
+    // Update trainingActivities, deletedActivityIds, and deletedActivityTitles in app_settings
+    try {
+      const s = currentSettings || (await this.getSettings());
+      const cActs = Array.isArray(s.trainingActivities) ? s.trainingActivities : [];
+      const fActs = cActs.filter((a: any) => !isActivityDeleted(a, deletedIds, deletedTitles));
 
       await this.saveSettings({
-        ...currentSettings,
-        trainingActivities: filteredActs,
-        deletedActivityIds: mergedDeleted
+        ...s,
+        trainingActivities: fActs,
+        deletedActivityIds: deletedIds,
+        deletedActivityTitles: deletedTitles
       });
     } catch (e) {}
 

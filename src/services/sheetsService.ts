@@ -1553,8 +1553,8 @@ export const sheetsService = {
     return await firestoreService.saveActivity(activityData);
   },
 
-  async deleteActivity(id: string): Promise<boolean> {
-    return await firestoreService.deleteActivity(id);
+  async deleteActivity(id: string, title?: string): Promise<boolean> {
+    return await firestoreService.deleteActivity(id, title);
   },
 
   async getActivityApplications(): Promise<any[]> {
