@@ -5779,7 +5779,11 @@ export default function AdminDashboard() {
                             lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
                             tanggalPelatihan: (settings.trainingDates || [])[0] || '',
                             status: 'Buka',
-                            deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah'
+                            deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
+                            biayaPelatihan: 'Rp 50.000',
+                            rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                            noWhatsappPanitia: '089688754000',
+                            proposalUrl: ''
                           });
                           setIsActivityModalOpen(true);
                         }}
@@ -5822,7 +5826,8 @@ export default function AdminDashboard() {
                                   deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
                                   biayaPelatihan: 'Rp 50.000',
                                   rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                                  noWhatsappPanitia: '089688754000'
+                                  noWhatsappPanitia: '089688754000',
+                                  proposalUrl: ''
                                 });
                                 setIsActivityModalOpen(true);
                               }}

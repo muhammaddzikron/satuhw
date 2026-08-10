@@ -46,7 +46,7 @@ export default function KegiatanPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
+  const isAdmin = Boolean(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
 
   const [activities, setActivities] = useState<any[]>([]);
   const [activityApps, setActivityApps] = useState<any[]>([]);
@@ -399,7 +399,12 @@ export default function KegiatanPage() {
                 penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
                 gambarUrl: '',
                 deskripsi: '',
-                status: 'Buka'
+                status: 'Buka',
+                themeSongUrl: '',
+                themeSongTitle: '',
+                proposalUrl: '',
+                rekeningPembayaran: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                konfirmasiPembayaran: '089688754000'
               });
               setIsAddActivityModalOpen(true);
             }}
@@ -667,8 +672,8 @@ export default function KegiatanPage() {
 
                 {/* Proposal Kegiatan Download */}
                 {(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) ? (
-                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <div className="p-2 bg-emerald-600 text-white rounded-xl">
                           <FileText size={18} />
@@ -689,6 +694,22 @@ export default function KegiatanPage() {
                         <Download size={14} /> Download Proposal
                       </button>
                     </div>
+
+                    {(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) && (
+                      <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px] gap-2 flex-wrap">
+                        <span className="font-extrabold text-emerald-900 flex items-center gap-1">
+                          <ExternalLink size={12} className="text-emerald-700" /> Link Proposal Google Drive:
+                        </span>
+                        <a
+                          href={formatDocumentUrl(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-700 hover:text-emerald-900 font-bold underline truncate max-w-[240px] sm:max-w-[320px]"
+                        >
+                          {selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ) : null}
 
