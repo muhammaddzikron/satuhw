@@ -1120,7 +1120,7 @@ export default function KegiatanPage() {
 
                       <div className="space-y-2.5">
                         {pendaftarList.map((app, idx) => {
-                          const waNum = (app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
+                          const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
                           const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
 
                           return (

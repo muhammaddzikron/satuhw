@@ -8255,7 +8255,7 @@ export default function AdminDashboard() {
                                     const matchingKta = ktaApps.find(k => 
                                       (k.userId && String(k.userId) === String(m.id)) ||
                                       (k.email && m.email && k.email.toLowerCase().trim() === m.email.toLowerCase().trim()) ||
-                                      (k.noWa && m.noHp && k.noWa.replace(/[^0-9]/g, '') === m.noHp.replace(/[^0-9]/g, '')) ||
+                                      (k.noWa && m.noHp && String(k.noWa).replace(/[^0-9]/g, '') === String(m.noHp).replace(/[^0-9]/g, '')) ||
                                       (k.nama && m.namaLengkap && k.nama.toLowerCase().trim() === m.namaLengkap.toLowerCase().trim())
                                     );
 
