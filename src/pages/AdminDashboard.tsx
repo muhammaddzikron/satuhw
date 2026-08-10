@@ -1506,18 +1506,30 @@ export default function AdminDashboard() {
     }
     try {
       setLoading(true);
+      const actId = editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`;
       const payload = {
         ...(editingKegiatan || {}),
         ...kegiatanFormData,
-        id: editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`
+        id: actId
       };
-      await sheetsService.saveActivity(payload);
-      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil dibuat!');
+      const saved = await sheetsService.saveActivity(payload);
+
+      // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
+      const currentActs = [...(settings.trainingActivities || [])];
+      const idx = currentActs.findIndex((a: any) => a.id === actId);
+      if (idx >= 0) {
+        currentActs[idx] = { ...currentActs[idx], ...(saved || payload) };
+      } else {
+        currentActs.unshift(saved || payload);
+      }
+      setSettings(prev => ({ ...prev, trainingActivities: currentActs }));
+
+      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Firebase!');
       setIsKegiatanModalOpen(false);
       const actData = await sheetsService.getActivities();
       setActivitiesList(actData || []);
     } catch (err: any) {
-      alert('Gagal menyimpan kegiatan: ' + err.message);
+      alert('Gagal menyimpan kegiatan: ' + (err.message || err));
     } finally {
       setLoading(false);
     }
@@ -1528,11 +1540,16 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       await sheetsService.deleteActivity(id);
-      alert('Kegiatan berhasil dihapus');
+
+      // Keep React settings state in sync
+      const filteredActs = (settings.trainingActivities || []).filter((a: any) => a.id !== id);
+      setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
+
+      alert('Kegiatan berhasil dihapus dari Cloud Firestore');
       const actData = await sheetsService.getActivities();
       setActivitiesList(actData || []);
     } catch (err: any) {
-      alert('Gagal menghapus kegiatan: ' + err.message);
+      alert('Gagal menghapus kegiatan: ' + (err.message || err));
     } finally {
       setLoading(false);
     }

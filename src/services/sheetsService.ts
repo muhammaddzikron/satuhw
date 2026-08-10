@@ -2,12 +2,13 @@ import axios from 'axios';
 import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { firestoreService } from './firestoreService';
+import { getMasterMembersList } from './masterMembersService';
 
-export let API_URL = import.meta.env.VITE_GSHEET_API_URL;
-export let IS_API_VALID = API_URL && API_URL !== 'undefined' && API_URL.startsWith('http');
+export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
+export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
 
 export const updateApiUrlFromStorage = () => {
-  let url = import.meta.env.VITE_GSHEET_API_URL;
+  let url = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
   if (typeof window !== 'undefined' && (!url || url === 'undefined' || !url.startsWith('http'))) {
     url = localStorage.getItem('VITE_GSHEET_API_URL') || '';
   }
@@ -39,91 +40,44 @@ export const initMockData = () => {
     console.warn('[FIRESTORE] Sync status:', err?.message || err);
   });
   
-  if (!localStorage.getItem('mock_members_initialized') || !localStorage.getItem('mock_members')) {
-    const parsedUsers = INITIAL_SPREADSHEET_DATA.users.map((u: any, idx: number) => {
-      const id = u.id || `user-${1000 + idx}`;
-      return {
-        ...u,
-        id: String(id),
-        isVerified: u.isVerified === true || u.isVerified === "TRUE" || u.isVerified === 1 || u.isVerified === "true" || u.isVerified === "1"
-      };
-    });
-    
-    // Add Bayu Ghifari Javalino
-    parsedUsers.push({
-      id: "user-bayu-ghifari",
-      email: "bayughifari@gmail.com",
-      password: "12345hw",
-      namaLengkap: "Bayu Ghifari Javalino",
-      role: "umum",
-      roles: ["umum"],
-      jenisKelamin: "L",
-      golongan: "Dewasa",
-      pendidikan: "S1",
-      pelatihan: [],
-      asalKwarda: "Banyumas",
-      qabilah: "Sudirman",
-      alamat: "Purwokerto, Banyumas",
-      isVerified: false,
-      sosmed: "@bayughifari",
-      noHp: "081234567890",
-      upgradeRequests: []
-    });
+  try {
+    const masterMembers = getMasterMembersList();
+    const existingStored = localStorage.getItem('mock_members');
+    let currentList: any[] = [];
 
-    localStorage.setItem('mock_members', JSON.stringify(parsedUsers));
-    localStorage.setItem('mock_members_initialized', 'true');
-  } else {
-    try {
-      const stored = localStorage.getItem('mock_members');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        let changed = false;
-        
-        // Ensure Bayu Ghifari Javalino is present
-        const hasBayu = parsed.some((m: any) => 
-          (m.namaLengkap && m.namaLengkap.toLowerCase().includes('bayu ghifari')) ||
-          (m.namalengkap && m.namalengkap.toLowerCase().includes('bayu ghifari')) ||
-          (m.email && m.email.toLowerCase().includes('bayughifari'))
-        );
-        
-        if (!hasBayu) {
-          parsed.push({
-            id: "user-bayu-ghifari",
-            email: "bayughifari@gmail.com",
-            password: "12345hw",
-            namaLengkap: "Bayu Ghifari Javalino",
-            role: "umum",
-            roles: ["umum"],
-            jenisKelamin: "L",
-            golongan: "Dewasa",
-            pendidikan: "S1",
-            pelatihan: [],
-            asalKwarda: "Banyumas",
-            qabilah: "Sudirman",
-            alamat: "Purwokerto, Banyumas",
-            isVerified: false,
-            sosmed: "@bayughifari",
-            noHp: "081234567890",
-            upgradeRequests: []
-          });
-          changed = true;
-        }
-
-        const repaired = parsed.map((m: any, idx: number) => {
-          if (!m.id) {
-            changed = true;
-            return { ...m, id: m.email ? `user-${m.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-repaired-${1000 + idx}` };
-          }
-          return m;
-        });
-        
-        if (changed) {
-          localStorage.setItem('mock_members', JSON.stringify(repaired));
-        }
-      }
-    } catch (e) {
-      console.error('Repair mock_members error:', e);
+    if (existingStored) {
+      try {
+        currentList = JSON.parse(existingStored);
+      } catch (e) {}
     }
+
+    const map = new Map<string, any>();
+    masterMembers.forEach(m => {
+      const kta = (m.ktaNumber || m.nomorKTA || '').trim().toLowerCase();
+      const email = (m.email || '').trim().toLowerCase();
+      const key = kta ? `kta:${kta}` : (email && !email.startsWith('member_') ? `email:${email}` : `id:${m.id}`);
+      map.set(key, m);
+    });
+
+    if (Array.isArray(currentList) && currentList.length > 0) {
+      currentList.forEach(m => {
+        if (!m || !m.namaLengkap || m.namaLengkap === 'Tanpa Nama' || m.namaLengkap === '-') return;
+        const kta = (m.ktaNumber || m.nomorKTA || '').trim().toLowerCase();
+        const email = (m.email || '').trim().toLowerCase();
+        const key = kta ? `kta:${kta}` : (email && !email.startsWith('member_') ? `email:${email}` : `id:${m.id}`);
+        if (map.has(key)) {
+          map.set(key, { ...map.get(key), ...m });
+        } else {
+          map.set(key, m);
+        }
+      });
+    }
+
+    const mergedMock = Array.from(map.values());
+    localStorage.setItem('mock_members', JSON.stringify(mergedMock));
+    localStorage.setItem('mock_members_initialized', 'true');
+  } catch (e) {
+    console.error('initMockData error:', e);
   }
 
   if (!localStorage.getItem('materi_initialized') || !localStorage.getItem('materi')) {
