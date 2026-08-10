@@ -379,24 +379,6 @@ export default function KegiatanPage() {
         </div>
       </div>
 
-      {/* Hero Banner */}
-      <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 p-6 text-white shadow-xl">
-        <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
-          <Sparkles size={200} />
-        </div>
-        <div className="relative z-10 space-y-3 max-w-md">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-extrabold uppercase tracking-widest text-emerald-200">
-            <Sparkles size={12} /> Kwartir Wilayah HW Jawa Tengah
-          </div>
-          <h1 className="text-xl font-black font-display leading-tight">
-            Agenda & Kegiatan Pandu Hizbul Wathan
-          </h1>
-          <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
-            Ikuti berbagai kegiatan resmi HW Jateng seperti Rapat HW, Silaturahmi, Pelatihan, dan Perkemahan. Dapatkan KTA Digital resmi sebagai identitas peserta!
-          </p>
-        </div>
-      </div>
-
       {/* Action Bar: Quick Add Activity Button */}
       <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-gray-150 shadow-xs">
         <div className="flex items-center gap-2">
@@ -587,6 +569,24 @@ export default function KegiatanPage() {
           ))}
         </div>
       )}
+
+      {/* Hero Banner (Paling Bawah) */}
+      <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 p-6 text-white shadow-xl mt-6">
+        <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
+          <Sparkles size={200} />
+        </div>
+        <div className="relative z-10 space-y-3 max-w-md">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-extrabold uppercase tracking-widest text-emerald-200">
+            <Sparkles size={12} /> Kwartir Wilayah HW Jawa Tengah
+          </div>
+          <h1 className="text-xl font-black font-display leading-tight">
+            Agenda & Kegiatan Pandu Hizbul Wathan
+          </h1>
+          <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
+            Ikuti berbagai kegiatan resmi HW Jateng seperti Rapat HW, Silaturahmi, Pelatihan, dan Perkemahan. Dapatkan KTA Digital resmi sebagai identitas peserta!
+          </p>
+        </div>
+      </div>
 
       {/* DETAIL MODAL */}
       <AnimatePresence>
