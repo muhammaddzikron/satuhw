@@ -177,6 +177,7 @@ import { firestoreService } from '../services/firestoreService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
+import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
@@ -6479,31 +6480,66 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
-                          Link URL Themesong / Audio MP3
-                        </label>
-                        <input 
-                          type="url" 
-                          value={kegiatanFormData.themeSongUrl}
-                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongUrl: e.target.value })}
-                          placeholder="https://.../lagu-kegiatan.mp3"
-                          className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        />
+                    <div className="space-y-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                              Link / File Themesong MP3
+                            </label>
+                            <label className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer underline flex items-center gap-1">
+                              <Upload size={10} />
+                              Unggah MP3
+                              <input
+                                type="file"
+                                accept="audio/*,.mp3,.wav,.m4a"
+                                className="hidden"
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) {
+                                    handleAudioFileUpload(
+                                      f,
+                                      base64 => setKegiatanFormData({ ...kegiatanFormData, themeSongUrl: base64 }),
+                                      err => alert(err)
+                                    );
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                          <input 
+                            type="text" 
+                            value={kegiatanFormData.themeSongUrl}
+                            onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongUrl: e.target.value })}
+                            placeholder="https://.../lagu.mp3 atau Google Drive link"
+                            className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                            Judul Themesong / Mars
+                          </label>
+                          <input 
+                            type="text" 
+                            value={kegiatanFormData.themeSongTitle}
+                            onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongTitle: e.target.value })}
+                            placeholder="Contoh: Mars Hizbul Wathan"
+                            className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
-                          Judul Themesong / Mars
-                        </label>
-                        <input 
-                          type="text" 
-                          value={kegiatanFormData.themeSongTitle}
-                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongTitle: e.target.value })}
-                          placeholder="Contoh: Mars Hizbul Wathan"
-                          className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        />
-                      </div>
+
+                      {kegiatanFormData.themeSongUrl && (
+                        <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
+                          <Music size={14} className="text-emerald-700 shrink-0 animate-pulse" />
+                          <span className="text-[10px] font-bold text-emerald-900 shrink-0">Preview:</span>
+                          <audio
+                            controls
+                            src={formatAudioUrl(kegiatanFormData.themeSongUrl)}
+                            className="w-full h-8 accent-emerald-600 shrink min-w-0"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div>

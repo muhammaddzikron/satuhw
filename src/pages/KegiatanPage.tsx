@@ -27,8 +27,10 @@ import {
   Trash2,
   Music,
   Download,
-  Volume2
+  Volume2,
+  Upload
 } from 'lucide-react';
+import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
@@ -242,10 +244,13 @@ export default function KegiatanPage() {
         updatedAt: new Date().toISOString()
       };
 
-      await sheetsService.saveActivity(payload);
+      const saved = await sheetsService.saveActivity(payload);
       const freshActs = await sheetsService.getActivities();
       if (freshActs && freshActs.length > 0) {
         setActivities(freshActs);
+      }
+      if (selectedActivity && selectedActivity.id === actId) {
+        setSelectedActivity(saved || payload);
       }
       alert(editingActivity ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
       setIsAddActivityModalOpen(false);
@@ -260,7 +265,9 @@ export default function KegiatanPage() {
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         gambarUrl: '',
         deskripsi: '',
-        status: 'Buka'
+        status: 'Buka',
+        themeSongUrl: '',
+        themeSongTitle: ''
       });
     } catch (err: any) {
       alert('Gagal menyimpan kegiatan: ' + (err.message || 'Error koneksi'));
@@ -601,7 +608,7 @@ export default function KegiatanPage() {
                 </div>
 
                 {/* Themesong Section */}
-                {selectedActivity.themeSongUrl ? (
+                {(selectedActivity.themeSongUrl || selectedActivity.themeSong) ? (
                   <div className="space-y-3 bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 p-4 rounded-2xl text-white shadow-xl border border-emerald-700/40">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -613,12 +620,12 @@ export default function KegiatanPage() {
                             Themesong Official Kegiatan
                           </span>
                           <h5 className="text-xs font-black font-display text-white truncate">
-                            {selectedActivity.themeSongTitle || 'Mars / Themesong Kegiatan'}
+                            {selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Mars / Themesong Kegiatan'}
                           </h5>
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDownloadThemeSong(selectedActivity.themeSongUrl, selectedActivity.themeSongTitle || 'Themesong_Kegiatan.mp3')}
+                        onClick={() => handleDownloadThemeSong(formatAudioUrl(selectedActivity.themeSongUrl || selectedActivity.themeSong), selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Themesong_Kegiatan.mp3')}
                         className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-xl flex items-center gap-1.5 shadow-lg transition-all cursor-pointer shrink-0 active:scale-95"
                         title="Download MP3 Themesong"
                       >
@@ -631,7 +638,7 @@ export default function KegiatanPage() {
                       <audio 
                         controls 
                         controlsList="nodownload" 
-                        src={selectedActivity.themeSongUrl} 
+                        src={formatAudioUrl(selectedActivity.themeSongUrl || selectedActivity.themeSong)} 
                         className="w-full h-10 rounded-xl bg-slate-800/90 accent-emerald-400"
                       />
                     </div>
@@ -1208,31 +1215,66 @@ export default function KegiatanPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
-                      Link URL Themesong / MP3 (Opsional)
-                    </label>
-                    <input
-                      type="url"
-                      value={newActivityForm.themeSongUrl}
-                      onChange={e => setNewActivityForm({ ...newActivityForm, themeSongUrl: e.target.value })}
-                      placeholder="https://.../lagu-kegiatan.mp3"
-                      className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
+                <div className="space-y-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                          Link / File Themesong MP3
+                        </label>
+                        <label className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer underline flex items-center gap-1">
+                          <Upload size={10} />
+                          Unggah MP3
+                          <input
+                            type="file"
+                            accept="audio/*,.mp3,.wav,.m4a"
+                            className="hidden"
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                handleAudioFileUpload(
+                                  f,
+                                  base64 => setNewActivityForm({ ...newActivityForm, themeSongUrl: base64 }),
+                                  err => alert(err)
+                                );
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={newActivityForm.themeSongUrl}
+                        onChange={e => setNewActivityForm({ ...newActivityForm, themeSongUrl: e.target.value })}
+                        placeholder="https://.../lagu.mp3 atau Google Drive link"
+                        className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
+                        Judul Themesong / Mars (Opsional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newActivityForm.themeSongTitle}
+                        onChange={e => setNewActivityForm({ ...newActivityForm, themeSongTitle: e.target.value })}
+                        placeholder="Contoh: Mars Hizbul Wathan"
+                        className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block mb-1">
-                      Judul Themesong / Mars (Opsional)
-                    </label>
-                    <input
-                      type="text"
-                      value={newActivityForm.themeSongTitle}
-                      onChange={e => setNewActivityForm({ ...newActivityForm, themeSongTitle: e.target.value })}
-                      placeholder="Contoh: Mars Hizbul Wathan"
-                      className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
+
+                  {newActivityForm.themeSongUrl && (
+                    <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
+                      <Music size={14} className="text-emerald-700 shrink-0 animate-pulse" />
+                      <span className="text-[10px] font-bold text-emerald-900 shrink-0">Preview:</span>
+                      <audio
+                        controls
+                        src={formatAudioUrl(newActivityForm.themeSongUrl)}
+                        className="w-full h-8 accent-emerald-600 shrink min-w-0"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>

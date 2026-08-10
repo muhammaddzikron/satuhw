@@ -2416,6 +2416,8 @@ export const firestoreService = {
       status: activityData.status || 'Buka',
       themeSongUrl: activityData.themeSongUrl || activityData.themeSong || '',
       themeSongTitle: activityData.themeSongTitle || activityData.themeSongName || '',
+      themeSong: activityData.themeSongUrl || activityData.themeSong || '',
+      themeSongName: activityData.themeSongTitle || activityData.themeSongName || '',
       penyelenggara: activityData.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
       createdBy: activityData.createdBy || '',
       creatorName: activityData.creatorName || '',
