@@ -1465,15 +1465,15 @@ export default function AdminDashboard() {
     if (activity) {
       setEditingKegiatan(activity);
       setKegiatanFormData({
-        namaKegiatan: activity.namaKegiatan || '',
-        kategori: activity.kategori || 'Rapat HW',
-        tanggal: activity.tanggal || '',
-        lokasi: activity.lokasi || '',
+        namaKegiatan: activity.namaKegiatan || activity.title || '',
+        kategori: activity.kategori || activity.category || 'Rapat HW',
+        tanggal: activity.tanggal || activity.startDate || '',
+        lokasi: activity.lokasi || activity.location || '',
         biaya: activity.biaya || 'Gratis',
         status: activity.status || 'Buka',
         kuota: activity.kuota || '100 Peserta',
-        deskripsi: activity.deskripsi || '',
-        gambarUrl: activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        deskripsi: activity.deskripsi || activity.description || '',
+        gambarUrl: activity.gambarUrl || activity.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
         themeSongUrl: activity.themeSongUrl || activity.themeSong || '',
         themeSongTitle: activity.themeSongTitle || activity.themeSongName || '',
         penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah'

@@ -2100,8 +2100,9 @@ export const firestoreService = {
 
     try {
       const unsub = onSnapshot(collection(db, 'hw_activities'), (snap) => {
+        let fsActs: any[] = [];
         if (!snap.empty) {
-          const list = snap.docs.map(d => {
+          fsActs = snap.docs.map(d => {
             const data = d.data();
             return {
               id: d.id,
@@ -2123,13 +2124,26 @@ export const firestoreService = {
               status: data.status || 'Buka'
             };
           });
-          callback(list);
         } else {
           defaults.forEach(def => {
             setDoc(doc(db, 'hw_activities', def.id), cleanData(def), { merge: true }).catch(() => {});
           });
-          callback(defaults);
         }
+
+        let localActs: any[] = [];
+        try {
+          const stored = localStorage.getItem('hw_activities') || '[]';
+          localActs = JSON.parse(stored);
+        } catch (e) {}
+
+        const map = new Map<string, any>();
+        defaults.forEach(a => map.set(a.id, a));
+        localActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+        fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+
+        const list = Array.from(map.values());
+        localStorage.setItem('hw_activities', JSON.stringify(list));
+        callback(list);
       }, (err) => {
         console.warn('subscribeToActivities warning:', err);
       });
