@@ -239,29 +239,7 @@ export const firestoreService = {
       // 4. Training Applications
       const trainingSnap = await getDocs(collection(db, 'training_applications'));
       if (trainingSnap.empty) {
-        const localTrainingStr = localStorage.getItem('training_applications');
-        let initialTraining: any[] = [];
-        if (localTrainingStr) {
-          initialTraining = JSON.parse(localTrainingStr);
-        } else {
-          initialTraining = ((INITIAL_SPREADSHEET_DATA as any).pelatihan || []).map((p: any, idx: number) => ({
-            ...p,
-            id: String(p.id || `training-${1000 + idx}`)
-          }));
-        }
-
-        const batch = writeBatch(db);
-        for (let idx = 0; idx < initialTraining.length; idx++) {
-          const tr = initialTraining[idx];
-          const docId = String(tr.id || `training-${1000 + idx}`).trim();
-          if (!docId) continue;
-          tr.id = docId;
-          const docRef = doc(db, 'training_applications', docId);
-          batch.set(docRef, cleanData(tr));
-          uploadedCount++;
-        }
-        await batch.commit();
-        localStorage.setItem('training_applications', JSON.stringify(initialTraining));
+        localStorage.setItem('training_applications', JSON.stringify([]));
         localStorage.setItem('training_applications_initialized', 'true');
       }
 
@@ -400,13 +378,28 @@ export const firestoreService = {
         }
       }
 
-      // 3. Purge empty Training Applications from Firestore
+      // 3. Purge empty, dummy or invalid Training Applications from Firestore
       const trainSnap = await getDocs(collection(db, 'training_applications'));
       if (!trainSnap.empty) {
+        const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
         for (const d of trainSnap.docs) {
           const data = d.data();
           const name = (data.nama || data.namaLengkap || '').trim();
-          if (!isValidName(name)) {
+          const email = (data.email || '').toLowerCase().trim();
+          const prog = (data.pelatihanAkanDiikuti || '').trim();
+          const docId = d.id;
+
+          const isDummyOrInvalid = 
+            docId.startsWith('training-') ||
+            docId.startsWith('train-api-') ||
+            !isValidName(name) ||
+            name.includes('@') ||
+            sysEmails.includes(email) ||
+            !prog ||
+            prog === '-' ||
+            (data.status === 'ditolak' && (!name || name.includes('@') || !prog || prog === '-'));
+
+          if (isDummyOrInvalid) {
             await deleteDoc(doc(db, 'training_applications', d.id)).catch((err) => this.checkQuotaError(err));
           }
         }
@@ -1305,7 +1298,7 @@ export const firestoreService = {
             (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
           if (member.photo) k.photo = member.photo;
           if (member.namaLengkap) k.nama = member.namaLengkap;
-          if (member.nbm) k.nbm = member.nbm;
+          if ((member as any).nbm || member.ktaNumber) k.nbm = (member as any).nbm || member.ktaNumber;
           if (member.noHp) k.noWa = member.noHp;
           if (member.asalKwarda) k.asalDaerah = member.asalKwarda;
           if (member.qabilah) k.qabilah = member.qabilah;
@@ -1893,24 +1886,30 @@ export const firestoreService = {
     }
 
     const map = new Map<string, any>();
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+
     for (const t of combined) {
       if (!t) continue;
       const item = t as any;
       const name = (item.nama || item.namaLengkap || '').trim();
-      if (!isValidName(name)) {
-        continue;
-      }
-
       const emailStr = String(item.email || '').toLowerCase().trim();
+
+      // Filter out system accounts & invalid entries where name is blank, is an email, or has no valid program
+      if (sysEmails.includes(emailStr)) continue;
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) continue;
+      const prog = (item.pelatihanAkanDiikuti || '').trim();
+      if (!prog || prog === '-') continue;
+      if (item.id && (String(item.id).startsWith('training-100') || String(item.id).startsWith('train-api-'))) continue;
+
       const waDigits = String(item.noWa || item.noHp || '').replace(/[^0-9]/g, '');
 
       const personKey = (
         (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
         (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
         (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
-        (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
-        `app_${item.id || Date.now()}`
+        `name_${name.toLowerCase()}`
       );
+      
       const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
       const compositeKey = `${personKey}___${progKey}`;
 
@@ -1925,8 +1924,8 @@ export const firestoreService = {
         if (scoreCurrent > scoreExisting) {
           map.set(compositeKey, item);
         } else if (scoreCurrent === scoreExisting) {
-          const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
-          const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+          const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0) + (item.tempatLahir ? 1 : 0);
+          const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0) + (existing.tempatLahir ? 1 : 0);
           if (currentRichness > existingRichness) {
             map.set(compositeKey, item);
           }

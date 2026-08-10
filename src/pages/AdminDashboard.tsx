@@ -399,7 +399,10 @@ export default function AdminDashboard() {
     gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
     themeSongUrl: '',
     themeSongTitle: '',
-    penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+    penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+    rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+    noWhatsappPanitia: '089688754000',
+    proposalUrl: ''
   });
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
 
@@ -1497,7 +1500,10 @@ export default function AdminDashboard() {
         gambarUrl: activity.gambarUrl || activity.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
         themeSongUrl: activity.themeSongUrl || activity.themeSong || '',
         themeSongTitle: activity.themeSongTitle || activity.themeSongName || '',
-        penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah'
+        penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
+        rekeningPembiayaan: activity.rekeningPembiayaan || activity.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: activity.noWhatsappPanitia || activity.noKonfirmasi || activity.konfirmasiPembayaran || '089688754000',
+        proposalUrl: activity.proposalUrl || activity.proposal || activity.linkProposal || ''
       });
     } else {
       setEditingKegiatan(null);
@@ -1513,7 +1519,10 @@ export default function AdminDashboard() {
         gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
         themeSongUrl: '',
         themeSongTitle: '',
-        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+        rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: '089688754000',
+        proposalUrl: ''
       });
     }
     setIsKegiatanModalOpen(true);
@@ -1738,6 +1747,25 @@ export default function AdminDashboard() {
   };
 
   const fetchData = async () => {
+    const isValidName = (name?: string) => {
+      if (!name) return false;
+      const trimmed = name.trim().toLowerCase();
+      return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
+    };
+
+    const isValidTrainingApp = (t: any) => {
+      if (!t) return false;
+      const name = (t?.nama || t?.namaLengkap || '').trim();
+      const email = (t?.email || '').toLowerCase().trim();
+      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+      if (sysEmails.includes(email)) return false;
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) return false;
+      const prog = (t?.pelatihanAkanDiikuti || '').trim();
+      if (!prog || prog === '-') return false;
+      if (t?.id && (String(t.id).startsWith('training-100') || String(t.id).startsWith('train-api-'))) return false;
+      return true;
+    };
+
     // Instant cache pre-fill to render UI immediately without blank/spinner delay
     try {
       const cachedMembers = localStorage.getItem('mock_members');
@@ -1748,15 +1776,9 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      const isValidName = (name?: string) => {
-        if (!name) return false;
-        const trimmed = name.trim().toLowerCase();
-        return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
-      };
-
       if (cachedMembers) setMembers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama)));
       if (cachedKtas) setKtaApps(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)));
-      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidName(t?.nama || t?.namaLengkap)));
+      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t)));
       if (cachedMateri) setMateriList(safeJsonParse(cachedMateri, []));
       if (cachedContents) setContents(safeJsonParse(cachedContents, []));
       if (cachedActivities) setActivitiesList(safeJsonParse(cachedActivities, []));
@@ -1793,7 +1815,7 @@ export default function AdminDashboard() {
       setMembers((membersData || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama)));
       setContents(contentsData || []);
       setKtaApps((ktaData || []).filter(k => isValidName(k?.nama || k?.namaLengkap)));
-      setTrainingApps((trainingData || []).filter(t => isValidName(t?.nama || t?.namaLengkap)));
+      setTrainingApps((trainingData || []).filter(t => isValidTrainingApp(t)));
       setActivitiesList(activitiesData || []);
       setActivityApplicationsList(actRegData || []);
       if (settingsData) {
@@ -4817,8 +4839,14 @@ export default function AdminDashboard() {
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                           {trainingApps.filter(app => {
+                            const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+                            const name = (app?.nama || app?.namaLengkap || '').trim();
+                            const email = (app?.email || '').toLowerCase().trim();
+                            if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+
                             const matchSearch = 
-                              (app?.nama || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                              name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                              (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
                               (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
                               (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
                             const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
@@ -4831,43 +4859,67 @@ export default function AdminDashboard() {
                             </tr>
                           ) : (
                             trainingApps.filter(app => {
+                              const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+                              const name = (app?.nama || app?.namaLengkap || '').trim();
+                              const email = (app?.email || '').toLowerCase().trim();
+                              if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+
                               const matchSearch = 
-                                (app?.nama || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                                name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                                (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
                                 (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
                                 (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
                               const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
                               return matchSearch && matchStatus;
-                            }).map((app) => (
-                              <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-4 pl-6">
-                                  <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200">
-                                    {app.photo ? (
-                                      <img src={app.photo} alt="Foto" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
-                                        <UserIcon size={20} className="text-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
+                            }).map((app) => {
+                              const matchMember = members.find(m => 
+                                (m.id && app.userId && String(m.id) === String(app.userId)) ||
+                                (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
+                                (m.namaLengkap && app.nama && String(m.namaLengkap).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
+                              );
+                              const matchKta = ktaApps.find(k => 
+                                (k.userId && app.userId && String(k.userId) === String(app.userId)) ||
+                                (k.email && app.email && String(k.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
+                                (k.nama && app.nama && String(k.nama).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
+                              );
 
-                                <td className="p-4">
-                                  <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
-                                  <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                  <div className="text-[10px] text-gray-500">No. KTA: <span className="font-mono font-bold">{app.nbm || app.ktaNumber || app.nomorKTA || '-'}</span></div>
-                                  <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}</span></div>
-                                  <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{(app.jenisKelamin === 'L' || app.jenisKelamin === 'Laki-Laki' || app.jenisKelamin === 'Laki-laki') ? 'Laki-Laki' : (app.jenisKelamin === 'P' || app.jenisKelamin === 'Perempuan') ? 'Perempuan' : (app.jenisKelamin || '-')}</span></div>
-                                  <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
-                                    <a 
-                                      href={`https://wa.me/${String(app.noWa || '').replace(/[^0-9]/g, '')}`} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="underline font-bold hover:text-emerald-700"
-                                    >
-                                      WhatsApp: {app.noWa}
-                                    </a>
-                                  </div>
-                                </td>
+                              const dispTempat = app.tempatLahir || matchMember?.tempatLahir || matchKta?.tempatLahir || (matchMember?.alamat ? cleanTempatLahir(matchMember.alamat) : '') || '';
+                              const dispTanggal = app.tanggalLahir || matchMember?.tanggalLahir || matchKta?.tanggalLahir || '';
+                              const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nomorKTA || matchMember?.nbm || matchKta?.ktaNumber || matchKta?.nomorKTA || matchKta?.nbm || '-';
+                              const dispJkRaw = app.jenisKelamin || matchMember?.jenisKelamin || matchKta?.jenisKelamin || 'L';
+                              const dispJk = (dispJkRaw === 'P' || dispJkRaw === 'Perempuan') ? 'Perempuan' : 'Laki-Laki';
+                              const dispPhoto = app.photo || matchMember?.photo || matchKta?.photo || '';
+
+                              return (
+                                <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
+                                  <td className="p-4 pl-6">
+                                    <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200">
+                                      {dispPhoto ? (
+                                        <img src={dispPhoto} alt="Foto" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
+                                          <UserIcon size={20} className="text-gray-400" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  <td className="p-4">
+                                    <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
+                                    <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
+                                    <div className="text-[10px] text-gray-500">No. KTA: <span className="font-mono font-bold">{dispNbm}</span></div>
+                                    <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{dispJk}</span></div>
+                                    <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
+                                      <a 
+                                        href={`https://wa.me/${String(app.noWa || '').replace(/[^0-9]/g, '')}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="underline font-bold hover:text-emerald-700"
+                                      >
+                                        WhatsApp: {app.noWa}
+                                      </a>
+                                    </div>
+                                  </td>
 
                                 <td className="p-4">
                                   <div className="font-bold text-gray-800">{app.golonganAnggota || app.tingkatan || 'Golongan Tidak Ada'}</div>
@@ -5090,8 +5142,9 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                               </tr>
-                            ))
-                          )}
+                            );
+                          })
+                        )}
                         </tbody>
                       </table>
                     </div>
@@ -6560,6 +6613,76 @@ export default function AdminDashboard() {
                         placeholder="https://..."
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nomor Rekening Pembayaran</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.rekeningPembiayaan}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, rekeningPembiayaan: e.target.value })}
+                          placeholder="Contoh: Bank BSI 7307427448 a.n. Kwarwil HW Jateng"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nomor Konfirmasi Pembayaran (WA)</label>
+                        <input 
+                          type="text" 
+                          value={kegiatanFormData.noWhatsappPanitia}
+                          onChange={e => setKegiatanFormData({ ...kegiatanFormData, noWhatsappPanitia: e.target.value })}
+                          placeholder="Contoh: 089688754000"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                          Link / File Proposal Download
+                        </label>
+                        <label className="text-[10px] font-bold text-sky-700 hover:text-sky-900 cursor-pointer underline flex items-center gap-1">
+                          <Upload size={10} />
+                          Unggah File Proposal
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            className="hidden"
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                handleDocumentFileUpload(
+                                  f,
+                                  base64 => setKegiatanFormData({ ...kegiatanFormData, proposalUrl: base64 }),
+                                  err => alert(err)
+                                );
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={kegiatanFormData.proposalUrl}
+                        onChange={e => setKegiatanFormData({ ...kegiatanFormData, proposalUrl: e.target.value })}
+                        placeholder="Contoh: https://drive.google.com/file/d/... atau upload PDF"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
+                      />
+                      {kegiatanFormData.proposalUrl && kegiatanFormData.proposalUrl.startsWith('data:') && (
+                        <div className="flex items-center justify-between bg-emerald-100/80 text-emerald-800 text-[10px] px-2.5 py-1 rounded-xl border border-emerald-300 font-bold mt-1">
+                          <span>✓ File proposal terunggah ({Math.round(kegiatanFormData.proposalUrl.length / 1024)} KB)</span>
+                          <button
+                            type="button"
+                            onClick={() => setKegiatanFormData({ ...kegiatanFormData, proposalUrl: '' })}
+                            className="text-red-600 hover:underline text-[9px] font-extrabold cursor-pointer"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">

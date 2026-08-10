@@ -122,14 +122,7 @@ export const initMockData = () => {
   }
 
   if (!localStorage.getItem('training_applications_initialized') || !localStorage.getItem('training_applications')) {
-    const parsedTraining = (INITIAL_SPREADSHEET_DATA.training || []).map((t: any, idx: number) => {
-      const id = t.id || `training-${1000 + idx}`;
-      return {
-        ...t,
-        id: String(id)
-      };
-    });
-    localStorage.setItem('training_applications', JSON.stringify(parsedTraining));
+    localStorage.setItem('training_applications', JSON.stringify([]));
     localStorage.setItem('training_applications_initialized', 'true');
   } else {
     try {
@@ -1022,7 +1015,7 @@ export const sheetsService = {
             namaLengkap: appData.nama || m.namaLengkap,
             email: appData.email || m.email,
             noHp: appData.noWa || m.noHp,
-            nbm: appData.nbm || m.nbm || (m as any).noNbm || '',
+            nbm: appData.nbm || (m as any).nbm || m.ktaNumber || '',
             tempatLahir: appData.tempatLahir || (m as any).tempatLahir,
             tanggalLahir: appData.tanggalLahir || (m as any).tanggalLahir,
             jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
@@ -1101,10 +1094,15 @@ export const sheetsService = {
     try {
       const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
       if (Array.isArray(response.data) && response.data.length > 0) {
+        const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
         const apiTrainings = response.data.map((t: any, idx: number) => ({
           ...t,
           id: t.id || `train-api-${idx}`
-        })).filter((t: any) => t.nama && t.nama.trim() !== '' && t.status !== 'deleted');
+        })).filter((t: any) => {
+          const name = (t.nama || t.namaLengkap || '').trim();
+          const email = (t.email || '').toLowerCase().trim();
+          return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
+        });
         
         apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
 
