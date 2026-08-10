@@ -194,6 +194,32 @@ export default function HomePage() {
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [selectedTrainingForReg, setSelectedTrainingForReg] = useState<any | null>(null);
   const [showRequirementModal, setShowRequirementModal] = useState(false);
+  const [activitiesList, setActivitiesList] = useState<any[]>([]);
+
+  // Subscribe to real-time activities so edited activities in Admin immediately update on HomePage
+  useEffect(() => {
+    const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
+      setActivitiesList(acts || []);
+    });
+    return () => {
+      unsubActivities();
+    };
+  }, []);
+
+  const activeTrainings = React.useMemo(() => {
+    const map = new Map<string, any>();
+    (trainingActivities || []).forEach((act: any) => {
+      if (act && act.id) map.set(act.id, act);
+    });
+    (activitiesList || []).forEach((act: any) => {
+      if (!act) return;
+      const isTrainingCat = act.kategori === 'Pelatihan' || act.kategori === 'Pelatihan HW' || act.jenisPelatihan;
+      if (isTrainingCat || map.has(act.id)) {
+        map.set(act.id, { ...map.get(act.id), ...(map.get(act.id) || {}), ...act });
+      }
+    });
+    return Array.from(map.values());
+  }, [trainingActivities, activitiesList]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -464,7 +490,7 @@ export default function HomePage() {
     }
   }, [searchQuery, materiList, galleryItems, playlistItems]);
 
-  const activeTrainings = trainingActivities || [];
+  // Removed redundant line - activeTrainings is memoized above
 
   const handleSelectTrainingForRegistration = (act: any) => {
     setShowTrainingModal(false);
@@ -959,6 +985,95 @@ export default function HomePage() {
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
         </div>
+
+        {/* Real-time Agenda & Kegiatan Terbaru Cards on Beranda */}
+        {activitiesList && activitiesList.filter(a => a.isPublished !== false).length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <Calendar size={15} className="text-emerald-600" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-800 font-display">Agenda & Kegiatan Terbaru</h4>
+              </div>
+              <Link to="/kegiatan" className="text-[10px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-0.5">
+                Lihat Semua <ChevronRight size={12} />
+              </Link>
+            </div>
+
+            <div className="space-y-2.5">
+              {activitiesList.filter(a => a.isPublished !== false).slice(0, 2).map((act: any, idx: number) => {
+                const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
+                const loc = act.lokasi || act.location || 'Jawa Tengah';
+                const date = act.tanggal || act.startDate || 'Segera';
+                const img = act.gambarUrl || act.imageUrl;
+                const cat = act.kategori || act.category || 'Silaturahmi';
+
+                return (
+                  <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">
+                    {img && (
+                      <div className="h-32 w-full rounded-xl overflow-hidden bg-gray-100 relative">
+                        <img src={img} alt={title} className="w-full h-full object-cover" />
+                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
+                          {cat}
+                        </div>
+                        {act.status && (
+                          <div className={cn(
+                            "absolute top-2 right-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border shadow-xs",
+                            act.status === 'Buka' ? "bg-emerald-500 text-white border-emerald-400" : "bg-gray-800/80 text-white border-gray-600"
+                          )}>
+                            {act.status}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      {!img && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
+                            {cat}
+                          </span>
+                          {act.status && (
+                            <span className={cn(
+                              "text-[9px] font-black uppercase px-2 py-0.5 rounded-md",
+                              act.status === 'Buka' ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-700"
+                            )}>
+                              {act.status}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <h5 className="text-xs font-black text-gray-800 leading-snug font-display line-clamp-2">
+                        {title}
+                      </h5>
+                      {act.deskripsi && (
+                        <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
+                          {act.deskripsi}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-gray-600 bg-gray-50 p-2 rounded-xl">
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin size={12} className="text-emerald-600 shrink-0" />
+                        <span className="truncate">{loc}</span>
+                      </div>
+                      <div className="flex items-center gap-1 truncate">
+                        <Calendar size={12} className="text-teal-600 shrink-0" />
+                        <span className="truncate">{date}</span>
+                      </div>
+                    </div>
+
+                    <Link
+                      to="/kegiatan"
+                      className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 shadow-xs hover:from-emerald-700 hover:to-teal-700 transition-all"
+                    >
+                      Buka Detail & Pendaftaran <ChevronRight size={13} />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Tools Section */}

@@ -28,6 +28,9 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => 
   ]);
 };
 
+// Global session registry to prevent duplicate allocation within the same session context
+const sessionAllocatedKtaNumbers = new Set<string>();
+
 // Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
 const cleanData = <T extends Record<string, any>>(obj: T): T => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -764,7 +767,8 @@ export const firestoreService = {
   async allocateKtaNumberTransaction(
     asalKwardaOrQabilah?: string,
     qabilahOrExistingKta?: string,
-    existingKtaParam?: string
+    existingKtaParam?: string,
+    ownerIdParam?: string
   ): Promise<{
     nomorKTA: string;
     ktaNumber: string;
@@ -782,23 +786,66 @@ export const firestoreService = {
       qabilah = undefined;
     }
 
-    // Permanent check: if user/application already has a valid 11.xx.xxxx KTA, NEVER change it!
+    const cleanOwnerId = ownerIdParam ? String(ownerIdParam).trim().toLowerCase() : '';
+
+    // Check if existingKta is valid AND not claimed by another user
     if (existingKta && isValidKtaNumberFormat(existingKta)) {
-      const parsed = parseKtaNumber(existingKta)!;
-      return {
-        nomorKTA: existingKta,
-        ktaNumber: existingKta,
-        kodeProvinsi: '11',
-        kodeKwarda: parsed.kodeKwarda,
-        nomorUrut: parsed.nomorUrut
-      };
+      let isClaimedByOther = false;
+
+      if (sessionAllocatedKtaNumbers.has(existingKta)) {
+        isClaimedByOther = true;
+      } else {
+        // Check local storage and Firestore data for duplicate ownership
+        try {
+          const mems: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
+          const duplicateInLocalMem = mems.some(m => {
+            const num = m.nomorKTA || m.ktaNumber;
+            const mKey = (m.email || m.id || '').toString().trim().toLowerCase();
+            return num === existingKta && cleanOwnerId && mKey && mKey !== cleanOwnerId;
+          });
+          if (duplicateInLocalMem) isClaimedByOther = true;
+
+          if (!isClaimedByOther) {
+            const ktas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
+            const duplicateInLocalKta = ktas.some(k => {
+              const num = k.nomorKTA || k.ktaNumber;
+              const kKey = (k.email || k.userId || k.id || '').toString().trim().toLowerCase();
+              return num === existingKta && cleanOwnerId && kKey && kKey !== cleanOwnerId;
+            });
+            if (duplicateInLocalKta) isClaimedByOther = true;
+          }
+        } catch (e) {}
+      }
+
+      if (!isClaimedByOther) {
+        sessionAllocatedKtaNumbers.add(existingKta);
+        const parsed = parseKtaNumber(existingKta)!;
+        return {
+          nomorKTA: existingKta,
+          ktaNumber: existingKta,
+          kodeProvinsi: '11',
+          kodeKwarda: parsed.kodeKwarda,
+          nomorUrut: parsed.nomorUrut
+        };
+      } else {
+        // Duplicate detected! Reset existingKta so a new unique number will be generated
+        existingKta = undefined;
+      }
     }
 
     const kodeKwarda = getKwardaCode(asalKwarda, qabilah);
     const counterRef = doc(db, 'kta_counters', kodeKwarda);
 
-    // Initial scan of existing sequence numbers across members & kta_applications
+    // Initial scan of existing sequence numbers across members & kta_applications & sessionAllocatedKtaNumbers
     const existingSeqNumbers: number[] = [];
+
+    sessionAllocatedKtaNumbers.forEach(sNum => {
+      const parsed = parseKtaNumber(sNum);
+      if (parsed && parsed.kodeKwarda === kodeKwarda) {
+        existingSeqNumbers.push(parsed.nomorUrut);
+      }
+    });
+
     try {
       const [memSnap, ktaSnap] = await Promise.all([
         getDocs(collection(db, 'members')).catch(() => ({ docs: [] })),
@@ -893,6 +940,8 @@ export const firestoreService = {
       allocatedSeq = candidate;
       finalNumber = formatKtaNumber(kodeKwarda, candidate);
     }
+
+    sessionAllocatedKtaNumbers.add(finalNumber);
 
     return {
       nomorKTA: finalNumber,
@@ -1548,19 +1597,15 @@ export const firestoreService = {
 
     if (status === 'approved') {
       const existingNum = idx >= 0 ? (list[idx].nomorKTA || list[idx].ktaNumber) : (ktaNumber || updates.ktaNumber);
-      if (!existingNum || !isValidKtaNumberFormat(existingNum)) {
-        const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : '';
-        const targetQabilah = idx >= 0 ? (list[idx].qabilah || list[idx].qabilahPtma) : '';
-        const allocated = await this.allocateKtaNumberTransaction(targetKwarda, targetQabilah, existingNum);
-        updates.nomorKTA = allocated.nomorKTA;
-        updates.ktaNumber = allocated.ktaNumber;
-        updates.kodeProvinsi = allocated.kodeProvinsi;
-        updates.kodeKwarda = allocated.kodeKwarda;
-        updates.nomorUrut = allocated.nomorUrut;
-      } else {
-        updates.nomorKTA = existingNum;
-        updates.ktaNumber = existingNum;
-      }
+      const targetOwner = idx >= 0 ? (list[idx].email || list[idx].userId || list[idx].id) : id;
+      const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : '';
+      const targetQabilah = idx >= 0 ? (list[idx].qabilah || list[idx].qabilahPtma) : '';
+      const allocated = await this.allocateKtaNumberTransaction(targetKwarda, targetQabilah, existingNum, targetOwner);
+      updates.nomorKTA = allocated.nomorKTA;
+      updates.ktaNumber = allocated.nomorKTA;
+      updates.kodeProvinsi = allocated.kodeProvinsi;
+      updates.kodeKwarda = allocated.kodeKwarda;
+      updates.nomorUrut = allocated.nomorUrut;
       if (!updates.verifiedAt) {
         updates.verifiedAt = new Date().toISOString();
       }
@@ -3020,6 +3065,49 @@ export const firestoreService = {
           ktas.push(newKtaApp);
           ktaBatch.set(doc(db, 'kta_applications', String(ktaId)), cleanData(newKtaApp), { merge: true });
         }
+      }
+
+      // 5. Strict Deduplication Pass: Ensure NO two members or KTA apps share the same KTA number
+      const claimedKtaOwnersMap = new Map<string, string>();
+      for (let i = 0; i < newMembers.length; i++) {
+        const m = newMembers[i];
+        if (!m) continue;
+        const ownerKey = (m.email || m.id || `user-${i}`).toString().trim().toLowerCase();
+        let ktaNum = m.nomorKTA || m.ktaNumber;
+
+        let needsNewAllocation = false;
+        if (!ktaNum || !isValidKtaNumberFormat(ktaNum)) {
+          needsNewAllocation = true;
+        } else if (claimedKtaOwnersMap.has(ktaNum) && claimedKtaOwnersMap.get(ktaNum) !== ownerKey) {
+          // DUPLICATE DETECTED! Another user already claimed this KTA number
+          needsNewAllocation = true;
+        }
+
+        if (needsNewAllocation) {
+          const allocated = await this.allocateKtaNumberTransaction(m.asalKwarda, m.qabilah, undefined, ownerKey);
+          ktaNum = allocated.nomorKTA;
+          m.nomorKTA = ktaNum;
+          m.ktaNumber = ktaNum;
+          m.kodeProvinsi = allocated.kodeProvinsi;
+          m.kodeKwarda = allocated.kodeKwarda;
+          m.nomorUrut = allocated.nomorUrut;
+          memberBatch.set(doc(db, 'members', String(m.id)), cleanData(m), { merge: true });
+          updatedCount++;
+
+          // Synchronize with matching KTA application
+          const matchingKta = ktas.find((k: any) => {
+            const kEmail = (k.email || '').toString().trim().toLowerCase();
+            const kUserId = k.userId ? String(k.userId).trim().toLowerCase() : '';
+            return (m.email && kEmail && m.email.toLowerCase() === kEmail) || (m.id && kUserId && m.id.toLowerCase() === kUserId);
+          });
+          if (matchingKta) {
+            matchingKta.nomorKTA = ktaNum;
+            matchingKta.ktaNumber = ktaNum;
+            ktaBatch.set(doc(db, 'kta_applications', String(matchingKta.id)), cleanData(matchingKta), { merge: true });
+          }
+        }
+
+        claimedKtaOwnersMap.set(ktaNum, ownerKey);
       }
 
       if (!this.getIsQuotaExceeded()) {
