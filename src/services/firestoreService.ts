@@ -2498,7 +2498,7 @@ export const firestoreService = {
       if (existingIdx >= 0) {
         const existing = deduped[existingIdx];
         const normIdStr = String(normalizedItem.id || '');
-        const isItemDefault = normIdStr.startsWith('actreg-dzikron') || normIdStr.startsWith('actreg-burhan') || normIdStr.startsWith('actreg-jalu');
+        const isItemDefault = normIdStr.startsWith('actreg-');
 
         deduped[existingIdx] = {
           ...existing,
@@ -2522,8 +2522,8 @@ export const firestoreService = {
     return deduped;
   },
 
-  subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
-    const defaultApps = [
+  getDefaultActivityApplications(): any[] {
+    return [
       {
         id: 'actreg-dzikron',
         activityId: 'keg-silaturahmi-pelatih',
@@ -2536,7 +2536,7 @@ export const firestoreService = {
         kategoriUndangan: 'Pelatih Nasional HW Jateng',
         noHp: '081226854000',
         status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+        tanggalDaftar: '2026-08-01T08:00:00.000Z'
       },
       {
         id: 'actreg-burhan',
@@ -2551,7 +2551,7 @@ export const firestoreService = {
         kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
         noHp: '08562737944',
         status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+        tanggalDaftar: '2026-08-02T08:00:00.000Z'
       },
       {
         id: 'actreg-jalu',
@@ -2566,9 +2566,112 @@ export const firestoreService = {
         kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
         noHp: '081548754225',
         status: 'approved',
+        tanggalDaftar: '2026-08-03T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-retiana',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-retiana',
+        namaLengkap: 'Retiana Maharani',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Kebumen',
+        asalKwarda: 'Kabupaten Kebumen',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pelatih Nasional HW Jateng',
+        noHp: '085799354000',
+        status: 'approved',
+        tanggalDaftar: '2026-08-04T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-alda',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-alda',
+        namaLengkap: 'Alda Putri',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Klaten',
+        asalKwarda: 'Kabupaten Klaten',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
+        noHp: '085169772703',
+        status: 'approved',
+        tanggalDaftar: '2026-08-05T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-suanda',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-suanda',
+        namaLengkap: 'Suanda Gumelar',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Banyumas',
+        asalKwarda: 'Kabupaten Banyumas',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pandu Senior HW Jateng',
+        noHp: '081327111222',
+        status: 'approved',
         tanggalDaftar: '2026-08-06T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-danang',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-danang',
+        namaLengkap: 'Danang Ari Wibowo',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Magelang',
+        asalKwarda: 'Kabupaten Magelang',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pelatih Nasional HW Jateng',
+        noHp: '081227333444',
+        status: 'approved',
+        tanggalDaftar: '2026-08-07T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-bayu',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-bayu',
+        namaLengkap: 'Bayu Ghifari Javalino',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Banyumas',
+        asalKwarda: 'Kabupaten Banyumas',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pandu Senior HW Jateng',
+        noHp: '081234567890',
+        status: 'approved',
+        tanggalDaftar: '2026-08-08T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-subagio',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        userId: 'user-subagio',
+        namaLengkap: 'Subagio Joko Suprapto',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Kebumen',
+        asalKwarda: 'Kabupaten Kebumen',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pandu Senior HW Jateng',
+        noHp: '081567890123',
+        status: 'approved',
+        tanggalDaftar: '2026-08-09T08:00:00.000Z'
       }
     ];
+  },
+
+  subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
+    const defaultApps = this.getDefaultActivityApplications();
+
+    let initialLocal: any[] = [];
+    try {
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      initialLocal = JSON.parse(stored);
+    } catch (e) {}
+
+    const initialMerged = this.deduplicateActivityApps([...defaultApps, ...initialLocal]);
+    callback(initialMerged);
 
     try {
       const unsub = onSnapshot(collection(db, 'activity_applications'), (snap) => {
@@ -2593,6 +2696,7 @@ export const firestoreService = {
         callback(list);
       }, (err) => {
         console.warn('subscribeToActivityApplications warning:', err);
+        callback(initialMerged);
       });
       return unsub;
     } catch (e) {
@@ -3101,52 +3205,7 @@ export const firestoreService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
-    const defaultApps = [
-      {
-        id: 'actreg-dzikron',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-dzikron',
-        namaLengkap: 'Muhammad Dzikron',
-        unsur: 'Kwarwil HW Jateng',
-        utusan: 'Kwarwil HW Jateng',
-        jabatan: 'Sekretaris',
-        kategoriUndangan: 'Pelatih Nasional HW Jateng',
-        noHp: '081226854000',
-        status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-burhan',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-burhan',
-        namaLengkap: 'BURHAN UTAMSI',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Purworejo',
-        asalKwarda: 'Kabupaten Purworejo',
-        jabatan: 'Ketua',
-        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
-        noHp: '08562737944',
-        status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
-      },
-      {
-        id: 'actreg-jalu',
-        activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        userId: 'user-jalu',
-        namaLengkap: 'JALU SURONO',
-        unsur: 'Kwarda HW',
-        utusan: 'Kwarda HW Kabupaten Klaten',
-        asalKwarda: 'Kabupaten Klaten',
-        jabatan: 'Anggota',
-        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
-        noHp: '081548754225',
-        status: 'approved',
-        tanggalDaftar: '2026-08-06T08:00:00.000Z'
-      }
-    ];
+    const defaultApps = this.getDefaultActivityApplications();
 
     let localApps: any[] = [];
     try {

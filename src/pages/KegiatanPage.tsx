@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { isParticipantOfActivity } from '../utils/activityUtils';
 import { 
   Calendar, 
   MapPin, 
@@ -139,6 +140,14 @@ export default function KegiatanPage() {
       }
     }).catch(err => {
       console.warn('Initial activities load warning:', err);
+    });
+
+    sheetsService.getActivityApplications().then(apps => {
+      if (apps && Array.isArray(apps) && apps.length > 0) {
+        setActivityApps(apps);
+      }
+    }).catch(err => {
+      console.warn('Initial activity applications load warning:', err);
     });
 
     const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
@@ -548,7 +557,7 @@ export default function KegiatanPage() {
                     className="py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                   >
                     <Users size={14} className="text-emerald-600" />
-                    <span>Pendaftar ({activityApps.filter(a => a.activityId === activity.id).length})</span>
+                    <span>Pendaftar ({activityApps.filter(a => isParticipantOfActivity(a, activity)).length})</span>
                   </button>
                   {isAdmin && (
                     <div className="flex items-center gap-1">
@@ -1099,7 +1108,7 @@ export default function KegiatanPage() {
 
               <div className="p-5 overflow-y-auto space-y-4 flex-1">
                 {(() => {
-                  const pendaftarList = activityApps.filter(app => app.activityId === selectedActivityForParticipants.id);
+                  const pendaftarList = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
                   if (pendaftarList.length === 0) {
                     return (
                       <div className="py-12 text-center text-gray-400 space-y-2 bg-gray-50 rounded-2xl border border-dashed border-gray-200">

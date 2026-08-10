@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
+import { isParticipantOfActivity } from '../utils/activityUtils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -2524,7 +2525,11 @@ export default function AdminDashboard() {
   };
 
   const exportActivityParticipantsToExcel = () => {
-    const list = activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants);
+    const list = activityApplicationsList.filter(app => {
+      if (selectedActivityForParticipants === 'semua') return true;
+      const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+      return isParticipantOfActivity(app, targetAct);
+    });
     
     let activityName = 'Semua_Kegiatan';
     if (selectedActivityForParticipants !== 'semua') {
@@ -2564,7 +2569,11 @@ export default function AdminDashboard() {
   };
 
   const exportActivityParticipantsToPDF = () => {
-    const list = activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants);
+    const list = activityApplicationsList.filter(app => {
+      if (selectedActivityForParticipants === 'semua') return true;
+      const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+      return isParticipantOfActivity(app, targetAct);
+    });
 
     let activityTitle = 'Semua Kegiatan HW Jateng';
     let activityNameFile = 'Semua_Kegiatan';
@@ -6206,7 +6215,7 @@ export default function AdminDashboard() {
                               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                               title="Lihat pendaftar kegiatan ini"
                             >
-                              <Users size={14} /> Cek Peserta ({activityApplicationsList.filter(app => app.activityId === act.id).length})
+                              <Users size={14} /> Cek Peserta ({activityApplicationsList.filter(app => isParticipantOfActivity(app, act)).length})
                             </button>
                             <div className="flex items-center gap-1.5">
                               <button
@@ -6275,7 +6284,11 @@ export default function AdminDashboard() {
                     {/* 1. Mobile Card View (Visible on small screens) */}
                     <div className="block md:hidden divide-y divide-gray-100">
                       {activityApplicationsList
-                        .filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants)
+                        .filter(app => {
+                          if (selectedActivityForParticipants === 'semua') return true;
+                          const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+                          return isParticipantOfActivity(app, targetAct);
+                        })
                         .map((app, index) => (
                           <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
                             <div className="flex items-start justify-between gap-2">
@@ -6328,7 +6341,11 @@ export default function AdminDashboard() {
                           </div>
                         ))}
 
-                      {activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants).length === 0 && (
+                      {activityApplicationsList.filter(app => {
+                        if (selectedActivityForParticipants === 'semua') return true;
+                        const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+                        return isParticipantOfActivity(app, targetAct);
+                      }).length === 0 && (
                         <div className="p-8 text-center text-gray-400 font-bold text-xs">
                           Belum ada pendaftar kegiatan.
                         </div>
@@ -6352,7 +6369,11 @@ export default function AdminDashboard() {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {activityApplicationsList
-                            .filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants)
+                            .filter(app => {
+                              if (selectedActivityForParticipants === 'semua') return true;
+                              const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+                              return isParticipantOfActivity(app, targetAct);
+                            })
                             .map((app, index) => (
                               <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
                                 <td className="p-4 font-bold text-gray-400 text-center text-[11px]">
@@ -6404,7 +6425,11 @@ export default function AdminDashboard() {
                                 </td>
                               </tr>
                             ))}
-                          {activityApplicationsList.filter(app => selectedActivityForParticipants === 'semua' || app.activityId === selectedActivityForParticipants).length === 0 && (
+                          {activityApplicationsList.filter(app => {
+                            if (selectedActivityForParticipants === 'semua') return true;
+                            const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+                            return isParticipantOfActivity(app, targetAct);
+                          }).length === 0 && (
                             <tr>
                               <td colSpan={8} className="p-8 text-center text-gray-400 font-bold">
                                 Belum ada pendaftar kegiatan.
