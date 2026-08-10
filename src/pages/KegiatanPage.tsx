@@ -666,7 +666,7 @@ export default function KegiatanPage() {
                 ) : null}
 
                 {/* Proposal Kegiatan Download */}
-                {((selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) ? (
+                {(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) ? (
                   <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -690,14 +690,7 @@ export default function KegiatanPage() {
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-gray-50 border border-gray-150 p-3.5 rounded-2xl flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-gray-400" />
-                      <span className="font-medium text-[11px]">Proposal Kegiatan: Belum ada file proposal diunggah.</span>
-                    </div>
-                  </div>
-                ))}
+                ) : null}
 
                 {/* Rekening Pembayaran & Konfirmasi WA */}
                 <div className="bg-slate-900 text-white p-4.5 rounded-2xl space-y-3.5 border border-slate-800 shadow-md">

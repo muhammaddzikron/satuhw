@@ -178,7 +178,7 @@ import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
-import { handleDocumentFileUpload } from '../utils/documentUtils';
+import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG } from '../utils/ktaUtils';
@@ -5843,6 +5843,18 @@ export default function AdminDashboard() {
                                     {act.jenisPelatihan || 'Jaya Melati 1'} • {act.status === 'Buka' ? 'Pendaftaran Buka' : 'Tutup'}
                                   </span>
                                   <h6 className="text-xs font-black text-gray-800 font-display">{act.namaKegiatan}</h6>
+                                  {(act.proposalUrl || act.proposal || act.linkProposal) && (
+                                    <div className="mt-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadDocument(act.proposalUrl || act.proposal || act.linkProposal, act.namaKegiatan)}
+                                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-all cursor-pointer shadow-xs active:scale-95"
+                                        title="Unduh Proposal Kegiatan"
+                                      >
+                                        <FileText size={12} /> Unduh Proposal
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <button
@@ -5858,7 +5870,8 @@ export default function AdminDashboard() {
                                         deskripsi: act.deskripsi || '',
                                         biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
                                         rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                                        noWhatsappPanitia: act.noWhatsappPanitia || '089688754000'
+                                        noWhatsappPanitia: act.noWhatsappPanitia || '089688754000',
+                                        proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || ''
                                       });
                                       setIsActivityModalOpen(true);
                                     }}
