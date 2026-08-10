@@ -196,13 +196,24 @@ export default function HomePage() {
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
 
-  // Subscribe to real-time activities so edited activities in Admin immediately update on HomePage
+  // Subscribe to real-time activities and settings so edited activities in Admin immediately update on HomePage
   useEffect(() => {
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       setActivitiesList(acts || []);
     });
+    const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
+      if (sData && sData.trainingActivities) {
+        const acts = Array.isArray(sData.trainingActivities)
+          ? sData.trainingActivities
+          : typeof sData.trainingActivities === 'string'
+            ? JSON.parse(sData.trainingActivities || '[]')
+            : [];
+        setTrainingActivities(acts);
+      }
+    });
     return () => {
       unsubActivities();
+      unsubSettings();
     };
   }, []);
 
@@ -215,7 +226,19 @@ export default function HomePage() {
       if (!act) return;
       const isTrainingCat = act.kategori === 'Pelatihan' || act.kategori === 'Pelatihan HW' || act.jenisPelatihan;
       if (isTrainingCat || map.has(act.id)) {
-        map.set(act.id, { ...map.get(act.id), ...(map.get(act.id) || {}), ...act });
+        const prev = map.get(act.id) || {};
+        const merged = { ...prev, ...act };
+        const finalLoc = act.lokasi || act.lokasiPelatihan || act.location || prev.lokasi || prev.lokasiPelatihan || '';
+        const finalDate = act.tanggal || act.tanggalPelatihan || act.startDate || prev.tanggal || prev.tanggalPelatihan || '';
+        map.set(act.id, {
+          ...merged,
+          lokasi: finalLoc,
+          location: finalLoc,
+          lokasiPelatihan: finalLoc,
+          tanggal: finalDate,
+          startDate: finalDate,
+          tanggalPelatihan: finalDate
+        });
       }
     });
     return Array.from(map.values());
@@ -549,7 +572,7 @@ export default function HomePage() {
             <a href={`https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-rose-500 shadow-sm active:scale-95 transition-transform">
               <Instagram size={14} />
             </a>
-            <a href={sosmed?.field3?.startsWith('http') ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-red-600 shadow-sm active:scale-95 transition-transform">
+            <a href={(typeof sosmed?.field3 === 'string' && sosmed.field3.startsWith('http')) ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-red-600 shadow-sm active:scale-95 transition-transform">
               <Youtube size={14} />
             </a>
             <a href={sosmed?.field4 || 'https://chat.whatsapp.com/'} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-green-500 shadow-sm active:scale-95 transition-transform">
@@ -1506,21 +1529,21 @@ export default function HomePage() {
                       handle: sosmed?.field1 || '@hw_pusat', 
                       icon: Instagram, 
                       color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500', 
-                      link: sosmed?.field1?.startsWith('http') ? sosmed.field1 : `https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}` 
+                      link: (typeof sosmed?.field1 === 'string' && sosmed.field1.startsWith('http')) ? sosmed.field1 : `https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}` 
                     },
                     { 
                       name: 'Tiktok', 
                       handle: sosmed?.field2 || '@hw_pusat', 
                       icon: Share2, 
                       color: 'bg-black', 
-                      link: sosmed?.field2?.startsWith('http') ? sosmed.field2 : `https://tiktok.com/@${String(sosmed?.field2 || 'hw_pusat').replace('@', '')}` 
+                      link: (typeof sosmed?.field2 === 'string' && sosmed.field2.startsWith('http')) ? sosmed.field2 : `https://tiktok.com/@${String(sosmed?.field2 || 'hw_pusat').replace('@', '')}` 
                     },
                     { 
                       name: 'YouTube', 
                       handle: sosmed?.field3 || 'Hizbul Wathan TV', 
                       icon: Youtube, 
                       color: 'bg-red-600', 
-                      link: sosmed?.field3?.startsWith('http') ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}` 
+                      link: (typeof sosmed?.field3 === 'string' && sosmed.field3.startsWith('http')) ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}` 
                     },
                   ].map((item) => (
                     <a
@@ -1626,7 +1649,7 @@ export default function HomePage() {
 
                   {kontak?.field3 && (
                     <a
-                      href={kontak.field3.startsWith('http') ? kontak.field3 : `https://${kontak.field3}`}
+                      href={(typeof kontak.field3 === 'string' && kontak.field3.startsWith('http')) ? kontak.field3 : `https://${kontak.field3}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 hover:border-blue-400 hover:bg-white transition-all shadow-xs group"

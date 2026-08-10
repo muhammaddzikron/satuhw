@@ -78,6 +78,9 @@ export default function DaftarPelatihanPage() {
 
   // Load existing members & KTA applications for lookup, settings & profile pre-population
   useEffect(() => {
+    let unsubSettings: (() => void) | null = null;
+    let unsubActivities: (() => void) | null = null;
+
     const fetchData = async () => {
       try {
         const [list, s, ktaApps] = await Promise.all([
@@ -117,6 +120,50 @@ export default function DaftarPelatihanPage() {
           trainingDates: dates,
           trainingActivities: activities,
           trainingTypes: mergedTypes
+        });
+
+        unsubSettings = sheetsService.subscribeToSettings((newSettings: any) => {
+          if (!newSettings) return;
+          const acts = Array.isArray(newSettings.trainingActivities)
+            ? newSettings.trainingActivities
+            : typeof newSettings.trainingActivities === 'string'
+              ? JSON.parse(newSettings.trainingActivities || '[]')
+              : [];
+          setSettings(prev => ({
+            ...prev,
+            ...newSettings,
+            trainingActivities: acts.length > 0 ? acts : prev.trainingActivities
+          }));
+        });
+
+        unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
+          if (!acts || acts.length === 0) return;
+          setSettings(prev => {
+            const currentActs = Array.isArray(prev.trainingActivities) ? [...prev.trainingActivities] : [];
+            const map = new Map<string, any>();
+            currentActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+            acts.forEach(a => {
+              if (a && a.id) {
+                const prevAct = map.get(a.id) || {};
+                const merged = { ...prevAct, ...a };
+                const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prevAct.lokasi || prevAct.lokasiPelatihan || '';
+                const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prevAct.tanggal || prevAct.tanggalPelatihan || '';
+                map.set(a.id, {
+                  ...merged,
+                  lokasi: finalLoc,
+                  location: finalLoc,
+                  lokasiPelatihan: finalLoc,
+                  tanggal: finalDate,
+                  startDate: finalDate,
+                  tanggalPelatihan: finalDate
+                });
+              }
+            });
+            return {
+              ...prev,
+              trainingActivities: Array.from(map.values())
+            };
+          });
         });
 
         let prefillLocation = activityFromState?.lokasiPelatihan || locations[0] || '';
@@ -184,6 +231,10 @@ export default function DaftarPelatihanPage() {
       }
     };
     fetchData();
+    return () => {
+      if (unsubSettings) unsubSettings();
+      if (unsubActivities) unsubActivities();
+    };
   }, [isAuthenticated, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

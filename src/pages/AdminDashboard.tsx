@@ -3033,7 +3033,7 @@ export default function AdminDashboard() {
                                 r === 'superadmin' || r === 'admin' ? 'bg-red-100 text-red-600' :
                                 r === 'sugli' ? 'bg-orange-100 text-orange-600' :
                                 r === 'kwarda' ? 'bg-blue-100 text-blue-600' :
-                                r.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
+                                typeof r === 'string' && r.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
                                 'bg-gray-100 text-gray-600'
                               }`}>
                                 {ROLE_LABELS[r] || r}
@@ -3043,7 +3043,7 @@ export default function AdminDashboard() {
                                 row.role === 'superadmin' || row.role === 'admin' ? 'bg-red-100 text-red-600' :
                                 row.role === 'sugli' ? 'bg-orange-100 text-orange-600' :
                                 row.role === 'kwarda' ? 'bg-blue-100 text-blue-600' :
-                                row.role.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
+                                typeof row.role === 'string' && row.role.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
                                 'bg-gray-100 text-gray-600'
                               }`}>
                                 {ROLE_LABELS[row.role] || row.role}

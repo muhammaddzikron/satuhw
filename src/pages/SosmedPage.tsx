@@ -29,9 +29,9 @@ export default function SosmedPage() {
   if (loading) return <LoadingPage />;
 
   const SOSMED_ITEMS = [
-    { name: 'Instagram', handle: sosmed?.field1 || '@hw_pusat', icon: Instagram, color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500', link: sosmed?.field1?.startsWith('http') ? sosmed.field1 : `https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}` },
-    { name: 'Tiktok', handle: sosmed?.field2 || '@hw_pusat', icon: Share2, color: 'bg-black', link: sosmed?.field2?.startsWith('http') ? sosmed.field2 : `https://tiktok.com/@${String(sosmed?.field2 || 'hw_pusat').replace('@', '')}` },
-    { name: 'YouTube', handle: sosmed?.field3 || 'Hizbul Wathan TV', icon: Youtube, color: 'bg-red-600', link: sosmed?.field3?.startsWith('http') ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}` },
+    { name: 'Instagram', handle: sosmed?.field1 || '@hw_pusat', icon: Instagram, color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500', link: (typeof sosmed?.field1 === 'string' && sosmed.field1.startsWith('http')) ? sosmed.field1 : `https://instagram.com/${String(sosmed?.field1 || 'hw_pusat').replace('@', '')}` },
+    { name: 'Tiktok', handle: sosmed?.field2 || '@hw_pusat', icon: Share2, color: 'bg-black', link: (typeof sosmed?.field2 === 'string' && sosmed.field2.startsWith('http')) ? sosmed.field2 : `https://tiktok.com/@${String(sosmed?.field2 || 'hw_pusat').replace('@', '')}` },
+    { name: 'YouTube', handle: sosmed?.field3 || 'Hizbul Wathan TV', icon: Youtube, color: 'bg-red-600', link: (typeof sosmed?.field3 === 'string' && sosmed.field3.startsWith('http')) ? sosmed.field3 : `https://youtube.com/channel/${sosmed?.field3 || ''}` },
   ];
 
   return (

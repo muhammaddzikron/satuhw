@@ -1044,7 +1044,7 @@ export const sheetsService = {
       remark = param3 || param4 || 'Pengajuan KTA ditolak';
       ktaNumber = undefined;
     } else if (status === 'approved') {
-      if (param3 && !param3.startsWith('KTA-') && !param4) {
+      if (param3 && typeof param3 === 'string' && !param3.startsWith('KTA-') && !param4) {
         remark = param3;
         ktaNumber = undefined;
       }

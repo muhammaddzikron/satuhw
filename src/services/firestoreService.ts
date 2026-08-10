@@ -2203,6 +2203,13 @@ export const firestoreService = {
 
     try {
       const unsub = onSnapshot(collection(db, 'hw_activities'), (snap) => {
+        let deletedIds: string[] = [];
+        try {
+          if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+            deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+          }
+        } catch (e) {}
+
         let fsActs: any[] = [];
         if (!snap.empty) {
           fsActs = snap.docs.map(d => {
@@ -2236,10 +2243,6 @@ export const firestoreService = {
               status: data.status || 'Buka'
             };
           });
-        } else {
-          defaults.forEach(def => {
-            setDoc(doc(db, 'hw_activities', def.id), cleanData(def), { merge: true }).catch(() => {});
-          });
         }
 
         let localActs: any[] = [];
@@ -2251,21 +2254,46 @@ export const firestoreService = {
         } catch (e) {}
 
         const map = new Map<string, any>();
-        defaults.forEach(a => map.set(a.id, a));
-        localActs.forEach(a => {
-          if (a && a.id) {
-            const prev = map.get(a.id) || {};
-            map.set(a.id, { ...prev, ...a });
+
+        defaults.forEach(a => {
+          if (!deletedIds.includes(a.id)) {
+            if (snap.empty && localActs.length === 0) {
+              map.set(a.id, a);
+            } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
+              map.set(a.id, a);
+            }
           }
         });
-        fsActs.forEach(a => {
-          if (a && a.id) {
+
+        localActs.forEach(a => {
+          if (a && a.id && !deletedIds.includes(a.id)) {
             const prev = map.get(a.id) || {};
             map.set(a.id, { ...prev, ...a });
           }
         });
 
-        const list = Array.from(map.values());
+        fsActs.forEach(a => {
+          if (a && a.id && !deletedIds.includes(a.id)) {
+            const prev = map.get(a.id) || {};
+            const merged = { ...prev, ...a };
+            const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
+            const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
+            const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
+            map.set(a.id, {
+              ...merged,
+              namaKegiatan: finalTitle,
+              title: finalTitle,
+              lokasi: finalLoc,
+              location: finalLoc,
+              lokasiPelatihan: finalLoc,
+              tanggal: finalDate,
+              startDate: finalDate,
+              tanggalPelatihan: finalDate
+            });
+          }
+        });
+
+        const list = Array.from(map.values()).filter(a => a && a.id && !deletedIds.includes(a.id));
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
             localStorage.setItem('hw_activities', JSON.stringify(list));
@@ -2341,7 +2369,8 @@ export const firestoreService = {
 
       if (existingIdx >= 0) {
         const existing = deduped[existingIdx];
-        const isItemDefault = normalizedItem.id.startsWith('actreg-dzikron') || normalizedItem.id.startsWith('actreg-burhan') || normalizedItem.id.startsWith('actreg-jalu');
+        const normIdStr = String(normalizedItem.id || '');
+        const isItemDefault = normIdStr.startsWith('actreg-dzikron') || normIdStr.startsWith('actreg-burhan') || normIdStr.startsWith('actreg-jalu');
 
         deduped[existingIdx] = {
           ...existing,
@@ -2445,6 +2474,25 @@ export const firestoreService = {
 
   // --- KEGIATAN HW JATENG ---
   async getActivities(): Promise<any[]> {
+    let deletedIds: string[] = [];
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+      }
+    } catch (e) {}
+
+    try {
+      const s = await this.getSettings();
+      if (s && Array.isArray(s.deletedActivityIds)) {
+        s.deletedActivityIds.forEach((dId: string) => {
+          if (!deletedIds.includes(dId)) deletedIds.push(dId);
+        });
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+        }
+      }
+    } catch (e) {}
+
     const defaults = [
       {
         id: 'keg-silaturahmi-pelatih',
@@ -2527,21 +2575,45 @@ export const firestoreService = {
     }
 
     const map = new Map<string, any>();
-    defaults.forEach(a => map.set(a.id, a));
-    localActs.forEach(a => {
-      if (a && a.id) {
-        const prev = map.get(a.id) || {};
-        map.set(a.id, { ...prev, ...a });
+    defaults.forEach(a => {
+      if (!deletedIds.includes(a.id)) {
+        if (fsActs.length === 0 && localActs.length === 0) {
+          map.set(a.id, a);
+        } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
+          map.set(a.id, a);
+        }
       }
     });
-    fsActs.forEach(a => {
-      if (a && a.id) {
+
+    localActs.forEach(a => {
+      if (a && a.id && !deletedIds.includes(a.id)) {
         const prev = map.get(a.id) || {};
         map.set(a.id, { ...prev, ...a });
       }
     });
 
-    const result = Array.from(map.values());
+    fsActs.forEach(a => {
+      if (a && a.id && !deletedIds.includes(a.id)) {
+        const prev = map.get(a.id) || {};
+        const merged = { ...prev, ...a };
+        const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
+        const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
+        const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
+        map.set(a.id, {
+          ...merged,
+          namaKegiatan: finalTitle,
+          title: finalTitle,
+          lokasi: finalLoc,
+          location: finalLoc,
+          lokasiPelatihan: finalLoc,
+          tanggal: finalDate,
+          startDate: finalDate,
+          tanggalPelatihan: finalDate
+        });
+      }
+    });
+
+    const result = Array.from(map.values()).filter(a => a && a.id && !deletedIds.includes(a.id));
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem('hw_activities', JSON.stringify(result));
@@ -2553,6 +2625,15 @@ export const firestoreService = {
   async saveActivity(activityData: any): Promise<any> {
     const actId = activityData.id || `keg-${Date.now()}`;
     const nowIso = new Date().toISOString();
+
+    // Un-mark actId from deletedActivityIds if re-saving
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('hw_deleted_activities') || '[]';
+        const deletedIds = JSON.parse(stored).filter((dId: string) => dId !== actId);
+        localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+      }
+    } catch (e) {}
 
     let existingFsAct: any = null;
     if (!this.getIsQuotaExceeded()) {
@@ -2577,12 +2658,12 @@ export const firestoreService = {
 
     const existingAct = { ...(localExisting || {}), ...(existingFsAct || {}) };
 
-    const titleVal = activityData.namaKegiatan || activityData.title || existingAct.namaKegiatan || existingAct.title || '';
+    const titleVal = activityData.namaKegiatan || activityData.title || activityData.jenisPelatihan || existingAct.namaKegiatan || existingAct.title || '';
     const descVal = activityData.deskripsi || activityData.description || existingAct.deskripsi || existingAct.description || '';
-    const locVal = activityData.lokasi || activityData.location || existingAct.lokasi || existingAct.location || '';
-    const dateVal = activityData.tanggal || activityData.startDate || existingAct.tanggal || existingAct.startDate || '';
+    const locVal = activityData.lokasi || activityData.lokasiPelatihan || activityData.location || existingAct.lokasi || existingAct.lokasiPelatihan || existingAct.location || '';
+    const dateVal = activityData.tanggal || activityData.tanggalPelatihan || activityData.startDate || existingAct.tanggal || existingAct.tanggalPelatihan || existingAct.startDate || '';
     const imgVal = activityData.gambarUrl || activityData.imageUrl || existingAct.gambarUrl || existingAct.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
-    const catVal = activityData.kategori || activityData.category || existingAct.kategori || existingAct.category || 'Silaturahmi';
+    const catVal = activityData.kategori || activityData.category || activityData.jenisPelatihan || existingAct.kategori || existingAct.category || 'Silaturahmi';
 
     const songUrlVal = (activityData.themeSongUrl !== undefined && activityData.themeSongUrl !== null) ? activityData.themeSongUrl :
                       ((activityData.themeSong !== undefined && activityData.themeSong !== null) ? activityData.themeSong :
@@ -2610,12 +2691,16 @@ export const firestoreService = {
       description: descVal,
       lokasi: locVal,
       location: locVal,
+      lokasiPelatihan: locVal,
       tanggal: dateVal,
       startDate: dateVal,
+      tanggalPelatihan: dateVal,
+      jenisPelatihan: activityData.jenisPelatihan || existingAct.jenisPelatihan || catVal,
       endDate: activityData.endDate || existingAct.endDate || '',
       startTime: activityData.startTime || activityData.jamMulai || existingAct.startTime || '',
       endTime: activityData.endTime || activityData.jamSelesai || existingAct.endTime || '',
-      biaya: activityData.biaya || existingAct.biaya || 'Gratis',
+      biaya: activityData.biaya || activityData.biayaPelatihan || existingAct.biaya || existingAct.biayaPelatihan || 'Gratis',
+      biayaPelatihan: activityData.biayaPelatihan || activityData.biaya || existingAct.biayaPelatihan || existingAct.biaya || 'Gratis',
       kuota: activityData.kuota || existingAct.kuota || 'Terbuka',
       gambarUrl: imgVal,
       imageUrl: imgVal,
@@ -2663,42 +2748,66 @@ export const firestoreService = {
     try {
       const currentSettings = await this.getSettings();
       const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
+      const deletedIds = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds.filter((dId: string) => dId !== actId) : [];
       const actIdx = currentActs.findIndex((a: any) => a.id === actId);
       if (actIdx >= 0) {
         currentActs[actIdx] = { ...currentActs[actIdx], ...newAct };
       } else {
         currentActs.unshift(newAct);
       }
-      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs });
+      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs, deletedActivityIds: deletedIds });
     } catch (e) {}
 
     return newAct;
   },
 
   async deleteActivity(id: string): Promise<boolean> {
+    if (!id) return true;
+
+    // 1. Record in deleted IDs list in local storage
+    let deletedIds: string[] = [];
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+        if (!deletedIds.includes(id)) {
+          deletedIds.push(id);
+          localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+        }
+      }
+    } catch (e) {}
+
+    // 2. Delete document from Firestore
     if (!this.getIsQuotaExceeded()) {
       try {
         await withTimeout(deleteDoc(doc(db, 'hw_activities', id)), 8000);
       } catch (err: any) {
         this.checkQuotaError(err);
         console.error('Firestore deleteActivity ERROR:', err);
-        throw new Error(err.message || 'Gagal menghapus kegiatan dari Firebase Firestore.');
       }
     }
 
+    // 3. Clear local cache
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('hw_activities') || '[]';
-        const localActs = JSON.parse(stored).filter((a: any) => a.id !== id);
+        const localActs = JSON.parse(stored).filter((a: any) => a && a.id !== id);
         localStorage.setItem('hw_activities', JSON.stringify(localActs));
       }
     } catch (e) {}
 
+    // 4. Update trainingActivities and deletedActivityIds in app_settings
     try {
       const currentSettings = await this.getSettings();
       const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
-      const filteredActs = currentActs.filter((a: any) => a.id !== id);
-      await this.saveSettings({ ...currentSettings, trainingActivities: filteredActs });
+      const filteredActs = currentActs.filter((a: any) => a && a.id !== id);
+      const existingDeleted = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds : [];
+      const mergedDeleted = Array.from(new Set([...existingDeleted, ...deletedIds, id]));
+
+      await this.saveSettings({
+        ...currentSettings,
+        trainingActivities: filteredActs,
+        deletedActivityIds: mergedDeleted
+      });
     } catch (e) {}
 
     return true;

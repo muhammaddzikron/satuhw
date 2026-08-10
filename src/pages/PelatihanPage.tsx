@@ -236,7 +236,7 @@ export default function PelatihanPage() {
       const apps = await sheetsService.getTrainingApplications();
       setApplications(apps || []);
 
-      // Fetch dynamic training activities from Settings
+      // Fetch dynamic training activities from Settings & Realtime Activities
       try {
         const settingsData = await sheetsService.getSettings();
         if (settingsData) {
@@ -265,6 +265,33 @@ export default function PelatihanPage() {
         console.error('Failed to fetch settings for activities:', err);
         setTrainingActivities(DEFAULT_TRAINING_ACTIVITIES);
       }
+
+      const unsubSettings = sheetsService.subscribeToSettings((settingsData: any) => {
+        if (settingsData && settingsData.trainingActivities) {
+          const acts = Array.isArray(settingsData.trainingActivities)
+            ? settingsData.trainingActivities
+            : JSON.parse(settingsData.trainingActivities || '[]');
+          if (acts && acts.length > 0) {
+            setTrainingActivities(acts);
+          }
+        }
+      });
+
+      const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
+        if (acts && acts.length > 0) {
+          setTrainingActivities(prev => {
+            const map = new Map<string, any>();
+            (prev || []).forEach(a => { if (a && a.id) map.set(a.id, a); });
+            (acts || []).forEach(a => {
+              if (a && a.id) {
+                const existing = map.get(a.id) || {};
+                map.set(a.id, { ...existing, ...a });
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+      });
 
       // Find user app for selected level or activity
       if (user) {

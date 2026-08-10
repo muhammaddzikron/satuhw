@@ -165,7 +165,7 @@ export function safeJsonParse<T>(val: any, fallback: T): T {
 }
 
 export function getDriveDirectLink(url: string | null | undefined): string {
-  if (!url) return '';
+  if (!url || typeof url !== 'string') return '';
   if (url.includes('drive.google.com')) {
     const match = url.match(/\/d\/(.+?)(\/|$|\?|#)/) || url.match(/[?&]id=(.+?)(&|$|#)/);
     if (match && match[1]) {
@@ -177,7 +177,7 @@ export function getDriveDirectLink(url: string | null | undefined): string {
 }
 
 export function getCorsSafeUrl(url: string | null | undefined): string {
-  if (!url) return '';
+  if (!url || typeof url !== 'string') return '';
   if (url.startsWith('data:')) return url;
   if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('http://localhost') || url.startsWith('https://localhost')) return url;
   
