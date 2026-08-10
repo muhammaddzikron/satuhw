@@ -50,6 +50,30 @@ function isActivityDeleted(act: any, deletedIds: string[] = [], deletedTitles: s
   return false;
 }
 
+// Helper to check if two activity objects refer to the same event
+function isSameActivity(a: any, b: any): boolean {
+  if (!a || !b) return false;
+  if (a.id && b.id && String(a.id) === String(b.id)) return true;
+
+  const titleA = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
+  const titleB = (b.namaKegiatan || b.title || b.jenisPelatihan || '').trim().toLowerCase();
+
+  if (!titleA || !titleB) return false;
+  if (titleA === titleB) return true;
+
+  const cleanA = titleA.replace(/[^a-z0-9]/g, '');
+  const cleanB = titleB.replace(/[^a-z0-9]/g, '');
+  if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) {
+    return true;
+  }
+
+  if (titleA.includes('silaturahmi') && titleB.includes('silaturahmi') && titleA.includes('pelatih') && titleB.includes('pelatih')) {
+    return true;
+  }
+
+  return false;
+}
+
 // Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
 const cleanData = <T extends Record<string, any>>(obj: T): T => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -584,12 +608,16 @@ export const firestoreService = {
 
         if (matchedIdx >= 0) {
           const ex = members[matchedIdx];
+          const validExKta = isValidKtaNumberFormat(ex.ktaNumber || ex.nomorKTA) ? (ex.ktaNumber || ex.nomorKTA) : '';
+          const validMmKta = isValidKtaNumberFormat(mm.ktaNumber || mm.nomorKTA) ? (mm.ktaNumber || mm.nomorKTA) : '';
+          const finalKta = validExKta || validMmKta || '';
+
           members[matchedIdx] = {
             ...mm,
             ...ex,
             id: ex.id || mm.id,
-            ktaNumber: ex.ktaNumber || mm.ktaNumber || ex.nomorKTA || mm.nomorKTA,
-            nomorKTA: ex.nomorKTA || mm.nomorKTA || ex.ktaNumber || mm.ktaNumber,
+            ktaNumber: finalKta,
+            nomorKTA: finalKta,
             nik: ex.nik || mm.nik,
             noHp: ex.noHp || mm.noHp,
             alamat: ex.alamat || mm.alamat,
@@ -606,6 +634,46 @@ export const firestoreService = {
     } catch (e) {
       console.warn('Error merging master members list in getMembers:', e);
     }
+
+    // Strict KTA validation & deduplication pass for returned members
+    const usedKtaPerCode = new Map<string, Set<number>>();
+    members.forEach((m) => {
+      const kta = m.ktaNumber || m.nomorKTA;
+      if (kta && isValidKtaNumberFormat(kta)) {
+        const parsed = parseKtaNumber(kta);
+        if (parsed) {
+          if (!usedKtaPerCode.has(parsed.kodeKwarda)) {
+            usedKtaPerCode.set(parsed.kodeKwarda, new Set());
+          }
+          const set = usedKtaPerCode.get(parsed.kodeKwarda)!;
+          if (set.has(parsed.nomorUrut)) {
+            m.ktaNumber = '';
+            m.nomorKTA = '';
+          } else {
+            set.add(parsed.nomorUrut);
+          }
+        }
+      } else {
+        m.ktaNumber = '';
+        m.nomorKTA = '';
+      }
+    });
+
+    members.forEach((m) => {
+      const kta = m.ktaNumber || m.nomorKTA;
+      if (!kta || !isValidKtaNumberFormat(kta)) {
+        const code = getKwardaCode(m.asalKwarda, m.qabilah);
+        if (!usedKtaPerCode.has(code)) {
+          usedKtaPerCode.set(code, new Set());
+        }
+        const set = usedKtaPerCode.get(code)!;
+        const seq = findNextAvailableNumber(set);
+        set.add(seq);
+        const newKta = formatKtaNumber(code, seq);
+        m.ktaNumber = newKta;
+        m.nomorKTA = newKta;
+      }
+    });
 
     const filteredMembers = members
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
@@ -2236,7 +2304,7 @@ export const firestoreService = {
         description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        themeSongUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=orchestral-fanfare-112351.mp3',
+        themeSongUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         createdBy: 'muhammaddzikron@gmail.com',
@@ -2341,7 +2409,24 @@ export const firestoreService = {
           }
         });
 
-        const list = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
+        const rawList = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
+        const list: any[] = [];
+        for (const item of rawList) {
+          const existingIdx = list.findIndex(e => isSameActivity(e, item));
+          if (existingIdx >= 0) {
+            const existing = list[existingIdx];
+            const itemTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+            const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+            if (itemTime >= existingTime) {
+              list[existingIdx] = { ...existing, ...item };
+            } else {
+              list[existingIdx] = { ...item, ...existing };
+            }
+          } else {
+            list.push(item);
+          }
+        }
+
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
             localStorage.setItem('hw_activities', JSON.stringify(list));
@@ -2350,10 +2435,12 @@ export const firestoreService = {
         callback(list);
       }, (err) => {
         console.warn('subscribeToActivities warning:', err);
+        this.getActivities().then(acts => callback(acts)).catch(() => callback(defaults));
       });
       return unsub;
     } catch (e) {
       console.error('subscribeToActivities error:', e);
+      this.getActivities().then(acts => callback(acts)).catch(() => callback(defaults));
       return () => {};
     }
   },
@@ -2570,7 +2657,7 @@ export const firestoreService = {
         description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        themeSongUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=orchestral-fanfare-112351.mp3',
+        themeSongUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         createdBy: 'muhammaddzikron@gmail.com',
@@ -2671,7 +2758,24 @@ export const firestoreService = {
       }
     });
 
-    const result = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
+    const rawResult = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
+    const result: any[] = [];
+    for (const item of rawResult) {
+      const existingIdx = result.findIndex(e => isSameActivity(e, item));
+      if (existingIdx >= 0) {
+        const existing = result[existingIdx];
+        const itemTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        if (itemTime >= existingTime) {
+          result[existingIdx] = { ...existing, ...item };
+        } else {
+          result[existingIdx] = { ...item, ...existing };
+        }
+      } else {
+        result.push(item);
+      }
+    }
+
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem('hw_activities', JSON.stringify(result));
@@ -2738,9 +2842,30 @@ export const firestoreService = {
                         ((activityData.themeSongName !== undefined && activityData.themeSongName !== null) ? activityData.themeSongName :
                         (existingAct.themeSongTitle || existingAct.themeSongName || ''));
 
+    const proposalVal = (activityData.proposalUrl !== undefined && activityData.proposalUrl !== null) ? activityData.proposalUrl :
+                        ((activityData.proposal !== undefined && activityData.proposal !== null) ? activityData.proposal :
+                        ((activityData.linkProposal !== undefined && activityData.linkProposal !== null) ? activityData.linkProposal :
+                        (existingAct.proposalUrl || existingAct.proposal || existingAct.linkProposal || '')));
+
+    const rekeningVal = (activityData.rekeningPembayaran && String(activityData.rekeningPembayaran).trim()) ||
+                        (activityData.rekeningPembiayaan && String(activityData.rekeningPembiayaan).trim()) ||
+                        (existingAct.rekeningPembayaran && String(existingAct.rekeningPembayaran).trim()) ||
+                        (existingAct.rekeningPembiayaan && String(existingAct.rekeningPembiayaan).trim()) ||
+                        'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+
+    const konfirmasiVal = (activityData.konfirmasiPembayaran && String(activityData.konfirmasiPembayaran).trim()) ||
+                         (activityData.noWhatsappPanitia && String(activityData.noWhatsappPanitia).trim()) ||
+                         (activityData.kontakKonfirmasi && String(activityData.kontakKonfirmasi).trim()) ||
+                         (existingAct.konfirmasiPembayaran && String(existingAct.konfirmasiPembayaran).trim()) ||
+                         (existingAct.noWhatsappPanitia && String(existingAct.noWhatsappPanitia).trim()) ||
+                         '089688754000';
+
     // Validate size to prevent Firestore 1MB document limit overflow
     if (typeof songUrlVal === 'string' && songUrlVal.length > 800000) {
       throw new Error('Ukuran file audio/themesong terlalu besar untuk disimpan langsung. Silakan gunakan link URL MP3 online.');
+    }
+    if (typeof proposalVal === 'string' && proposalVal.length > 800000) {
+      throw new Error('Ukuran file proposal terlalu besar untuk disimpan langsung. Silakan gunakan URL / Link Google Drive.');
     }
     if (typeof imgVal === 'string' && imgVal.length > 800000) {
       throw new Error('Ukuran file gambar banner terlalu besar. Silakan gunakan URL/link gambar online.');
@@ -2760,7 +2885,7 @@ export const firestoreService = {
       tanggal: dateVal,
       startDate: dateVal,
       tanggalPelatihan: dateVal,
-      jenisPelatihan: activityData.jenisPelatihan || existingAct.jenisPelatihan || catVal,
+      jenisPelatihan: activityData.jenisPelatihan || titleVal || catVal,
       endDate: activityData.endDate || existingAct.endDate || '',
       startTime: activityData.startTime || activityData.jamMulai || existingAct.startTime || '',
       endTime: activityData.endTime || activityData.jamSelesai || existingAct.endTime || '',
@@ -2776,6 +2901,13 @@ export const firestoreService = {
       themeSongTitle: songTitleVal,
       themeSong: songUrlVal,
       themeSongName: songTitleVal,
+      proposalUrl: proposalVal,
+      proposal: proposalVal,
+      linkProposal: proposalVal,
+      rekeningPembayaran: rekeningVal,
+      rekeningPembiayaan: rekeningVal,
+      konfirmasiPembayaran: konfirmasiVal,
+      noWhatsappPanitia: konfirmasiVal,
       penyelenggara: activityData.penyelenggara || existingAct.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
       createdBy: existingAct.createdBy || activityData.createdBy || '',
       creatorName: existingAct.creatorName || activityData.creatorName || '',
@@ -2787,6 +2919,18 @@ export const firestoreService = {
     if (!this.getIsQuotaExceeded()) {
       try {
         await withTimeout(setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true }), 10000);
+
+        // Delete legacy/duplicate documents in hw_activities that refer to the same event under a different ID
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'hw_activities')), 6000);
+          if (!snap.empty) {
+            for (const d of snap.docs) {
+              if (d.id !== actId && isSameActivity({ id: d.id, ...d.data() }, newAct)) {
+                await deleteDoc(doc(db, 'hw_activities', d.id));
+              }
+            }
+          }
+        } catch (e) {}
       } catch (err: any) {
         this.checkQuotaError(err);
         console.error('Firestore saveActivity ERROR:', err);
@@ -2798,13 +2942,9 @@ export const firestoreService = {
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('hw_activities') || '[]';
-        const localActs = JSON.parse(stored);
-        const idx = localActs.findIndex((a: any) => a.id === actId);
-        if (idx >= 0) {
-          localActs[idx] = newAct;
-        } else {
-          localActs.unshift(newAct);
-        }
+        let localActs = JSON.parse(stored);
+        localActs = localActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
+        localActs.unshift(newAct);
         localStorage.setItem('hw_activities', JSON.stringify(localActs));
       }
     } catch (e) {}
@@ -2815,13 +2955,16 @@ export const firestoreService = {
       const currentActs = Array.isArray(currentSettings.trainingActivities) ? currentSettings.trainingActivities : [];
       const deletedIds = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds.filter((dId: string) => dId !== actId) : [];
       const deletedTitles = Array.isArray(currentSettings.deletedActivityTitles) ? currentSettings.deletedActivityTitles.filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase()) : [];
-      const actIdx = currentActs.findIndex((a: any) => a.id === actId);
-      if (actIdx >= 0) {
-        currentActs[actIdx] = { ...currentActs[actIdx], ...newAct };
-      } else {
-        currentActs.unshift(newAct);
-      }
-      await this.saveSettings({ ...currentSettings, trainingActivities: currentActs, deletedActivityIds: deletedIds, deletedActivityTitles: deletedTitles });
+
+      const filtered = currentActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
+      filtered.unshift(newAct);
+
+      await this.saveSettings({
+        ...currentSettings,
+        trainingActivities: filtered,
+        deletedActivityIds: deletedIds,
+        deletedActivityTitles: deletedTitles
+      });
     } catch (e) {}
 
     return newAct;

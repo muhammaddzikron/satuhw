@@ -178,6 +178,7 @@ import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
+import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
@@ -1516,13 +1517,15 @@ export default function AdminDashboard() {
 
       // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
       const currentActs = [...(settings.trainingActivities || [])];
-      const idx = currentActs.findIndex((a: any) => a.id === actId);
-      if (idx >= 0) {
-        currentActs[idx] = { ...currentActs[idx], ...(saved || payload) };
-      } else {
-        currentActs.unshift(saved || payload);
-      }
-      setSettings(prev => ({ ...prev, trainingActivities: currentActs }));
+      const normTitle = (kegiatanFormData.namaKegiatan || '').trim().toLowerCase();
+      const filteredActs = currentActs.filter((a: any) => {
+        if (a.id === actId) return false;
+        const aTitle = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
+        if (aTitle && normTitle && (aTitle === normTitle || aTitle.includes(normTitle) || normTitle.includes(aTitle))) return false;
+        return true;
+      });
+      filteredActs.unshift(saved || payload);
+      setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
 
       alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Firebase!');
       setIsKegiatanModalOpen(false);
@@ -6547,15 +6550,11 @@ export default function AdminDashboard() {
                       </div>
 
                       {kegiatanFormData.themeSongUrl && (
-                        <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
-                          <Music size={14} className="text-emerald-700 shrink-0 animate-pulse" />
-                          <span className="text-[10px] font-bold text-emerald-900 shrink-0">Preview:</span>
-                          <audio
-                            controls
-                            src={formatAudioUrl(kegiatanFormData.themeSongUrl)}
-                            className="w-full h-8 accent-emerald-600 shrink min-w-0"
-                          />
-                        </div>
+                        <ThemeSongPlayer
+                          audioUrl={kegiatanFormData.themeSongUrl}
+                          title={kegiatanFormData.themeSongTitle || 'Preview Themesong'}
+                          compact={true}
+                        />
                       )}
                     </div>
 

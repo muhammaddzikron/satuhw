@@ -1,15 +1,41 @@
 export const formatAudioUrl = (url?: string): string => {
   if (!url) return '';
-  const trimmed = String(url).trim();
+  let trimmed = String(url).trim();
   if (!trimmed) return '';
 
+  // Fix Pixabay CDN URLs that give 403 Forbidden
+  if (trimmed.includes('pixabay.com')) {
+    return 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3';
+  }
+
   // Handle Google Drive links
-  if (trimmed.includes('drive.google.com')) {
-    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+  if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
+    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
+                  trimmed.match(/id=([a-zA-Z0-9_-]+)/) ||
+                  trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://docs.google.com/uc?export=open&id=${match[1]}`;
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
+
+  // Handle Dropbox links
+  if (trimmed.includes('dropbox.com')) {
+    return trimmed.replace('dl=0', 'raw=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+  }
+
+  // Handle data URLs or base64 strings
+  if (trimmed.startsWith('data:')) {
+    if (trimmed.startsWith('data:application/octet-stream;base64,')) {
+      return trimmed.replace('data:application/octet-stream;base64,', 'data:audio/mp3;base64,');
+    }
+    return trimmed;
+  }
+
+  // If raw base64 string without data: prefix
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('blob:') && trimmed.length > 50) {
+    return `data:audio/mp3;base64,${trimmed}`;
+  }
+
   return trimmed;
 };
 
@@ -21,20 +47,17 @@ export const handleAudioFileUpload = (
   if (!file) return;
   
   const isAudio = file.type.startsWith('audio/') || 
-                  file.name.endsWith('.mp3') || 
-                  file.name.endsWith('.wav') || 
-                  file.name.endsWith('.m4a') || 
-                  file.name.endsWith('.ogg');
+                  /\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(file.name);
 
   if (!isAudio) {
     if (onError) onError('Harap pilih file audio (MP3, WAV, M4A, OGG) yang valid.');
     return;
   }
 
-  // Max 600KB for direct Base64 embedding into Firestore documents (1MB document limit)
-  if (file.size > 600 * 1024) {
+  // Allow up to 6MB for local audio file uploads
+  if (file.size > 6 * 1024 * 1024) {
     if (onError) {
-      onError('Ukuran file audio unggahan terlalu besar untuk disimpan langsung di database (maksimal 600KB).\n\nDisarankan memasukkan Link / URL MP3 online (seperti dari Google Drive atau server audio) pada kolom link themesong.');
+      onError('Ukuran file audio terlalu besar (maksimal 6MB).\n\nDisarankan memasukkan Link / URL MP3 online dari Google Drive.');
     }
     return;
   }
@@ -43,7 +66,21 @@ export const handleAudioFileUpload = (
   reader.onload = (e) => {
     const result = e.target?.result as string;
     if (result) {
-      onSuccess(result);
+      let finalDataUrl = result;
+      if (result.startsWith('data:application/octet-stream;base64,')) {
+        finalDataUrl = result.replace('data:application/octet-stream;base64,', 'data:audio/mp3;base64,');
+      }
+
+      try {
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          const cacheKey = `hw_audio_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+          localStorage.setItem(cacheKey, finalDataUrl);
+        }
+      } catch (err) {
+        console.warn('Could not store audio in localStorage cache:', err);
+      }
+
+      onSuccess(finalDataUrl);
     }
   };
   reader.onerror = () => {
@@ -51,3 +88,4 @@ export const handleAudioFileUpload = (
   };
   reader.readAsDataURL(file);
 };
+

@@ -87,12 +87,31 @@ export interface Content {
 export interface TrainingActivity {
   id: string;
   namaKegiatan: string;
-  jenisPelatihan: string;
-  lokasiPelatihan: string;
-  tanggalPelatihan: string;
+  jenisPelatihan?: string;
+  lokasiPelatihan?: string;
+  tanggalPelatihan?: string;
   status: 'Buka' | 'Tutup';
   deskripsi?: string;
   fee?: string;
+  biaya?: string;
+  biayaPelatihan?: string;
+  proposalUrl?: string;
+  proposal?: string;
+  linkProposal?: string;
+  rekeningPembayaran?: string;
+  rekeningPembiayaan?: string;
+  konfirmasiPembayaran?: string;
+  noWhatsappPanitia?: string;
+  themeSongUrl?: string;
+  themeSongTitle?: string;
+  gambarUrl?: string;
+  penyelenggara?: string;
+  kuota?: string;
+  kategori?: string;
+  createdBy?: string;
+  creatorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface KTAApplication {

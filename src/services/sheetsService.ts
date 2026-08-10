@@ -372,18 +372,41 @@ export const sheetsService = {
       } catch (e) {}
     }
 
-    // Always merge INITIAL_SPREADSHEET_DATA.users if not present
-    if (Array.isArray(INITIAL_SPREADSHEET_DATA.users)) {
-      INITIAL_SPREADSHEET_DATA.users.forEach((u: any, idx: number) => {
-        if (u && u.email && !members.some((m: any) => m.email?.trim().toLowerCase() === u.email.trim().toLowerCase())) {
-          members.push({
-            ...u,
-            id: u.id ? String(u.id) : `user-${1000 + idx}`,
-            isVerified: u.isVerified === true || u.isVerified === "TRUE" || u.isVerified === 1 || u.isVerified === "true" || u.isVerified === "1"
-          });
+    // Always merge master members list if not present
+    try {
+      const masterList = getMasterMembersList();
+      masterList.forEach((mm: any) => {
+        if (!mm) return;
+        const mmEmail = mm.email ? mm.email.trim().toLowerCase() : '';
+        const mmKta = (mm.ktaNumber || mm.nomorKTA || '').trim();
+        const mmId = mm.id ? String(mm.id) : '';
+
+        const existingIdx = members.findIndex((m: any) => {
+          if (!m) return false;
+          const mEmail = m.email ? m.email.trim().toLowerCase() : '';
+          const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+          const mId = m.id ? String(m.id) : '';
+          return (
+            (mmEmail && mEmail && mmEmail === mEmail) ||
+            (mmKta && mKta && mmKta === mKta) ||
+            (mmId && mId && mmId === mId)
+          );
+        });
+
+        if (existingIdx === -1) {
+          members.push(mm);
+        } else {
+          // Keep best KTA and data
+          const ex = members[existingIdx];
+          members[existingIdx] = {
+            ...mm,
+            ...ex,
+            ktaNumber: ex.ktaNumber || mm.ktaNumber || ex.nomorKTA || mm.nomorKTA,
+            nomorKTA: ex.nomorKTA || mm.nomorKTA || ex.ktaNumber || mm.ktaNumber
+          };
         }
       });
-    }
+    } catch (e) {}
 
     // Check KTA applications as well
     const ktaStored = localStorage.getItem('kta_applications');

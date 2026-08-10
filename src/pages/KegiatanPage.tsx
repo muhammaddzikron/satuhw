@@ -28,9 +28,15 @@ import {
   Music,
   Download,
   Volume2,
-  Upload
+  Upload,
+  FileText,
+  MessageCircle,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
+import { formatDocumentUrl, handleDocumentFileUpload } from '../utils/documentUtils';
+import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
@@ -70,7 +76,10 @@ export default function KegiatanPage() {
     deskripsi: '',
     status: 'Buka',
     themeSongUrl: '',
-    themeSongTitle: ''
+    themeSongTitle: '',
+    proposalUrl: '',
+    rekeningPembayaran: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+    konfirmasiPembayaran: '089688754000'
   });
   const [isSavingActivity, setIsSavingActivity] = useState(false);
 
@@ -122,20 +131,38 @@ export default function KegiatanPage() {
   useEffect(() => {
     setIsLoading(true);
 
+    // Initial immediate fetch to show saved data right away without waiting
+    sheetsService.getActivities().then(acts => {
+      if (acts && Array.isArray(acts) && acts.length > 0) {
+        setActivities(acts);
+        setIsLoading(false);
+      }
+    }).catch(err => {
+      console.warn('Initial activities load warning:', err);
+    });
+
     const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
-      setActivityCategoriesList(cats);
+      if (cats && Array.isArray(cats)) setActivityCategoriesList(cats);
     });
 
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
-      setActivities(acts || []);
+      if (acts && Array.isArray(acts)) {
+        setActivities(acts);
+      }
       setIsLoading(false);
     });
 
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
-      setActivityApps(apps || []);
+      if (apps && Array.isArray(apps)) setActivityApps(apps);
     });
 
+    // Safety timeout ensuring spinner clears quickly
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
     return () => {
+      clearTimeout(safetyTimer);
       unsubCategories();
       unsubActivities();
       unsubApps();
@@ -277,7 +304,10 @@ export default function KegiatanPage() {
         deskripsi: '',
         status: 'Buka',
         themeSongUrl: '',
-        themeSongTitle: ''
+        themeSongTitle: '',
+        proposalUrl: '',
+        rekeningPembayaran: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        konfirmasiPembayaran: '089688754000'
       });
     } catch (err: any) {
       alert('Gagal menyimpan kegiatan: ' + (err.message || 'Error koneksi'));
@@ -304,7 +334,10 @@ export default function KegiatanPage() {
       deskripsi: act.deskripsi || act.description || '',
       status: act.status || 'Buka',
       themeSongUrl: act.themeSongUrl || act.themeSong || '',
-      themeSongTitle: act.themeSongTitle || act.themeSongName || ''
+      themeSongTitle: act.themeSongTitle || act.themeSongName || '',
+      proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || '',
+      rekeningPembayaran: act.rekeningPembayaran || act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+      konfirmasiPembayaran: act.konfirmasiPembayaran || act.noWhatsappPanitia || act.kontakKonfirmasi || '089688754000'
     });
     setIsAddActivityModalOpen(true);
   };
@@ -619,48 +652,93 @@ export default function KegiatanPage() {
 
                 {/* Themesong Section */}
                 {(selectedActivity.themeSongUrl || selectedActivity.themeSong) ? (
-                  <div className="space-y-3 bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 p-4 rounded-2xl text-white shadow-xl border border-emerald-700/40">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl shrink-0 border border-emerald-500/30">
-                          <Music size={20} className="animate-pulse" />
+                  <ThemeSongPlayer
+                    audioUrl={selectedActivity.themeSongUrl || selectedActivity.themeSong}
+                    title={selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Mars / Themesong Kegiatan'}
+                  />
+                ) : null}
+
+                {/* Proposal Kegiatan Download */}
+                {((selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) ? (
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                          <FileText size={18} />
                         </div>
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 block">
-                            Themesong Official Kegiatan
-                          </span>
-                          <h5 className="text-xs font-black font-display text-white truncate">
-                            {selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Mars / Themesong Kegiatan'}
-                          </h5>
+                        <div>
+                          <h5 className="text-xs font-black text-gray-800">Proposal & Petunjuk Teknis</h5>
+                          <p className="text-[10px] text-emerald-800 font-semibold">Berkas resmi petunjuk kegiatan HW Jateng</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDownloadThemeSong(formatAudioUrl(selectedActivity.themeSongUrl || selectedActivity.themeSong), selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Themesong_Kegiatan.mp3')}
-                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-xl flex items-center gap-1.5 shadow-lg transition-all cursor-pointer shrink-0 active:scale-95"
-                        title="Download MP3 Themesong"
+                      <a
+                        href={formatDocumentUrl(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95"
                       >
-                        <Download size={14} />
-                        <span>Download MP3</span>
-                      </button>
-                    </div>
-
-                    <div className="pt-1">
-                      <audio 
-                        controls 
-                        controlsList="nodownload" 
-                        src={formatAudioUrl(selectedActivity.themeSongUrl || selectedActivity.themeSong)} 
-                        className="w-full h-10 rounded-xl bg-slate-800/90 accent-emerald-400"
-                      />
+                        <Download size={14} /> Download Proposal
+                      </a>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-gray-50 border border-gray-100 p-3.5 rounded-2xl flex items-center justify-between text-xs text-gray-500">
+                  <div className="bg-gray-50 border border-gray-150 p-3.5 rounded-2xl flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-2">
-                      <Music size={16} className="text-gray-400" />
-                      <span className="font-medium text-[11px]">Themesong: Belum ada lagu tema ditambahkan.</span>
+                      <FileText size={16} className="text-gray-400" />
+                      <span className="font-medium text-[11px]">Proposal Kegiatan: Belum ada file proposal diunggah.</span>
                     </div>
                   </div>
-                )}
+                ))}
+
+                {/* Rekening Pembayaran & Konfirmasi WA */}
+                <div className="bg-slate-900 text-white p-4.5 rounded-2xl space-y-3.5 border border-slate-800 shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={18} className="text-emerald-400" />
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Info Rekening & Konfirmasi</span>
+                    </div>
+                    <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      Resmi HW Jateng
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Rekening Pembayaran Kegiatan</span>
+                    <div className="bg-slate-800/90 border border-slate-700/80 p-3 rounded-xl flex items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-amber-300 font-mono leading-tight break-words">
+                        {selectedActivity.rekeningPembayaran || selectedActivity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'}
+                      </span>
+                      <CopyAccountButton 
+                        accountNumber={(selectedActivity.rekeningPembayaran || selectedActivity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng').replace(/[^0-9]/g, '') || '7307427448'} 
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Konfirmasi Pembayaran</span>
+                      <span className="text-xs font-bold text-gray-200">
+                        {selectedActivity.konfirmasiPembayaran || selectedActivity.noWhatsappPanitia || '089688754000'} (Medkom)
+                      </span>
+                    </div>
+                    {(() => {
+                      const rawContact = (selectedActivity.konfirmasiPembayaran || selectedActivity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
+                      const formattedContact = rawContact.startsWith('0') ? '62' + rawContact.slice(1) : (rawContact.startsWith('62') ? rawContact : '6289688754000');
+                      const waText = encodeURIComponent(`Assalamu'alaikum Medkom/Panitia HW Jateng, saya mau konfirmasi pembayaran kegiatan: ${selectedActivity.namaKegiatan}`);
+                      return (
+                        <a
+                          href={`https://wa.me/${formattedContact}?text=${waText}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+                        >
+                          <MessageCircle size={14} /> Konfirmasi WA
+                        </a>
+                      );
+                    })()}
+                  </div>
+                </div>
 
 
               </div>
@@ -1275,16 +1353,81 @@ export default function KegiatanPage() {
                   </div>
 
                   {newActivityForm.themeSongUrl && (
-                    <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
-                      <Music size={14} className="text-emerald-700 shrink-0 animate-pulse" />
-                      <span className="text-[10px] font-bold text-emerald-900 shrink-0">Preview:</span>
-                      <audio
-                        controls
-                        src={formatAudioUrl(newActivityForm.themeSongUrl)}
-                        className="w-full h-8 accent-emerald-600 shrink min-w-0"
-                      />
-                    </div>
+                    <ThemeSongPlayer
+                      audioUrl={newActivityForm.themeSongUrl}
+                      title={newActivityForm.themeSongTitle || 'Preview Themesong'}
+                      compact={true}
+                    />
                   )}
+                </div>
+
+                {/* Proposal Section */}
+                <div className="bg-sky-50/70 p-3.5 rounded-2xl border border-sky-150 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-sky-900 flex items-center gap-1">
+                      <FileText size={12} className="text-sky-700" /> Link / File Proposal Kegiatan
+                    </label>
+                    <label className="text-[10px] font-bold text-sky-700 hover:text-sky-900 cursor-pointer underline flex items-center gap-1">
+                      <Upload size={10} />
+                      Unggah File Proposal
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            handleDocumentFileUpload(
+                              f,
+                              base64 => setNewActivityForm({ ...newActivityForm, proposalUrl: base64 }),
+                              err => alert(err)
+                            );
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    value={newActivityForm.proposalUrl}
+                    onChange={e => setNewActivityForm({ ...newActivityForm, proposalUrl: e.target.value })}
+                    placeholder="https://drive.google.com/file/d/... atau upload PDF/Word"
+                    className="w-full bg-white border border-sky-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20"
+                  />
+                  <p className="text-[9px] font-semibold text-sky-700">
+                    * Kosongkan jika belum ada proposal. Disarankan memakai Link Google Drive / Dropbox jika ukuran besar.
+                  </p>
+                </div>
+
+                {/* Rekening Pembayaran & Konfirmasi WA Section */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-gray-200">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block mb-1">
+                      Rekening Pembayaran
+                    </label>
+                    <input
+                      type="text"
+                      value={newActivityForm.rekeningPembayaran}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, rekeningPembayaran: e.target.value })}
+                      placeholder="Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
+                      className="w-full bg-white border border-gray-250 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                    <p className="text-[9px] text-gray-400 font-medium mt-1">Default: BSI 7307427448 a.n. Kwarwil HW Jateng</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block mb-1">
+                      Konfirmasi Pembayaran (WA)
+                    </label>
+                    <input
+                      type="text"
+                      value={newActivityForm.konfirmasiPembayaran}
+                      onChange={e => setNewActivityForm({ ...newActivityForm, konfirmasiPembayaran: e.target.value })}
+                      placeholder="089688754000 (Medkom HW Jateng)"
+                      className="w-full bg-white border border-gray-250 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
+                    />
+                    <p className="text-[9px] text-gray-400 font-medium mt-1">Default: 089688754000 (Medkom HW Jateng)</p>
+                  </div>
                 </div>
 
                 <div>
