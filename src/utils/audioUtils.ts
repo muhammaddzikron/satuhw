@@ -31,9 +31,11 @@ export const handleAudioFileUpload = (
     return;
   }
 
-  // Max 10MB to fit cleanly in Firestore documents & localStorage
-  if (file.size > 10 * 1024 * 1024) {
-    if (onError) onError('Ukuran file audio terlalu besar (maksimal 10MB).');
+  // Max 600KB for direct Base64 embedding into Firestore documents (1MB document limit)
+  if (file.size > 600 * 1024) {
+    if (onError) {
+      onError('Ukuran file audio unggahan terlalu besar untuk disimpan langsung di database (maksimal 600KB).\n\nDisarankan memasukkan Link / URL MP3 online (seperti dari Google Drive atau server audio) pada kolom link themesong.');
+    }
     return;
   }
 

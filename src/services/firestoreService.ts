@@ -2387,30 +2387,52 @@ export const firestoreService = {
     const actId = activityData.id || `keg-${Date.now()}`;
     const nowIso = new Date().toISOString();
 
+    let existingFsAct: any = null;
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const docSnap = await getDoc(doc(db, 'hw_activities', actId));
+        if (docSnap.exists()) {
+          existingFsAct = docSnap.data();
+        }
+      } catch (e) {
+        console.warn('Firestore fetch existing activity warning:', e);
+      }
+    }
+
     let localActs: any[] = [];
     try {
       const stored = localStorage.getItem('hw_activities') || '[]';
       localActs = JSON.parse(stored);
     } catch (e) {}
-    const existingAct = localActs.find((a: any) => a && a.id === actId);
+    const localExisting = localActs.find((a: any) => a && a.id === actId);
 
-    const titleVal = activityData.namaKegiatan || activityData.title || (existingAct ? (existingAct.namaKegiatan || existingAct.title) : '');
-    const descVal = activityData.deskripsi || activityData.description || (existingAct ? (existingAct.deskripsi || existingAct.description) : '');
-    const locVal = activityData.lokasi || activityData.location || (existingAct ? (existingAct.lokasi || existingAct.location) : '');
-    const dateVal = activityData.tanggal || activityData.startDate || (existingAct ? (existingAct.tanggal || existingAct.startDate) : '');
-    const imgVal = activityData.gambarUrl || activityData.imageUrl || (existingAct ? (existingAct.gambarUrl || existingAct.imageUrl) : 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800');
-    const catVal = activityData.kategori || activityData.category || (existingAct ? (existingAct.kategori || existingAct.category) : 'Silaturahmi');
+    const existingAct = { ...(localExisting || {}), ...(existingFsAct || {}) };
+
+    const titleVal = activityData.namaKegiatan || activityData.title || existingAct.namaKegiatan || existingAct.title || '';
+    const descVal = activityData.deskripsi || activityData.description || existingAct.deskripsi || existingAct.description || '';
+    const locVal = activityData.lokasi || activityData.location || existingAct.lokasi || existingAct.location || '';
+    const dateVal = activityData.tanggal || activityData.startDate || existingAct.tanggal || existingAct.startDate || '';
+    const imgVal = activityData.gambarUrl || activityData.imageUrl || existingAct.gambarUrl || existingAct.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const catVal = activityData.kategori || activityData.category || existingAct.kategori || existingAct.category || 'Silaturahmi';
 
     const songUrlVal = (activityData.themeSongUrl !== undefined && activityData.themeSongUrl !== null) ? activityData.themeSongUrl :
                       ((activityData.themeSong !== undefined && activityData.themeSong !== null) ? activityData.themeSong :
-                      (existingAct ? (existingAct.themeSongUrl || existingAct.themeSong || '') : ''));
+                      (existingAct.themeSongUrl || existingAct.themeSong || ''));
 
     const songTitleVal = (activityData.themeSongTitle !== undefined && activityData.themeSongTitle !== null) ? activityData.themeSongTitle :
                         ((activityData.themeSongName !== undefined && activityData.themeSongName !== null) ? activityData.themeSongName :
-                        (existingAct ? (existingAct.themeSongTitle || existingAct.themeSongName || '') : ''));
+                        (existingAct.themeSongTitle || existingAct.themeSongName || ''));
+
+    // Validate size to prevent Firestore 1MB document limit overflow
+    if (typeof songUrlVal === 'string' && songUrlVal.length > 800000) {
+      throw new Error('Ukuran file audio/themesong terlalu besar untuk disimpan langsung. Silakan gunakan link URL MP3 online.');
+    }
+    if (typeof imgVal === 'string' && imgVal.length > 800000) {
+      throw new Error('Ukuran file gambar banner terlalu besar. Silakan gunakan URL/link gambar online.');
+    }
 
     const newAct = cleanData({
-      ...(existingAct || {}),
+      ...existingAct,
       ...activityData,
       id: actId,
       namaKegiatan: titleVal,
@@ -2421,28 +2443,39 @@ export const firestoreService = {
       location: locVal,
       tanggal: dateVal,
       startDate: dateVal,
-      endDate: activityData.endDate || (existingAct ? existingAct.endDate : ''),
-      startTime: activityData.startTime || activityData.jamMulai || (existingAct ? existingAct.startTime : ''),
-      endTime: activityData.endTime || activityData.jamSelesai || (existingAct ? existingAct.endTime : ''),
-      biaya: activityData.biaya || (existingAct ? existingAct.biaya : 'Gratis'),
-      kuota: activityData.kuota || (existingAct ? existingAct.kuota : 'Terbuka'),
+      endDate: activityData.endDate || existingAct.endDate || '',
+      startTime: activityData.startTime || activityData.jamMulai || existingAct.startTime || '',
+      endTime: activityData.endTime || activityData.jamSelesai || existingAct.endTime || '',
+      biaya: activityData.biaya || existingAct.biaya || 'Gratis',
+      kuota: activityData.kuota || existingAct.kuota || 'Terbuka',
       gambarUrl: imgVal,
       imageUrl: imgVal,
       kategori: catVal,
       category: catVal,
-      status: activityData.status || (existingAct ? existingAct.status : 'Buka'),
+      status: activityData.status || existingAct.status || 'Buka',
       themeSongUrl: songUrlVal,
       themeSongTitle: songTitleVal,
       themeSong: songUrlVal,
       themeSongName: songTitleVal,
-      penyelenggara: activityData.penyelenggara || (existingAct ? existingAct.penyelenggara : 'Kwartir Wilayah HW Jawa Tengah'),
-      createdBy: activityData.createdBy || (existingAct ? existingAct.createdBy : ''),
-      creatorName: activityData.creatorName || (existingAct ? existingAct.creatorName : ''),
-      isPublished: activityData.isPublished !== undefined ? activityData.isPublished : (existingAct?.isPublished !== undefined ? existingAct.isPublished : true),
-      createdAt: activityData.createdAt || existingAct?.createdAt || nowIso,
+      penyelenggara: activityData.penyelenggara || existingAct.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
+      createdBy: existingAct.createdBy || activityData.createdBy || '',
+      creatorName: existingAct.creatorName || activityData.creatorName || '',
+      isPublished: activityData.isPublished !== undefined ? activityData.isPublished : (existingAct.isPublished !== undefined ? existingAct.isPublished : true),
+      createdAt: existingAct.createdAt || activityData.createdAt || nowIso,
       updatedAt: nowIso
     });
 
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true });
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.error('Firestore saveActivity ERROR:', err);
+        throw new Error(err.message || 'Gagal menyimpan data kegiatan ke Firebase Firestore.');
+      }
+    }
+
+    // Update local cache after successful write
     try {
       const stored = localStorage.getItem('hw_activities') || '[]';
       const localActs = JSON.parse(stored);
@@ -2454,15 +2487,6 @@ export const firestoreService = {
       }
       localStorage.setItem('hw_activities', JSON.stringify(localActs));
     } catch (e) {}
-
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'hw_activities', actId), newAct, { merge: true });
-      } catch (err: any) {
-        this.checkQuotaError(err);
-        console.warn('Firestore saveActivity warning:', err);
-      }
-    }
 
     // Sync trainingActivities inside app_settings if applicable
     try {
@@ -2481,20 +2505,21 @@ export const firestoreService = {
   },
 
   async deleteActivity(id: string): Promise<boolean> {
-    try {
-      const stored = localStorage.getItem('hw_activities') || '[]';
-      const localActs = JSON.parse(stored).filter((a: any) => a.id !== id);
-      localStorage.setItem('hw_activities', JSON.stringify(localActs));
-    } catch (e) {}
-
     if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'hw_activities', id));
       } catch (err: any) {
         this.checkQuotaError(err);
-        console.warn('Firestore deleteActivity warning:', err);
+        console.error('Firestore deleteActivity ERROR:', err);
+        throw new Error(err.message || 'Gagal menghapus kegiatan dari Firebase Firestore.');
       }
     }
+
+    try {
+      const stored = localStorage.getItem('hw_activities') || '[]';
+      const localActs = JSON.parse(stored).filter((a: any) => a.id !== id);
+      localStorage.setItem('hw_activities', JSON.stringify(localActs));
+    } catch (e) {}
 
     try {
       const currentSettings = await this.getSettings();

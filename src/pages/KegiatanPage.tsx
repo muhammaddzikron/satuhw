@@ -245,11 +245,12 @@ export default function KegiatanPage() {
     try {
       const actId = editingActivity ? editingActivity.id : `keg-${Date.now()}`;
       const payload = {
+        ...(editingActivity || {}),
         ...newActivityForm,
         id: actId,
-        createdBy: user?.email || 'muhammaddzikron@gmail.com',
-        creatorName: user?.namaLengkap || 'Panitia HW Jateng',
-        createdAt: editingActivity ? editingActivity.createdAt : new Date().toISOString(),
+        createdBy: editingActivity?.createdBy || user?.email || 'muhammaddzikron@gmail.com',
+        creatorName: editingActivity?.creatorName || user?.namaLengkap || 'Panitia HW Jateng',
+        createdAt: editingActivity?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 

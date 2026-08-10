@@ -6563,9 +6563,17 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 cursor-pointer"
+                        disabled={loading}
+                        className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        Simpan Kegiatan
+                        {loading ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Menyimpan ke Firebase...
+                          </>
+                        ) : (
+                          'Simpan Kegiatan'
+                        )}
                       </button>
                     </div>
                   </form>
