@@ -178,6 +178,7 @@ import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
+import { handleDocumentFileUpload } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG } from '../utils/ktaUtils';
@@ -10057,15 +10058,49 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Link / File Proposal Kegiatan</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Link / File Proposal Kegiatan</label>
+                    <label className="text-[10px] font-bold text-sky-700 hover:text-sky-900 cursor-pointer underline flex items-center gap-1">
+                      <Upload size={10} />
+                      Unggah File
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            handleDocumentFileUpload(
+                              f,
+                              base64 => setActivityForm(prev => ({ ...prev, proposalUrl: base64 })),
+                              err => alert(err)
+                            );
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
                     type="text"
-                    placeholder="Contoh: https://drive.google.com/file/d/..."
+                    placeholder="Contoh: https://drive.google.com/file/d/... atau upload PDF"
                     value={activityForm.proposalUrl}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold"
                   />
-                  <p className="text-[9px] text-gray-400 font-medium">Link Google Drive atau URL PDF proposal kegiatan.</p>
+                  {activityForm.proposalUrl && activityForm.proposalUrl.startsWith('data:') && (
+                    <div className="flex items-center justify-between bg-emerald-100/80 text-emerald-800 text-[10px] px-2.5 py-1 rounded-lg border border-emerald-300 font-bold">
+                      <span>✓ File proposal terunggah ({Math.round(activityForm.proposalUrl.length / 1024)} KB)</span>
+                      <button
+                        type="button"
+                        onClick={() => setActivityForm(prev => ({ ...prev, proposalUrl: '' }))}
+                        className="text-red-600 hover:underline text-[9px] font-extrabold cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[9px] text-gray-400 font-medium">Link Google Drive / Dropbox atau file PDF proposal kegiatan.</p>
                 </div>
 
                 <div className="space-y-1">

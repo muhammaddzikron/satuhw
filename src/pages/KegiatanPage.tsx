@@ -35,7 +35,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
-import { formatDocumentUrl, handleDocumentFileUpload } from '../utils/documentUtils';
+import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -678,14 +678,16 @@ export default function KegiatanPage() {
                           <p className="text-[10px] text-emerald-800 font-semibold">Berkas resmi petunjuk kegiatan HW Jateng</p>
                         </div>
                       </div>
-                      <a
-                        href={formatDocumentUrl(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDocument(
+                          selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal,
+                          selectedActivity.namaKegiatan
+                        )}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                       >
                         <Download size={14} /> Download Proposal
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -1386,9 +1388,10 @@ export default function KegiatanPage() {
                           if (f) {
                             handleDocumentFileUpload(
                               f,
-                              base64 => setNewActivityForm({ ...newActivityForm, proposalUrl: base64 }),
+                              base64 => setNewActivityForm(prev => ({ ...prev, proposalUrl: base64 })),
                               err => alert(err)
                             );
+                            e.target.value = '';
                           }
                         }}
                       />
@@ -1397,12 +1400,24 @@ export default function KegiatanPage() {
                   <input
                     type="text"
                     value={newActivityForm.proposalUrl}
-                    onChange={e => setNewActivityForm({ ...newActivityForm, proposalUrl: e.target.value })}
+                    onChange={e => setNewActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
                     placeholder="https://drive.google.com/file/d/... atau upload PDF/Word"
                     className="w-full bg-white border border-sky-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
+                  {newActivityForm.proposalUrl && newActivityForm.proposalUrl.startsWith('data:') && (
+                    <div className="flex items-center justify-between bg-emerald-100/80 text-emerald-800 text-[10px] px-2.5 py-1.5 rounded-lg border border-emerald-300 font-bold">
+                      <span>✓ File proposal terunggah & siap disimpan ({Math.round(newActivityForm.proposalUrl.length / 1024)} KB)</span>
+                      <button
+                        type="button"
+                        onClick={() => setNewActivityForm(prev => ({ ...prev, proposalUrl: '' }))}
+                        className="text-red-600 hover:underline text-[9px] font-extrabold cursor-pointer"
+                      >
+                        Hapus File
+                      </button>
+                    </div>
+                  )}
                   <p className="text-[9px] font-semibold text-sky-700">
-                    * Kosongkan jika belum ada proposal. Disarankan memakai Link Google Drive / Dropbox jika ukuran besar.
+                    * Kosongkan jika belum ada proposal. Disarankan memakai Link Google Drive / Dropbox jika ukuran file besar.
                   </p>
                 </div>
 
