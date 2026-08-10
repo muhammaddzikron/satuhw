@@ -2386,14 +2386,31 @@ export const firestoreService = {
   async saveActivity(activityData: any): Promise<any> {
     const actId = activityData.id || `keg-${Date.now()}`;
     const nowIso = new Date().toISOString();
-    const titleVal = activityData.namaKegiatan || activityData.title || '';
-    const descVal = activityData.deskripsi || activityData.description || '';
-    const locVal = activityData.lokasi || activityData.location || '';
-    const dateVal = activityData.tanggal || activityData.startDate || '';
-    const imgVal = activityData.gambarUrl || activityData.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
-    const catVal = activityData.kategori || activityData.category || 'Silaturahmi';
+
+    let localActs: any[] = [];
+    try {
+      const stored = localStorage.getItem('hw_activities') || '[]';
+      localActs = JSON.parse(stored);
+    } catch (e) {}
+    const existingAct = localActs.find((a: any) => a && a.id === actId);
+
+    const titleVal = activityData.namaKegiatan || activityData.title || (existingAct ? (existingAct.namaKegiatan || existingAct.title) : '');
+    const descVal = activityData.deskripsi || activityData.description || (existingAct ? (existingAct.deskripsi || existingAct.description) : '');
+    const locVal = activityData.lokasi || activityData.location || (existingAct ? (existingAct.lokasi || existingAct.location) : '');
+    const dateVal = activityData.tanggal || activityData.startDate || (existingAct ? (existingAct.tanggal || existingAct.startDate) : '');
+    const imgVal = activityData.gambarUrl || activityData.imageUrl || (existingAct ? (existingAct.gambarUrl || existingAct.imageUrl) : 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800');
+    const catVal = activityData.kategori || activityData.category || (existingAct ? (existingAct.kategori || existingAct.category) : 'Silaturahmi');
+
+    const songUrlVal = (activityData.themeSongUrl !== undefined && activityData.themeSongUrl !== null) ? activityData.themeSongUrl :
+                      ((activityData.themeSong !== undefined && activityData.themeSong !== null) ? activityData.themeSong :
+                      (existingAct ? (existingAct.themeSongUrl || existingAct.themeSong || '') : ''));
+
+    const songTitleVal = (activityData.themeSongTitle !== undefined && activityData.themeSongTitle !== null) ? activityData.themeSongTitle :
+                        ((activityData.themeSongName !== undefined && activityData.themeSongName !== null) ? activityData.themeSongName :
+                        (existingAct ? (existingAct.themeSongTitle || existingAct.themeSongName || '') : ''));
 
     const newAct = cleanData({
+      ...(existingAct || {}),
       ...activityData,
       id: actId,
       namaKegiatan: titleVal,
@@ -2404,25 +2421,25 @@ export const firestoreService = {
       location: locVal,
       tanggal: dateVal,
       startDate: dateVal,
-      endDate: activityData.endDate || '',
-      startTime: activityData.startTime || activityData.jamMulai || '',
-      endTime: activityData.endTime || activityData.jamSelesai || '',
-      biaya: activityData.biaya || 'Gratis',
-      kuota: activityData.kuota || 'Terbuka',
+      endDate: activityData.endDate || (existingAct ? existingAct.endDate : ''),
+      startTime: activityData.startTime || activityData.jamMulai || (existingAct ? existingAct.startTime : ''),
+      endTime: activityData.endTime || activityData.jamSelesai || (existingAct ? existingAct.endTime : ''),
+      biaya: activityData.biaya || (existingAct ? existingAct.biaya : 'Gratis'),
+      kuota: activityData.kuota || (existingAct ? existingAct.kuota : 'Terbuka'),
       gambarUrl: imgVal,
       imageUrl: imgVal,
       kategori: catVal,
       category: catVal,
-      status: activityData.status || 'Buka',
-      themeSongUrl: activityData.themeSongUrl || activityData.themeSong || '',
-      themeSongTitle: activityData.themeSongTitle || activityData.themeSongName || '',
-      themeSong: activityData.themeSongUrl || activityData.themeSong || '',
-      themeSongName: activityData.themeSongTitle || activityData.themeSongName || '',
-      penyelenggara: activityData.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
-      createdBy: activityData.createdBy || '',
-      creatorName: activityData.creatorName || '',
-      isPublished: activityData.isPublished !== undefined ? activityData.isPublished : true,
-      createdAt: activityData.createdAt || nowIso,
+      status: activityData.status || (existingAct ? existingAct.status : 'Buka'),
+      themeSongUrl: songUrlVal,
+      themeSongTitle: songTitleVal,
+      themeSong: songUrlVal,
+      themeSongName: songTitleVal,
+      penyelenggara: activityData.penyelenggara || (existingAct ? existingAct.penyelenggara : 'Kwartir Wilayah HW Jawa Tengah'),
+      createdBy: activityData.createdBy || (existingAct ? existingAct.createdBy : ''),
+      creatorName: activityData.creatorName || (existingAct ? existingAct.creatorName : ''),
+      isPublished: activityData.isPublished !== undefined ? activityData.isPublished : (existingAct?.isPublished !== undefined ? existingAct.isPublished : true),
+      createdAt: activityData.createdAt || existingAct?.createdAt || nowIso,
       updatedAt: nowIso
     });
 

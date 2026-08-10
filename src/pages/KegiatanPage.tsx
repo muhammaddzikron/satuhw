@@ -154,6 +154,15 @@ export default function KegiatanPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (selectedActivity && activities.length > 0) {
+      const updated = activities.find(a => a.id === selectedActivity.id);
+      if (updated) {
+        setSelectedActivity(updated);
+      }
+    }
+  }, [activities]);
+
   const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya')];
 
   const filteredActivities = activities.filter(act => {
