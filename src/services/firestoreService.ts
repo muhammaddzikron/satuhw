@@ -532,7 +532,6 @@ export const firestoreService = {
             members[matchedIdx] = {
               ...m,
               namaLengkap: (kName && kName !== 'Tanpa Nama' && kName !== '-') ? kName : (m.namaLengkap || 'Anggota HW'),
-              nik: k.nik || m.nik || '',
               noHp: k.noWa || k.noHp || m.noHp || '',
               alamat: k.alamat || m.alamat || '',
               qabilah: k.qabilah || m.qabilah || '',
@@ -555,7 +554,6 @@ export const firestoreService = {
               pelatihan: [],
               pendidikan: '',
               sosmed: k.sosmed || '',
-              nik: k.nik || '',
               noHp: k.noWa || k.noHp || '',
               alamat: k.alamat || '',
               qabilah: k.qabilah || '',
@@ -585,7 +583,6 @@ export const firestoreService = {
         if (!mm || !mm.namaLengkap || mm.namaLengkap === 'Tanpa Nama' || mm.namaLengkap === '-') return;
         const mmEmail = mm.email ? String(mm.email).toLowerCase().trim() : '';
         const mmKta = String(mm.ktaNumber || mm.nomorKTA || '').trim();
-        const mmNik = String(mm.nik || '').trim();
         const mmId = mm.id ? String(mm.id) : '';
         const mmName = mm.namaLengkap ? String(mm.namaLengkap).toLowerCase().trim() : '';
 
@@ -593,7 +590,6 @@ export const firestoreService = {
           if (!m) return false;
           const mEmail = m.email ? String(m.email).toLowerCase().trim() : '';
           const mKta = String(m.ktaNumber || m.nomorKTA || '').trim();
-          const mNik = String(m.nik || '').trim();
           const mId = m.id ? String(m.id) : '';
           const mName = m.namaLengkap ? String(m.namaLengkap).toLowerCase().trim() : '';
 
@@ -601,7 +597,6 @@ export const firestoreService = {
             (mId && mmId && mId === mmId) ||
             (mmKta && mKta && mmKta === mKta) ||
             (mmEmail && mEmail && !mmEmail.startsWith('member_') && !mmEmail.startsWith('user_') && mmEmail === mEmail) ||
-            (mmNik && mNik && mmNik.length >= 10 && mmNik === mNik) ||
             (mmName && mName && mmName === mName)
           );
         });
@@ -618,7 +613,6 @@ export const firestoreService = {
             id: ex.id || mm.id,
             ktaNumber: finalKta,
             nomorKTA: finalKta,
-            nik: ex.nik || mm.nik,
             noHp: ex.noHp || mm.noHp,
             alamat: ex.alamat || mm.alamat,
             asalKwarda: ex.asalKwarda || mm.asalKwarda,
@@ -1156,7 +1150,6 @@ export const firestoreService = {
       password: formData.password,
       photo: formData.photo || '',
       pelatihan: Array.isArray(formData.pelatihan) ? formData.pelatihan : [],
-      nik: formData.nik || '',
       jenisKta: formData.jenisKta || 'Fisik',
       statusPembayaran: 'Belum Bayar',
       statusAktivasi: 'Belum Aktif',
@@ -1189,7 +1182,6 @@ export const firestoreService = {
       email: cleanEmail,
       sosmed: formData.sosmed || '',
       photo: formData.photo || '',
-      nik: formData.nik || '',
       tempatLahir: formData.tempatLahir || '',
       tanggalLahir: formData.tanggalLahir || '',
       jenisKelamin: formData.jenisKelamin || 'L',
@@ -1313,7 +1305,7 @@ export const firestoreService = {
             (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
           if (member.photo) k.photo = member.photo;
           if (member.namaLengkap) k.nama = member.namaLengkap;
-          if (member.nik) k.nik = member.nik;
+          if (member.nbm) k.nbm = member.nbm;
           if (member.noHp) k.noWa = member.noHp;
           if (member.asalKwarda) k.asalDaerah = member.asalKwarda;
           if (member.qabilah) k.qabilah = member.qabilah;
@@ -1333,7 +1325,6 @@ export const firestoreService = {
             const ktaSync: any = {};
             if (member.photo) ktaSync.photo = member.photo;
             if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
-            if (member.nik) ktaSync.nik = member.nik;
             if (member.noHp) ktaSync.noWa = member.noHp;
             if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
             if (member.qabilah) ktaSync.qabilah = member.qabilah;
@@ -1383,7 +1374,6 @@ export const firestoreService = {
         const ktaSync: any = {};
         if (updates.photo) ktaSync.photo = updates.photo;
         if (updates.namaLengkap) ktaSync.nama = updates.namaLengkap;
-        if (updates.nik) ktaSync.nik = updates.nik;
         if (updates.noHp) ktaSync.noWa = updates.noHp;
         if (updates.asalKwarda) ktaSync.asalDaerah = updates.asalKwarda;
         if (updates.qabilah) ktaSync.qabilah = updates.qabilah;
@@ -1604,7 +1594,7 @@ export const firestoreService = {
                   qabilah: k.qabilah || match.qabilah || '',
                   tempatLahir: k.tempatLahir || match.tempatLahir || '',
                   tanggalLahir: k.tanggalLahir || match.tanggalLahir || '',
-                  nik: k.nik || match.nik || '',
+                  nbm: k.nbm || match.nbm || '',
                   alamat: k.alamat || match.alamat || ''
                 };
               }
@@ -1692,7 +1682,6 @@ export const firestoreService = {
           const memberSync: Partial<User> = {};
           if (newApp.photo) memberSync.photo = newApp.photo;
           if (newApp.nama) memberSync.namaLengkap = newApp.nama;
-          if (newApp.nik) memberSync.nik = newApp.nik;
           if (newApp.noWa || newApp.noHp) memberSync.noHp = newApp.noWa || newApp.noHp;
           if (newApp.alamat) memberSync.alamat = newApp.alamat;
           if (newApp.qabilah) memberSync.qabilah = newApp.qabilah;
@@ -1892,13 +1881,8 @@ export const firestoreService = {
               continue;
             }
 
-            const nikStr = String(item.nik || '').trim();
-            const emailStr = String(item.email || '').toLowerCase().trim();
-            const waDigits = String(item.noWa || '').replace(/[^0-9]/g, '');
-
             const personKey = (
               (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
-              (nikStr && nikStr !== '-' && nikStr.length >= 6) ? `nik_${nikStr}` :
               (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
               (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
               (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
@@ -1918,8 +1902,8 @@ export const firestoreService = {
               if (scoreCurrent > scoreExisting) {
                 map.set(compositeKey, t);
               } else if (scoreCurrent === scoreExisting) {
-                const currentRichness = (item.nik ? 2 : 0) + (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
-                const existingRichness = (existing.nik ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+                const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0);
+                const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
                 if (currentRichness > existingRichness) {
                   map.set(compositeKey, t);
                 }
@@ -1947,7 +1931,6 @@ export const firestoreService = {
         const name = (t.nama || t.namaLengkap || '').trim();
         const personKey = (
           t.userId ? `id_${t.userId}` :
-          (t.nik && String(t.nik).trim()) ? `nik_${String(t.nik).trim()}` :
           (t.email && String(t.email).trim()) ? `email_${String(t.email).toLowerCase().trim()}` :
           (t.noWa && String(t.noWa).trim()) ? `wa_${String(t.noWa).replace(/[^0-9]/g, '')}` :
           `name_${name.toLowerCase()}`

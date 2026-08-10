@@ -140,7 +140,6 @@ export default function KTAPage() {
           tanggalAjuan: new Date().toISOString(),
           ktaNumber: (user as any).ktaNumber || `${regionCode}.${randomSeq}`,
           remark: '',
-          nik: (user as any).nik || '',
           tempatLahir: (user as any).tempatLahir || '',
           tanggalLahir: (user as any).tanggalLahir || '',
           jenisKelamin: user.jenisKelamin === 'P' ? 'Perempuan' : 'Laki-laki',
@@ -192,7 +191,6 @@ export default function KTAPage() {
     email: user?.email || initialApp?.email || '',
     sosmed: user?.sosmed || initialApp?.sosmed || '',
     photo: user?.photo || initialApp?.photo || '',
-    nik: user?.nik || initialApp?.nik || '',
     tempatLahir: user?.tempatLahir || initialApp?.tempatLahir || '',
     tanggalLahir: user?.tanggalLahir || initialApp?.tanggalLahir || '',
     jenisKelamin: (user?.jenisKelamin === 'P' || initialApp?.jenisKelamin === 'Perempuan') ? 'Perempuan' : 'Laki-laki',
@@ -220,7 +218,6 @@ export default function KTAPage() {
               ...freshUser,
               ...currentUser,
               namaLengkap: (currentUser.namaLengkap && currentUser.namaLengkap !== 'Tanpa Nama') ? currentUser.namaLengkap : (freshUser.namaLengkap || 'Anggota HW'),
-              nik: currentUser.nik || freshUser.nik || '',
               noHp: currentUser.noHp || freshUser.noHp || '',
               alamat: currentUser.alamat || freshUser.alamat || '',
               tempatLahir: currentUser.tempatLahir || freshUser.tempatLahir || '',
@@ -244,7 +241,6 @@ export default function KTAPage() {
                 noWa: mergedUser.noHp || prev.noWa,
                 email: mergedUser.email || prev.email,
                 sosmed: mergedUser.sosmed || prev.sosmed,
-                nik: mergedUser.nik || prev.nik || '',
                 tempatLahir: mergedUser.tempatLahir || prev.tempatLahir || '',
                 tanggalLahir: mergedUser.tanggalLahir || prev.tanggalLahir || '',
                 jenisKelamin: mergedUser.jenisKelamin === 'P' ? 'Perempuan' : (mergedUser.jenisKelamin === 'L' ? 'Laki-laki' : prev.jenisKelamin),
@@ -365,7 +361,6 @@ export default function KTAPage() {
             tanggalAjuan: new Date().toISOString(),
             ktaNumber: (user as any).ktaNumber || freshUser?.ktaNumber || `${regionCode}.${randomSeq}`,
             remark: '',
-            nik: (user as any).nik || freshUser?.nik || '',
             tempatLahir: (user as any).tempatLahir || freshUser?.tempatLahir || '',
             tanggalLahir: (user as any).tanggalLahir || freshUser?.tanggalLahir || '',
             jenisKelamin: user.jenisKelamin === 'P' ? 'Perempuan' : (user.jenisKelamin === 'L' ? 'Laki-laki' : 'Laki-laki'),
@@ -396,7 +391,6 @@ export default function KTAPage() {
               noWa: found.noWa || freshUser?.noHp || prev.noWa,
               email: found.email || freshUser?.email || prev.email,
               sosmed: found.sosmed || freshUser?.sosmed || prev.sosmed,
-              nik: found.nik || freshUser?.nik || prev.nik,
               tempatLahir: found.tempatLahir || freshUser?.tempatLahir || prev.tempatLahir,
               tanggalLahir: found.tanggalLahir || freshUser?.tanggalLahir || prev.tanggalLahir,
               jenisKelamin: (found.jenisKelamin === 'Perempuan' || found.jenisKelamin === 'P') ? 'Perempuan' : ((found.jenisKelamin === 'Laki-laki' || found.jenisKelamin === 'L') ? 'Laki-laki' : prev.jenisKelamin),
@@ -465,7 +459,6 @@ export default function KTAPage() {
     const initNoWa = app?.noWa || latestUser?.noHp || formData.noWa || '';
     const initEmail = app?.email || latestUser?.email || formData.email || '';
     const initSosmed = app?.sosmed || latestUser?.sosmed || formData.sosmed || '';
-    const initNik = app?.nik || latestUser?.nik || formData.nik || '';
     const initTempatLahir = app?.tempatLahir || latestUser?.tempatLahir || formData.tempatLahir || '';
     const initTanggalLahir = app?.tanggalLahir || latestUser?.tanggalLahir || formData.tanggalLahir || '';
     const initJenisKelamin = (app?.jenisKelamin === 'Perempuan' || app?.jenisKelamin === 'P' || latestUser?.jenisKelamin === 'P') ? 'Perempuan' : 'Laki-laki';
@@ -481,7 +474,6 @@ export default function KTAPage() {
       email: initEmail,
       sosmed: initSosmed,
       photo: initPhoto,
-      nik: initNik,
       tempatLahir: initTempatLahir,
       tanggalLahir: initTanggalLahir,
       jenisKelamin: initJenisKelamin,
@@ -619,7 +611,6 @@ export default function KTAPage() {
       email: formData.email,
       sosmed: formData.sosmed,
       photo: photoPreview || myApplication?.photo || existingApp?.photo || user?.photo || '',
-      nik: formData.nik,
       tempatLahir: formData.tempatLahir,
       tanggalLahir: formData.tanggalLahir,
       jenisKelamin: formData.jenisKelamin,
@@ -671,7 +662,6 @@ export default function KTAPage() {
             asalKwarda: formData.asalDaerah,
             qabilah: formData.qabilah,
             sosmed: formData.sosmed,
-            nik: formData.nik,
             tempatLahir: formData.tempatLahir,
             tanggalLahir: formData.tanggalLahir,
             jenisKelamin: formData.jenisKelamin === 'Perempuan' ? 'P' : 'L',

@@ -572,13 +572,13 @@ export default function AdminDashboard() {
       const name = (app.nama || app.namaLengkap || '').trim();
       if (!isValidName(name)) continue;
 
-      const nikStr = String(app.nik || '').trim();
+      const nbmStr = String(app.nbm || '').trim();
       const emailStr = String(app.email || '').toLowerCase().trim();
       const waDigits = String(app.noWa || '').replace(/[^0-9]/g, '');
 
       const personKey = (
         (app.userId && String(app.userId).trim()) ? `id_${String(app.userId).trim()}` :
-        (nikStr && nikStr !== '-' && nikStr.length >= 6) ? `nik_${nikStr}` :
+        (nbmStr && nbmStr !== '-' && nbmStr.length >= 3) ? `nbm_${nbmStr}` :
         (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
         (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
         (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
@@ -598,8 +598,8 @@ export default function AdminDashboard() {
         if (scoreCurrent > scoreExisting) {
           map.set(compositeKey, app);
         } else if (scoreCurrent === scoreExisting) {
-          const currentRichness = (app.nik ? 2 : 0) + (app.photo ? 2 : 0) + (app.nbm ? 1 : 0);
-          const existingRichness = (existing.nik ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0);
+          const currentRichness = (app.nbm ? 2 : 0) + (app.photo ? 2 : 0) + (app.tempatLahir ? 1 : 0);
+          const existingRichness = (existing.nbm ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.tempatLahir ? 1 : 0);
           if (currentRichness > existingRichness) {
             map.set(compositeKey, app);
           } else {
@@ -647,7 +647,6 @@ export default function AdminDashboard() {
   const [isSubmittingAddParticipant, setIsSubmittingAddParticipant] = useState(false);
   const [addParticipantForm, setAddParticipantForm] = useState({
     nama: '',
-    nik: '',
     nbm: '',
     email: '',
     noWa: '',
@@ -860,39 +859,57 @@ export default function AdminDashboard() {
       return;
     }
 
-    const nama = addParticipantMode === 'select' ? (member?.namaLengkap || addParticipantForm.nama) : addParticipantForm.nama;
+    const nama = addParticipantMode === 'select' ? (member?.namaLengkap || member?.nama || addParticipantForm.nama) : addParticipantForm.nama;
     if (!nama.trim()) {
       alert('Nama lengkap peserta wajib diisi.');
       return;
     }
+
+    // Auto-detect from ktaApps if member profile missing details
+    const matchingKta = ktaApps.find(k => 
+      (member && k.userId && String(k.userId) === String(member.id)) ||
+      (member && k.email && member.email && String(k.email).toLowerCase().trim() === String(member.email).toLowerCase().trim()) ||
+      (member && k.noWa && member.noHp && String(k.noWa).replace(/[^0-9]/g, '') === String(member.noHp).replace(/[^0-9]/g, '')) ||
+      (member && k.nama && member.namaLengkap && String(k.nama).toLowerCase().trim() === String(member.namaLengkap).toLowerCase().trim())
+    );
+
+    const finalNbm = addParticipantForm.nbm || member?.nbm || (member as any)?.noNbm || matchingKta?.nbm || matchingKta?.ktaNumber || matchingKta?.nomorKTA || member?.ktaNumber || member?.nomorKTA || '';
+    const finalTempatLahir = addParticipantForm.tempatLahir || member?.tempatLahir || matchingKta?.tempatLahir || '';
+    const finalTanggalLahir = addParticipantForm.tanggalLahir || member?.tanggalLahir || matchingKta?.tanggalLahir || '';
+    const finalJkRaw = addParticipantForm.jenisKelamin || member?.jenisKelamin || matchingKta?.jenisKelamin || 'L';
+    const finalJenisKelamin = (finalJkRaw === 'Perempuan' || finalJkRaw === 'P') ? 'P' : 'L';
+    const finalPhoto = addParticipantForm.photo || member?.photo || matchingKta?.photo || '';
+    const finalAsalDaerah = addParticipantForm.asalDaerah || member?.asalKwarda || matchingKta?.asalDaerah || '';
+    const finalQabilah = addParticipantForm.qabilah || member?.qabilah || matchingKta?.qabilah || '';
+    const finalNoWa = addParticipantForm.noWa || member?.noHp || matchingKta?.noWa || '';
+    const finalEmail = addParticipantForm.email || member?.email || matchingKta?.email || '';
 
     try {
       setIsSubmittingAddParticipant(true);
       
       const payload = {
         id: `training-${Date.now()}`,
-        userId: member?.id || `user-manual-${Date.now()}`,
+        userId: member?.id || matchingKta?.userId || `user-manual-${Date.now()}`,
         nama: nama,
-        nik: addParticipantForm.nik || member?.nik || '',
-        nbm: addParticipantForm.nbm || member?.nbm || '',
-        noWa: addParticipantMode === 'select' ? (member?.noHp || addParticipantForm.noWa) : addParticipantForm.noWa,
-        email: addParticipantMode === 'select' ? (member?.email || addParticipantForm.email) : addParticipantForm.email,
-        sosmed: member?.sosmed || '',
+        nbm: finalNbm,
+        noWa: finalNoWa,
+        email: finalEmail,
+        sosmed: member?.sosmed || matchingKta?.sosmed || '',
         golonganAnggota: addParticipantForm.golonganAnggota || member?.golongan || 'Pengenal',
         tingkatan: addParticipantForm.golonganAnggota || member?.golongan || 'Pengenal',
         pelatihGolongan: addParticipantForm.pelatihGolongan || addParticipantPelatihGolongan,
-        asalDaerah: addParticipantMode === 'select' ? (member?.asalKwarda || addParticipantForm.asalDaerah) : addParticipantForm.asalDaerah,
+        asalDaerah: finalAsalDaerah,
         pelatihanAkanDiikuti: addParticipantForm.pelatihanAkanDiikuti || addParticipantLevel,
         lokasiPelatihan: addParticipantForm.lokasiPelatihan || addParticipantLokasi || (Array.isArray(settings.trainingLocations) && settings.trainingLocations[0]) || 'Pusdiklat HW Jateng',
         tanggalPelatihan: addParticipantForm.tanggalPelatihan || addParticipantTanggal || (Array.isArray(settings.trainingDates) && settings.trainingDates[0]) || 'Jadwal Reguler',
         biayaPelatihan: addParticipantForm.biayaPelatihan || 'Rp 50.000',
         rekeningPembiayaan: addParticipantForm.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-        tempatLahir: addParticipantMode === 'select' ? (member?.tempatLahir || addParticipantForm.tempatLahir) : addParticipantForm.tempatLahir,
-        tanggalLahir: addParticipantMode === 'select' ? (member?.tanggalLahir || addParticipantForm.tanggalLahir) : addParticipantForm.tanggalLahir,
-        jenisKelamin: addParticipantMode === 'select' ? (member?.jenisKelamin || addParticipantForm.jenisKelamin) : (addParticipantForm.jenisKelamin || 'L'),
-        qabilah: addParticipantMode === 'select' ? (member?.qabilah || addParticipantForm.qabilah) : addParticipantForm.qabilah,
-        pendidikan: addParticipantMode === 'select' ? (member?.pendidikan || addParticipantForm.pendidikan) : addParticipantForm.pendidikan,
-        photo: addParticipantForm.photo || member?.photo || '',
+        tempatLahir: finalTempatLahir,
+        tanggalLahir: finalTanggalLahir,
+        jenisKelamin: finalJenisKelamin,
+        qabilah: finalQabilah,
+        pendidikan: addParticipantForm.pendidikan || member?.pendidikan || matchingKta?.pendidikan || '',
+        photo: finalPhoto,
         status: addParticipantForm.status || 'approved',
         statusPembayaran: addParticipantForm.statusPembayaran || 'Lunas',
         agreeChecked: true,
@@ -913,7 +930,7 @@ export default function AdminDashboard() {
         setIsAddParticipantModalOpen(false);
         setAddParticipantSelectedMemberId('');
         setAddParticipantForm({
-          nama: '', nik: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+          nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
           jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
           pelatihanAkanDiikuti: 'Jaya Melati 1',
           pelatihGolongan: 'Tunas Athfal',
@@ -4754,7 +4771,7 @@ export default function AdminDashboard() {
                           setAddParticipantTanggal(prefillDate);
 
                           setAddParticipantForm({
-                            nama: '', nik: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+                            nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
                             jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
                             pelatihanAkanDiikuti: prefillTraining,
                             pelatihGolongan: 'Tunas Athfal',
@@ -4828,9 +4845,9 @@ export default function AdminDashboard() {
                                 <td className="p-4">
                                   <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                  <div className="text-[10px] text-gray-500">NIK: <span className="font-mono font-bold">{app.nik || '-'}</span> | NBM: <span className="font-mono font-bold">{app.nbm || '-'}</span></div>
+                                  <div className="text-[10px] text-gray-500">NBM: <span className="font-mono font-bold">{app.nbm || app.ktaNumber || app.nomorKTA || '-'}</span></div>
                                   <div className="text-[10px] text-gray-500">Tempat/Tgl Lahir: <span className="font-bold">{formatTempatTanggalLahir(app.tempatLahir, app.tanggalLahir)}</span></div>
-                                  <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{app.jenisKelamin === 'L' ? 'Laki-Laki' : app.jenisKelamin === 'P' ? 'Perempuan' : '-'}</span></div>
+                                  <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{(app.jenisKelamin === 'L' || app.jenisKelamin === 'Laki-Laki' || app.jenisKelamin === 'Laki-laki') ? 'Laki-Laki' : (app.jenisKelamin === 'P' || app.jenisKelamin === 'Perempuan') ? 'Perempuan' : (app.jenisKelamin || '-')}</span></div>
                                   <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
                                     <a 
                                       href={`https://wa.me/${String(app.noWa || '').replace(/[^0-9]/g, '')}`} 
@@ -8153,7 +8170,7 @@ export default function AdminDashboard() {
                           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                           <input 
                             type="text" 
-                            placeholder="Ketik nama, email, NIK, atau WhatsApp..."
+                            placeholder="Ketik nama, email, NBM, atau WhatsApp..."
                             value={addParticipantSearchQuery}
                             onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
                             className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800" 
@@ -8175,20 +8192,27 @@ export default function AdminDashboard() {
                         (() => {
                           const m = members.find(x => String(x.id) === String(addParticipantSelectedMemberId));
                           if (!m) return null;
+                          const dispNbm = addParticipantForm.nbm || m.nbm || (m as any).noNbm || '-';
+                          const dispTtl = formatTempatTanggalLahir(addParticipantForm.tempatLahir || m.tempatLahir, addParticipantForm.tanggalLahir || m.tanggalLahir);
+                          const dispJk = (addParticipantForm.jenisKelamin === 'P' || m.jenisKelamin === 'P' || m.jenisKelamin === 'Perempuan') ? 'Perempuan' : 'Laki-Laki';
+
                           return (
                             <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3">
                               <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={16} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap}</p>
+                                <p className="text-xs font-extrabold text-emerald-900">{m.namaLengkap || m.nama}</p>
                                 <p className="text-[10px] text-emerald-700 truncate">{m.email} | WA: {m.noHp || '-'}</p>
+                                <p className="text-[10px] font-medium text-emerald-800 mt-1">
+                                  NBM: <span className="font-bold">{dispNbm}</span> | TTL: <span className="font-bold">{dispTtl}</span> | JK: <span className="font-bold">{dispJk}</span>
+                                </p>
                                 <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
-                                  Kwarda: {m.asalKwarda || '-'} | Qabilah: {m.qabilah || '-'}
+                                  Kwarda: {addParticipantForm.asalDaerah || m.asalKwarda || '-'} | Qabilah: {addParticipantForm.qabilah || m.qabilah || '-'}
                                 </p>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => setAddParticipantSelectedMemberId('')}
-                                className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-800 tracking-wider bg-rose-50 px-2 py-1 rounded-lg border border-rose-150/30"
+                                className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-800 tracking-wider bg-rose-50 px-2 py-1 rounded-lg border border-rose-150/30 shrink-0"
                               >
                                 Ganti
                               </button>
@@ -8203,10 +8227,10 @@ export default function AdminDashboard() {
                               if (!addParticipantSearchQuery.trim()) return true;
                               const q = addParticipantSearchQuery.toLowerCase();
                               return (
-                                String(m.namaLengkap || '').toLowerCase().includes(q) ||
+                                String(m.namaLengkap || m.nama || '').toLowerCase().includes(q) ||
                                 String(m.email || '').toLowerCase().includes(q) ||
                                 String(m.noHp || '').includes(q) ||
-                                String(m.nik || '').includes(q)
+                                String(m.nbm || (m as any).noNbm || '').includes(q)
                               );
                             }).slice(0, 10).length === 0 ? (
                               <p className="text-center text-[11px] font-bold text-gray-400 py-6">Tidak ada anggota terdaftar yang cocok</p>
@@ -8215,10 +8239,10 @@ export default function AdminDashboard() {
                                 if (!addParticipantSearchQuery.trim()) return true;
                                 const q = addParticipantSearchQuery.toLowerCase();
                                 return (
-                                  String(m.namaLengkap || '').toLowerCase().includes(q) ||
+                                  String(m.namaLengkap || m.nama || '').toLowerCase().includes(q) ||
                                   String(m.email || '').toLowerCase().includes(q) ||
                                   String(m.noHp || '').includes(q) ||
-                                  String(m.nik || '').includes(q)
+                                  String(m.nbm || (m as any).noNbm || '').includes(q)
                                 );
                               }).slice(0, 5).map(m => (
                                 <button
@@ -8227,20 +8251,36 @@ export default function AdminDashboard() {
                                   onClick={() => {
                                     setAddParticipantSelectedMemberId(m.id);
                                     setAddParticipantPelatihGolongan(m.pelatihGolongan || 'Tunas Athfal');
+                                    
+                                    const matchingKta = ktaApps.find(k => 
+                                      (k.userId && String(k.userId) === String(m.id)) ||
+                                      (k.email && m.email && k.email.toLowerCase().trim() === m.email.toLowerCase().trim()) ||
+                                      (k.noWa && m.noHp && k.noWa.replace(/[^0-9]/g, '') === m.noHp.replace(/[^0-9]/g, '')) ||
+                                      (k.nama && m.namaLengkap && k.nama.toLowerCase().trim() === m.namaLengkap.toLowerCase().trim())
+                                    );
+
+                                    const detectedNbm = m.nbm || m.noNbm || matchingKta?.nbm || matchingKta?.ktaNumber || matchingKta?.nomorKTA || m.ktaNumber || m.nomorKTA || '';
+                                    const detectedTempat = m.tempatLahir || matchingKta?.tempatLahir || '';
+                                    const detectedTanggal = m.tanggalLahir || matchingKta?.tanggalLahir || '';
+                                    const detectedJkRaw = m.jenisKelamin || matchingKta?.jenisKelamin || 'L';
+                                    const detectedJk = (detectedJkRaw === 'Perempuan' || detectedJkRaw === 'P') ? 'P' : 'L';
+                                    const detectedPhoto = m.photo || matchingKta?.photo || '';
+                                    const detectedAsal = m.asalKwarda || m.asalDaerah || matchingKta?.asalDaerah || '';
+                                    const detectedQabilah = m.qabilah || matchingKta?.qabilah || '';
+
                                     setAddParticipantForm(prev => ({
                                       ...prev,
-                                      nama: m.namaLengkap || '',
-                                      nik: m.nik || '',
-                                      nbm: m.nbm || '',
-                                      email: m.email || '',
-                                      noWa: m.noHp || '',
-                                      tempatLahir: m.tempatLahir || '',
-                                      tanggalLahir: m.tanggalLahir || '',
-                                      jenisKelamin: m.jenisKelamin || 'L',
-                                      asalDaerah: m.asalKwarda || '',
-                                      qabilah: m.qabilah || '',
-                                      pendidikan: m.pendidikan || '',
-                                      photo: m.photo || '',
+                                      nama: m.namaLengkap || m.nama || '',
+                                      nbm: detectedNbm,
+                                      email: m.email || matchingKta?.email || '',
+                                      noWa: m.noHp || matchingKta?.noWa || '',
+                                      tempatLahir: detectedTempat,
+                                      tanggalLahir: detectedTanggal,
+                                      jenisKelamin: detectedJk,
+                                      asalDaerah: detectedAsal,
+                                      qabilah: detectedQabilah,
+                                      pendidikan: m.pendidikan || matchingKta?.pendidikan || '',
+                                      photo: detectedPhoto,
                                       golonganAnggota: m.golongan || 'Pengenal'
                                     }));
                                   }}
@@ -8292,17 +8332,6 @@ export default function AdminDashboard() {
                           placeholder="email@domain.com"
                           value={addParticipantForm.email}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, email: e.target.value })}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
-                        <input
-                          type="text"
-                          placeholder="NIK KTP..."
-                          value={addParticipantForm.nik}
-                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nik: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
                       </div>
@@ -8852,18 +8881,6 @@ export default function AdminDashboard() {
                         required
                         value={editingTrainingApp.noWa || ''}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, noWa: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
-                    {/* NIK */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK (16 Digit)</label>
-                      <input 
-                        type="text"
-                        value={editingTrainingApp.nik || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nik: e.target.value })}
-                        placeholder="NIK KTP..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
                     </div>

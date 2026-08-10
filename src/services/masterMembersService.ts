@@ -24,7 +24,7 @@ const parseCsvPart = (csv: string): User[] => {
       const idx = p[0];
       const ktaNum = p[1] || '';
       const name = p[2] || '';
-      const nik = p[3] || '';
+      const nbm = p[3] || '';
       const jk = p[4] === 'P' ? 'P' : 'L';
       const tmptLahir = p[5] || '';
       const tglLahir = p[6] || '';
@@ -48,7 +48,6 @@ const parseCsvPart = (csv: string): User[] => {
           email: email || `member_${idx}_${cleanKta.replace(/[^a-zA-Z0-9]/g, '')}@hw.or.id`,
           password: '12345hw',
           namaLengkap: name,
-          nik: nik || '',
           jenisKelamin: jk,
           tempatLahir: tmptLahir || '',
           tanggalLahir: tglLahir || '',
@@ -149,8 +148,6 @@ export const getMasterMembersList = (): User[] => {
   const findExistingIndex = (item: User) => {
     const email = (item.email || '').trim().toLowerCase();
     const isRealEmail = email && !email.startsWith('member_') && !email.startsWith('user_');
-    const nik = (item.nik || '').trim();
-    const isRealNik = nik && nik.length >= 10 && nik !== '-';
     const kta = (item.ktaNumber || item.nomorKTA || '').trim().toLowerCase();
     const normName = (item.namaLengkap || '').trim().toLowerCase();
     const isRealName = normName && normName.length >= 3 && normName !== 'anggota hw' && normName !== 'tanpa nama';
@@ -159,13 +156,10 @@ export const getMasterMembersList = (): User[] => {
       const ex = mergedList[i];
       const exEmail = (ex.email || '').trim().toLowerCase();
       const exIsRealEmail = exEmail && !exEmail.startsWith('member_') && !exEmail.startsWith('user_');
-      const exNik = (ex.nik || '').trim();
-      const exIsRealNik = exNik && exNik.length >= 10 && exNik !== '-';
       const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim().toLowerCase();
       const exNormName = (ex.namaLengkap || '').trim().toLowerCase();
 
       if (isRealEmail && exIsRealEmail && email === exEmail) return i;
-      if (isRealNik && exIsRealNik && nik === exNik) return i;
       if (kta && exKta && kta === exKta) return i;
       if (isRealName && normName === exNormName) return i;
     }
@@ -184,7 +178,6 @@ export const getMasterMembersList = (): User[] => {
         id: ex.id || item.id,
         ktaNumber: ex.ktaNumber || item.ktaNumber || ex.nomorKTA || item.nomorKTA,
         nomorKTA: ex.nomorKTA || item.nomorKTA || ex.ktaNumber || item.ktaNumber,
-        nik: ex.nik || item.nik,
         noHp: ex.noHp || item.noHp,
         alamat: ex.alamat || item.alamat,
         asalKwarda: ex.asalKwarda || item.asalKwarda,

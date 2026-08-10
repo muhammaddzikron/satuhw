@@ -237,9 +237,9 @@ function getSheet(name) {
     } else if (name == 'Contents') {
       sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
     } else if (name == 'KTA_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
+      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
     } else if (name == 'Training_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
+      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
     } else if (name == 'Settings') {
       sheet.appendRow(['key', 'value']);
       sheet.appendRow(['appName', 'Aplikasi HW Banyumas']);
@@ -271,8 +271,8 @@ function handleSyncDatabase() {
   ensureHeaders('Users', ['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests']);
   ensureHeaders('Materi', ['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
   ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
-  ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
-  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'nik', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
+  ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
+  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan']);
   ensureHeaders('Settings', ['key', 'value']);
   return responseOk({ success: true, message: "Database synchronized successfully" });
 }
@@ -1059,7 +1059,6 @@ function handleGetKTAApplications() {
       else if (lowerKey === 'tanggalajuan') clientKey = 'tanggalAjuan';
       else if (lowerKey === 'ktanumber') clientKey = 'ktaNumber';
       else if (lowerKey === 'remark') clientKey = 'remark';
-      else if (lowerKey === 'nik') clientKey = 'nik';
       else if (lowerKey === 'tempatlahir') clientKey = 'tempatLahir';
       else if (lowerKey === 'tanggallahir') clientKey = 'tanggalLahir';
       else if (lowerKey === 'jeniskelamin') clientKey = 'jenisKelamin';
@@ -1161,7 +1160,6 @@ function handleApplyKTA(data) {
     else if (header === 'tanggalajuan') rowData[i] = existing ? (existing.tanggalajuan || existing.tanggalAjuan || existing.TanggalAjuan || new Date().toISOString()) : new Date().toISOString();
     else if (header === 'ktanumber') rowData[i] = existing ? (existing.ktanumber || existing.ktaNumber || "") : "";
     else if (header === 'remark') rowData[i] = existing ? (existing.remark || existing.Remark || "") : "";
-    else if (header === 'nik') rowData[i] = data.nik || "";
     else if (header === 'tempatlahir') rowData[i] = data.tempatLahir || "";
     else if (header === 'tanggallahir') rowData[i] = data.tanggalLahir || "";
     else if (header === 'jeniskelamin') rowData[i] = data.jenisKelamin || "";
@@ -1437,7 +1435,6 @@ function handleSaveKTAApplication(data) {
     else if (header === 'tanggalajuan') val = data.tanggalAjuan !== undefined ? data.tanggalAjuan : (existing.tanggalajuan || existing.tanggalAjuan || new Date().toISOString());
     else if (header === 'ktanumber') val = data.ktaNumber !== undefined ? data.ktaNumber : (existing.ktanumber || existing.ktaNumber || "");
     else if (header === 'remark') val = data.remark !== undefined ? data.remark : (existing.remark || "");
-    else if (header === 'nik') val = data.nik !== undefined ? data.nik : (existing.nik || "");
     else if (header === 'tempatlahir') val = data.tempatLahir !== undefined ? data.tempatLahir : (existing.tempatlahir || existing.tempatLahir || "");
     else if (header === 'tanggallahir') val = data.tanggalLahir !== undefined ? data.tanggalLahir : (existing.tanggallahir || existing.tanggalLahir || "");
     else if (header === 'jeniskelamin') val = data.jenisKelamin !== undefined ? data.jenisKelamin : (existing.jeniskelamin || existing.jenisKelamin || "");
@@ -1562,7 +1559,6 @@ function handleApplyTraining(data) {
     else if (header === 'status') rowData[i] = existing ? (existing.status || existing.Status || "pending") : "pending";
     else if (header === 'tanggalajuan') rowData[i] = existing ? (existing.tanggalajuan || existing.tanggalAjuan || existing.TanggalAjuan || new Date().toISOString()) : new Date().toISOString();
     else if (header === 'pelatihanakandiikuti') rowData[i] = data.pelatihanAkanDiikuti || "";
-    else if (header === 'nik') rowData[i] = data.nik || "";
     else if (header === 'tempatlahir') rowData[i] = data.tempatLahir || "";
     else if (header === 'tanggallahir') rowData[i] = data.tanggalLahir || "";
     else if (header === 'jeniskelamin') rowData[i] = data.jenisKelamin || "";
@@ -2050,7 +2046,6 @@ function handleSaveTrainingApplication(data) {
   if (data.sosmed !== undefined) app.sosmed = data.sosmed;
   if (data.tingkatan !== undefined) app.tingkatan = data.tingkatan;
   if (data.pelatihanAkanDiikuti !== undefined) app.pelatihanakandiikuti = data.pelatihanAkanDiikuti;
-  if (data.nik !== undefined) app.nik = data.nik;
   if (data.tempatLahir !== undefined) app.tempatlahir = data.tempatLahir;
   if (data.tanggalLahir !== undefined) app.tanggallahir = data.tanggalLahir;
   if (data.jenisKelamin !== undefined) app.jeniskelamin = data.jenisKelamin;
@@ -2112,9 +2107,6 @@ function handleSaveTrainingApplication(data) {
       
       var noHpIdx = userHeaders.indexOf('nohp');
       if (noHpIdx > -1 && data.noWa) uRowValues[noHpIdx] = data.noWa;
-      
-      var nikIdx = userHeaders.indexOf('nik');
-      if (nikIdx > -1 && data.nik) uRowValues[nikIdx] = data.nik;
       
       var tempatIdx = userHeaders.indexOf('tempatlahir');
       if (tempatIdx > -1 && data.tempatLahir) uRowValues[tempatIdx] = data.tempatLahir;

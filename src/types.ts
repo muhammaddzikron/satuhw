@@ -22,7 +22,6 @@ export interface User {
   isVerified?: boolean;
   upgradeRequests?: string[]; // Array of categories requested for upgrade
   photo?: string;
-  nik?: string;
   ktaNumber?: string;
   nomorKTA?: string;
   kodeProvinsi?: string;
@@ -118,7 +117,6 @@ export interface KTAApplication {
   id?: string;
   email?: string;
   nama?: string;
-  nik?: string;
   tempatLahir?: string;
   tanggalLahir?: string;
   asalDaerah?: string;
