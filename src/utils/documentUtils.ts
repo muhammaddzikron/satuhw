@@ -28,10 +28,10 @@ export const handleDocumentFileUpload = (
 ) => {
   if (!file) return;
 
-  // Allow up to 6MB for proposal file uploads
-  if (file.size > 6 * 1024 * 1024) {
+  // Firestore single document limit is 1MB. Keep base64 proposal under ~550KB to leave room for other fields.
+  if (file.size > 550 * 1024) {
     if (onError) {
-      onError('Ukuran file proposal terlalu besar (maksimal 6MB).\n\nDisarankan memasukkan Link / URL Google Drive.');
+      onError('Ukuran file proposal terlalu besar untuk disimpan langsung (maksimal ~500KB).\n\nSilakan masukkan Link / URL Google Drive atau Dropbox ke kolom input URL Proposal.');
     }
     return;
   }

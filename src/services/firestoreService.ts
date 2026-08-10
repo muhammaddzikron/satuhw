@@ -2338,6 +2338,9 @@ export const firestoreService = {
             const actCat = data.kategori || data.category || 'Silaturahmi';
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
+            const actProposalUrl = data.proposalUrl || data.proposal || data.linkProposal || '';
+            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || '';
+            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '';
 
             return {
               id: d.id,
@@ -2354,6 +2357,13 @@ export const firestoreService = {
               imageUrl: actImg,
               themeSongUrl: actSongUrl,
               themeSongTitle: actSongTitle,
+              proposalUrl: actProposalUrl,
+              proposal: actProposalUrl,
+              linkProposal: actProposalUrl,
+              rekeningPembayaran: actRekening,
+              rekeningPembiayaan: actRekening,
+              konfirmasiPembayaran: actKonfirmasi,
+              noWhatsappPanitia: actKonfirmasi,
               kategori: actCat,
               category: actCat,
               status: data.status || 'Buka'
@@ -2691,6 +2701,9 @@ export const firestoreService = {
             const actCat = data.kategori || data.category || 'Silaturahmi';
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
+            const actProposalUrl = data.proposalUrl || data.proposal || data.linkProposal || '';
+            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || '';
+            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '';
 
             return {
               id: d.id,
@@ -2707,6 +2720,13 @@ export const firestoreService = {
               imageUrl: actImg,
               themeSongUrl: actSongUrl,
               themeSongTitle: actSongTitle,
+              proposalUrl: actProposalUrl,
+              proposal: actProposalUrl,
+              linkProposal: actProposalUrl,
+              rekeningPembayaran: actRekening,
+              rekeningPembiayaan: actRekening,
+              konfirmasiPembayaran: actKonfirmasi,
+              noWhatsappPanitia: actKonfirmasi,
               kategori: actCat,
               category: actCat,
               status: data.status || 'Buka'
@@ -2842,9 +2862,9 @@ export const firestoreService = {
                         ((activityData.themeSongName !== undefined && activityData.themeSongName !== null) ? activityData.themeSongName :
                         (existingAct.themeSongTitle || existingAct.themeSongName || ''));
 
-    const proposalVal = (activityData.proposalUrl !== undefined && activityData.proposalUrl !== null) ? activityData.proposalUrl :
-                        ((activityData.proposal !== undefined && activityData.proposal !== null) ? activityData.proposal :
-                        ((activityData.linkProposal !== undefined && activityData.linkProposal !== null) ? activityData.linkProposal :
+    const proposalVal = (activityData.proposalUrl !== undefined && activityData.proposalUrl !== null && String(activityData.proposalUrl).trim() !== '') ? activityData.proposalUrl :
+                        ((activityData.proposal !== undefined && activityData.proposal !== null && String(activityData.proposal).trim() !== '') ? activityData.proposal :
+                        ((activityData.linkProposal !== undefined && activityData.linkProposal !== null && String(activityData.linkProposal).trim() !== '') ? activityData.linkProposal :
                         (existingAct.proposalUrl || existingAct.proposal || existingAct.linkProposal || '')));
 
     const rekeningVal = (activityData.rekeningPembayaran && String(activityData.rekeningPembayaran).trim()) ||

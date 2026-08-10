@@ -696,7 +696,8 @@ export default function AdminDashboard() {
     deskripsi: '',
     biayaPelatihan: 'Rp 50.000',
     rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-    noWhatsappPanitia: '089688754000'
+    noWhatsappPanitia: '089688754000',
+    proposalUrl: ''
   });
 
   // Schedule Editing States
@@ -10056,6 +10057,18 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Link / File Proposal Kegiatan</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: https://drive.google.com/file/d/..."
+                    value={activityForm.proposalUrl}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold"
+                  />
+                  <p className="text-[9px] text-gray-400 font-medium">Link Google Drive atau URL PDF proposal kegiatan.</p>
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Deskripsi Kegiatan Singkat</label>
                   <textarea
                     rows={2}
@@ -10129,6 +10142,9 @@ export default function AdminDashboard() {
                         rekeningPembiayaan: newAct.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                         noWhatsappPanitia: newAct.noWhatsappPanitia || '089688754000',
                         status: newAct.status || 'Buka',
+                        proposalUrl: newAct.proposalUrl || '',
+                        proposal: newAct.proposalUrl || '',
+                        linkProposal: newAct.proposalUrl || '',
                         deskripsi: newAct.deskripsi || '',
                         kuota: '100 Peserta',
                         penyelenggara: 'Kwarwil HW Jateng'
