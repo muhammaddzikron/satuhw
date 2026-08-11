@@ -401,7 +401,7 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
     logging: false,
     ...options,
     onclone: (clonedDoc, clonedEl) => {
-      // 1. Force static positioning and reset visibility on cloned target
+      // 1. Force static positioning and reset visibility on cloned target & ancestor chain
       if (clonedEl) {
         clonedEl.style.position = 'static';
         clonedEl.style.transform = 'none';
@@ -409,6 +409,14 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
         clonedEl.style.visibility = 'visible';
         clonedEl.style.left = '0';
         clonedEl.style.top = '0';
+
+        let curr: HTMLElement | null = clonedEl.parentElement;
+        while (curr && curr !== clonedDoc.body) {
+          curr.style.opacity = '1';
+          curr.style.visibility = 'visible';
+          curr.style.pointerEvents = 'auto';
+          curr = curr.parentElement;
+        }
       }
 
       // 2. Clean style tags in cloned document

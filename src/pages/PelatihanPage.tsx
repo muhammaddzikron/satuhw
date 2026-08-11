@@ -442,7 +442,7 @@ export default function PelatihanPage() {
   }, [selectedLevel, isAuthenticated, user]);
 
   useEffect(() => {
-    const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda';
+    const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';
     if (isRealAdmin) {
       setPerspective('admin');
     } else {
@@ -758,7 +758,7 @@ export default function PelatihanPage() {
     return matchesLevel && matchesQuery;
   });
 
-  const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda';
+  const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';
 
   return (
     <div className="space-y-6 pb-12">

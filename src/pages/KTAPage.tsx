@@ -1023,8 +1023,8 @@ export default function KTAPage() {
           {myApplication && (
             <div 
               id="kta-print-capture" 
-              className="fixed top-0 left-0 opacity-0 pointer-events-none" 
-              style={{ position: 'fixed', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -9999 }}
+              className="fixed pointer-events-none" 
+              style={{ position: 'fixed', left: '-9999px', top: '-9999px', opacity: 1, pointerEvents: 'none', zIndex: -9999 }}
             >
               <KTACard 
                 id="kta-front-capture" 
@@ -1058,11 +1058,11 @@ export default function KTAPage() {
             </div>
 
             {/* Side-by-Side Cards Display */}
-            <div className="flex flex-col items-center gap-6 overflow-x-auto pb-2">
+            <div className="flex flex-col items-center gap-6 overflow-x-auto pb-2 print-area">
               <div className="flex flex-wrap justify-center gap-6 w-full">
                 {/* FRONT CARD */}
                 <div className="flex flex-col items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">
                     TAMPILAN DEPAN (FRONT)
                   </span>
                   <KTACard 
@@ -1076,7 +1076,7 @@ export default function KTAPage() {
 
                 {/* BACK CARD */}
                 <div className="flex flex-col items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">
                     TAMPILAN BELAKANG (BACK)
                   </span>
                   <KTACard 
