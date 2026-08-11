@@ -1051,32 +1051,34 @@ export default function PelatihanPage() {
               </div>
 
               {/* Portal Navigation Tabs: Beranda, Materi, Sesi & Absen, Tugas, Piagam */}
-              <div className="bg-gray-100/90 p-1.5 rounded-2xl border border-gray-200/80 shadow-xs flex items-center overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5 gap-1.5">
-                {[
-                  { id: 'beranda', shortLabel: 'Beranda', fullLabel: 'Beranda & Rules', icon: Info },
-                  { id: 'materi', shortLabel: 'Materi', fullLabel: 'Materi Pelatihan', icon: BookOpen },
-                  { id: 'sesi', shortLabel: 'Sesi & Absen', fullLabel: 'Sesi & Absen', icon: Calendar },
-                  { id: 'tugas', shortLabel: 'Tugas', fullLabel: 'Tugas Tim Pelatih', icon: ClipboardList },
-                  { id: 'piagam', shortLabel: 'Piagam', fullLabel: 'Piagam Digital', icon: Award }
-                ].map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`py-2.5 px-3.5 sm:px-2 sm:py-3 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer whitespace-nowrap shrink-0 ${
-                        isActive
-                          ? 'bg-emerald-700 text-white shadow-sm font-black ring-1 ring-emerald-600/30'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
-                      }`}
-                    >
-                      <Icon size={15} className="shrink-0" />
-                      <span className="hidden sm:inline">{tab.fullLabel}</span>
-                      <span className="sm:hidden">{tab.shortLabel}</span>
-                    </button>
-                  );
-                })}
+              <div className="bg-white p-2 rounded-2xl border border-gray-200/80 shadow-sm">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
+                  {[
+                    { id: 'beranda', shortLabel: 'Beranda', fullLabel: 'Beranda & Rules', icon: Info },
+                    { id: 'materi', shortLabel: 'Materi', fullLabel: 'Materi Pelatihan', icon: BookOpen },
+                    { id: 'sesi', shortLabel: 'Sesi & Absen', fullLabel: 'Sesi & Presensi', icon: Calendar },
+                    { id: 'tugas', shortLabel: 'Tugas Pelatih', fullLabel: 'Tugas Tim Pelatih', icon: ClipboardList },
+                    { id: 'piagam', shortLabel: 'Piagam Digital', fullLabel: 'Piagam Digital', icon: Award }
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`px-3.5 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap shrink-0 sm:shrink min-w-[110px] sm:min-w-0 ${
+                          isActive
+                            ? 'bg-emerald-700 text-white shadow-sm font-black ring-2 ring-emerald-600/30 scale-[1.01]'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 active:scale-95'
+                        }`}
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        <span className="hidden lg:inline">{tab.fullLabel}</span>
+                        <span className="lg:hidden">{tab.shortLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* TAB CONTENTS */}
