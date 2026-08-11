@@ -480,6 +480,7 @@ export default function PelatihanPage() {
 
   const approvedUserApps = user ? applications.filter((a: any) => {
     if (!isUserAppMatch(a, user)) return false;
+    if (a.status === 'deleted' || a.status === 'rejected') return false;
     return (
       a.status === 'approved' || 
       a.status === 'terverifikasi' || 
@@ -517,6 +518,11 @@ export default function PelatihanPage() {
   const isUserVerifiedForActivity = (activityJenis: string): { isVerified: boolean; userApplication: any | null } => {
     if (!user) return { isVerified: false, userApplication: null };
 
+    const isAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'sugli' || user.role === 'kwarda' || user.role === 'admin_diklat' || user.role === 'diklat' || (user as any)?.adminType === 'diklat' || user.email === 'diklat' || user.email === 'diklat@hwjateng.com';
+    if (isAdmin && perspective === 'admin') {
+      return { isVerified: true, userApplication: null };
+    }
+
     const targetKey = normalizeLevelCode(activityJenis);
 
     // Check if user has an application
@@ -526,7 +532,15 @@ export default function PelatihanPage() {
       return appKey === targetKey || appKey.includes(targetKey) || targetKey.includes(appKey);
     });
 
-    const isApproved = myApp && (
+    if (!myApp) {
+      return { isVerified: false, userApplication: null };
+    }
+
+    if (myApp.status === 'deleted' || myApp.status === 'rejected') {
+      return { isVerified: false, userApplication: null };
+    }
+
+    const isApproved = (
       myApp.status === 'approved' || 
       myApp.status === 'terverifikasi' || 
       myApp.status === 'disetujui' ||
@@ -534,17 +548,18 @@ export default function PelatihanPage() {
       myApp.statusKelulusan === 'Lulus'
     );
 
-    const isAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'sugli' || user.role === 'kwarda' || perspective === 'admin';
-
-    const userRoles = user.roles || [user.role];
-    const hasRoleMatch = userRoles.some(r => normalizeLevelCode(r) === targetKey);
-    const userPelatihan = user.pelatihan || [];
-    const hasPelatihanMatch = userPelatihan.some(p => normalizeLevelCode(p) === targetKey);
-
-    const isVerified = Boolean(isApproved || isAdmin || hasRoleMatch || hasPelatihanMatch);
-
-    return { isVerified, userApplication: myApp || null };
+    return { isVerified: Boolean(isApproved), userApplication: isApproved ? myApp : myApp };
   };
+
+  // Auto-reset open portal dashboard if participant is deleted, rejected, or no longer verified
+  useEffect(() => {
+    if (selectedActivity && perspective === 'peserta' && user) {
+      const { isVerified } = isUserVerifiedForActivity(selectedActivity.jenisPelatihan);
+      if (!isVerified) {
+        setSelectedActivity(null);
+      }
+    }
+  }, [selectedActivity, applications, perspective, user]);
 
   // Helper for attendance status
   const getAttendanceStatus = (attendanceMap: any, sesId: string): string => {
