@@ -680,31 +680,34 @@ export default function KegiatanPage() {
                 ) : null}
 
                 {/* Proposal Kegiatan Download */}
-                {(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) ? (
-                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2.5">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-emerald-600 text-white rounded-xl">
-                          <FileText size={18} />
+                {(() => {
+                  const proposalLink = selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal || 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS';
+                  return (
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black text-gray-800">Proposal & Petunjuk Teknis</h5>
+                            <p className="text-[10px] text-emerald-800 font-semibold">Berkas resmi petunjuk pelaksanaan kegiatan HW Jateng</p>
+                          </div>
                         </div>
-                        <div>
-                          <h5 className="text-xs font-black text-gray-800">Proposal & Petunjuk Teknis</h5>
-                          <p className="text-[10px] text-emerald-800 font-semibold">Berkas resmi petunjuk kegiatan HW Jateng</p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDocument(
+                            proposalLink,
+                            selectedActivity.namaKegiatan
+                          )}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        >
+                          <Download size={14} /> Download Proposal
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadDocument(
-                          selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal,
-                          selectedActivity.namaKegiatan
-                        )}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
-                      >
-                        <Download size={14} /> Download Proposal
-                      </button>
                     </div>
-                  </div>
-                ) : null}
+                  );
+                })()}
 
                 {/* Rekening Pembayaran & Konfirmasi WA */}
                 <div className="bg-slate-900 text-white p-4.5 rounded-2xl space-y-3.5 border border-slate-800 shadow-md">
@@ -861,30 +864,39 @@ export default function KegiatanPage() {
                       </div>
                       <div>
                         <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Rekening Pembayaran / Infaq</span>
-                        <h4 className="text-xs font-black text-emerald-950">Kwarwil HW Jawa Tengah</h4>
+                        <h4 className="text-xs font-black text-emerald-950">{regSuccess.activity.penyelenggara || 'Kwarwil HW Jawa Tengah'}</h4>
                       </div>
                     </div>
-                    <div className="bg-white p-3 rounded-2xl border border-emerald-100 space-y-1 shadow-xs">
-                      <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Transfer Infaq Kegiatan ({regSuccess.activity.biaya || 'Sesuai ketentuan'})</p>
-                      <p className="text-xs font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
-                      <div>
-                        <CopyAccountButton accountNumber="7307427448" textClassName="text-sm font-black text-gray-900 tracking-wider font-mono" />
-                      </div>
-                      <p className="text-[10px] text-gray-600 font-semibold uppercase">a.n. Kwarwil HW Jateng</p>
-                    </div>
-                    <p className="text-[10px] text-emerald-800 leading-normal font-medium">
-                      Silakan lakukan pembayaran / infaq kegiatan jika berlaku, kemudian kirimkan konfirmasi bukti transfer via WhatsApp ke Medkom HW Jateng.
-                    </p>
-                    <a 
-                      href={`https://wa.me/6289688754000?text=${encodeURIComponent(
-                        `Assalamu'alaikum Medkom HW Jateng, saya baru saja mendaftar kegiatan *${regSuccess.activity.namaKegiatan}*.\n\nNama: ${regSuccess.participant.namaLengkap}\nUnsur: ${regSuccess.participant.unsur}\nNo. WA: ${regSuccess.participant.noHp}\n\nMohon konfirmasi pendaftaran kegiatan saya. Terima kasih.`
-                      )}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all"
-                    >
-                      <Send size={14} /> Konfirmasi Pendaftaran via WhatsApp
-                    </a>
+                    {(() => {
+                      const actRek = regSuccess.activity.rekeningPembayaran || regSuccess.activity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+                      const actNum = actRek.replace(/[^0-9]/g, '') || '7307427448';
+                      const actWa = (regSuccess.activity.konfirmasiPembayaran || regSuccess.activity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
+                      const formattedWa = actWa.startsWith('0') ? '62' + actWa.slice(1) : (actWa.startsWith('62') ? actWa : '6289688754000');
+                      return (
+                        <>
+                          <div className="bg-white p-3 rounded-2xl border border-emerald-100 space-y-1 shadow-xs">
+                            <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Transfer Infaq Kegiatan ({regSuccess.activity.biaya || 'Sesuai ketentuan'})</p>
+                            <p className="text-xs font-bold text-emerald-800">{actRek}</p>
+                            <div>
+                              <CopyAccountButton accountNumber={actNum} showNumber={true} textClassName="text-sm font-black text-gray-900 tracking-wider font-mono" />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-emerald-800 leading-normal font-medium">
+                            Silakan lakukan pembayaran / infaq kegiatan jika berlaku, kemudian kirimkan konfirmasi bukti transfer via WhatsApp.
+                          </p>
+                          <a 
+                            href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(
+                              `Assalamu'alaikum Medkom/Panitia HW Jateng, saya baru saja mendaftar kegiatan *${regSuccess.activity.namaKegiatan}*.\n\nNama: ${regSuccess.participant.namaLengkap}\nUnsur: ${regSuccess.participant.unsur}\nNo. WA: ${regSuccess.participant.noHp}\n\nMohon konfirmasi pendaftaran kegiatan saya. Terima kasih.`
+                            )}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                          >
+                            <Send size={14} /> Konfirmasi Pendaftaran via WhatsApp
+                          </a>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Question & Link KTA Registration */}

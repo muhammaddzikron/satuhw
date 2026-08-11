@@ -59,7 +59,7 @@ export const ActivationModal: React.FC<ActivationModalProps> = ({
           {/* Account Transfer Box */}
           <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/80 space-y-1 text-center">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Transfer ke Rekening (BSI)</p>
-            <CopyAccountButton accountNumber="7307427448" textClassName="text-base font-black text-emerald-800 font-mono" />
+            <CopyAccountButton accountNumber="7307427448" showNumber={true} textClassName="text-base font-black text-emerald-800 font-mono" />
             <p className="text-[10.5px] font-semibold text-gray-700">a.n. Kwarwil HW Jateng</p>
           </div>
 

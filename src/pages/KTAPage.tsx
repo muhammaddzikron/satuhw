@@ -955,7 +955,7 @@ export default function KTAPage() {
                     <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Transfer ke Rekening</p>
                     <p className="text-[10px] font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
                     <div>
-                      <CopyAccountButton accountNumber="7307427448" />
+                      <CopyAccountButton accountNumber="7307427448" showNumber={true} />
                     </div>
                     <p className="text-[9px] text-gray-500 font-semibold uppercase">Atas Nama: Kwarwil HW Jateng</p>
                   </div>
@@ -1182,7 +1182,7 @@ export default function KTAPage() {
                     <p className="text-[8px] uppercase tracking-wider text-gray-400 font-bold">Transfer ke Rekening</p>
                     <p className="text-[10px] font-bold text-emerald-800">BSI (Bank Syariah Indonesia)</p>
                     <div>
-                      <CopyAccountButton accountNumber="7307427448" />
+                      <CopyAccountButton accountNumber="7307427448" showNumber={true} />
                     </div>
                     <p className="text-[9px] text-gray-500 font-semibold uppercase">Atas Nama: Kwarwil HW Jateng</p>
                   </div>
@@ -1470,7 +1470,7 @@ export default function KTAPage() {
                   <p className="font-semibold text-gray-500 text-[8px] uppercase tracking-wider">Transfer Pembayaran ke:</p>
                   <p className="font-bold text-emerald-800 text-[10px]">Bank Syariah Indonesia (BSI)</p>
                   <div>
-                    <CopyAccountButton accountNumber="7307427448" />
+                    <CopyAccountButton accountNumber="7307427448" showNumber={true} />
                   </div>
                   <p className="text-[9px] text-gray-500 font-semibold uppercase">an. Kwarwil HW Jateng</p>
                   <div className="pt-1.5 border-t border-emerald-100/50 mt-1 text-[9px] text-gray-600 leading-relaxed font-medium">

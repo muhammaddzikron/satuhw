@@ -97,6 +97,8 @@ const FeatureCard = ({ to, icon: Icon, label, delay = 0 }: { to: string, icon: a
   </motion.div>
 );
 
+import { isParticipantOfActivity } from '../utils/activityUtils';
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
@@ -615,7 +617,7 @@ export default function HomePage() {
 
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-2.5 border border-white/15 space-y-1 text-center">
               <p className="text-[9px] uppercase tracking-wider text-amber-200 font-sans font-bold">Bank Syariah Indonesia (BSI)</p>
-              <CopyAccountButton accountNumber="7307427448" textClassName="text-sm font-black text-white font-mono" />
+              <CopyAccountButton accountNumber="7307427448" showNumber={true} textClassName="text-sm font-black text-white font-mono" />
               <p className="text-[9.5px] text-white/80 font-sans">a.n. Kwarwil HW Jateng</p>
             </div>
 
@@ -1035,13 +1037,7 @@ export default function HomePage() {
                 const img = act.gambarUrl || act.imageUrl;
                 const cat = act.kategori || act.category || 'Silaturahmi';
 
-                const pCount = (activityApps || []).filter((app: any) => {
-                  if (!app) return false;
-                  if (app.activityId && act.id && app.activityId === act.id) return true;
-                  const appName = (app.namaKegiatan || '').trim().toLowerCase();
-                  const actName = (act.namaKegiatan || act.title || '').trim().toLowerCase();
-                  return appName && actName && (appName === actName || appName.includes(actName) || actName.includes(appName));
-                }).length;
+                const pCount = (activityApps || []).filter((app: any) => isParticipantOfActivity(app, act)).length;
 
                 return (
                   <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">

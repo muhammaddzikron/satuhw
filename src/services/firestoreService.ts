@@ -2324,8 +2324,8 @@ export const firestoreService = {
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
             const actProposalUrl = data.proposalUrl || data.proposal || data.linkProposal || '';
-            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || '';
-            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '';
+            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '089688754000';
 
             return {
               id: d.id,
@@ -2378,8 +2378,8 @@ export const firestoreService = {
             const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
             const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
             const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
-            const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || '';
-            const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '';
+            const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+            const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
 
             map.set(a.id, {
               ...merged,
@@ -2481,15 +2481,22 @@ export const firestoreService = {
         noWa: rawItem.noWa || rawItem.noHp || ''
       };
 
-      // Match strictly by document ID so separate registrants are never merged or discarded
-      const existingIdx = deduped.findIndex(ex => String(ex.id) === String(normalizedItem.id));
+      // Match by document ID or same full name for same activity
+      const existingIdx = deduped.findIndex(ex => {
+        if (String(ex.id) === String(normalizedItem.id)) return true;
+        const sameName = ex.namaLengkap && normalizedItem.namaLengkap &&
+          ex.namaLengkap.trim().toLowerCase() === normalizedItem.namaLengkap.trim().toLowerCase() &&
+          normalizedItem.namaLengkap.trim().length > 2;
+        const sameAct = ex.activityId === normalizedItem.activityId;
+        return sameName && sameAct;
+      });
 
       if (existingIdx >= 0) {
         const existing = deduped[existingIdx];
         deduped[existingIdx] = {
           ...existing,
           ...normalizedItem,
-          id: String(normalizedItem.id),
+          id: existing.id.startsWith('actreg-') ? existing.id : String(normalizedItem.id),
           namaLengkap: normalizedItem.namaLengkap || existing.namaLengkap,
           email: itemEmail || existing.email || normalizedItem.email,
           noHp: normalizedItem.noHp || existing.noHp,
@@ -2582,6 +2589,64 @@ export const firestoreService = {
         noHp: '085169772703',
         status: 'approved',
         tanggalDaftar: '2026-08-05T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-taufiq',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        userId: 'user-taufiq',
+        namaLengkap: 'TAUFIQ',
+        unsur: 'Kwarwil HW Jateng',
+        utusan: 'Kwarwil HW Jateng',
+        jabatan: 'Ketua Kwarwil',
+        kategoriUndangan: 'Pelatih Nasional HW Jateng',
+        noHp: '081234567890',
+        status: 'approved',
+        tanggalDaftar: '2026-08-06T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-medkom',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        userId: 'user-medkom',
+        namaLengkap: 'Medkom HW Jateng',
+        unsur: 'Kwarwil HW Jateng',
+        utusan: 'Kwarwil HW Jateng',
+        jabatan: 'Anggota / Tim Medkom',
+        kategoriUndangan: 'Pelatih Nasional HW Jateng',
+        noHp: '081286854000',
+        status: 'approved',
+        tanggalDaftar: '2026-08-07T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-fatiha',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        userId: 'user-fatiha',
+        namaLengkap: 'Fatiha Saleem',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Klaten',
+        asalKwarda: 'Kabupaten Klaten',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Pandu Senior HW Jateng',
+        noHp: '085799354001',
+        status: 'approved',
+        tanggalDaftar: '2026-08-08T08:00:00.000Z'
+      },
+      {
+        id: 'actreg-suanda',
+        activityId: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        userId: 'user-suanda',
+        namaLengkap: 'Suanda Gumelar',
+        unsur: 'Kwarda HW',
+        utusan: 'Kwarda HW Kabupaten Banyumas',
+        asalKwarda: 'Kabupaten Banyumas',
+        jabatan: 'Anggota',
+        kategoriUndangan: 'Alumni Jati 2 HW Jateng di Klaten',
+        noHp: '081398765432',
+        status: 'approved',
+        tanggalDaftar: '2026-08-09T08:00:00.000Z'
       }
     ];
   },
@@ -2722,8 +2787,8 @@ export const firestoreService = {
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
             const actProposalUrl = data.proposalUrl || data.proposal || data.linkProposal || '';
-            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || '';
-            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '';
+            const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+            const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '089688754000';
 
             return {
               id: d.id,
@@ -2785,8 +2850,8 @@ export const firestoreService = {
         const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
         const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
         const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
-        const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || '';
-        const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '';
+        const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+        const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
 
         map.set(a.id, {
           ...merged,
