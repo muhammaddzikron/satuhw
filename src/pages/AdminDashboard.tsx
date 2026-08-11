@@ -183,7 +183,8 @@ import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, resequenceKtaNumbers } from '../utils/ktaUtils';
+import { isOnlyTrainingActivity } from '../utils/activityUtils';
 export { KWARDA_QABILAH_JATENG };
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
@@ -477,6 +478,7 @@ export default function AdminDashboard() {
   const [activeKtaSubTab, setActiveKtaSubTab] = useState<'summary' | 'stats' | 'kwarda' | 'template'>('summary');
   const [editingKtaApp, setEditingKtaApp] = useState<any | null>(null);
   const [isEditKtaModalOpen, setIsEditKtaModalOpen] = useState(false);
+  const [isResequencingKta, setIsResequencingKta] = useState(false);
   const [previewFlipped, setPreviewFlipped] = useState(false);
   const [isViewKtaModalOpen, setIsViewKtaModalOpen] = useState(false);
   const [viewingKtaApp, setViewingKtaApp] = useState<any | null>(null);
@@ -1160,6 +1162,36 @@ export default function AdminDashboard() {
     } catch (err: any) {
       console.error(err);
       alert('Gagal memperbarui data KTA: ' + (err.message || 'Cek koneksi'));
+    }
+  };
+
+  const handleResequenceKTAs = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin merapikan dan menggeser urutan nomor KTA?\n\nProses ini akan menggeser nomor urut KTA di tiap Kwarda/Qabilah sehingga semua nomor urut anggota lengkap dari yang terkecil (11.XX.0001, 11.XX.0002, 11.XX.0003...) tanpa ada celah kosong.")) {
+      return;
+    }
+
+    try {
+      setIsResequencingKta(true);
+
+      // 1. Optimistic local state update
+      const resequencedKtas = resequenceKtaNumbers([...ktaApps]);
+      const resequencedMembers = resequenceKtaNumbers([...members]);
+
+      setKtaApps(resequencedKtas);
+      setMembers(resequencedMembers);
+
+      localStorage.setItem('kta_applications', JSON.stringify(resequencedKtas));
+      localStorage.setItem('mock_members', JSON.stringify(resequencedMembers));
+
+      // 2. Sync to Firestore in background
+      await firestoreService.resequenceAndSaveAllKTAs();
+
+      alert("Berhasil merapikan dan menggeser nomor KTA!\nSemua urutan anggota di tiap Kwarda/Qabilah kini lengkap dan rapat dari yang terkecil.");
+    } catch (err: any) {
+      console.error("Gagal merapikan nomor KTA:", err);
+      alert("Gagal merapikan nomor KTA: " + (err?.message || "Terjadi kesalahan"));
+    } finally {
+      setIsResequencingKta(false);
     }
   };
 
@@ -1868,7 +1900,7 @@ export default function AdminDashboard() {
           ...settingsData,
           gSheetApiUrl: prev.gSheetApiUrl,
           trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
-          trainingActivities: Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : [],
+          trainingActivities: (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity),
           trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
           trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
           assignedTasks: Array.isArray(settingsData.assignedTasks) 
@@ -3775,6 +3807,15 @@ export default function AdminDashboard() {
                     <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Pengelolaan KTA HW Jateng</h3>
                     <p className="text-xs text-gray-400 font-medium">Verifikasi pendaftaran, penerbitan Kartu Tanda Anggota, dan statistik KTA</p>
                   </div>
+                  <button
+                    onClick={handleResequenceKTAs}
+                    disabled={isResequencingKta}
+                    className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title="Merapikan dan menggeser nomor urut KTA yang kosong di tiap Kwarda/Qabilah agar urutan lengkap dari yang terkecil"
+                  >
+                    <RefreshCw size={15} className={isResequencingKta ? "animate-spin" : ""} />
+                    <span>{isResequencingKta ? "Merapikan Nomor..." : "Rapikan & Geser Urutan KTA"}</span>
+                  </button>
                 </div>
 
                 {/* Sub-tabs switcher */}
@@ -6077,12 +6118,12 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                         <span className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black">
-                          {(settings.trainingActivities || []).length} Kegiatan
+                          {(settings.trainingActivities || []).filter(isOnlyTrainingActivity).length} Kegiatan
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {(settings.trainingActivities || []).length === 0 ? (
+                        {(settings.trainingActivities || []).filter(isOnlyTrainingActivity).length === 0 ? (
                           <div className="col-span-full py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                             <p className="text-xs font-bold text-gray-400">Belum ada Kegiatan Pelatihan terdaftar.</p>
                             <button
@@ -6109,7 +6150,7 @@ export default function AdminDashboard() {
                             </button>
                           </div>
                         ) : (
-                          (settings.trainingActivities || []).map((act: any, idx: number) => (
+                          (settings.trainingActivities || []).filter(isOnlyTrainingActivity).map((act: any, idx: number) => (
                             <div key={act.id || idx} className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all space-y-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div>

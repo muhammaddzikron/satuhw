@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 export interface TrainingProgram {
   id: 'Jati 1' | 'Jati 2' | 'Jari 1';
@@ -247,9 +248,9 @@ export default function PelatihanPage() {
             setAssignedTasks(parsed);
           }
           if (settingsData.trainingActivities) {
-            const acts = Array.isArray(settingsData.trainingActivities)
+            const acts = (Array.isArray(settingsData.trainingActivities)
               ? settingsData.trainingActivities
-              : JSON.parse(settingsData.trainingActivities || '[]');
+              : JSON.parse(settingsData.trainingActivities || '[]')).filter(isOnlyTrainingActivity);
             if (acts && acts.length > 0) {
               setTrainingActivities(acts);
             } else {
@@ -268,9 +269,9 @@ export default function PelatihanPage() {
 
       const unsubSettings = sheetsService.subscribeToSettings((settingsData: any) => {
         if (settingsData && settingsData.trainingActivities) {
-          const acts = Array.isArray(settingsData.trainingActivities)
+          const acts = (Array.isArray(settingsData.trainingActivities)
             ? settingsData.trainingActivities
-            : JSON.parse(settingsData.trainingActivities || '[]');
+            : JSON.parse(settingsData.trainingActivities || '[]')).filter(isOnlyTrainingActivity);
           if (acts && acts.length > 0) {
             setTrainingActivities(acts);
           }
@@ -281,14 +282,14 @@ export default function PelatihanPage() {
         if (acts && acts.length > 0) {
           setTrainingActivities(prev => {
             const map = new Map<string, any>();
-            (prev || []).forEach(a => { if (a && a.id) map.set(a.id, a); });
+            (prev || []).filter(isOnlyTrainingActivity).forEach(a => { if (a && a.id) map.set(a.id, a); });
             (acts || []).forEach(a => {
-              if (a && a.id) {
+              if (a && a.id && map.has(a.id) && isOnlyTrainingActivity(a)) {
                 const existing = map.get(a.id) || {};
                 map.set(a.id, { ...existing, ...a });
               }
             });
-            return Array.from(map.values());
+            return Array.from(map.values()).filter(isOnlyTrainingActivity);
           });
         }
       });

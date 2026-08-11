@@ -225,93 +225,92 @@ export function compareKtaNumbers(a: any, b: any): number {
 }
 
 /**
- * Ensures all items in an array have unique, valid KTA numbers (11.XX.YYYY).
- * If two items share the same KTA number or if two items in the same Kwarda share the same sequence number,
- * the duplicate item is reassigned a fresh unique gap-free KTA number for its Kwarda.
+ * Resequences and compacts KTA sequence numbers per Kwarda/Qabilah so that there are no gaps.
+ * E.g., if existing members in Kwarda 01 have sequence numbers [1, 3, 5],
+ * they will be shifted down to [1, 2, 3] sequentially starting from 0001.
  */
-export function ensureUniqueKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
+export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
   if (!Array.isArray(items) || items.length === 0) return items;
 
-  // Map of kodeKwarda -> Set of used sequence numbers (nomorUrut)
-  const usedSeqPerKwarda = new Map<string, Set<number>>();
-  // Map of full KTA number string -> owner identifier (email, userId, or id)
-  const claimedKtaOwnersMap = new Map<string, string>();
+  // Group items by Kwarda/Qabilah 2-digit code
+  const groups = new Map<string, T[]>();
 
-  // Pass 1: Identify and reserve valid, non-duplicate KTA numbers
   for (let i = 0; i < items.length; i++) {
-    const item = items[i] as any;
+    const item = items[i];
     if (!item) continue;
 
-    const ownerKey = (item.email || item.userId || item.id || `owner-${i}`).toString().trim().toLowerCase();
+    const targetKwarda = item.asalDaerah || item.asalKwarda || '';
+    const targetQabilah = item.qabilah || item.qabilahPtma || '';
+    
+    let code = '';
     const rawKta = (item.ktaNumber || item.nomorKTA || '').toString().trim();
-
     if (isValidKtaNumberFormat(rawKta)) {
       const parsed = parseKtaNumber(rawKta);
       if (parsed) {
-        const { kodeKwarda, nomorUrut } = parsed;
-
-        if (!usedSeqPerKwarda.has(kodeKwarda)) {
-          usedSeqPerKwarda.set(kodeKwarda, new Set());
-        }
-        const seqSet = usedSeqPerKwarda.get(kodeKwarda)!;
-
-        const isSeqDuplicate = seqSet.has(nomorUrut);
-        const isOwnerDuplicate = claimedKtaOwnersMap.has(rawKta) && claimedKtaOwnersMap.get(rawKta) !== ownerKey;
-
-        if (!isSeqDuplicate && !isOwnerDuplicate) {
-          // Valid & unique! Reserve sequence and full string
-          seqSet.add(nomorUrut);
-          claimedKtaOwnersMap.set(rawKta, ownerKey);
-          item.ktaNumber = rawKta;
-          item.nomorKTA = rawKta;
-          item.kodeKwarda = kodeKwarda;
-          item.nomorUrut = nomorUrut;
-        } else {
-          // Duplicate detected! Clear KTA so Pass 2 reassigns a new unique sequence number
-          item.ktaNumber = '';
-          item.nomorKTA = '';
-        }
-      } else {
-        item.ktaNumber = '';
-        item.nomorKTA = '';
+        code = parsed.kodeKwarda;
       }
-    } else {
-      item.ktaNumber = '';
-      item.nomorKTA = '';
     }
+    if (!code) {
+      code = getKwardaCode(targetKwarda, targetQabilah);
+    }
+
+    if (!groups.has(code)) {
+      groups.set(code, []);
+    }
+    groups.get(code)!.push(item);
   }
 
-  // Pass 2: Reassign unique gap-free KTA numbers for missing/cleared items
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i] as any;
-    if (!item) continue;
+  // Resequence continuously starting from 1 for each Kwarda code group
+  groups.forEach((groupItems, code) => {
+    groupItems.sort((a: any, b: any) => {
+      const parsedA = parseKtaDetails(a);
+      const parsedB = parseKtaDetails(b);
 
-    const currentKta = item.ktaNumber || item.nomorKTA;
-    if (!currentKta || !isValidKtaNumberFormat(currentKta)) {
-      const ownerKey = (item.email || item.userId || item.id || `owner-${i}`).toString().trim().toLowerCase();
-      const targetKwarda = item.asalDaerah || item.asalKwarda || '';
-      const targetQabilah = item.qabilah || item.qabilahPtma || '';
-      const code = getKwardaCode(targetKwarda, targetQabilah);
-
-      if (!usedSeqPerKwarda.has(code)) {
-        usedSeqPerKwarda.set(code, new Set());
+      // Assigned KTAs before unassigned
+      if (parsedA.hasKta !== parsedB.hasKta) {
+        return parsedA.hasKta ? -1 : 1;
       }
-      const seqSet = usedSeqPerKwarda.get(code)!;
 
-      const newSeq = findNextAvailableNumber(seqSet);
-      seqSet.add(newSeq);
+      // If both have assigned KTAs, sort by current sequence number
+      if (parsedA.hasKta && parsedB.hasKta) {
+        if (parsedA.seq !== parsedB.seq) {
+          return parsedA.seq - parsedB.seq;
+        }
+      }
 
-      const newKta = formatKtaNumber(code, newSeq);
+      // Fallback sorting by registration date or name
+      const dateA = a.tanggalDaftar || a.createdAt || a.tanggal || '';
+      const dateB = b.tanggalDaftar || b.createdAt || b.tanggal || '';
+      if (dateA && dateB && dateA !== dateB) {
+        return String(dateA).localeCompare(String(dateB));
+      }
+
+      const nameA = a.namaLengkap || a.nama || '';
+      const nameB = b.namaLengkap || b.nama || '';
+      return nameA.localeCompare(nameB);
+    });
+
+    let currentSeq = 1;
+    for (const item of groupItems as any[]) {
+      const newKta = formatKtaNumber(code, currentSeq);
       item.ktaNumber = newKta;
       item.nomorKTA = newKta;
       item.kodeProvinsi = '11';
       item.kodeKwarda = code;
-      item.nomorUrut = newSeq;
-
-      claimedKtaOwnersMap.set(newKta, ownerKey);
+      item.nomorUrut = currentSeq;
+      currentSeq++;
     }
-  }
+  });
 
   return items;
+}
+
+/**
+ * Ensures all items in an array have unique, valid, and gap-free KTA numbers (11.XX.YYYY).
+ * Automatically shifts numbers down if there are gaps in sequence numbers within a Kwarda/Qabilah.
+ */
+export function ensureUniqueKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
+  if (!Array.isArray(items) || items.length === 0) return items;
+  return resequenceKtaNumbers(items);
 }
 

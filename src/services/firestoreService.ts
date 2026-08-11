@@ -19,8 +19,10 @@ import {
   formatKtaNumber,
   isValidKtaNumberFormat,
   parseKtaNumber,
-  ensureUniqueKtaNumbers
+  ensureUniqueKtaNumbers,
+  resequenceKtaNumbers
 } from '../utils/ktaUtils';
+import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
@@ -1587,6 +1589,56 @@ export const firestoreService = {
     }
   },
 
+  async resequenceAndSaveAllKTAs(): Promise<any[]> {
+    try {
+      const ktas = await this.getKTAApplications();
+      const resequenced = resequenceKtaNumbers(ktas);
+      localStorage.setItem('kta_applications', JSON.stringify(resequenced));
+
+      if (resequenced.length > 0) {
+        try {
+          const batch = writeBatch(db);
+          resequenced.forEach((k: any) => {
+            if (k.id) {
+              batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
+            }
+          });
+          await batch.commit();
+        } catch (err) {
+          this.checkQuotaError(err);
+        }
+      }
+
+      // Sync members with matching resequenced KTAs
+      try {
+        const membersStored = localStorage.getItem('mock_members');
+        if (membersStored) {
+          const members = JSON.parse(membersStored);
+          let memberUpdated = false;
+          members.forEach((m: any) => {
+            const matchedKta = resequenced.find((k: any) => 
+              (k.email && m.email && String(k.email).trim().toLowerCase() === String(m.email).trim().toLowerCase()) ||
+              (k.userId && m.id && String(k.userId) === String(m.id))
+            );
+            if (matchedKta) {
+              m.ktaNumber = matchedKta.ktaNumber;
+              m.nomorKTA = matchedKta.nomorKTA;
+              memberUpdated = true;
+            }
+          });
+          if (memberUpdated) {
+            localStorage.setItem('mock_members', JSON.stringify(members));
+          }
+        }
+      } catch (e) {}
+
+      return resequenced;
+    } catch (e) {
+      console.warn('Error resequencing KTAs:', e);
+      return [];
+    }
+  },
+
   async createKTAApplication(appData: any): Promise<any> {
     let ktaNum = appData.nomorKTA || appData.ktaNumber;
     let ktaInfo: any = null;
@@ -2081,7 +2133,7 @@ export const firestoreService = {
           const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
           const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
           if (Array.isArray(settings.trainingActivities)) {
-            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
           }
           localStorage.setItem('hw_settings', JSON.stringify(settings));
           return settings;
@@ -2098,7 +2150,7 @@ export const firestoreService = {
         const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
         const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
         if (Array.isArray(parsed.trainingActivities)) {
-          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
         }
         return parsed;
       } catch (e) {}
@@ -2139,7 +2191,7 @@ export const firestoreService = {
             const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
             const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
             if (Array.isArray(settings.trainingActivities)) {
-              settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+              settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
             }
             localStorage.setItem('hw_settings', JSON.stringify(settings));
             callback(settings);
@@ -2159,7 +2211,7 @@ export const firestoreService = {
         const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
         const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
         if (Array.isArray(parsed.trainingActivities)) {
-          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
         }
         callback(parsed);
       } catch (e) {}
@@ -3082,15 +3134,17 @@ export const firestoreService = {
       const deletedIds = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds.filter((dId: string) => dId !== actId) : [];
       const deletedTitles = Array.isArray(currentSettings.deletedActivityTitles) ? currentSettings.deletedActivityTitles.filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase()) : [];
 
-      const filtered = currentActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
-      filtered.unshift(newAct);
+      if (isOnlyTrainingActivity(newAct) && currentActs.some((a: any) => a && (a.id === actId || isSameActivity(a, newAct)))) {
+        const filtered = currentActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
+        filtered.unshift(newAct);
 
-      await this.saveSettings({
-        ...currentSettings,
-        trainingActivities: filtered,
-        deletedActivityIds: deletedIds,
-        deletedActivityTitles: deletedTitles
-      });
+        await this.saveSettings({
+          ...currentSettings,
+          trainingActivities: filtered,
+          deletedActivityIds: deletedIds,
+          deletedActivityTitles: deletedTitles
+        });
+      }
     } catch (e) {}
 
     return newAct;

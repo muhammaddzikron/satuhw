@@ -41,3 +41,30 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
 
   return false;
 };
+
+export const isOnlyTrainingActivity = (act: any): boolean => {
+  if (!act) return false;
+  const cat = String(act.kategori || act.category || '').toLowerCase().trim();
+  if (
+    cat === 'silaturahmi' || 
+    cat === 'rapat' || 
+    cat === 'rapat hw' || 
+    cat === 'perkemahan' || 
+    cat === 'musyawarah' || 
+    cat === 'lomba' || 
+    cat === 'umum'
+  ) {
+    return false;
+  }
+  const name = String(act.namaKegiatan || act.title || act.jenisPelatihan || '').toLowerCase().trim();
+  if (
+    name.includes('silaturahmi') || 
+    name.includes('rapat') || 
+    name.includes('perkemahan') || 
+    name.includes('musyawarah') || 
+    name.includes('lomba')
+  ) {
+    return false;
+  }
+  return true;
+};

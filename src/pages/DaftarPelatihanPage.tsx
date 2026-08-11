@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { sheetsService } from '../services/sheetsService';
+import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 export default function DaftarPelatihanPage() {
   const navigate = useNavigate();
@@ -98,11 +99,11 @@ export default function DaftarPelatihanPage() {
         if (s) {
           locations = Array.isArray(s.trainingLocations) ? s.trainingLocations : [];
           dates = Array.isArray(s.trainingDates) ? s.trainingDates : [];
-          activities = Array.isArray(s.trainingActivities)
+          activities = (Array.isArray(s.trainingActivities)
             ? s.trainingActivities
             : typeof s.trainingActivities === 'string'
               ? JSON.parse(s.trainingActivities || '[]')
-              : [];
+              : []).filter(isOnlyTrainingActivity);
           types = Array.isArray(s.trainingTypes)
             ? s.trainingTypes
             : typeof s.trainingTypes === 'string'
@@ -124,11 +125,11 @@ export default function DaftarPelatihanPage() {
 
         unsubSettings = sheetsService.subscribeToSettings((newSettings: any) => {
           if (!newSettings) return;
-          const acts = Array.isArray(newSettings.trainingActivities)
+          const acts = (Array.isArray(newSettings.trainingActivities)
             ? newSettings.trainingActivities
             : typeof newSettings.trainingActivities === 'string'
               ? JSON.parse(newSettings.trainingActivities || '[]')
-              : [];
+              : []).filter(isOnlyTrainingActivity);
           setSettings(prev => ({
             ...prev,
             ...newSettings,
@@ -139,11 +140,11 @@ export default function DaftarPelatihanPage() {
         unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
           if (!acts || acts.length === 0) return;
           setSettings(prev => {
-            const currentActs = Array.isArray(prev.trainingActivities) ? [...prev.trainingActivities] : [];
+            const currentActs = (Array.isArray(prev.trainingActivities) ? [...prev.trainingActivities] : []).filter(isOnlyTrainingActivity);
             const map = new Map<string, any>();
             currentActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
             acts.forEach(a => {
-              if (a && a.id) {
+              if (a && a.id && map.has(a.id) && isOnlyTrainingActivity(a)) {
                 const prevAct = map.get(a.id) || {};
                 const merged = { ...prevAct, ...a };
                 const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prevAct.lokasi || prevAct.lokasiPelatihan || '';
@@ -161,7 +162,7 @@ export default function DaftarPelatihanPage() {
             });
             return {
               ...prev,
-              trainingActivities: Array.from(map.values())
+              trainingActivities: Array.from(map.values()).filter(isOnlyTrainingActivity)
             };
           });
         });

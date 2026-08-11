@@ -55,6 +55,7 @@ import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime } from '../lib/utils';
+import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
   if (onClick) {
@@ -227,12 +228,13 @@ export default function HomePage() {
   const activeTrainings = React.useMemo(() => {
     const map = new Map<string, any>();
     (trainingActivities || []).forEach((act: any) => {
-      if (act && act.id) map.set(act.id, act);
+      if (act && act.id && isOnlyTrainingActivity(act)) {
+        map.set(act.id, act);
+      }
     });
     (activitiesList || []).forEach((act: any) => {
-      if (!act) return;
-      const isTrainingCat = act.kategori === 'Pelatihan' || act.kategori === 'Pelatihan HW' || act.jenisPelatihan;
-      if (isTrainingCat || map.has(act.id)) {
+      if (!act || !act.id) return;
+      if (map.has(act.id) && isOnlyTrainingActivity(act)) {
         const prev = map.get(act.id) || {};
         const merged = { ...prev, ...act };
         const finalLoc = act.lokasi || act.lokasiPelatihan || act.location || prev.lokasi || prev.lokasiPelatihan || '';
@@ -248,7 +250,7 @@ export default function HomePage() {
         });
       }
     });
-    return Array.from(map.values());
+    return Array.from(map.values()).filter(isOnlyTrainingActivity);
   }, [trainingActivities, activitiesList]);
 
   useEffect(() => {
