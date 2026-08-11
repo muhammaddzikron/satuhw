@@ -1170,6 +1170,12 @@ export default function KegiatanPage() {
                                 <div className="text-[11px] text-gray-600 font-medium space-y-0.5">
                                   <p><strong>Unsur/Utusan:</strong> {app.utusan || app.qabilahPtma || app.unsur || '-'}</p>
                                   <p><strong>Jabatan:</strong> {app.jabatan || 'Peserta'}</p>
+                                  <p className="flex items-center gap-1.5 pt-0.5">
+                                    <strong>Kategori Undangan:</strong>
+                                    <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">
+                                      {app.kategoriUndangan || app.kategori || 'Tidak Ada / Umum'}
+                                    </span>
+                                  </p>
                                   {app.tanggalDaftar && (
                                     <p className="text-[10px] text-gray-400">
                                       Tgl Ajuan: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
