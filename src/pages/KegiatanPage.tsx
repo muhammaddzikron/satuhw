@@ -598,7 +598,7 @@ export default function KegiatanPage() {
             Agenda & Kegiatan Pandu Hizbul Wathan
           </h1>
           <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
-            Ikuti berbagai kegiatan resmi HW Jateng seperti Rapat HW, Silaturahmi, Pelatihan, dan Perkemahan. Dapatkan KTA Digital resmi sebagai identitas peserta!
+            Ikuti berbagai kegiatan resmi HW Jateng. Dapatkan KTA Digital resmi sebagai identitas peserta!
           </p>
         </div>
       </div>
