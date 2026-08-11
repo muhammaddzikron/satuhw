@@ -23,6 +23,7 @@ import {
   Award,
   Send,
   UserCheck,
+  UserPlus,
   Plus,
   Edit3,
   Trash2,
@@ -1107,20 +1108,49 @@ export default function KegiatanPage() {
                   const pendaftarList = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
                   if (pendaftarList.length === 0) {
                     return (
-                      <div className="py-12 text-center text-gray-400 space-y-2 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
                         <Users size={36} className="mx-auto text-gray-300" />
-                        <p className="text-xs font-bold">Belum ada pendaftar untuk kegiatan ini.</p>
+                        <p className="text-xs font-bold text-gray-600">Belum ada pendaftar untuk kegiatan ini.</p>
+                        <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                          Jadilah peserta pertama yang mendaftar pada kegiatan {selectedActivityForParticipants.namaKegiatan}!
+                        </p>
+                        <button
+                          onClick={() => {
+                            setSelectedActivity(selectedActivityForParticipants);
+                            setIsParticipantsModalOpen(false);
+                            setIsRegisterModalOpen(true);
+                          }}
+                          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 cursor-pointer active:scale-95"
+                        >
+                          <UserPlus size={16} />
+                          <span>Mendaftar Kegiatan Ini</span>
+                        </button>
                       </div>
                     );
                   }
 
                   return (
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-bold">
-                        <span>Total Pendaftar Terkonfirmasi</span>
-                        <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-black">
-                          {pendaftarList.length} Peserta
-                        </span>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-emerald-50 p-3.5 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-bold">
+                        <div className="flex items-center gap-2">
+                          <span>Total Pendaftar Terkonfirmasi:</span>
+                          <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-black">
+                            {pendaftarList.length} Peserta
+                          </span>
+                        </div>
+                        {selectedActivityForParticipants.status !== 'Tutup' && (
+                          <button
+                            onClick={() => {
+                              setSelectedActivity(selectedActivityForParticipants);
+                              setIsParticipantsModalOpen(false);
+                              setIsRegisterModalOpen(true);
+                            }}
+                            className="px-3.5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                          >
+                            <UserPlus size={14} />
+                            <span>+ Mendaftar Kegiatan</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="space-y-2.5">
@@ -1167,13 +1197,27 @@ export default function KegiatanPage() {
                 })()}
               </div>
 
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setIsParticipantsModalOpen(false)}
                   className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-100 cursor-pointer"
                 >
                   Tutup
                 </button>
+
+                {selectedActivityForParticipants.status !== 'Tutup' && (
+                  <button
+                    onClick={() => {
+                      setSelectedActivity(selectedActivityForParticipants);
+                      setIsParticipantsModalOpen(false);
+                      setIsRegisterModalOpen(true);
+                    }}
+                    className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <UserPlus size={15} />
+                    <span>Mendaftar Kegiatan Sekarang</span>
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>

@@ -6504,8 +6504,16 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    {/* Export Buttons */}
+                    {/* Export & Action Buttons */}
                     <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setIsAddParticipantModalOpen(true)}
+                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Tambah / Mendaftar Peserta Baru Manual"
+                      >
+                        <UserPlus size={15} />
+                        <span>+ Mendaftar Peserta</span>
+                      </button>
                       <button
                         onClick={exportActivityParticipantsToExcel}
                         className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
