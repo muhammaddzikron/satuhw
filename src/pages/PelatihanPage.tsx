@@ -328,14 +328,31 @@ export default function PelatihanPage() {
         setUserApp(null);
       }
 
-      // Fetch materials for current level
+      // Fetch materials specifically for Jaya Melati 1 (Jati 1) as required for member dashboard
       setLoadingMateri(true);
-      const levelKey = selectedLevel === 'Jati 1' ? 'jati1' : selectedLevel === 'Jati 2' ? 'jati2' : 'jari1';
       try {
-        const mats = await sheetsService.getMateri(levelKey);
-        setMateriList(mats || []);
+        const mats = await sheetsService.getMateri('jati1');
+        const adminMats = await sheetsService.getMateri('admin');
+        const combined = [...(mats || []), ...(adminMats || [])];
+        const map = new Map<string, any>();
+        combined.forEach(m => { if (m && m.id) map.set(String(m.id), m); });
+        const allMats = Array.from(map.values());
+
+        const j1Mats = allMats.filter(m => {
+          const k = (m.kategori || '').toLowerCase().trim();
+          return k === 'jati1' || k === 'jati 1' || k.includes('jati 1') || k.includes('jaya melati 1');
+        });
+
+        if (j1Mats.length > 0) {
+          setMateriList(j1Mats);
+        } else {
+          setMateriList(allMats.filter(m => {
+            const k = (m.kategori || '').toLowerCase().trim();
+            return k !== 'jati2' && k !== 'jari1';
+          }));
+        }
       } catch (err) {
-        console.error('Failed to load materials for level:', levelKey, err);
+        console.error('Failed to load materials for Jati 1:', err);
       } finally {
         setLoadingMateri(false);
       }
@@ -360,7 +377,9 @@ export default function PelatihanPage() {
     }
   }, [user]);
 
-  const program = TRAINING_PROGRAMS.find(p => p.id === selectedLevel) || TRAINING_PROGRAMS[0];
+  const program = perspective === 'peserta' 
+    ? (TRAINING_PROGRAMS.find(p => p.id === 'Jati 1') || TRAINING_PROGRAMS[0])
+    : (TRAINING_PROGRAMS.find(p => p.id === selectedLevel) || TRAINING_PROGRAMS[0]);
 
   const normalizeLevelCode = (str?: string): string => {
     if (!str) return 'jati1';
@@ -1145,26 +1164,26 @@ export default function PelatihanPage() {
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Materi & Modul Pembelajaran {selectedActivity.jenisPelatihan || selectedLevel}
+                          Materi & Modul Pembelajaran Jaya Melati 1 (Jati 1)
                         </h4>
                         <span className="text-[9px] font-black bg-hw-green/10 text-hw-green px-2.5 py-1 rounded-md uppercase">
                           {materiList.length} Berkas
                         </span>
                       </div>
                       <p className="text-xs text-gray-400">
-                        Unduh berkas materi, slide presentasi, dan panduan kurikulum pelatihan yang diunggah oleh Tim Pelatih.
+                        Unduh berkas materi, slide presentasi, dan panduan kurikulum pelatihan Jaya Melati 1 yang diunggah oleh Tim Pelatih.
                       </p>
                     </div>
 
                     {loadingMateri ? (
                       <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-white rounded-3xl border border-gray-100 shadow-sm">
                         <Loader2 className="animate-spin text-hw-green" size={24} />
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest animate-pulse">Memuat berkas materi...</p>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest animate-pulse">Memuat berkas materi Jati 1...</p>
                       </div>
                     ) : materiList.length === 0 ? (
                       <div className="bg-white p-8 rounded-3xl border border-gray-100 text-center text-gray-400 shadow-sm">
                         <FileText size={28} className="mx-auto text-gray-300 mb-2" />
-                        <p className="text-xs font-bold">Belum ada materi penunjang yang diunggah.</p>
+                        <p className="text-xs font-bold">Belum ada materi penunjang Jaya Melati 1 yang diunggah.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-3">
@@ -1217,14 +1236,14 @@ export default function PelatihanPage() {
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Sesi Materi & Presensi Kehadiran
+                          Sesi Materi & Presensi Kehadiran Jaya Melati 1 (Jati 1)
                         </h4>
                         <span className="text-[9px] font-black bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md uppercase">
                           {program.sessions.length} Sesi
                         </span>
                       </div>
                       <p className="text-xs text-gray-400">
-                        Lakukan presensi kehadiran mandiri pada setiap sesi materi yang diselenggarakan.
+                        Lakukan presensi kehadiran mandiri pada setiap sesi materi pelatihan Jaya Melati 1 (Jati 1) yang diselenggarakan.
                       </p>
                     </div>
 
