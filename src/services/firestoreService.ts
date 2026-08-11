@@ -2617,12 +2617,23 @@ export const firestoreService = {
 
         // Seed any missing default applications to Firestore so Firestore is complete
         defaultApps.forEach(a => {
-          if (!fsApps.some(f => f.id === a.id)) {
-            setDoc(doc(db, 'activity_applications', a.id), a, { merge: true }).catch(() => {});
+          if (!fsApps.some(f => String(f.id) === String(a.id))) {
+            setDoc(doc(db, 'activity_applications', String(a.id)), a, { merge: true }).catch(() => {});
           }
         });
 
-        const mergedRaw = [...defaultApps, ...fsApps, ...initialLocal];
+        // Sync unsynced local storage items up to Firestore
+        try {
+          const stored = localStorage.getItem('activity_applications') || '[]';
+          const localApps: any[] = JSON.parse(stored);
+          localApps.forEach((locApp: any) => {
+            if (locApp && locApp.id && !fsApps.some(f => String(f.id) === String(locApp.id))) {
+              setDoc(doc(db, 'activity_applications', String(locApp.id)), locApp, { merge: true }).catch(() => {});
+            }
+          });
+        } catch (e) {}
+
+        const mergedRaw = [...defaultApps, ...fsApps];
         const list = this.deduplicateActivityApps(mergedRaw);
 
         try {
@@ -3178,13 +3189,27 @@ export const firestoreService = {
       }
     }
 
+    // Seed default apps if missing
+    defaultApps.forEach(a => {
+      if (!fsApps.some(f => String(f.id) === String(a.id))) {
+        setDoc(doc(db, 'activity_applications', String(a.id)), a, { merge: true }).catch(() => {});
+      }
+    });
+
     let localApps: any[] = [];
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       localApps = JSON.parse(stored);
     } catch (e) {}
 
-    const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
+    // Seed unsynced local apps to Firestore
+    localApps.forEach((locApp: any) => {
+      if (locApp && locApp.id && !fsApps.some(f => String(f.id) === String(locApp.id))) {
+        setDoc(doc(db, 'activity_applications', String(locApp.id)), locApp, { merge: true }).catch(() => {});
+      }
+    });
+
+    const mergedRaw = [...defaultApps, ...fsApps];
     const list = this.deduplicateActivityApps(mergedRaw);
 
     try {
@@ -3257,14 +3282,23 @@ export const firestoreService = {
 
   async deleteActivityApplication(id: string): Promise<boolean> {
     try {
+      const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+      const deletedIds: string[] = JSON.parse(delStr);
+      if (!deletedIds.includes(String(id))) {
+        deletedIds.push(String(id));
+        localStorage.setItem('deleted_activity_app_ids', JSON.stringify(deletedIds));
+      }
+    } catch (e) {}
+
+    try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       const localApps = JSON.parse(stored);
-      const filtered = localApps.filter((a: any) => a && a.id !== id);
+      const filtered = localApps.filter((a: any) => a && String(a.id) !== String(id));
       localStorage.setItem('activity_applications', JSON.stringify(filtered));
     } catch (e) {}
 
     try {
-      await deleteDoc(doc(db, 'activity_applications', id));
+      await deleteDoc(doc(db, 'activity_applications', String(id)));
     } catch (err: any) {
       this.checkQuotaError(err);
       console.error('Firestore deleteActivityApplication error:', err);
