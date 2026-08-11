@@ -4907,7 +4907,6 @@ export default function AdminDashboard() {
                                   <td className="p-4">
                                     <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
                                     <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
-                                    <div className="text-[10px] text-gray-500">No. KTA: <span className="font-mono font-bold">{dispNbm}</span></div>
                                     <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{dispJk}</span></div>
                                     <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
                                       <a 
@@ -9699,6 +9698,31 @@ export default function AdminDashboard() {
                     <X size={18} />
                   </button>
                 </div>
+
+                {/* HIDDEN CAPTURE CONTAINER FOR ADMIN PDF GENERATION */}
+                {viewingKtaApp && (
+                  <div 
+                    id="kta-print-capture-admin" 
+                    className="fixed top-0 left-0 opacity-0 pointer-events-none" 
+                    style={{ position: 'fixed', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -9999 }}
+                  >
+                    <KTACard 
+                      id="kta-front-capture-admin" 
+                      application={viewingKtaApp} 
+                      settings={settings} 
+                      side="front" 
+                      idSuffix="admin-front-capture"
+                      photoOverride={viewingKtaApp.photo}
+                    />
+                    <KTACard 
+                      id="kta-back-capture-admin" 
+                      application={viewingKtaApp} 
+                      settings={settings} 
+                      side="back" 
+                      idSuffix="admin-back-capture"
+                    />
+                  </div>
+                )}
 
                 {/* Main Grid: Card Previews side-by-side or stacked */}
                 <div className="flex flex-col items-center gap-6 overflow-x-auto pb-4">

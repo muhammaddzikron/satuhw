@@ -18,7 +18,8 @@ import {
   findNextAvailableNumber,
   formatKtaNumber,
   isValidKtaNumberFormat,
-  parseKtaNumber
+  parseKtaNumber,
+  ensureUniqueKtaNumbers
 } from '../utils/ktaUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
@@ -623,44 +624,7 @@ export const firestoreService = {
     }
 
     // Strict KTA validation & deduplication pass for returned members
-    const usedKtaPerCode = new Map<string, Set<number>>();
-    members.forEach((m) => {
-      const kta = m.ktaNumber || m.nomorKTA;
-      if (kta && isValidKtaNumberFormat(kta)) {
-        const parsed = parseKtaNumber(kta);
-        if (parsed) {
-          if (!usedKtaPerCode.has(parsed.kodeKwarda)) {
-            usedKtaPerCode.set(parsed.kodeKwarda, new Set());
-          }
-          const set = usedKtaPerCode.get(parsed.kodeKwarda)!;
-          if (set.has(parsed.nomorUrut)) {
-            m.ktaNumber = '';
-            m.nomorKTA = '';
-          } else {
-            set.add(parsed.nomorUrut);
-          }
-        }
-      } else {
-        m.ktaNumber = '';
-        m.nomorKTA = '';
-      }
-    });
-
-    members.forEach((m) => {
-      const kta = m.ktaNumber || m.nomorKTA;
-      if (!kta || !isValidKtaNumberFormat(kta)) {
-        const code = getKwardaCode(m.asalKwarda, m.qabilah);
-        if (!usedKtaPerCode.has(code)) {
-          usedKtaPerCode.set(code, new Set());
-        }
-        const set = usedKtaPerCode.get(code)!;
-        const seq = findNextAvailableNumber(set);
-        set.add(seq);
-        const newKta = formatKtaNumber(code, seq);
-        m.ktaNumber = newKta;
-        m.nomorKTA = newKta;
-      }
-    });
+    ensureUniqueKtaNumbers(members);
 
     const filteredMembers = members
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
@@ -932,7 +896,7 @@ export const firestoreService = {
           const duplicateInLocalMem = mems.some(m => {
             const num = m.nomorKTA || m.ktaNumber;
             const mKey = (m.email || m.id || '').toString().trim().toLowerCase();
-            return num === existingKta && cleanOwnerId && mKey && mKey !== cleanOwnerId;
+            return num === existingKta && (!cleanOwnerId || (mKey && mKey !== cleanOwnerId));
           });
           if (duplicateInLocalMem) isClaimedByOther = true;
 
@@ -941,7 +905,7 @@ export const firestoreService = {
             const duplicateInLocalKta = ktas.some(k => {
               const num = k.nomorKTA || k.ktaNumber;
               const kKey = (k.email || k.userId || k.id || '').toString().trim().toLowerCase();
-              return num === existingKta && cleanOwnerId && kKey && kKey !== cleanOwnerId;
+              return num === existingKta && (!cleanOwnerId || (kKey && kKey !== cleanOwnerId));
             });
             if (duplicateInLocalKta) isClaimedByOther = true;
           }
@@ -967,7 +931,7 @@ export const firestoreService = {
     const kodeKwarda = getKwardaCode(asalKwarda, qabilah);
     const counterRef = doc(db, 'kta_counters', kodeKwarda);
 
-    // Initial scan of existing sequence numbers across members & kta_applications & sessionAllocatedKtaNumbers
+    // Initial scan of existing sequence numbers across master members, members & kta_applications & sessionAllocatedKtaNumbers
     const existingSeqNumbers: number[] = [];
 
     sessionAllocatedKtaNumbers.forEach(sNum => {
@@ -976,6 +940,17 @@ export const firestoreService = {
         existingSeqNumbers.push(parsed.nomorUrut);
       }
     });
+
+    try {
+      const masters = getMasterMembersList();
+      masters.forEach(m => {
+        const kNum = m.nomorKTA || m.ktaNumber;
+        const parsed = parseKtaNumber(kNum);
+        if (parsed && parsed.kodeKwarda === kodeKwarda) {
+          existingSeqNumbers.push(parsed.nomorUrut);
+        }
+      });
+    } catch (e) {}
 
     try {
       const [memSnap, ktaSnap] = await Promise.all([
@@ -1595,6 +1570,7 @@ export const firestoreService = {
             });
           } catch (e) {}
         }
+        ensureUniqueKtaNumbers(ktas);
         localStorage.setItem('kta_applications', JSON.stringify(ktas));
         return ktas;
       } catch (err) {
@@ -1607,11 +1583,12 @@ export const firestoreService = {
     const stored = localStorage.getItem('kta_applications') || '[]';
     try {
       const parsed = JSON.parse(stored);
-      return parsed.filter((k: any) => {
+      const cleanList = parsed.filter((k: any) => {
         if (!k) return false;
         const name = (k.nama || k.namaLengkap || '').trim();
         return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
       });
+      return ensureUniqueKtaNumbers(cleanList);
     } catch (e) {
       return [];
     }

@@ -3,6 +3,7 @@ import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { firestoreService } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
+import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -803,7 +804,7 @@ export const sheetsService = {
         } catch (e) {
           console.warn('Error merging Firestore photos and member data into getMembers:', e);
         }
-        return sheetMembers;
+        return ensureUniqueKtaNumbers(sheetMembers);
       }
       return [];
     } catch (error) {
@@ -947,7 +948,7 @@ export const sheetsService = {
             }
           });
         } catch (e) {}
-        return apps;
+        return ensureUniqueKtaNumbers(apps);
       }
       return await firestoreService.getKTAApplications();
     } catch (e) {

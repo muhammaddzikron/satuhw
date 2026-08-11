@@ -172,3 +172,95 @@ export function parseKtaNumber(ktaNum?: string): { kodeProvinsi: string; kodeKwa
     nomorUrut: parseInt(match[2], 10)
   };
 }
+
+/**
+ * Ensures all items in an array have unique, valid KTA numbers (11.XX.YYYY).
+ * If two items share the same KTA number or if two items in the same Kwarda share the same sequence number,
+ * the duplicate item is reassigned a fresh unique gap-free KTA number for its Kwarda.
+ */
+export function ensureUniqueKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
+  if (!Array.isArray(items) || items.length === 0) return items;
+
+  // Map of kodeKwarda -> Set of used sequence numbers (nomorUrut)
+  const usedSeqPerKwarda = new Map<string, Set<number>>();
+  // Map of full KTA number string -> owner identifier (email, userId, or id)
+  const claimedKtaOwnersMap = new Map<string, string>();
+
+  // Pass 1: Identify and reserve valid, non-duplicate KTA numbers
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] as any;
+    if (!item) continue;
+
+    const ownerKey = (item.email || item.userId || item.id || `owner-${i}`).toString().trim().toLowerCase();
+    const rawKta = (item.ktaNumber || item.nomorKTA || '').toString().trim();
+
+    if (isValidKtaNumberFormat(rawKta)) {
+      const parsed = parseKtaNumber(rawKta);
+      if (parsed) {
+        const { kodeKwarda, nomorUrut } = parsed;
+
+        if (!usedSeqPerKwarda.has(kodeKwarda)) {
+          usedSeqPerKwarda.set(kodeKwarda, new Set());
+        }
+        const seqSet = usedSeqPerKwarda.get(kodeKwarda)!;
+
+        const isSeqDuplicate = seqSet.has(nomorUrut);
+        const isOwnerDuplicate = claimedKtaOwnersMap.has(rawKta) && claimedKtaOwnersMap.get(rawKta) !== ownerKey;
+
+        if (!isSeqDuplicate && !isOwnerDuplicate) {
+          // Valid & unique! Reserve sequence and full string
+          seqSet.add(nomorUrut);
+          claimedKtaOwnersMap.set(rawKta, ownerKey);
+          item.ktaNumber = rawKta;
+          item.nomorKTA = rawKta;
+          item.kodeKwarda = kodeKwarda;
+          item.nomorUrut = nomorUrut;
+        } else {
+          // Duplicate detected! Clear KTA so Pass 2 reassigns a new unique sequence number
+          item.ktaNumber = '';
+          item.nomorKTA = '';
+        }
+      } else {
+        item.ktaNumber = '';
+        item.nomorKTA = '';
+      }
+    } else {
+      item.ktaNumber = '';
+      item.nomorKTA = '';
+    }
+  }
+
+  // Pass 2: Reassign unique gap-free KTA numbers for missing/cleared items
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] as any;
+    if (!item) continue;
+
+    const currentKta = item.ktaNumber || item.nomorKTA;
+    if (!currentKta || !isValidKtaNumberFormat(currentKta)) {
+      const ownerKey = (item.email || item.userId || item.id || `owner-${i}`).toString().trim().toLowerCase();
+      const targetKwarda = item.asalDaerah || item.asalKwarda || '';
+      const targetQabilah = item.qabilah || item.qabilahPtma || '';
+      const code = getKwardaCode(targetKwarda, targetQabilah);
+
+      if (!usedSeqPerKwarda.has(code)) {
+        usedSeqPerKwarda.set(code, new Set());
+      }
+      const seqSet = usedSeqPerKwarda.get(code)!;
+
+      const newSeq = findNextAvailableNumber(seqSet);
+      seqSet.add(newSeq);
+
+      const newKta = formatKtaNumber(code, newSeq);
+      item.ktaNumber = newKta;
+      item.nomorKTA = newKta;
+      item.kodeProvinsi = '11';
+      item.kodeKwarda = code;
+      item.nomorUrut = newSeq;
+
+      claimedKtaOwnersMap.set(newKta, ownerKey);
+    }
+  }
+
+  return items;
+}
+

@@ -1023,8 +1023,8 @@ export default function KTAPage() {
           {myApplication && (
             <div 
               id="kta-print-capture" 
-              className="fixed -left-[9999px] top-0 pointer-events-none" 
-              style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -9999 }}
+              className="fixed top-0 left-0 opacity-0 pointer-events-none" 
+              style={{ position: 'fixed', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -9999 }}
             >
               <KTACard 
                 id="kta-front-capture" 

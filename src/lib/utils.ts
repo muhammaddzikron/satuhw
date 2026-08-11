@@ -320,13 +320,98 @@ export function replaceOklchWithFallback(cssText: string): string {
   return result;
 }
 
+export async function imageUrlToBase64(url: string): Promise<string> {
+  if (!url) return '';
+  if (url.startsWith('data:image/')) return url;
+
+  try {
+    const corsUrl = getCorsSafeUrl(url);
+    const response = await fetch(corsUrl, { mode: 'cors' });
+    if (response.ok) {
+      const blob = await response.blob();
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string) || url);
+        reader.onerror = () => resolve(url);
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (e) {
+    // Ignore fetch error, try canvas fallback
+  }
+
+  return new Promise<string>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width || 350;
+        canvas.height = img.naturalHeight || img.height || 220;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+          return;
+        }
+      } catch (err) {
+        // Fallback on tainted
+      }
+      resolve(url);
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
+export async function prepareImagesInElement(element: HTMLElement): Promise<void> {
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      const src = img.src || img.getAttribute('src');
+      if (src && !src.startsWith('data:')) {
+        try {
+          const b64 = await imageUrlToBase64(src);
+          if (b64 && b64.startsWith('data:')) {
+            img.src = b64;
+          }
+        } catch (e) {
+          console.warn('Image base64 conversion warning:', e);
+        }
+      }
+    })
+  );
+}
+
 export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): Promise<HTMLCanvasElement> {
   const userOnClone = options.onclone;
 
+  // Pre-convert images inside element to Base64 to bypass CORS issues during canvas draw
+  try {
+    await prepareImagesInElement(element);
+  } catch (e) {
+    console.warn('Pre-conversion warning:', e);
+  }
+
   const canvas = await html2canvas(element, {
+    scale: 3, // High DPI rendering
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: null,
+    logging: false,
     ...options,
     onclone: (clonedDoc, clonedEl) => {
-      // 1. Clean style tags in cloned document
+      // 1. Force static positioning and reset visibility on cloned target
+      if (clonedEl) {
+        clonedEl.style.position = 'static';
+        clonedEl.style.transform = 'none';
+        clonedEl.style.opacity = '1';
+        clonedEl.style.visibility = 'visible';
+        clonedEl.style.left = '0';
+        clonedEl.style.top = '0';
+      }
+
+      // 2. Clean style tags in cloned document
       const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
       for (const style of styleElements) {
         if (style.textContent) {
@@ -337,8 +422,8 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
         }
       }
 
-      // 2. Clean inline style attributes in cloned elements
-      const allElements = [clonedEl, ...Array.from(clonedEl.querySelectorAll('*'))] as HTMLElement[];
+      // 3. Clean inline style attributes in cloned elements
+      const allElements = [clonedEl, ...Array.from(clonedDoc.querySelectorAll('*'))] as HTMLElement[];
       for (const el of allElements) {
         if (el && el.getAttribute) {
           const styleAttr = el.getAttribute('style');
@@ -351,7 +436,7 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
         }
       }
 
-      // 3. Call user's custom onclone if provided
+      // 4. Call user's custom onclone if provided
       if (typeof userOnClone === 'function') {
         userOnClone(clonedDoc, clonedEl);
       }
@@ -360,4 +445,5 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
 
   return canvas;
 }
+
 

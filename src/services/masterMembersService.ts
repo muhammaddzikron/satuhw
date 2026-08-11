@@ -11,7 +11,8 @@ import {
   parseKtaNumber, 
   isValidKtaNumberFormat, 
   formatKtaNumber, 
-  findNextAvailableNumber 
+  findNextAvailableNumber,
+  ensureUniqueKtaNumbers
 } from '../utils/ktaUtils';
 
 const parseCsvPart = (csv: string): User[] => {
@@ -190,50 +191,6 @@ export const getMasterMembersList = (): User[] => {
     }
   });
 
-  // Strict KTA allocation pass per region code XX
-  const usedPerCode = new Map<string, Set<number>>();
-
-  // Pass A: Register valid existing non-duplicate KTAs
-  mergedList.forEach((m) => {
-    let kta = m.ktaNumber || m.nomorKTA;
-    if (kta && isValidKtaNumberFormat(kta)) {
-      const parsed = parseKtaNumber(kta);
-      if (parsed) {
-        if (!usedPerCode.has(parsed.kodeKwarda)) {
-          usedPerCode.set(parsed.kodeKwarda, new Set());
-        }
-        const set = usedPerCode.get(parsed.kodeKwarda)!;
-        if (set.has(parsed.nomorUrut)) {
-          // Duplicate within region! Clear so it gets assigned a fresh unique number
-          m.ktaNumber = '';
-          m.nomorKTA = '';
-        } else {
-          set.add(parsed.nomorUrut);
-        }
-      }
-    } else {
-      m.ktaNumber = '';
-      m.nomorKTA = '';
-    }
-  });
-
-  // Pass B: Assign sequential gap-free numbers for members missing KTA
-  mergedList.forEach((m) => {
-    let kta = m.ktaNumber || m.nomorKTA;
-    if (!kta || !isValidKtaNumberFormat(kta)) {
-      const code = getKwardaCode(m.asalKwarda, m.qabilah);
-      if (!usedPerCode.has(code)) {
-        usedPerCode.set(code, new Set());
-      }
-      const set = usedPerCode.get(code)!;
-      const seq = findNextAvailableNumber(set);
-      set.add(seq);
-      const newKta = formatKtaNumber(code, seq);
-      m.ktaNumber = newKta;
-      m.nomorKTA = newKta;
-    }
-  });
-
-  return mergedList;
+  return ensureUniqueKtaNumbers(mergedList);
 };
 
