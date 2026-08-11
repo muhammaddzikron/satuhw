@@ -1032,7 +1032,7 @@ export default function PelatihanPage() {
               </div>
 
               {/* Portal Navigation Tabs: Beranda, Materi, Sesi & Absen, Tugas, Piagam */}
-              <div className="bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200/60 shadow-xs grid grid-cols-5 gap-1">
+              <div className="bg-gray-100/90 p-1.5 rounded-2xl border border-gray-200/80 shadow-xs flex items-center overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5 gap-1.5">
                 {[
                   { id: 'beranda', shortLabel: 'Beranda', fullLabel: 'Beranda & Rules', icon: Info },
                   { id: 'materi', shortLabel: 'Materi', fullLabel: 'Materi Pelatihan', icon: BookOpen },
@@ -1046,15 +1046,15 @@ export default function PelatihanPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`py-3 px-1 rounded-xl text-[9px] sm:text-xs font-black uppercase tracking-tight transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center cursor-pointer ${
+                      className={`py-2.5 px-3.5 sm:px-2 sm:py-3 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer whitespace-nowrap shrink-0 ${
                         isActive
-                          ? 'bg-emerald-700 text-white shadow-sm scale-[1.02]'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                          ? 'bg-emerald-700 text-white shadow-sm font-black ring-1 ring-emerald-600/30'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
                       }`}
                     >
                       <Icon size={15} className="shrink-0" />
-                      <span className="hidden md:inline">{tab.fullLabel}</span>
-                      <span className="md:hidden">{tab.shortLabel}</span>
+                      <span className="hidden sm:inline">{tab.fullLabel}</span>
+                      <span className="sm:hidden">{tab.shortLabel}</span>
                     </button>
                   );
                 })}
