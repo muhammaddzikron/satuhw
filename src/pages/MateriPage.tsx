@@ -54,6 +54,77 @@ const UPGRADE_FEES_DEFAULT: Record<string, string> = {
   kwarda: 'Rp 0'
 };
 
+const getUserRoleCategories = (user: any, apps: any[] = []): string[] => {
+  if (!user) return ['umum'];
+  const categories = new Set<string>(['umum', 'umum_pandu']);
+
+  const isPrivileged = user.role === 'admin' || user.role === 'superadmin' || user.role === 'admin_diklat' || user.role === 'diklat' || user.activeRole === 'admin' || user.activeRole === 'superadmin' || (user as any).adminType === 'diklat';
+  if (isPrivileged) {
+    return ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'];
+  }
+
+  const addCategoryByText = (txt?: string) => {
+    if (!txt) return;
+    const clean = String(txt).toLowerCase().trim();
+    if (clean.includes('jati 1') || clean.includes('jati1') || clean.includes('jaya melati 1') || clean.includes('jm 1') || clean.includes('jm1')) {
+      categories.add('jati1');
+    }
+    if (clean.includes('jati 2') || clean.includes('jati2') || clean.includes('jaya melati 2') || clean.includes('jm 2') || clean.includes('jm2')) {
+      categories.add('jati2');
+    }
+    if (clean.includes('jari 1') || clean.includes('jari1') || clean.includes('jaya matahari 1') || clean.includes('jm 3') || clean.includes('jm3')) {
+      categories.add('jari1');
+    }
+    if (clean.includes('sugli') || clean.includes('dewan sugli')) {
+      categories.add('sugli');
+    }
+    if (clean.includes('kwarda')) {
+      categories.add('kwarda');
+    }
+  };
+
+  // 1. Check user.role & user.activeRole
+  addCategoryByText(user.role);
+  addCategoryByText(user.activeRole);
+  if (user.role) categories.add(user.role);
+  if (user.activeRole) categories.add(user.activeRole);
+
+  // 2. Check user.roles array
+  if (user.roles && Array.isArray(user.roles)) {
+    user.roles.forEach(r => {
+      categories.add(r);
+      addCategoryByText(r);
+    });
+  }
+
+  // 3. Check user.pelatihan
+  if (user.pelatihan) {
+    if (Array.isArray(user.pelatihan)) {
+      user.pelatihan.forEach(p => addCategoryByText(p));
+    } else if (typeof user.pelatihan === 'string') {
+      addCategoryByText(user.pelatihan);
+    }
+  }
+
+  // 4. Check user.golongan & pelatihGolongan
+  addCategoryByText(user.golongan);
+  addCategoryByText((user as any).pelatihGolongan);
+
+  // 5. Check approved training applications
+  if (apps && Array.isArray(apps)) {
+    apps.forEach(app => {
+      const isMatch = (app.email && app.email.toLowerCase() === user.email.toLowerCase()) ||
+                      (app.userId && String(app.userId) === String(user.id));
+      const isApproved = app.status === 'approved' || app.status === 'terverifikasi' || app.status === 'disetujui' || app.statusPembayaran === 'Lunas' || app.statusKelulusan === 'Lulus';
+      if (isMatch && isApproved) {
+        addCategoryByText(app.pelatihanAkanDiikuti);
+      }
+    });
+  }
+
+  return Array.from(categories);
+};
+
 export default function MateriPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,6 +139,8 @@ export default function MateriPage() {
   const [activationFeatureName, setActivationFeatureName] = useState('Materi Premium');
   const [upgradeFees, setUpgradeFees] = useState<Record<string, string>>(UPGRADE_FEES_DEFAULT);
   const [waNumber, setWaNumber] = useState('6281234567890');
+
+  const [trainingApps, setTrainingApps] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -103,21 +176,18 @@ export default function MateriPage() {
     const fetchMateri = async () => {
       setLoading(true);
       try {
-        // Collect all roles user has access to
-        // Everyone has access to 'umum' and 'umum_pandu' (for display, though access is verified)
-        let rolesToFetch = ['umum', 'umum_pandu'];
-        
-        if (isAuthenticated && user?.roles && Array.isArray(user.roles) && user.roles.length > 0) {
-          rolesToFetch = Array.from(new Set(['umum', 'umum_pandu', ...user.roles]));
-        } else if (isAuthenticated && activeRole) {
-          rolesToFetch = Array.from(new Set(['umum', 'umum_pandu', activeRole]));
-        }
+        let apps: any[] = [];
+        try {
+          apps = await sheetsService.getTrainingApplications();
+          setTrainingApps(apps || []);
+        } catch (e) {}
 
-        // Special case: admin/superadmin sees everything
-        const isPrivileged = activeRole === 'admin' || activeRole === 'superadmin' || (user?.role === 'admin' || user?.role === 'superadmin');
-        if (isPrivileged) {
-          rolesToFetch = ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'];
-        }
+        const userCategories = getUserRoleCategories(user, apps);
+        const isPrivileged = activeRole === 'admin' || activeRole === 'superadmin' || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
+        
+        let rolesToFetch = isPrivileged
+          ? ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda']
+          : Array.from(new Set(['umum', 'umum_pandu', ...userCategories, activeRole].filter(Boolean)));
 
         const results = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
         const flatResults = results.flat().filter(Boolean);
@@ -135,7 +205,7 @@ export default function MateriPage() {
       }
     };
     fetchMateri();
-  }, [activeRole, user?.roles, isAuthenticated, user?.role]);
+  }, [activeRole, user, isAuthenticated]);
 
   useEffect(() => {
     if (location.state?.selectedMateriId && materi.length > 0) {
@@ -151,17 +221,14 @@ export default function MateriPage() {
   }, [location.state?.selectedMateriId, materi, isAuthenticated]);
 
   const hasAccess = (cat: string) => {
-    if (!cat) return true;
+    if (!cat || cat === 'semua' || cat === 'umum') return true;
     if (cat === 'umum_pandu') return isAuthenticated;
-    if (!isAuthenticated) return cat === 'umum';
-    const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin';
+    if (!isAuthenticated) return false;
+    const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
     if (isPrivileged) return true;
-    if (cat === 'semua' || cat === 'umum') return true;
     
-    // Check if category is in user's roles
-    if (user?.roles && user.roles.includes(cat as any)) return true;
-    
-    return activeRole === cat;
+    const userCategories = getUserRoleCategories(user, trainingApps);
+    return userCategories.includes(cat);
   };
 
   const filteredMateri = useMemo(() => {
