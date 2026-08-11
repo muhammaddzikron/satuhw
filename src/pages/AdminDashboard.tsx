@@ -98,7 +98,7 @@ const DefaultStempel = ({ idSuffix }: { idSuffix: string }) => (
     </text>
   </svg>
 );
-import { TRAINING_PROGRAMS } from './PelatihanPage';
+import { TRAINING_PROGRAMS, DEFAULT_JATI1_36_MATERI } from './PelatihanPage';
 
 const isSessionPresent = (attObj: any, sesId: string): boolean => {
   if (!attObj) return false;
@@ -2254,6 +2254,12 @@ export default function AdminDashboard() {
       const res = await sheetsService.saveMember(payload);
       if (res.error) {
         throw new Error(res.error);
+      }
+
+      // Explicitly save and update member document directly in Firestore
+      await firestoreService.saveMember(payload as User).catch(err => console.error("Firestore saveMember error:", err));
+      if (payload.id) {
+        await firestoreService.updateMember(payload.id, payload as User).catch(err => console.error("Firestore updateMember error:", err));
       }
 
       // Centralized KTA application update/create
@@ -5615,7 +5621,19 @@ export default function AdminDashboard() {
                         'Jari 1': 'jari1'
                       };
                       const cat = progCatMap[selectedTugasProg] || 'jati1';
-                      const categoryMaterials = materiList.filter(m => m.kategori === cat);
+                      let categoryMaterials = materiList.filter(m => m.kategori === cat || (cat === 'jati1' && (m.kategori === 'Jati 1' || m.kategori === 'jati 1')));
+                      if (cat === 'jati1' && categoryMaterials.length < 36) {
+                        categoryMaterials = DEFAULT_JATI1_36_MATERI.map((defM, idx) => {
+                          const matched = categoryMaterials.find(m => 
+                            m.judul && (
+                              m.judul.toLowerCase().includes(`materi ${idx + 1}:`) || 
+                              m.judul.toLowerCase().includes(`sesi ${idx + 1}:`) ||
+                              m.judul.toLowerCase().trim() === defM.judul.toLowerCase().trim()
+                            )
+                          );
+                          return matched || defM;
+                        });
+                      }
 
                       return (
                         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
@@ -5684,7 +5702,19 @@ export default function AdminDashboard() {
                         'Jari 1': 'jari1'
                       };
                       const cat = progCatMap[selectedTugasProg] || 'jati1';
-                      const categoryMaterials = materiList.filter(m => m.kategori === cat);
+                      let categoryMaterials = materiList.filter(m => m.kategori === cat || (cat === 'jati1' && (m.kategori === 'Jati 1' || m.kategori === 'jati 1')));
+                      if (cat === 'jati1' && categoryMaterials.length < 36) {
+                        categoryMaterials = DEFAULT_JATI1_36_MATERI.map((defM, idx) => {
+                          const matched = categoryMaterials.find(m => 
+                            m.judul && (
+                              m.judul.toLowerCase().includes(`materi ${idx + 1}:`) || 
+                              m.judul.toLowerCase().includes(`sesi ${idx + 1}:`) ||
+                              m.judul.toLowerCase().trim() === defM.judul.toLowerCase().trim()
+                            )
+                          );
+                          return matched || defM;
+                        });
+                      }
                       const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedTugasProg);
 
                       return enrolled.length === 0 ? (

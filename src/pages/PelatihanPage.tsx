@@ -49,6 +49,94 @@ export interface TrainingProgram {
   assignments: { id: string; title: string; description: string }[];
 }
 
+export const JATI1_36_SESSIONS = [
+  { id: 'Sesi 1', title: 'Materi 1: Upacara Pembukaan & Orientasi Pelatihan Jati 1', description: 'Pembukaan resmi, penjelasan tata tertib, dan komitmen bersama pelatihan Jaya Melati 1.' },
+  { id: 'Sesi 2', title: 'Materi 2: Kontrak Belajar & Dinamika Kelompok', description: 'Membangun kebersamaan, kepemimpinan tim, serta norma dan kesepakatan belajar.' },
+  { id: 'Sesi 3', title: 'Materi 3: Al-Islam & Kemuhammadiyahan dalam Kepanduan', description: 'Pendalaman nilai Tauhid, ibadah praktis, dan spirit Al-Islam berwawasan gerakan.' },
+  { id: 'Sesi 4', title: 'Materi 4: Sejarah Singkat & Jatidiri Gerakan Kepanduan Hizbul Wathan', description: 'Napak tilas sejarah lahirnya HW, perjuangan K.H. Ahmad Dahlan, dan karakter kepanduan Islami.' },
+  { id: 'Sesi 5', title: 'Materi 5: Anggaran Dasar & Anggaran Rumah Tangga (AD/ART) HW', description: 'Pemahaman Anggaran Dasar dan Anggaran Rumah Tangga Gerakan Kepanduan HW.' },
+  { id: 'Sesi 6', title: 'Materi 6: Prinsip Dasar Kepanduan & Metode Kepanduan HW', description: 'Penerapan sistem beregu, janji pandu, dan kegiatan edukatif di alam terbuka.' },
+  { id: 'Sesi 7', title: 'Materi 7: Kode Kehormatan Pandu HW (Janji & Undang-Undang HW)', description: 'Pengamalan nilai moral, etika, serta janji dan Undang-Undang Pandu HW.' },
+  { id: 'Sesi 8', title: 'Materi 8: Organisasi & Sistem Pembinaan Qabilah HW', description: 'Struktur kepengurusan qabilah, pembagian peran pembina, dan tata kelola satuan.' },
+  { id: 'Sesi 9', title: 'Materi 9: Struktur & Manajemen Dewan Satuan Qabilah', description: 'Pengorganisasian Dewan Rumpun, Dewan Pasukan, dan pendelegasian kepemimpinan.' },
+  { id: 'Sesi 10', title: 'Materi 10: Psikologi Perkembangan Peserta Didik HW', description: 'Karakteristik psikologis dan kebutuhan tumbuh kembang Pandu Athfal, Pengenal, Penghela, Penuntun.' },
+  { id: 'Sesi 11', title: 'Materi 11: Peran, Fungsi, dan Adab Pembina Kepanduan HW', description: 'Kompetensi, integritas, dan keteladanan seorang pembina pandu HW.' },
+  { id: 'Sesi 12', title: 'Materi 12: Cara Membina Pandu Athfal (Sistem Rumpun & Kuntum)', description: 'Metodologi pembinaan anak usia Athfal melalui permainan edukatif dan kasih sayang.' },
+  { id: 'Sesi 13', title: 'Materi 13: Cara Membina Pandu Pengenal (Sistem Pasukan & Regu)', description: 'Strategi pembinaan remaja usia Pengenal berlandaskan kerja sama regu.' },
+  { id: 'Sesi 14', title: 'Materi 14: Cara Membina Pandu Penghela & Penuntun HW', description: 'Pengembangan kepemimpinan mandiri dan pengabdian masyarakat bagi Penghela & Penuntun.' },
+  { id: 'Sesi 15', title: 'Materi 15: Syarat & Tanda Kenaikan Tingkat (SKT & TKT) HW', description: 'Mekanisme pengujian dan penganugerahan Syarat Kenaikan Tingkat Pandu HW.' },
+  { id: 'Sesi 16', title: 'Materi 16: Syarat & Tanda Kecakapan Pengenal (SKP & TKP) HW', description: 'Pengembangan minat, bakat, dan kecakapan khusus anggota melalui SKP & TKP.' },
+  { id: 'Sesi 17', title: 'Materi 17: Perencanaan Program Latihan Qabilah HW', description: 'Penyusunan silabus tahunan, semesteran, dan mingguan di qabilah.' },
+  { id: 'Sesi 18', title: 'Materi 18: Penyusunan Rencana Pembinaan (RPP / Modul Sesi)', description: 'Praktek merancang skenario latihan mingguan yang terstruktur dan menarik.' },
+  { id: 'Sesi 19', title: 'Materi 19: Upacara Kepanduan HW sebagai Alat Pendidikan', description: 'Fungsi pedoman upacara dalam menanamkan kedisiplinan dan rasa kepanduan.' },
+  { id: 'Sesi 20', title: 'Materi 20: Tata Cara Perindukan, Pasukan & Pelantikan Anggota', description: 'Praktik tata upacara pembukaan/penutupan latihan dan prosesi pelantikan.' },
+  { id: 'Sesi 21', title: 'Materi 21: Teknik Kepanduan 1: PBB & Kolone Tongkat HW', description: 'Praktik baris-berbaris formal dan kreasi kolone tongkat kepanduan.' },
+  { id: 'Sesi 22', title: 'Materi 22: Teknik Kepanduan 2: Tali-Menali & Pionering Tongkat', description: 'Pembuatan simpul dasar, ikatan, dan konstruksi pionering tongkat.' },
+  { id: 'Sesi 23', title: 'Materi 23: Teknik Kepanduan 3: Semboyan, Sandi, Semaphore & Morse', description: 'Komunikasi lapangan menggunakan bendera semaphore, wisel morse, dan sandi HW.' },
+  { id: 'Sesi 24', title: 'Materi 24: Teknik Kepanduan 4: Peta, Kompas & Navigasi Darat', description: 'Membaca peta topografi, penggunaan kompas bidik, dan penentuan arah.' },
+  { id: 'Sesi 25', title: 'Materi 25: Keterampilan PPGD & Evakuasi Medis Lapangan', description: 'Pertolongan Pertama Gawat Darurat, pembalutan luka, pembidaian, dan tandu darurat.' },
+  { id: 'Sesi 26', title: 'Materi 26: Peta Pita, Peta Lokasi & Peta Perjalanan Field', description: 'Teknik pemetaan rute perjalanan penjelajahan dan pelaporan peta pita.' },
+  { id: 'Sesi 27', title: 'Materi 27: Manajemen Perkemahan Islami & Sanitasi Tapak Kemah', description: 'Tata kelola perkemahan yang rapi, tertib, bernilai ibadah, dan berbudaya bersih.' },
+  { id: 'Sesi 28', title: 'Materi 28: Tadabbur Alam, Survival & Ketahanan Lapangan', description: 'Kegiatan luar ruangan, pengenalan alam, dan teknik bertahan hidup di lapangan.' },
+  { id: 'Sesi 29', title: 'Materi 29: Kewirausahaan Kepanduan & Hasta Karya Qabilah', description: 'Pengembangan jiwa kewirausahaan, hastakarya, dan kemandirian finansial qabilah.' },
+  { id: 'Sesi 30', title: 'Materi 30: Permainan Edukatif Kepanduan & Lagu-Lagu HW', description: 'Koleksi permainan dinamis pembangun karakter dan menyanyikan lagu-lagu resmi HW.' },
+  { id: 'Sesi 31', title: 'Materi 31: Api Unggun, Malam Akrab & Refleksi Values HW', description: 'Prosesi api unggun edukatif, pertunjukan seni budaya, dan perenungan niat pembina.' },
+  { id: 'Sesi 32', title: 'Materi 32: Evaluasi & Penilaian Capaian Peserta Didik HW', description: 'Metode penilaian perkembangan kecakapan dan perilaku anggota secara objektif.' },
+  { id: 'Sesi 33', title: 'Materi 33: Administrasi Qabilah & Inventaris Peralatan HW', description: 'Pencatatan buku induk, kartu anggota, logbook latihan, dan perawatan aset qabilah.' },
+  { id: 'Sesi 34', title: 'Materi 34: Rencana Tindak Lanjut (RTL) Pembinaan Qabilah', description: 'Penyusunan komitmen proyek pembinaan nyata sekembalinya ke qabilah masing-masing.' },
+  { id: 'Sesi 35', title: 'Materi 35: Post Test & Evaluasi Pelatihan Jaya Melati 1', description: 'Penilaian akhir pemahaman teori dan keterampilan teknis peserta pelatihan Jati 1.' },
+  { id: 'Sesi 36', title: 'Materi 36: Upacara Penutupan Pelatihan & Pelepasan Peserta', description: 'Penutupan resmi kegiatan pelatihan Jaya Melati 1 dan pengumuman hasil kelulusan.' }
+];
+
+export const JATI1_36_ASSIGNMENTS = [
+  { id: 'tugas-1', title: 'Tugas 1: Refleksi Orientasi & Tata Tertib Pelatihan Jati 1', description: 'Membuat rangkuman komitmen belajar dan pemahaman tata tertib pelatihan.' },
+  { id: 'tugas-2', title: 'Tugas 2: Resume Dinamika Kelompok & Kontrak Belajar', description: 'Menuliskan hasil kesepakatan kelompok dan pembagian peran tim.' },
+  { id: 'tugas-3', title: 'Tugas 3: Ringkasan Nilai Al-Islam & Kemuhammadiyahan dalam HW', description: 'Menyusun esai singkat mengenai pengamalan nilai Al-Islam dalam kegiatan kepanduan.' },
+  { id: 'tugas-4', title: 'Tugas 4: Resume Sejarah Singkat & Jatidiri Kepanduan HW', description: 'Membuat resume tertulis tentang sejarah lahirnya HW dan nilai perjuangan K.H. Ahmad Dahlan.' },
+  { id: 'tugas-5', title: 'Tugas 5: Analisis Pokok-Pokok AD & ART Hizbul Wathan', description: 'Membuat ringkasan poin penting Anggaran Dasar dan Anggaran Rumah Tangga HW.' },
+  { id: 'tugas-6', title: 'Tugas 6: Penerapan Prinsip Dasar & Metode Kepanduan HW', description: 'Menguraikan contoh penerapan sistem beregu dan kegiatan alam terbuka.' },
+  { id: 'tugas-7', title: 'Tugas 7: Penjabaran Janji & Undang-Undang Pandu HW', description: 'Menuliskan refleksi pribadi pengamalan Undang-Undang Pandu HW dalam kehidupan sehari-hari.' },
+  { id: 'tugas-8', title: 'Tugas 8: Bagan Struktur Organisasi Qabilah HW', description: 'Menggambar bagan struktur organisasi qabilah tempat bertugas beserta rincian tugasnya.' },
+  { id: 'tugas-9', title: 'Tugas 9: Perencanaan Pembentukan Dewan Satuan Qabilah', description: 'Menyusun draf pembentukan Dewan Rumpun / Pasukan di sekolah/qabilah.' },
+  { id: 'tugas-10', title: 'Tugas 10: Pemetaan Karakteristik Peserta Didik HW', description: 'Membuat tabel analisis kebutuhan psikologis peserta didik di tingkatannya.' },
+  { id: 'tugas-11', title: 'Tugas 11: Matriks Kompetensi & Adab Pembina HW', description: 'Menyusun daftar periksa adab dan kompetensi ideal seorang pembina kepanduan.' },
+  { id: 'tugas-12', title: 'Tugas 12: Rancangan Kegiatan Pembinaan Pandu Athfal', description: 'Menyusun skenario permainan edukatif untuk Rumpun Athfal.' },
+  { id: 'tugas-13', title: 'Tugas 13: Desain Simulasi Latihan Regu Pandu Pengenal', description: 'Membuat panduan kegiatan sistem beregu untuk Pasukan Pengenal.' },
+  { id: 'tugas-14', title: 'Tugas 14: Draf Program Pengabdian Pandu Penghela/Penuntun', description: 'Menyusun proposal sederhana kegiatan pengabdian masyarakat oleh Penghela.' },
+  { id: 'tugas-15', title: 'Tugas 15: Panduan Verifikasi SKT & TKT Athfal/Pengenal', description: 'Membuat lembar kontrol pengujian Syarat Kenaikan Tingkat anggota.' },
+  { id: 'tugas-16', title: 'Tugas 16: Skema Pembinaan Syarat Kecakapan Pengenal (SKP)', description: 'Merancang program pencapaian Tanda Kecakapan Pengenal bagi anak didik.' },
+  { id: 'tugas-17', title: 'Tugas 17: Penyusunan Matriks Program Latihan Semestral Qabilah', description: 'Menyusun jadwal program latihan mingguan selama satu semester.' },
+  { id: 'tugas-18', title: 'Tugas 18: Penyusunan Rencana Pelaksanaan Pembinaan (RPP / Modul Sesi)', description: 'Membuat RPP lengkap untuk 1 kali pertemuan latihan rutin di qabilah.' },
+  { id: 'tugas-19', title: 'Tugas 19: Susunan & Tata Laksana Upacara Kepanduan HW', description: 'Menuliskan teks susunan acara upacara pembukaan dan penutupan latihan.' },
+  { id: 'tugas-20', title: 'Tugas 20: Skenario Prosesi Pelantikan Anggota / TKT HW', description: 'Merancang urutan acara dan naskah pelantikan kenaikan tingkat.' },
+  { id: 'tugas-21', title: 'Tugas 21: Dokumentasi / Resume Aba-Aba PBB & Kolone Tongkat HW', description: 'Membuat diagram atau instruksi gerakan PBB dan variasi kolone tongkat.' },
+  { id: 'tugas-22', title: 'Tugas 22: Laporan Praktik Tali-Menali & Maket Pionering', description: 'Mengunggah foto/video atau gambar rancangan bangunan pionering tongkat.' },
+  { id: 'tugas-23', title: 'Tugas 23: Praktik Kirim Pesan Semaphore & Morse HW', description: 'Membuat rekaman video singkat atau lembar jawaban translasi morse & semaphore.' },
+  { id: 'tugas-24', title: 'Tugas 24: Laporan Navigasi Darat & Penggunaan Kompas', description: 'Mencatat hasil bidikan kompas dan perhitungan azimut/back-azimut.' },
+  { id: 'tugas-25', title: 'Tugas 25: Panduan Praktis PPGD & Pembuatan Tandu Darurat', description: 'Menyusun langkah penanganan medis darurat dan langkah pembuatan tandu.' },
+  { id: 'tugas-26', title: 'Tugas 26: Peta Pita & Peta Perjalanan Penjelajahan', description: 'Menggambar lembar peta pita penjelajahan lengkap dengan skala dan legenda.' },
+  { id: 'tugas-27', title: 'Tugas 27: Standard Operating Procedure (SOP) Perkemahan Qabilah', description: 'Membuat draf aturan kebersihan, ibadah, dan keamanan tapak kemah.' },
+  { id: 'tugas-28', title: 'Tugas 28: Laporan Tadabbur Alam & Teknik Survival Field', description: 'Menuliskan ringkasan pengalaman dan pembelajaran kegiatan luar ruangan.' },
+  { id: 'tugas-29', title: 'Tugas 29: Proposal Proyek Hasta Karya / Kewirausahaan Pandu', description: 'Membuat rancangan produk kerajinan/usaha ekonomis kreasi anggota.' },
+  { id: 'tugas-30', title: 'Tugas 30: Bank Soal / Modul Game Edukatif & Lagu HW', description: 'Menghimpun 5 variasi permainan kepanduan beserta lirik lagu resmi HW.' },
+  { id: 'tugas-31', title: 'Tugas 31: Skenario Acara Malam Api Unggun & Refleksi HW', description: 'Menyusun susunan acara dan susunan pengapian api unggun pendidikan.' },
+  { id: 'tugas-32', title: 'Tugas 32: Lembar Evaluasi & Laporan Perkembangan Anggota', description: 'Membuat draf rapor kecakapan dan perkembangan karakter anak didik.' },
+  { id: 'tugas-33', title: 'Tugas 33: Draf BUKU ADMIN QABILAH & Inventaris Barang', description: 'Membuat format buku induk, buku presensi, dan buku inventaris qabilah.' },
+  { id: 'tugas-34', title: 'Tugas 34: Dokumen Rencana Tindak Lanjut (RTL) Pembinaan Qabilah', description: 'Menyusun proposal proyek pengembangan HW di qabilah asal pasca pelatihan.' },
+  { id: 'tugas-35', title: 'Tugas 35: Lembar Hasil Post-Test & Evaluasi Mandiri Jati 1', description: 'Mengerjakan dan mengunggah lembar evaluasi purna pelatihan Jaya Melati 1.' },
+  { id: 'tugas-36', title: 'Tugas 36: Laporan Akhir Portofolio Keikutsertaan Jati 1', description: 'Mengumpulkan bundel portofolio pengerjaan seluruh tugas dari Sesi 1 sampai Sesi 35.' }
+];
+
+export const DEFAULT_JATI1_36_MATERI = JATI1_36_SESSIONS.map((s, idx) => ({
+  id: `jati1-materi-${idx + 1}`,
+  judul: s.title,
+  konten: s.description,
+  kategori: 'jati1',
+  tanggal: 'Jadwal Pelatihan Jaya Melati 1',
+  coverImage: '',
+  driveUrl: ''
+}));
+
 export const TRAINING_PROGRAMS: TrainingProgram[] = [
   {
     id: 'Jati 1',
@@ -62,26 +150,8 @@ export const TRAINING_PROGRAMS: TrainingProgram[] = [
       'Mendapat rekomendasi dari Pimpinan Cabang/Daerah Muhammadiyah',
       'Mengisi formulir pendaftaran resmi & melunasi biaya administrasi'
     ],
-    sessions: [
-      { id: 'Sesi 1', title: 'Upacara Pembukaan & Kontrak Belajar – 45 menit', description: 'Pembukaan resmi, penjelasan tata tertib, dan komitmen bersama' },
-      { id: 'Sesi 2', title: 'Sasaran & Matriks Pelatihan – 45 menit', description: 'Target capaian dan kompetensi pembina tingkat dasar' },
-      { id: 'Sesi 3', title: 'Dinamika Kelompok & Leadership – 45 menit', description: 'Membangun kerjasama tim, komunikasi, dan kepemimpinan' },
-      { id: 'Sesi 4', title: 'Kemuhammadiyahan & Kepanduan Islami – 90 menit', description: 'Nilai-nilai kepanduan berlandaskan Al-Islam dan Kemuhammadiyahan' },
-      { id: 'Sesi 5', title: 'Sejarah Singkat & Jatidiri HW – 45 menit', description: 'Sejarah lahirnya Gerakan Kepanduan Hizbul Wathan dan perjuangan KH Ahmad Dahlan' },
-      { id: 'Sesi 6', title: 'AD dan ART HW – 45 menit', description: 'Anggaran Dasar dan Anggaran Rumah Tangga Gerakan Kepanduan HW' },
-      { id: 'Sesi 7', title: 'Prinsip Dasar Kepanduan & Metode HW – 90 menit', description: 'Sistem beregu, kegiatan luar ruangan, dan Janji/Undang-Undang Pandu' },
-      { id: 'Sesi 8', title: 'Kode Kehormatan & Adab Pandu HW – 90 menit', description: 'Pengamalan nilai moral dan etika Islami kepanduan' },
-      { id: 'Sesi 9', title: 'Organisasi Qabilah & Dewan Satuan – 45 menit', description: 'Struktur organisasi qabilah, tugas pembina, dan manajemen dewan' },
-      { id: 'Sesi 10', title: 'Cara Membina & Memahami Peserta Didik – 90 menit', description: 'Psikologi perkembangan peserta didik dan teknik fasilitasi latihan' },
-      { id: 'Sesi 11', title: 'SKT, TKT, SKP & TKP Pandu HW – 90 menit', description: 'Syarat dan Tanda Kenaikan Tingkat serta Kecakapan Pandu' },
-      { id: 'Sesi 12', title: 'Upacara & Pelantikan sebagai Alat Pendidikan – 90 menit', description: 'Tata cara upacara pembukaan/penutupan latihan dan pelantikan' },
-      { id: 'Sesi 13', title: 'Tadabbur Alam & Teknik Perkemahan – 270 menit', description: 'Praktik navigasi, perkemahan, dan pengenalan alam' },
-      { id: 'Sesi 14', title: 'Rencana Tindak Lanjut (RTL) & Evaluasi – 90 menit', description: 'Penyusunan proyek pembinaan di qabilah masing-masing & evaluasi' }
-    ],
-    assignments: [
-      { id: 'tugas-1', title: 'Resume Jatidiri & Sejarah HW', description: 'Membuat resume tertulis tentang sejarah dan jatidiri Kepanduan HW minimal 2 halaman.' },
-      { id: 'tugas-2', title: 'Rencana Kerja Satuan Qabilah', description: 'Menyusun draf rencana program kerja mingguan dan bulanan untuk satu qabilah.' }
-    ]
+    sessions: JATI1_36_SESSIONS,
+    assignments: JATI1_36_ASSIGNMENTS
   },
   {
     id: 'Jati 2',
@@ -343,13 +413,21 @@ export default function PelatihanPage() {
           return k === 'jati1' || k === 'jati 1' || k.includes('jati 1') || k.includes('jaya melati 1');
         });
 
-        if (j1Mats.length > 0) {
+        if (j1Mats.length >= 36) {
           setMateriList(j1Mats);
         } else {
-          setMateriList(allMats.filter(m => {
-            const k = (m.kategori || '').toLowerCase().trim();
-            return k !== 'jati2' && k !== 'jari1';
-          }));
+          // Merge uploaded materials with DEFAULT_JATI1_36_MATERI to ensure all 36 materials are available
+          const merged36 = DEFAULT_JATI1_36_MATERI.map((defM, idx) => {
+            const matched = j1Mats.find(m => 
+              m.judul && (
+                m.judul.toLowerCase().includes(`materi ${idx + 1}:`) || 
+                m.judul.toLowerCase().includes(`sesi ${idx + 1}:`) ||
+                m.judul.toLowerCase().trim() === defM.judul.toLowerCase().trim()
+              )
+            );
+            return matched || defM;
+          });
+          setMateriList(merged36);
         }
       } catch (err) {
         console.error('Failed to load materials for Jati 1:', err);

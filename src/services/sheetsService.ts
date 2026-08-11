@@ -366,10 +366,24 @@ export const sheetsService = {
       password: data.password || ''
     };
 
-    const rolesRaw = data.role || data.roles || 'umum';
-    const rolesArr = parseArrayField(rolesRaw);
-    
-    user.roles = rolesArr as UserRole[];
+    let rolesArr: UserRole[] = [];
+    if (data.roles) {
+      const parsedRoles = parseArrayField(data.roles);
+      parsedRoles.forEach(r => {
+        if (r && !rolesArr.includes(r as UserRole)) rolesArr.push(r as UserRole);
+      });
+    }
+    if (data.role) {
+      const parsedSingle = parseArrayField(data.role);
+      parsedSingle.forEach(r => {
+        if (r && !rolesArr.includes(r as UserRole)) rolesArr.push(r as UserRole);
+      });
+    }
+    if (rolesArr.length === 0) {
+      rolesArr = ['umum'];
+    }
+
+    user.roles = rolesArr;
     user.role = rolesArr[0] || 'umum';
     user.activeRole = data.activeRole || rolesArr[0] || 'umum';
     
@@ -809,22 +823,32 @@ export const sheetsService = {
 
             if (match) {
               if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
-              if (!sm.photo && match.photo) sm.photo = match.photo;
-              if (!(sm as any).golonganPelatih && (match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
-              if (!sm.ktaNumber && match.ktaNumber) sm.ktaNumber = match.ktaNumber;
-              if (!sm.noHp && match.noHp) sm.noHp = match.noHp;
-              if (!sm.alamat && match.alamat) sm.alamat = match.alamat;
-              if (!sm.tempatLahir && match.tempatLahir) sm.tempatLahir = match.tempatLahir;
-              if (!sm.tanggalLahir && match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
-              if (!sm.asalKwarda && match.asalKwarda) sm.asalKwarda = match.asalKwarda;
-              if (!sm.qabilah && match.qabilah) sm.qabilah = match.qabilah;
-              if (!sm.sosmed && match.sosmed) sm.sosmed = match.sosmed;
-              if (!sm.pendidikan && match.pendidikan) sm.pendidikan = match.pendidikan;
-              if (!sm.golongan && match.golongan) sm.golongan = match.golongan;
-              if ((!sm.roles || sm.roles.length === 0 || (sm.roles.length === 1 && sm.roles[0] === 'umum')) && match.roles && match.roles.length > 0) {
-                sm.roles = match.roles;
-                sm.role = match.roles[0] || match.role || 'umum';
+              if (match.photo) sm.photo = match.photo;
+              if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
+              if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
+              if (match.noHp) sm.noHp = match.noHp;
+              if (match.alamat) sm.alamat = match.alamat;
+              if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
+              if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
+              if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
+              if (match.qabilah) sm.qabilah = match.qabilah;
+              if (match.sosmed) sm.sosmed = match.sosmed;
+              if (match.pendidikan) sm.pendidikan = match.pendidikan;
+              if (match.golongan) sm.golongan = match.golongan;
+              if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
+              if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
+                // Merge roles cleanly without losing any assigned role
+                const mergedRoles = Array.from(new Set([...(sm.roles || []), ...match.roles].filter(Boolean))) as UserRole[];
+                sm.roles = mergedRoles.length > 0 ? mergedRoles : match.roles;
+                sm.role = match.roles[0] || sm.role || 'umum';
+                if (match.activeRole) sm.activeRole = match.activeRole;
+              } else if (match.role) {
+                if (!sm.roles || sm.roles.length === 0) sm.roles = [match.role as UserRole];
+                sm.role = match.role as UserRole;
               }
+              if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
+              if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
+              if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
             } else {
               const ktaMatch = fsKtas.find(fk =>
                 (fk.userId && smId && String(fk.userId) === smId) ||

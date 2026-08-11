@@ -26,7 +26,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import { formatTempatTanggalLahir } from '../lib/utils';
 import { Navigate, Link } from 'react-router-dom';
 import { cn, safeJsonParse } from '../lib/utils';
@@ -204,9 +204,19 @@ export default function ProfilePage() {
       );
       if (freshUser) {
         const currentUser = useAuthStore.getState().user || user;
+        const combinedRoles = Array.from(new Set([
+          ...(Array.isArray(currentUser.roles) ? currentUser.roles : []),
+          ...(Array.isArray(freshUser.roles) ? freshUser.roles : []),
+          currentUser.role,
+          freshUser.role
+        ].filter(Boolean))) as UserRole[];
+
         const mergedUser: User = {
           ...currentUser,
           ...freshUser,
+          role: combinedRoles[0] || freshUser.role || currentUser.role || 'umum',
+          roles: combinedRoles.length > 0 ? combinedRoles : ['umum'],
+          activeRole: currentUser.activeRole || freshUser.activeRole || combinedRoles[0] || 'umum',
           namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
           tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
           tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || '',
