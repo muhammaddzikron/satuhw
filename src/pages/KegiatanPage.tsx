@@ -703,22 +703,6 @@ export default function KegiatanPage() {
                         <Download size={14} /> Download Proposal
                       </button>
                     </div>
-
-                    {(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal) && (
-                      <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px] gap-2 flex-wrap">
-                        <span className="font-extrabold text-emerald-900 flex items-center gap-1">
-                          <ExternalLink size={12} className="text-emerald-700" /> Link Proposal Google Drive:
-                        </span>
-                        <a
-                          href={formatDocumentUrl(selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-700 hover:text-emerald-900 font-bold underline truncate max-w-[240px] sm:max-w-[320px]"
-                        >
-                          {selectedActivity.proposalUrl || selectedActivity.proposal || selectedActivity.linkProposal}
-                        </a>
-                      </div>
-                    )}
                   </div>
                 ) : null}
 
