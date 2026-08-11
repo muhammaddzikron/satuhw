@@ -2087,10 +2087,13 @@ export const firestoreService = {
     };
   },
 
-  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string): Promise<any> {
+  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string, remarkStr?: string, statusKelulusanStr?: string): Promise<any> {
     const updates: any = {};
     if (tugasStr !== undefined) updates.tugas = tugasStr;
     if (nilaiStr !== undefined) updates.nilai = nilaiStr;
+    if (remarkStr !== undefined) updates.remark = remarkStr;
+    if (statusKelulusanStr !== undefined) updates.statusKelulusan = statusKelulusanStr;
+
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
@@ -2101,12 +2104,38 @@ export const firestoreService = {
     }
     const list = await this.getTrainingApplications();
     const idx = list.findIndex(t => t.id === id);
+    let updatedApp = list[idx];
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
+      updatedApp = list[idx];
       localStorage.setItem('training_applications', JSON.stringify(list));
+
+      if (updatedApp && (nilaiStr !== undefined || statusKelulusanStr !== undefined || remarkStr !== undefined)) {
+        try {
+          const members = await this.getMembers();
+          const m = members.find((x: any) => 
+            (updatedApp.userId && String(x.id) === String(updatedApp.userId)) ||
+            (updatedApp.email && String(x.email).toLowerCase().trim() === String(updatedApp.email).toLowerCase().trim()) ||
+            (updatedApp.nama && String(x.namaLengkap || x.nama || '').toLowerCase().trim() === String(updatedApp.nama).toLowerCase().trim())
+          );
+          if (m) {
+            const isPassed = updatedApp.statusKelulusan === 'Lulus' || updatedApp.statusKelulusan === 'Lulus Bersyarat';
+            const updatedM = {
+              ...m,
+              nilai: updatedApp.nilai || m.nilai,
+              statusKelulusan: updatedApp.statusKelulusan || m.statusKelulusan,
+              isVerified: isPassed ? true : m.isVerified,
+              statusAktivasi: isPassed ? 'Aktif' : m.statusAktivasi
+            };
+            await this.saveMember(updatedM);
+          }
+        } catch (syncErr) {
+          console.warn('Syncing member grade warning:', syncErr);
+        }
+      }
     }
     window.dispatchEvent(new Event('training_applications_updated'));
-    return list[idx];
+    return updatedApp;
   },
 
   async deleteTrainingApplication(id: string): Promise<boolean> {

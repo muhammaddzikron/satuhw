@@ -987,6 +987,56 @@ export default function AdminDashboard() {
           return [savedApp, ...filtered];
         });
 
+        // Also update members list optimistically so new participant is immediately listed in members data
+        setMembers(prev => {
+          const isApprovedOrLunas = payload.status === 'approved' || payload.statusPembayaran === 'Lunas';
+          const existingIdx = prev.findIndex(m => 
+            (m.id && String(m.id) === String(payload.userId)) ||
+            (m.email && payload.email && m.email.trim().toLowerCase() === payload.email.trim().toLowerCase()) ||
+            (m.namaLengkap && payload.nama && m.namaLengkap.trim().toLowerCase() === payload.nama.trim().toLowerCase())
+          );
+          if (existingIdx >= 0) {
+            const updated = [...prev];
+            const m = updated[existingIdx];
+            const pelList = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
+            if (payload.pelatihanAkanDiikuti && !pelList.includes(payload.pelatihanAkanDiikuti)) {
+              pelList.push(payload.pelatihanAkanDiikuti);
+            }
+            updated[existingIdx] = {
+              ...m,
+              namaLengkap: payload.nama || m.namaLengkap,
+              noHp: payload.noWa || m.noHp,
+              email: payload.email || m.email,
+              pelatihan: pelList,
+              statusPembayaran: payload.statusPembayaran || (isApprovedOrLunas ? 'Lunas' : (m.statusPembayaran || 'Belum Bayar')),
+              statusAktivasi: isApprovedOrLunas ? 'Aktif' : (m.statusAktivasi || 'Belum Aktif'),
+              isVerified: isApprovedOrLunas ? true : m.isVerified
+            };
+            return updated;
+          } else {
+            const newM = {
+              id: payload.userId || `user-manual-${Date.now()}`,
+              namaLengkap: payload.nama,
+              email: payload.email || '',
+              noHp: payload.noWa || '',
+              nbm: payload.nbm || '',
+              tempatLahir: payload.tempatLahir || '',
+              tanggalLahir: payload.tanggalLahir || '',
+              jenisKelamin: payload.jenisKelamin || 'L',
+              qabilah: payload.qabilah || '',
+              asalKwarda: payload.asalDaerah || '',
+              golongan: payload.golonganAnggota || 'Pengenal',
+              pelatihan: payload.pelatihanAkanDiikuti ? [payload.pelatihanAkanDiikuti] : [],
+              statusPembayaran: payload.statusPembayaran || (isApprovedOrLunas ? 'Lunas' : 'Belum Bayar'),
+              statusAktivasi: isApprovedOrLunas ? 'Aktif' : 'Belum Aktif',
+              isVerified: isApprovedOrLunas,
+              statusKTA: 'Diproses',
+              createdAt: new Date().toISOString()
+            };
+            return [newM, ...prev];
+          }
+        });
+
         alert('Berhasil mendaftarkan peserta ke pelatihan!');
         setIsAddParticipantModalOpen(false);
         setAddParticipantSelectedMemberId('');
@@ -1493,8 +1543,31 @@ export default function AdminDashboard() {
     try {
       const appToSave = { ...editingTrainingApp };
 
-      // 1. Optimistic update
+      // 1. Optimistic update for both trainingApps AND members
       setTrainingApps(prev => prev.map(t => String(t.id) === String(appToSave.id) ? appToSave : t));
+      setMembers(prev => prev.map(m => {
+        if ((appToSave.userId && String(m.id) === String(appToSave.userId)) ||
+            (appToSave.email && m.email && m.email.trim().toLowerCase() === appToSave.email.trim().toLowerCase()) ||
+            (appToSave.nama && m.namaLengkap && m.namaLengkap.trim().toLowerCase() === appToSave.nama.trim().toLowerCase())) {
+          const isApprovedOrLunas = appToSave.status === 'approved' || appToSave.statusPembayaran === 'Lunas';
+          const pelList = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
+          if (appToSave.pelatihanAkanDiikuti && !pelList.includes(appToSave.pelatihanAkanDiikuti)) {
+            pelList.push(appToSave.pelatihanAkanDiikuti);
+          }
+          return {
+            ...m,
+            namaLengkap: appToSave.nama || m.namaLengkap,
+            noHp: appToSave.noWa || m.noHp,
+            email: appToSave.email || m.email,
+            pelatihan: pelList,
+            statusPembayaran: appToSave.statusPembayaran || (isApprovedOrLunas ? 'Lunas' : (m.statusPembayaran || 'Belum Bayar')),
+            statusAktivasi: isApprovedOrLunas ? 'Aktif' : (m.statusAktivasi || 'Belum Aktif'),
+            isVerified: isApprovedOrLunas ? true : m.isVerified
+          };
+        }
+        return m;
+      }));
+
       setIsEditTrainingModalOpen(false);
       setEditingTrainingApp(null);
       alert('Data peserta pelatihan dan data anggota berhasil diperbarui!');
@@ -1819,9 +1892,9 @@ export default function AdminDashboard() {
       await sheetsService.updateGrade(selectedTrainingApp.id, { 
         grade: gradeInput, 
         remark: remarkInput,
-        statusKelulusan: graduationStatusInput
+        statusKelulusan: graduationStatusInput || selectedTrainingApp.statusKelulusan || 'Lulus'
       });
-      alert('Nilai, ulasan & status kelulusan berhasil disimpan!');
+      alert('Nilai & ulasan penugasan berhasil disimpan!');
       setIsGradingModalOpen(false);
       setSelectedTrainingApp(null);
       const updated = await sheetsService.getTrainingApplications();
@@ -5735,31 +5808,42 @@ export default function AdminDashboard() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                                <Filter size={16} />
+                          {/* Title & Filter Rekap Tugas */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-hw-green/10 flex items-center justify-center text-hw-green shrink-0">
+                                <FileText size={20} />
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filter Berdasarkan Materi</span>
-                                <select
-                                  value={selectedTugasMateriId}
-                                  onChange={(e) => setSelectedTugasMateriId(e.target.value)}
-                                  className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-hw-green/20"
-                                >
-                                  <option value="all">Semua Penugasan ({categoryMaterials.length})</option>
-                                  {categoryMaterials.map(m => (
-                                    <option key={m.id} value={m.id}>{m.judul}</option>
-                                  ))}
-                                </select>
+                              <div>
+                                <h3 className="text-base font-black text-gray-800 uppercase tracking-wider">Rekap Tugas</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Rekapitulasi pengumpulan tugas peserta tingkat {selectedTugasProg}</p>
                               </div>
                             </div>
                             
-                            <div className="text-right shrink-0">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                              <span className="text-sm font-black text-hw-green">
-                                {enrolled.length} Orang
-                              </span>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                                <Filter size={14} className="text-gray-400 shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Filter Materi</span>
+                                  <select
+                                    value={selectedTugasMateriId}
+                                    onChange={(e) => setSelectedTugasMateriId(e.target.value)}
+                                    className="bg-transparent text-xs font-bold text-gray-700 outline-none cursor-pointer"
+                                  >
+                                    <option value="all">Semua Penugasan ({categoryMaterials.length})</option>
+                                    {categoryMaterials.map(m => (
+                                      <option key={m.id} value={m.id}>{m.judul}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              
+                              <div className="text-right shrink-0 bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-100">
+                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block">Jumlah Peserta</span>
+                                <span className="text-xs font-black text-emerald-800">
+                                  {enrolled.length} Orang
+                                </span>
+                              </div>
                             </div>
                           </div>
 
@@ -5838,22 +5922,29 @@ export default function AdminDashboard() {
                                           ) : (
                                             <div className="space-y-1 max-w-md">
                                               {tasks.map((t, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100 text-[10px] font-bold">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-gray-750 font-black">{t.title}</span>
-                                                    {t.submittedAt && (
-                                                      <span className="text-[8px] text-gray-400">Dikirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</span>
+                                                <div key={idx} className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-[10px] space-y-1">
+                                                  <div className="flex items-center justify-between font-bold">
+                                                    <div className="flex flex-col">
+                                                      <span className="text-gray-750 font-black">{t.title}</span>
+                                                      {t.submittedAt && (
+                                                        <span className="text-[8px] text-gray-400">Dikirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</span>
+                                                      )}
+                                                    </div>
+                                                    {t.link && (
+                                                      <a 
+                                                        href={t.link} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        className="text-hw-green hover:underline flex items-center gap-1 shrink-0 font-extrabold"
+                                                      >
+                                                        Lihat Tugas <ArrowUpRight size={10} />
+                                                      </a>
                                                     )}
                                                   </div>
-                                                  {t.link && (
-                                                    <a 
-                                                      href={t.link} 
-                                                      target="_blank" 
-                                                      rel="noopener noreferrer" 
-                                                      className="text-hw-green hover:underline flex items-center gap-1 shrink-0"
-                                                    >
-                                                      Lihat Tugas <ArrowUpRight size={10} />
-                                                    </a>
+                                                  {(t.pesan || t.message) && (
+                                                    <div className="bg-white p-2 rounded-lg border border-gray-200 text-[9.5px] text-gray-600 font-medium italic">
+                                                      💬 "{t.pesan || t.message}"
+                                                    </div>
                                                   )}
                                                 </div>
                                               ))}
@@ -7581,24 +7672,31 @@ export default function AdminDashboard() {
                               Daftar Tugas Dikumpulkan ({userTasks.length}):
                             </span>
                             {userTasks.map((t: any, idx: number) => (
-                              <div key={idx} className="bg-white p-2.5 rounded-2xl border border-gray-100 flex items-center justify-between text-[10px]">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-gray-800">{t.title}</span>
-                                  {t.submittedAt && (
-                                    <span className="text-[8px] text-gray-400">
-                                      Dikirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}
-                                    </span>
+                              <div key={idx} className="bg-white p-2.5 rounded-2xl border border-gray-100 flex flex-col gap-1 text-[10px]">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-gray-800">{t.title}</span>
+                                    {t.submittedAt && (
+                                      <span className="text-[8px] text-gray-400">
+                                        Dikirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {t.link && (
+                                    <a 
+                                      href={t.link} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[9px] font-bold hover:underline flex items-center gap-1 shrink-0"
+                                    >
+                                      Lihat Tugas <ArrowUpRight size={10} />
+                                    </a>
                                   )}
                                 </div>
-                                {t.link && (
-                                  <a 
-                                    href={t.link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[9px] font-bold hover:underline flex items-center gap-1 shrink-0"
-                                  >
-                                    Lihat Tugas <ArrowUpRight size={10} />
-                                  </a>
+                                {(t.pesan || t.message) && (
+                                  <p className="text-[9.5px] text-gray-600 bg-gray-50 p-2 rounded-xl border border-gray-150 italic mt-0.5">
+                                    💬 "{t.pesan || t.message}"
+                                  </p>
                                 )}
                               </div>
                             ))}
@@ -8519,7 +8617,7 @@ export default function AdminDashboard() {
                     return (
                       <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 space-y-2 text-xs font-semibold text-emerald-800">
                         <div className="flex justify-between items-center pb-1.5 border-b border-emerald-100/50">
-                          <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-900">Analisis Kinerja Peserta:</span>
+                          <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-900">Analisis Penugasan & Presensi:</span>
                           <span className="text-[9px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Auto Formula</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-[11px] text-emerald-700">
@@ -8527,28 +8625,13 @@ export default function AdminDashboard() {
                           <div>• Penugasan: <span className="font-extrabold text-emerald-900">{calc.assignmentPercentage}%</span> <span className="text-[9px] text-emerald-600">({calc.submittedAssignedCount}/{calc.totalAssignedTasks})</span></div>
                         </div>
                         <div className="flex justify-between items-center pt-1.5 border-t border-emerald-100/50 text-[11px] font-bold">
-                          <div>Rata-rata: <span className="font-black text-emerald-950 text-sm">{calc.finalPercentage}%</span></div>
-                          <div>Saran Status: <span className="font-black text-emerald-950 text-sm underline">{calc.calculatedStatus}</span></div>
+                          <div>Rata-rata Nilai Capaian: <span className="font-black text-emerald-950 text-sm">{calc.finalPercentage}%</span></div>
                         </div>
                       </div>
                     );
                   })()}
 
                   <div className="space-y-4">
-                    {/* Status Kelulusan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Kelulusan</label>
-                      <select 
-                        value={graduationStatusInput}
-                        onChange={(e) => setGraduationStatusInput(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-4 focus:ring-hw-green/10"
-                      >
-                        <option value="Lulus">Lulus</option>
-                        <option value="Lulus Bersyarat">Lulus Bersyarat</option>
-                        <option value="Tidak Lulus">Tidak Lulus</option>
-                      </select>
-                    </div>
-
                     {/* Nilai / Grade */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nilai / Predikat</label>
@@ -8561,6 +8644,21 @@ export default function AdminDashboard() {
                       />
                     </div>
 
+                    {/* Status Kelulusan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Kelulusan</label>
+                      <select
+                        value={graduationStatusInput}
+                        onChange={(e) => setGraduationStatusInput(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-xs text-gray-800 outline-none focus:ring-4 focus:ring-hw-green/10"
+                      >
+                        <option value="Lulus">Lulus</option>
+                        <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                        <option value="Tidak Lulus">Tidak Lulus</option>
+                        <option value="Pending">Belum Ditentukan (Pending)</option>
+                      </select>
+                    </div>
+
                     {/* Ulasan / Remarks */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ulasan / Catatan Pelatih</label>
@@ -8568,7 +8666,7 @@ export default function AdminDashboard() {
                         value={remarkInput}
                         onChange={(e) => setRemarkInput(e.target.value)}
                         placeholder="Tuliskan ulasan tugas atau pesan untuk peserta..."
-                        rows={4}
+                        rows={3}
                         className="w-full p-3.5 bg-gray-50 border border-gray-150 rounded-xl focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold outline-none resize-none"
                       />
                     </div>
@@ -9638,7 +9736,7 @@ export default function AdminDashboard() {
 
                     {/* Status Verifikasi / Approval */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Verifikasi</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Verifikasi Pendaftaran</label>
                       <select 
                         value={editingTrainingApp.status || 'approved'}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, status: e.target.value })}
@@ -9650,17 +9748,75 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    {/* Status Pembayaran */}
+                    {/* Status Pembayaran & Pelunasan */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Pembayaran</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Pembayaran / Pelunasan</label>
                       <select 
                         value={editingTrainingApp.statusPembayaran || (editingTrainingApp.status === 'approved' ? 'Lunas' : 'Belum Lunas')}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, statusPembayaran: e.target.value })}
                         className="w-full bg-emerald-50/50 border border-emerald-200 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-emerald-900"
                       >
-                        <option value="Lunas">💰 Lunas</option>
+                        <option value="Lunas">💰 Lunas (Terverifikasi)</option>
                         <option value="Belum Lunas">⏳ Belum Lunas</option>
+                        <option value="Menunggu Pelunasan">⌛ Menunggu Pelunasan (DP)</option>
+                        <option value="Gratis">🎁 Gratis / Beasiswa</option>
                       </select>
+                    </div>
+
+                    {/* Catatan Keterangan Pembayaran */}
+                    <div className="col-span-1 md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Catatan / Keterangan Pembayaran</label>
+                      <input 
+                        type="text"
+                        value={editingTrainingApp.catatanPembayaran || ''}
+                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, catatanPembayaran: e.target.value })}
+                        placeholder="misal: Transfer via BSI a.n Ahmad tgl 12 Agustus 2026..."
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      />
+                    </div>
+
+                    {/* Bukti Transfer / Pembayaran Upload/URL */}
+                    <div className="col-span-1 md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bukti Transfer / Pembayaran</label>
+                      <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                        <input 
+                          type="text"
+                          value={editingTrainingApp.buktiBayar || ''}
+                          onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, buktiBayar: e.target.value })}
+                          placeholder="Link gambar / URL bukti transfer..."
+                          className="flex-1 w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        />
+                        <label className="px-3 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-2xl font-black text-xs cursor-pointer shrink-0 transition-all flex items-center gap-1.5">
+                          <Upload size={14} />
+                          <span>Upload Foto</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (uploadEvt) => {
+                                  setEditingTrainingApp({
+                                    ...editingTrainingApp,
+                                    buktiBayar: uploadEvt.target?.result as string
+                                  });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {editingTrainingApp.buktiBayar && (
+                        <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-xl inline-block">
+                          <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Pratinjau Bukti Transfer:</p>
+                          <a href={editingTrainingApp.buktiBayar} target="_blank" rel="noopener noreferrer">
+                            <img src={editingTrainingApp.buktiBayar} alt="Bukti Transfer" className="h-24 max-w-full object-cover rounded-lg border border-gray-200 shadow-2xs hover:opacity-90" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
 

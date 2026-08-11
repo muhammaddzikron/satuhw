@@ -286,6 +286,7 @@ export default function PelatihanPage() {
   // Submit task state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskLink, setTaskLink] = useState('');
+  const [taskMessage, setTaskMessage] = useState('');
   const [submittingTask, setSubmittingTask] = useState(false);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   
@@ -370,10 +371,7 @@ export default function PelatihanPage() {
           if (user) {
             const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');
             const myApp = freshApps.find((a: any) => {
-              const isUserMatch = (a.email && a.email.toLowerCase() === user.email.toLowerCase()) || 
-                                  (a.userId && String(a.userId) === String(user.id));
-              if (!isUserMatch) return false;
-              
+              if (!isUserAppMatch(a, user)) return false;
               const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
               return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
             });
@@ -386,10 +384,7 @@ export default function PelatihanPage() {
       if (user) {
         const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');
         const myApp = apps?.find((a: any) => {
-          const isUserMatch = (a.email && a.email.toLowerCase() === user.email.toLowerCase()) || 
-                              (a.userId && String(a.userId) === String(user.id));
-          if (!isUserMatch) return false;
-          
+          if (!isUserAppMatch(a, user)) return false;
           const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
           return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
         });
@@ -641,15 +636,17 @@ export default function PelatihanPage() {
       const newTask = {
         title: taskTitle,
         link: taskLink,
+        pesan: taskMessage,
         submittedAt: new Date().toISOString()
       };
 
       const updatedTasks = [...currentTasks, newTask];
       await sheetsService.submitAssignment(userApp.id, JSON.stringify(updatedTasks));
       window.dispatchEvent(new Event('training_applications_updated'));
-      alert('Tugas berhasil dikumpulkan dan tersimpan di sistem Firebase!');
+      alert('Tugas berhasil dikumpulkan!');
       setTaskTitle('');
       setTaskLink('');
+      setTaskMessage('');
       loadData();
     } catch (err: any) {
       alert('Gagal mengumpulkan tugas: ' + err.message);
@@ -1556,46 +1553,29 @@ export default function PelatihanPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Tugas (Google Drive / PDF / YouTube)</label>
-                              <label className="text-[10px] font-extrabold text-hw-green hover:underline cursor-pointer flex items-center gap-1">
-                                <Upload size={12} /> Unggah Berkas
-                                <input 
-                                  type="file" 
-                                  className="hidden" 
-                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      if (file.size > 10 * 1024 * 1024) {
-                                        alert('Ukuran file maksimal 10MB.');
-                                        return;
-                                      }
-                                      const reader = new FileReader();
-                                      reader.onload = (evt) => {
-                                        if (evt.target?.result) {
-                                          setTaskLink(evt.target.result as string);
-                                        }
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                />
-                              </label>
-                            </div>
+                            <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Google Drive Tugas</label>
                             <input 
-                              type="text" 
-                              placeholder="https://drive.google.com/... atau unggah file di atas"
+                              type="url" 
+                              placeholder="https://drive.google.com/file/d/... atau link tugas"
                               value={taskLink}
                               onChange={(e) => setTaskLink(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800"
+                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium"
                               required
                             />
-                            {taskLink && taskLink.startsWith('data:') && (
-                              <p className="text-[9px] text-emerald-600 font-bold ml-1">
-                                ✓ File terlampir dalam bentuk Data URL (tersimpan ke Firebase)
-                              </p>
-                            )}
+                            <p className="text-[9px] text-gray-400 font-medium ml-1">
+                              *Pastikan link Google Drive atau berkas Anda dapat diakses (Akses Publik / Siapa saja pemilik link).
+                            </p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-500 ml-1">Pesan / Catatan untuk Tim Pelatih (Opsional)</label>
+                            <textarea 
+                              rows={3}
+                              placeholder="Tuliskan catatan, ringkasan, atau pesan terkait tugas Anda..."
+                              value={taskMessage}
+                              onChange={(e) => setTaskMessage(e.target.value)}
+                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl p-3 text-xs text-gray-800 font-medium resize-none outline-none"
+                            />
                           </div>
 
                           <button
@@ -1623,25 +1603,75 @@ export default function PelatihanPage() {
                           {parseTasks(userApp).length === 0 ? (
                             <p className="text-xs text-gray-400 italic py-2 text-center">Belum ada tugas yang dikumpulkan.</p>
                           ) : (
-                            <div className="space-y-2">
-                              {parseTasks(userApp).map((t, idx) => (
-                                <div key={idx} className="bg-gray-50 p-3 rounded-xl border border-gray-150 flex items-center justify-between">
-                                  <div>
-                                    <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
-                                    <p className="text-[10px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                            <div className="space-y-2.5">
+                              {parseTasks(userApp).map((t: any, idx: number) => (
+                                <div key={idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex flex-col gap-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                      <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
+                                      <p className="text-[10px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                                    </div>
+                                    <a 
+                                      href={t.link} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-hw-green hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shrink-0"
+                                    >
+                                      Buka Link <ExternalLink size={12} />
+                                    </a>
                                   </div>
-                                  <a 
-                                    href={t.link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-hw-green hover:text-emerald-700 p-2 hover:bg-emerald-50 rounded-lg transition-all"
-                                  >
-                                    <ExternalLink size={16} />
-                                  </a>
+                                  {(t.pesan || t.message) && (
+                                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 text-[11px] text-gray-600 font-medium">
+                                      <span className="font-extrabold text-hw-green text-[9px] uppercase tracking-wider block mb-0.5">Pesan / Catatan:</span>
+                                      {t.pesan || t.message}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Trainer Review & Grade Card */}
+                      {userApp && (userApp.nilai || userApp.remark || userApp.statusKelulusan) && (
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 p-5 rounded-3xl border border-amber-200/80 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <Award className="text-amber-600" size={18} />
+                              <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider font-display">
+                                Hasil Penilaian & Ulasan Tim Pelatih
+                              </h4>
+                            </div>
+                            {userApp.statusKelulusan && (
+                              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                userApp.statusKelulusan === 'Lulus' 
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                                  : userApp.statusKelulusan === 'Lulus Bersyarat'
+                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                    : 'bg-rose-100 text-rose-800 border-rose-300'
+                              }`}>
+                                {userApp.statusKelulusan}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            {userApp.nilai && (
+                              <div className="bg-white/80 p-3 rounded-2xl border border-amber-100">
+                                <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block">Nilai Akhir / Predikat:</span>
+                                <span className="text-base font-black text-amber-950">{userApp.nilai}</span>
+                              </div>
+                            )}
+                            {userApp.remark && (
+                              <div className="bg-white/80 p-3 rounded-2xl border border-amber-100 sm:col-span-2">
+                                <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block mb-1">Catatan & Ulasan Tim Pelatih:</span>
+                                <p className="text-xs text-gray-800 font-medium italic leading-relaxed">
+                                  "{userApp.remark}"
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </motion.div>

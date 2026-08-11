@@ -1085,26 +1085,38 @@ export const sheetsService = {
     // Sync to member in Firestore as well
     const userId = appData.userId;
     const email = appData.email;
-    if (userId || email) {
+    if (userId || email || appData.nama) {
       try {
         const members = await firestoreService.getMembers();
         const m = members.find((x: any) => 
           (userId && String(x.id) === String(userId)) || 
-          (email && String(x.email).toLowerCase().trim() === String(email).toLowerCase().trim())
+          (email && String(x.email).toLowerCase().trim() === String(email).toLowerCase().trim()) ||
+          (appData.nama && String(x.namaLengkap || x.nama || '').toLowerCase().trim() === String(appData.nama).toLowerCase().trim())
         );
+
+        const isApprovedOrLunas = appData.status === 'approved' || appData.statusPembayaran === 'Lunas';
+
         if (m) {
+          const pelatihanList: string[] = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
+          if (appData.pelatihanAkanDiikuti && !pelatihanList.includes(appData.pelatihanAkanDiikuti)) {
+            pelatihanList.push(appData.pelatihanAkanDiikuti);
+          }
           const updated = {
             ...m,
             namaLengkap: appData.nama || m.namaLengkap,
             email: appData.email || m.email,
-            noHp: appData.noWa || m.noHp,
+            noHp: appData.noWa || appData.noHp || m.noHp,
             nbm: appData.nbm || (m as any).nbm || m.ktaNumber || '',
             tempatLahir: appData.tempatLahir || (m as any).tempatLahir,
             tanggalLahir: appData.tanggalLahir || (m as any).tanggalLahir,
             jenisKelamin: appData.jenisKelamin || m.jenisKelamin,
             qabilah: appData.qabilah || m.qabilah,
             asalKwarda: appData.asalDaerah || m.asalKwarda,
-            golongan: appData.golonganAnggota || m.golongan
+            golongan: appData.golonganAnggota || m.golongan,
+            pelatihan: pelatihanList,
+            statusPembayaran: appData.statusPembayaran || (isApprovedOrLunas ? 'Lunas' : (m.statusPembayaran || 'Belum Bayar')),
+            statusAktivasi: isApprovedOrLunas ? 'Aktif' : (m.statusAktivasi || 'Belum Aktif'),
+            isVerified: isApprovedOrLunas ? true : m.isVerified
           };
           await firestoreService.saveMember(updated);
         } else if (appData.nama && appData.nama.trim()) {
@@ -1112,7 +1124,7 @@ export const sheetsService = {
             id: userId || `user-manual-${Date.now()}`,
             namaLengkap: appData.nama.trim(),
             email: appData.email || '',
-            noHp: appData.noWa || '',
+            noHp: appData.noWa || appData.noHp || '',
             nbm: appData.nbm || '',
             tempatLahir: appData.tempatLahir || '',
             tanggalLahir: appData.tanggalLahir || '',
@@ -1120,6 +1132,10 @@ export const sheetsService = {
             qabilah: appData.qabilah || '',
             asalKwarda: appData.asalDaerah || '',
             golongan: appData.golonganAnggota || 'Pengenal',
+            pelatihan: appData.pelatihanAkanDiikuti ? [appData.pelatihanAkanDiikuti] : [],
+            statusPembayaran: appData.statusPembayaran || (isApprovedOrLunas ? 'Lunas' : 'Belum Bayar'),
+            statusAktivasi: isApprovedOrLunas ? 'Aktif' : 'Belum Aktif',
+            isVerified: isApprovedOrLunas,
             statusKTA: 'Diproses',
             createdAt: new Date().toISOString()
           };
@@ -1257,16 +1273,19 @@ export const sheetsService = {
     }
     const updated = await firestoreService.updateTrainingStatus(id, status, remark);
     
-    // If approved, update member role/isVerified in Firestore as well
-    if (status === 'approved' && updated && (updated.userId || updated.email)) {
+    // If approved, update member role/isVerified/statusPembayaran in Firestore as well
+    if (status === 'approved' && updated) {
       try {
         const members = await firestoreService.getMembers();
         const m = members.find((x: any) => 
           (updated.userId && String(x.id) === String(updated.userId)) ||
-          (updated.email && String(x.email).toLowerCase().trim() === String(updated.email).toLowerCase().trim())
+          (updated.email && String(x.email).toLowerCase().trim() === String(updated.email).toLowerCase().trim()) ||
+          (updated.nama && String(x.namaLengkap || x.nama || '').toLowerCase().trim() === String(updated.nama).toLowerCase().trim())
         );
         if (m) {
           m.isVerified = true;
+          m.statusAktivasi = 'Aktif';
+          m.statusPembayaran = 'Lunas';
           if (updated.pelatihanAkanDiikuti) {
             const roleName = updated.pelatihanAkanDiikuti.toLowerCase().replace(/\s+/g, '');
             let roles: string[] = Array.isArray(m.roles) ? [...m.roles] : [m.role || 'umum'];
@@ -1281,6 +1300,27 @@ export const sheetsService = {
             m.pelatihan = pelatihanList;
           }
           await firestoreService.saveMember(m);
+        } else if (updated.nama && updated.nama.trim()) {
+          const newMember: any = {
+            id: updated.userId || `user-manual-${Date.now()}`,
+            namaLengkap: updated.nama.trim(),
+            email: updated.email || '',
+            noHp: updated.noWa || updated.noHp || '',
+            nbm: updated.nbm || '',
+            tempatLahir: updated.tempatLahir || '',
+            tanggalLahir: updated.tanggalLahir || '',
+            jenisKelamin: updated.jenisKelamin || 'L',
+            qabilah: updated.qabilah || '',
+            asalKwarda: updated.asalDaerah || '',
+            golongan: updated.golonganAnggota || 'Pengenal',
+            pelatihan: updated.pelatihanAkanDiikuti ? [updated.pelatihanAkanDiikuti] : [],
+            statusPembayaran: 'Lunas',
+            statusAktivasi: 'Aktif',
+            isVerified: true,
+            statusKTA: 'Diproses',
+            createdAt: new Date().toISOString()
+          };
+          await firestoreService.saveMember(newMember);
         }
       } catch (err) {
         console.error('Error updating member on training approval:', err);
@@ -1308,19 +1348,19 @@ export const sheetsService = {
   async updateGrade(id: string, nilai: any): Promise<any> {
     const isObj = nilai && typeof nilai === 'object';
     const gradeStr = isObj ? (nilai.grade || '') : String(nilai || '');
+    const remarkStr = isObj ? (nilai.remark || '') : undefined;
+    const statusKelulusanStr = isObj ? (nilai.statusKelulusan || '') : undefined;
+
     if (IS_API_VALID) {
       this.post({
         action: 'updateGrade',
         id,
         nilai: gradeStr,
-        remark: isObj ? (nilai.remark || '') : undefined,
-        statusKelulusan: isObj ? (nilai.statusKelulusan || '') : undefined
+        remark: remarkStr,
+        statusKelulusan: statusKelulusanStr
       }).catch(() => {});
     }
-    await firestoreService.updateAssignmentGrade(id, undefined, gradeStr);
-    if (isObj && (nilai.remark || nilai.statusKelulusan)) {
-      await firestoreService.updateTrainingStatus(id, 'approved', nilai.remark);
-    }
+    await firestoreService.updateAssignmentGrade(id, undefined, gradeStr, remarkStr, statusKelulusanStr);
     return { success: true };
   },
 
