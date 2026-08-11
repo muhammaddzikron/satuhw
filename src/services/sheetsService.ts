@@ -188,6 +188,36 @@ export const sheetsService = {
       };
     }
 
+    // Admin Diklat credential override
+    if ((cleanEmail === 'diklat' || cleanEmail === 'diklat@hwjateng.com' || cleanEmail === 'admin diklat') &&
+        (cleanPass === 'didiklatjtg')) {
+      const diklatUser: User = {
+        id: 'admin-diklat-1',
+        email: 'diklat@hwjateng.com',
+        namaLengkap: 'Admin Diklat HW',
+        role: 'admin',
+        roles: ['admin', 'diklat'],
+        activeRole: 'admin',
+        adminType: 'diklat',
+        jenisKelamin: 'L',
+        golongan: 'Pembina',
+        pelatihan: ['Jati 3'],
+        pendidikan: 'S1',
+        asalKwarda: 'Pusdiklat',
+        qabilah: 'Diklat HW Jateng',
+        alamat: 'Pusdiklat HW Jateng',
+        noHp: '081234567890',
+        sosmed: '@diklathwjateng',
+        isVerified: true,
+        password: 'didiklatjtg'
+      };
+      firestoreService.saveMember(diklatUser).catch(() => {});
+      return {
+        token: 'diklat-admin-token',
+        user: diklatUser
+      };
+    }
+
     // Add special check for super admin as requested
     if ((cleanEmail === 'admin' || cleanEmail === 'admin@hw.org') && (cleanPass === 'adnimku' || cleanPass === 'admin')) {
       const adminUser: User = {
@@ -355,6 +385,34 @@ export const sheetsService = {
     const cleanInput = (emailOrId || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
+
+    if ((cleanInput === 'diklat' || cleanInput === 'diklat@hwjateng.com' || cleanInput === 'admin diklat') &&
+        (cleanPass === 'didiklatjtg')) {
+      const diklatUser: User = {
+        id: 'admin-diklat-1',
+        email: 'diklat@hwjateng.com',
+        namaLengkap: 'Admin Diklat HW',
+        role: 'admin',
+        roles: ['admin', 'diklat'],
+        activeRole: 'admin',
+        adminType: 'diklat',
+        jenisKelamin: 'L',
+        golongan: 'Pembina',
+        pelatihan: ['Jati 3'],
+        pendidikan: 'S1',
+        asalKwarda: 'Pusdiklat',
+        qabilah: 'Diklat HW Jateng',
+        alamat: 'Pusdiklat HW Jateng',
+        noHp: '081234567890',
+        sosmed: '@diklathwjateng',
+        isVerified: true,
+        password: 'didiklatjtg'
+      };
+      return {
+        token: 'diklat-admin-token',
+        user: diklatUser
+      };
+    }
 
     // Check in localStorage mock members database first
     const stored = localStorage.getItem('mock_members');

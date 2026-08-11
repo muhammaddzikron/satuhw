@@ -1,4 +1,4 @@
-export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'jati1' | 'jati2' | 'jari1' | 'admin' | 'superadmin';
+export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'jati1' | 'jati2' | 'jari1' | 'admin' | 'superadmin' | 'admin_diklat' | 'diklat';
 
 export interface User {
   id: string;
@@ -19,6 +19,7 @@ export interface User {
   role: UserRole;
   roles?: UserRole[];
   activeRole?: UserRole;
+  adminType?: string;
   isVerified?: boolean;
   upgradeRequests?: string[]; // Array of categories requested for upgrade
   photo?: string;

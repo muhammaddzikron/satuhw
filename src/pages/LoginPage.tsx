@@ -118,7 +118,7 @@ export default function LoginPage() {
       const redirectUrl = (location.state as any)?.redirectTo;
       const activityState = (location.state as any)?.activity;
 
-      if (user.role === 'superadmin' || user.role === 'admin') {
+      if (user.role === 'superadmin' || user.role === 'admin' || (user as any)?.adminType === 'diklat' || user.role === 'admin_diklat') {
         navigate('/admin');
       } else if (redirectUrl) {
         navigate(redirectUrl, { state: { activity: activityState } });

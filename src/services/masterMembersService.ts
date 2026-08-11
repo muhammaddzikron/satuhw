@@ -144,6 +144,29 @@ export const getMasterMembersList = (): User[] => {
     upgradeRequests: []
   });
 
+  // 4. Ensure Admin Diklat
+  rawCandidates.push({
+    id: "admin-diklat-1",
+    email: "diklat@hwjateng.com",
+    password: "didiklatjtg",
+    namaLengkap: "Admin Diklat HW",
+    role: "admin",
+    roles: ["admin", "diklat"],
+    activeRole: "admin",
+    adminType: "diklat",
+    jenisKelamin: "L",
+    golongan: "Pembina",
+    pendidikan: "S1",
+    pelatihan: ["Jati 3"],
+    asalKwarda: "Pusdiklat",
+    qabilah: "Diklat HW Jateng",
+    alamat: "Pusdiklat HW Jateng",
+    isVerified: true,
+    sosmed: "@diklathwjateng",
+    noHp: "081234567890",
+    upgradeRequests: []
+  });
+
   const mergedList: User[] = [];
 
   const findExistingIndex = (item: User) => {

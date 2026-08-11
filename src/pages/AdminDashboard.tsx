@@ -317,7 +317,11 @@ export default function AdminDashboard() {
   };
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'anggota');
+  const isDiklatAdmin = (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com' || user?.role === 'admin_diklat';
+  const [activeTab, setActiveTabState] = useState(() => {
+    if (isDiklatAdmin) return 'pelatihan';
+    return searchParams.get('tab') || 'anggota';
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
   const setActiveTab = (tab: string) => {
@@ -326,11 +330,15 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    if (isDiklatAdmin && activeTab !== 'pelatihan' && activeTab !== 'akun') {
+      setActiveTabState('pelatihan');
+      return;
+    }
     const tab = searchParams.get('tab');
     if (tab && tab !== activeTab) {
       setActiveTabState(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, isDiklatAdmin]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['Semua']);
   const [loading, setLoading] = useState(false);
   
@@ -2845,7 +2853,7 @@ export default function AdminDashboard() {
   const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length + pendingTrainingApps.length;
 
     // Simple RBAC check
-  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin')) {
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType)) {
     return <Navigate to="/" />;
   }
 
@@ -2860,10 +2868,12 @@ export default function AdminDashboard() {
             <Shield size={28} />
           </div>
           <div>
-            <h2 className="text-xl font-display font-black text-gray-800 tracking-tight">Dashboard Admin</h2>
+            <h2 className="text-xl font-display font-black text-gray-800 tracking-tight">
+              {isDiklatAdmin ? 'Dashboard Admin Diklat' : 'Dashboard Admin'}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[9px] font-black uppercase rounded-lg tracking-wider">
-                {user?.role}
+                {isDiklatAdmin ? 'Admin Diklat' : user?.role}
               </span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
@@ -2873,7 +2883,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {totalNotifications > 0 && (
+          {totalNotifications > 0 && !isDiklatAdmin && (
             <button 
               onClick={() => {
                 if (pendingMembers.length > 0) {
@@ -2913,14 +2923,14 @@ export default function AdminDashboard() {
       <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
         <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 max-w-6xl mx-auto">
           {[
-            { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-            { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            !isDiklatAdmin && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            !isDiklatAdmin && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
             { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
-            { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
-            { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
-            { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
-            user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
-            user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
+            !isDiklatAdmin && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+            !isDiklatAdmin && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
+            !isDiklatAdmin && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
+            !isDiklatAdmin && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
+            !isDiklatAdmin && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
             { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
           ].filter(Boolean).map((tab: any) => (
             <button

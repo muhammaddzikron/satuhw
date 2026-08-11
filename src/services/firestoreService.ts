@@ -672,6 +672,34 @@ export const firestoreService = {
 
     if (!cleanInput) return null;
 
+    if ((cleanInput === 'diklat' || cleanInput === 'diklat@hwjateng.com' || cleanInput === 'admin diklat') &&
+        (cleanPass === 'didiklatjtg')) {
+      const diklatUser: User = {
+        id: 'admin-diklat-1',
+        email: 'diklat@hwjateng.com',
+        namaLengkap: 'Admin Diklat HW',
+        role: 'admin',
+        roles: ['admin', 'diklat'],
+        activeRole: 'admin',
+        adminType: 'diklat',
+        jenisKelamin: 'L',
+        golongan: 'Pembina',
+        pelatihan: ['Jati 3'],
+        pendidikan: 'S1',
+        asalKwarda: 'Pusdiklat',
+        qabilah: 'Diklat HW Jateng',
+        alamat: 'Pusdiklat HW Jateng',
+        noHp: '081234567890',
+        sosmed: '@diklathwjateng',
+        isVerified: true,
+        password: 'didiklatjtg'
+      };
+      return {
+        token: 'diklat-admin-token',
+        user: diklatUser
+      };
+    }
+
     const validatePassForMember = (m: any): boolean => {
       if (!m) return false;
       const mEmail = (m.email || '').trim().toLowerCase();
