@@ -2272,22 +2272,22 @@ export const firestoreService = {
     const defaults = [
       {
         id: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        title: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         kategori: 'Silaturahmi',
         category: 'Silaturahmi',
         tanggal: '29-30 Agustus 2026',
         startDate: '2026-08-29',
         endDate: '2026-08-30',
-        lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
-        location: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
-        biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
+        lokasi: 'Unimugo Kebumen',
+        location: 'Unimugo Kebumen',
+        biaya: 'Infaq: Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
-        kuota: '400 Orang',
-        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
-        description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
-        gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        kuota: '200 Orang',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        gambarUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
         themeSongUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         proposalUrl: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
@@ -2461,14 +2461,9 @@ export const firestoreService = {
       deletedIds = JSON.parse(delStr);
     } catch (e) {}
 
-    const removedIds = ['actreg-suanda', 'actreg-danang', 'actreg-bayu', 'actreg-subagio'];
-    const removedNames = ['suanda gumelar', 'danang ari wibowo', 'bayu ghifari javalino', 'subagio joko suprapto'];
-
     const validApps = rawApps.filter(a => {
       if (!a || !a.id) return false;
-      if (deletedIds.includes(a.id) || removedIds.includes(a.id)) return false;
-      const name = String(a.namaLengkap || a.nama || '').trim().toLowerCase();
-      if (removedNames.includes(name)) return false;
+      if (deletedIds.includes(String(a.id))) return false;
       return true;
     });
 
@@ -2482,14 +2477,13 @@ export const firestoreService = {
 
       const itemNama = (rawItem.namaLengkap || rawItem.nama || 'Anggota HW').trim();
       const itemEmail = (rawItem.email || '').trim().toLowerCase();
-      const itemPhone = String(rawItem.noHp || rawItem.noWa || '').replace(/[^0-9]/g, '');
-      const itemUserId = (rawItem.userId && !rawItem.userId.includes('user-act-') && !rawItem.userId.includes('user-manual-')) ? String(rawItem.userId).trim() : '';
 
       const normalizedItem = {
         ...rawItem,
+        id: String(rawItem.id),
         activityId: actId,
         namaKegiatan: (actId === 'keg-silaturahmi-pelatih')
-          ? 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2'
+          ? 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2'
           : (rawItem.namaKegiatan || 'Kegiatan HW Jateng'),
         namaLengkap: itemNama,
         email: rawItem.email || '',
@@ -2497,40 +2491,18 @@ export const firestoreService = {
         noWa: rawItem.noWa || rawItem.noHp || ''
       };
 
-      // Check if this item matches an existing entry in deduped for the same activity
-      const existingIdx = deduped.findIndex(ex => {
-        if (ex.activityId !== actId) return false;
-
-        if (ex.id === normalizedItem.id) return true;
-
-        const exNama = (ex.namaLengkap || ex.nama || '').trim().toLowerCase();
-        const exEmail = (ex.email || '').trim().toLowerCase();
-        const exPhone = String(ex.noHp || ex.noWa || '').replace(/[^0-9]/g, '');
-        const exUserId = (ex.userId && !ex.userId.includes('user-act-') && !ex.userId.includes('user-manual-')) ? String(ex.userId).trim() : '';
-
-        const normNama = itemNama.toLowerCase();
-
-        const matchUserId = itemUserId && exUserId && itemUserId === exUserId;
-        const matchEmail = itemEmail && exEmail && itemEmail === exEmail;
-        const matchPhone = itemPhone.length >= 8 && exPhone.length >= 8 && itemPhone === exPhone;
-        const matchName = normNama && exNama && normNama === exNama && (normNama !== 'anggota hw' && normNama !== 'peserta');
-
-        return Boolean(matchUserId || matchEmail || matchPhone || matchName);
-      });
+      // Match strictly by document ID so separate registrants are never merged or discarded
+      const existingIdx = deduped.findIndex(ex => String(ex.id) === String(normalizedItem.id));
 
       if (existingIdx >= 0) {
         const existing = deduped[existingIdx];
-        const normIdStr = String(normalizedItem.id || '');
-        const isItemDefault = normIdStr.startsWith('actreg-');
-
         deduped[existingIdx] = {
           ...existing,
           ...normalizedItem,
-          id: (!isItemDefault) ? normalizedItem.id : existing.id,
-          userId: itemUserId || existing.userId || normalizedItem.userId,
+          id: String(normalizedItem.id),
           namaLengkap: normalizedItem.namaLengkap || existing.namaLengkap,
           email: itemEmail || existing.email || normalizedItem.email,
-          noHp: itemPhone || existing.noHp || normalizedItem.noHp,
+          noHp: normalizedItem.noHp || existing.noHp,
           unsur: (normalizedItem.unsur && normalizedItem.unsur !== '-') ? normalizedItem.unsur : existing.unsur,
           utusan: (normalizedItem.utusan && normalizedItem.utusan !== '-') ? normalizedItem.utusan : existing.utusan,
           jabatan: (normalizedItem.jabatan && normalizedItem.jabatan !== '-') ? normalizedItem.jabatan : existing.jabatan,
@@ -2550,7 +2522,7 @@ export const firestoreService = {
       {
         id: 'actreg-dzikron',
         activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         userId: 'user-dzikron',
         namaLengkap: 'Muhammad Dzikron',
         unsur: 'Kwarwil HW Jateng',
@@ -2564,7 +2536,7 @@ export const firestoreService = {
       {
         id: 'actreg-burhan',
         activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         userId: 'user-burhan',
         namaLengkap: 'BURHAN UTAMSI',
         unsur: 'Kwarda HW',
@@ -2579,7 +2551,7 @@ export const firestoreService = {
       {
         id: 'actreg-jalu',
         activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         userId: 'user-jalu',
         namaLengkap: 'JALU SURONO',
         unsur: 'Kwarda HW',
@@ -2594,7 +2566,7 @@ export const firestoreService = {
       {
         id: 'actreg-retiana',
         activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         userId: 'user-retiana',
         namaLengkap: 'Retiana Maharani',
         unsur: 'Kwarda HW',
@@ -2609,7 +2581,7 @@ export const firestoreService = {
       {
         id: 'actreg-alda',
         activityId: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         userId: 'user-alda',
         namaLengkap: 'Alda Putri',
         unsur: 'Kwarda HW',
@@ -2702,22 +2674,22 @@ export const firestoreService = {
     const defaults = [
       {
         id: 'keg-silaturahmi-pelatih',
-        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
-        title: 'Pertemuan Silaturahmi Pelatih Nasional HW Jateng, Pandu Senior dan Alumni Jaya Melati 2',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
         kategori: 'Silaturahmi',
         category: 'Silaturahmi',
         tanggal: '29-30 Agustus 2026',
         startDate: '2026-08-29',
         endDate: '2026-08-30',
-        lokasi: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
-        location: 'Kampus Universitas Muhammadiyah Gombong (UNIMUGO)',
-        biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
+        lokasi: 'Unimugo Kebumen',
+        location: 'Unimugo Kebumen',
+        biaya: 'Infaq: Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
-        kuota: '400 Orang',
-        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
-        description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
-        gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
+        kuota: '200 Orang',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        gambarUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
         themeSongUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         proposalUrl: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
@@ -3225,38 +3197,8 @@ export const firestoreService = {
   async registerActivity(appData: any): Promise<any> {
     let regId = appData.id;
 
-    // Check if participant already exists in current list for this activity to prevent duplicate IDs
-    try {
-      const stored = localStorage.getItem('activity_applications') || '[]';
-      const localApps: any[] = JSON.parse(stored);
-      const actId = appData.activityId || 'keg-silaturahmi-pelatih';
-      const cleanEmail = (appData.email || '').trim().toLowerCase();
-      const cleanPhone = String(appData.noHp || appData.noWa || '').replace(/[^0-9]/g, '');
-      const cleanName = (appData.namaLengkap || appData.nama || '').trim().toLowerCase();
-
-      const existing = localApps.find((a: any) => {
-        if (!a) return false;
-        const aActId = a.activityId || 'keg-silaturahmi-pelatih';
-        if (aActId !== actId) return false;
-
-        const aEmail = (a.email || '').trim().toLowerCase();
-        const aPhone = String(a.noHp || a.noWa || '').replace(/[^0-9]/g, '');
-        const aName = (a.namaLengkap || a.nama || '').trim().toLowerCase();
-
-        return (
-          (cleanEmail && aEmail && cleanEmail === aEmail) ||
-          (cleanPhone.length >= 8 && aPhone.length >= 8 && cleanPhone === aPhone) ||
-          (cleanName && aName && cleanName === aName && cleanName !== 'anggota hw')
-        );
-      });
-
-      if (existing && existing.id) {
-        regId = existing.id;
-      }
-    } catch (e) {}
-
     if (!regId) {
-      regId = `actreg-${Date.now()}`;
+      regId = `actreg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     }
 
     const cleanReg = cleanData({
@@ -3269,7 +3211,7 @@ export const firestoreService = {
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       const localApps: any[] = JSON.parse(stored);
-      const idx = localApps.findIndex((a: any) => a.id === regId);
+      const idx = localApps.findIndex((a: any) => String(a.id) === String(regId));
       if (idx >= 0) {
         localApps[idx] = cleanReg;
       } else {
