@@ -54,7 +54,16 @@ function isActivityDeleted(act: any, deletedIds: string[] = [], deletedTitles: s
 // Helper to check if two activity objects refer to the same event
 function isSameActivity(a: any, b: any): boolean {
   if (!a || !b) return false;
-  if (a.id && b.id && String(a.id) === String(b.id)) return true;
+  const idA = String(a.id || '').trim().toLowerCase();
+  const idB = String(b.id || '').trim().toLowerCase();
+  if (idA && idB && idA === idB) return true;
+
+  if (
+    (idA === 'keg-1' || idA === 'keg-silaturahmi-pelatih') &&
+    (idB === 'keg-1' || idB === 'keg-silaturahmi-pelatih')
+  ) {
+    return true;
+  }
 
   const titleA = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
   const titleB = (b.namaKegiatan || b.title || b.jenisPelatihan || '').trim().toLowerCase();
@@ -64,11 +73,7 @@ function isSameActivity(a: any, b: any): boolean {
 
   const cleanA = titleA.replace(/[^a-z0-9]/g, '');
   const cleanB = titleB.replace(/[^a-z0-9]/g, '');
-  if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) {
-    return true;
-  }
-
-  if (titleA.includes('silaturahmi') && titleB.includes('silaturahmi') && titleA.includes('pelatih') && titleB.includes('pelatih')) {
+  if (cleanA && cleanB && cleanA === cleanB && cleanA.length >= 5) {
     return true;
   }
 
@@ -2419,13 +2424,20 @@ export const firestoreService = {
     }
   },
 
-  deduplicateActivityApps(rawApps: any[]): any[] {
+  deduplicateActivityApps(rawApps: any[], deletedAppIds: string[] = []): any[] {
     if (!Array.isArray(rawApps)) return [];
 
-    let deletedIds: string[] = [];
+    let deletedIds: string[] = [...deletedAppIds];
     try {
-      const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
-      deletedIds = JSON.parse(delStr);
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+        const localDel = JSON.parse(delStr);
+        if (Array.isArray(localDel)) {
+          localDel.forEach((d: string) => {
+            if (d && !deletedIds.includes(String(d))) deletedIds.push(String(d));
+          });
+        }
+      }
     } catch (e) {}
 
     const validApps = rawApps.filter(a => {
@@ -2437,28 +2449,43 @@ export const firestoreService = {
     const deduped: any[] = [];
 
     for (const rawItem of validApps) {
-      let actId = rawItem.activityId || 'keg-silaturahmi-pelatih';
-      if (actId === 'keg-1' || actId === 'keg-silaturahmi-pelatih') {
-        actId = 'keg-silaturahmi-pelatih';
-      }
+      let actId = rawItem.activityId || rawItem.activity_id || rawItem.kegiatanId || rawItem.idKegiatan || '';
+      if (actId === 'keg-1') actId = 'keg-silaturahmi-pelatih';
 
       const itemNama = (rawItem.namaLengkap || rawItem.nama || 'Anggota HW').trim();
       const itemEmail = (rawItem.email || '').trim().toLowerCase();
+
+      const actTitle = rawItem.namaKegiatan || rawItem.activityTitle || rawItem.title ||
+        (actId === 'keg-silaturahmi-pelatih' ? 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2' : 'Kegiatan HW Jateng');
+
+      if (!actId) {
+        if (actTitle.toLowerCase().includes('silaturahmi') || actTitle.toLowerCase().includes('pelatih nasional')) {
+          actId = 'keg-silaturahmi-pelatih';
+        } else {
+          actId = `keg-${actTitle.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+        }
+      }
 
       const normalizedItem = {
         ...rawItem,
         id: String(rawItem.id),
         activityId: actId,
-        namaKegiatan: (actId === 'keg-silaturahmi-pelatih')
-          ? 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2'
-          : (rawItem.namaKegiatan || 'Kegiatan HW Jateng'),
+        namaKegiatan: actTitle,
         namaLengkap: itemNama,
-        email: rawItem.email || '',
+        email: itemEmail || rawItem.email || '',
         noHp: rawItem.noHp || rawItem.noWa || '',
-        noWa: rawItem.noWa || rawItem.noHp || ''
+        noWa: rawItem.noWa || rawItem.noHp || '',
+        unsur: rawItem.unsur || '',
+        utusan: rawItem.utusan || '',
+        qabilahPtma: rawItem.qabilahPtma || rawItem.qabilah || '',
+        qabilah: rawItem.qabilah || rawItem.qabilahPtma || '',
+        asalKwarda: rawItem.asalKwarda || rawItem.utusan || '',
+        jabatan: rawItem.jabatan || 'Peserta',
+        kategoriUndangan: rawItem.kategoriUndangan || 'Tidak Ada / Umum',
+        status: rawItem.status || 'approved',
+        tanggalDaftar: rawItem.tanggalDaftar || new Date().toISOString()
       };
 
-      // Match by document ID or same full name for same activity
       const existingIdx = deduped.findIndex(ex => {
         if (String(ex.id) === String(normalizedItem.id)) return true;
         const sameName = ex.namaLengkap && normalizedItem.namaLengkap &&
@@ -2473,15 +2500,21 @@ export const firestoreService = {
         deduped[existingIdx] = {
           ...existing,
           ...normalizedItem,
-          id: existing.id.startsWith('actreg-') ? existing.id : String(normalizedItem.id),
+          id: normalizedItem.id.startsWith('actreg-') ? normalizedItem.id : (existing.id || normalizedItem.id),
+          namaKegiatan: normalizedItem.namaKegiatan || existing.namaKegiatan,
           namaLengkap: normalizedItem.namaLengkap || existing.namaLengkap,
-          email: itemEmail || existing.email || normalizedItem.email,
+          email: normalizedItem.email || existing.email,
           noHp: normalizedItem.noHp || existing.noHp,
+          noWa: normalizedItem.noWa || existing.noWa,
           unsur: (normalizedItem.unsur && normalizedItem.unsur !== '-') ? normalizedItem.unsur : existing.unsur,
           utusan: (normalizedItem.utusan && normalizedItem.utusan !== '-') ? normalizedItem.utusan : existing.utusan,
+          qabilahPtma: (normalizedItem.qabilahPtma && normalizedItem.qabilahPtma !== '-') ? normalizedItem.qabilahPtma : existing.qabilahPtma,
+          qabilah: (normalizedItem.qabilah && normalizedItem.qabilah !== '-') ? normalizedItem.qabilah : existing.qabilah,
+          asalKwarda: (normalizedItem.asalKwarda && normalizedItem.asalKwarda !== '-') ? normalizedItem.asalKwarda : existing.asalKwarda,
           jabatan: (normalizedItem.jabatan && normalizedItem.jabatan !== '-') ? normalizedItem.jabatan : existing.jabatan,
           kategoriUndangan: (normalizedItem.kategoriUndangan && normalizedItem.kategoriUndangan !== '-') ? normalizedItem.kategoriUndangan : existing.kategoriUndangan,
-          tanggalDaftar: existing.tanggalDaftar || normalizedItem.tanggalDaftar || new Date().toISOString()
+          status: normalizedItem.status || existing.status || 'approved',
+          tanggalDaftar: normalizedItem.tanggalDaftar || existing.tanggalDaftar || new Date().toISOString()
         };
       } else {
         deduped.push(normalizedItem);
@@ -2641,11 +2674,19 @@ export const firestoreService = {
     callback(initialMerged);
 
     try {
-      const unsub = onSnapshot(collection(db, 'activity_applications'), (snap) => {
+      const unsub = onSnapshot(collection(db, 'activity_applications'), async (snap) => {
         let fsApps: any[] = [];
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
+
+        let deletedAppIds: string[] = [];
+        try {
+          const s = await this.getSettings();
+          if (s && Array.isArray(s.deletedActivityAppIds)) {
+            deletedAppIds = s.deletedActivityAppIds;
+          }
+        } catch (e) {}
 
         let localApps: any[] = [];
         try {
@@ -2653,8 +2694,8 @@ export const firestoreService = {
           localApps = JSON.parse(stored);
         } catch (e) {}
 
-        const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
-        const list = this.deduplicateActivityApps(mergedRaw);
+        const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
+        const list = this.deduplicateActivityApps(mergedRaw, deletedAppIds);
 
         try {
           localStorage.setItem('activity_applications', JSON.stringify(list));
@@ -3210,14 +3251,22 @@ export const firestoreService = {
       }
     }
 
+    let deletedAppIds: string[] = [];
+    try {
+      const s = await this.getSettings();
+      if (s && Array.isArray(s.deletedActivityAppIds)) {
+        deletedAppIds = s.deletedActivityAppIds;
+      }
+    } catch (e) {}
+
     let localApps: any[] = [];
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       localApps = JSON.parse(stored);
     } catch (e) {}
 
-    const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
-    const list = this.deduplicateActivityApps(mergedRaw);
+    const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
+    const list = this.deduplicateActivityApps(mergedRaw, deletedAppIds);
 
     try {
       localStorage.setItem('activity_applications', JSON.stringify(list));
@@ -3302,6 +3351,17 @@ export const firestoreService = {
       const localApps = JSON.parse(stored);
       const filtered = localApps.filter((a: any) => a && String(a.id) !== String(id));
       localStorage.setItem('activity_applications', JSON.stringify(filtered));
+    } catch (e) {}
+
+    try {
+      const s = await this.getSettings();
+      const currentDel = Array.isArray(s.deletedActivityAppIds) ? s.deletedActivityAppIds : [];
+      if (!currentDel.includes(String(id))) {
+        await this.saveSettings({
+          ...s,
+          deletedActivityAppIds: [...currentDel, String(id)]
+        });
+      }
     } catch (e) {}
 
     try {

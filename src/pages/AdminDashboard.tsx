@@ -125,6 +125,7 @@ import {
   BarChart3, 
   Search, 
   Filter, 
+  ArrowUpDown,
   Plus, 
   MoreVertical,
   RefreshCw,
@@ -466,6 +467,10 @@ export default function AdminDashboard() {
   const [ktaApps, setKtaApps] = useState<any[]>([]);
   const [ktaSearchQuery, setKtaSearchQuery] = useState('');
   const [ktaFilterStatus, setKtaFilterStatus] = useState('Semua');
+  const [ktaFilterKwarda, setKtaFilterKwarda] = useState('Semua');
+  const [ktaSortBy, setKtaSortBy] = useState<'kwarda' | 'ktaNumber' | 'nama' | 'tanggal' | 'status'>('kwarda');
+  const [selectedKwardaModal, setSelectedKwardaModal] = useState<string | null>(null);
+  const [kwardaModalSearch, setKwardaModalSearch] = useState('');
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -564,6 +569,54 @@ export default function AdminDashboard() {
         return codeA - codeB;
       });
   }, [ktaApps]);
+
+  // Filtered and Sorted KTA Applications
+  const filteredKtaApps = React.useMemo(() => {
+    return (ktaApps || [])
+      .filter(app => {
+        const query = ktaSearchQuery.toLowerCase().trim();
+        const matchSearch = !query ||
+          (app?.nama || '').toLowerCase().includes(query) ||
+          (app?.email || '').toLowerCase().includes(query) ||
+          (app?.asalDaerah || '').toLowerCase().includes(query) ||
+          (app?.qabilah || '').toLowerCase().includes(query) ||
+          (app?.ktaNumber || '').toLowerCase().includes(query);
+
+        const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
+        
+        const appKwarda = (app?.asalDaerah || app?.qabilah || '').toLowerCase().trim();
+        const filterKwardaLower = ktaFilterKwarda.toLowerCase().trim();
+        const matchKwarda = ktaFilterKwarda === 'Semua' ||
+          appKwarda === filterKwardaLower ||
+          (app?.asalDaerah || '').toLowerCase().trim() === filterKwardaLower ||
+          (app?.qabilah || '').toLowerCase().trim() === filterKwardaLower;
+
+        return matchSearch && matchStatus && matchKwarda;
+      })
+      .sort((a, b) => {
+        if (ktaSortBy === 'kwarda') {
+          const kwardaA = (a.asalDaerah || a.qabilah || '').toLowerCase();
+          const kwardaB = (b.asalDaerah || b.qabilah || '').toLowerCase();
+          if (kwardaA !== kwardaB) return kwardaA.localeCompare(kwardaB);
+          const numA = a.ktaNumber || 'ZZZ999';
+          const numB = b.ktaNumber || 'ZZZ999';
+          return numA.localeCompare(numB, undefined, { numeric: true });
+        } else if (ktaSortBy === 'ktaNumber') {
+          const numA = a.ktaNumber || 'ZZZ999';
+          const numB = b.ktaNumber || 'ZZZ999';
+          return numA.localeCompare(numB, undefined, { numeric: true });
+        } else if (ktaSortBy === 'nama') {
+          return (a.nama || '').localeCompare(b.nama || '');
+        } else if (ktaSortBy === 'tanggal') {
+          const dateA = new Date(a.tanggalAjuan || 0).getTime();
+          const dateB = new Date(b.tanggalAjuan || 0).getTime();
+          return dateB - dateA;
+        } else if (ktaSortBy === 'status') {
+          return (a.status || '').localeCompare(b.status || '');
+        }
+        return 0;
+      });
+  }, [ktaApps, ktaSearchQuery, ktaFilterStatus, ktaFilterKwarda, ktaSortBy]);
 
   // Training Management States & Deduplication
   const [trainingAppsRaw, setTrainingAppsRaw] = useState<any[]>([]);
@@ -2457,16 +2510,7 @@ export default function AdminDashboard() {
   };
 
   const exportKTAToExcel = () => {
-    const targetApps = ktaApps.filter(app => {
-      const matchSearch = 
-        (app.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-      const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
-      return matchSearch && matchStatus;
-    });
+    const targetApps = filteredKtaApps;
 
     const headers = ['No', 'Nomor KTA', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Tingkatan', 'Asal Kwarda', 'Qabilah', 'Alamat', 'Jenis KTA', 'Status', 'Tanggal Ajuan'];
     const data = targetApps.map((k, idx) => [
@@ -2496,8 +2540,9 @@ export default function AdminDashboard() {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     const dateStr = new Date().toISOString().split('T')[0];
+    const kwardaSuffix = ktaFilterKwarda !== 'Semua' ? `_${ktaFilterKwarda.replace(/\s+/g, '')}` : '';
     const statusSuffix = ktaFilterStatus !== 'Semua' ? `_${ktaFilterStatus}` : '';
-    link.setAttribute("download", `Data_KTA_HW_Jateng${statusSuffix}_${dateStr}.csv`);
+    link.setAttribute("download", `Data_KTA_HW_Jateng${kwardaSuffix}${statusSuffix}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2505,16 +2550,7 @@ export default function AdminDashboard() {
   };
 
   const exportKTAToPDF = () => {
-    const targetApps = ktaApps.filter(app => {
-      const matchSearch = 
-        (app.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-        (app.ktaNumber || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-      const matchStatus = ktaFilterStatus === 'Semua' || app.status === ktaFilterStatus;
-      return matchSearch && matchStatus;
-    });
+    const targetApps = filteredKtaApps;
 
     const doc = new jsPDF() as any;
     const headers = [['No', 'Nomor KTA', 'Nama Lengkap', 'Tingkatan', 'Kwarda / Qabilah', 'Status']];
@@ -2531,7 +2567,7 @@ export default function AdminDashboard() {
     doc.text('Laporan Data Pendaftar KTA HW Jawa Tengah', 14, 15);
     doc.setFontSize(9);
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
-    doc.text(`Total Filter: ${targetApps.length} Pengajuan (Status: ${ktaFilterStatus === 'Semua' ? 'Semua Status' : ktaFilterStatus})`, 14, 26);
+    doc.text(`Total Filter: ${targetApps.length} Pengajuan (Kwarda: ${ktaFilterKwarda}, Status: ${ktaFilterStatus === 'Semua' ? 'Semua Status' : ktaFilterStatus})`, 14, 26);
 
     autoTable(doc, {
       head: headers,
@@ -4096,42 +4132,147 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Search & Filter inside card */}
-                    <div className="p-5 border-b border-gray-50 bg-gray-50/5 flex flex-col sm:flex-row gap-3">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input 
-                          type="text" 
-                          placeholder="Cari berdasarkan nama, email, asal daerah..." 
-                          value={ktaSearchQuery}
-                          onChange={(e) => setKtaSearchQuery(e.target.value)}
-                          className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold shadow-sm"
-                        />
-                        {ktaSearchQuery && (
+                    <div className="p-5 border-b border-gray-50 bg-gray-50/5 space-y-3">
+                      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+                        {/* Search Input */}
+                        <div className="relative flex-1">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Cari nama, email, Kwarda, no. KTA, qabilah..." 
+                            value={ktaSearchQuery}
+                            onChange={(e) => setKtaSearchQuery(e.target.value)}
+                            className="w-full bg-white border border-gray-150 rounded-xl py-2.5 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold shadow-2xs"
+                          />
+                          {ktaSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setKtaSearchQuery('')}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Dropdowns for Kwarda Filter & Sorting */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Filter Kwarda Dropdown */}
+                          <div className="flex items-center gap-1.5 bg-white border border-gray-150 rounded-xl px-3 py-2 shadow-2xs text-xs">
+                            <MapPin size={14} className="text-hw-green shrink-0" />
+                            <span className="font-bold text-gray-400 whitespace-nowrap text-[10px] uppercase tracking-wider">Kwarda:</span>
+                            <select
+                              value={ktaFilterKwarda}
+                              onChange={(e) => setKtaFilterKwarda(e.target.value)}
+                              className="bg-transparent font-extrabold text-gray-800 outline-none text-xs cursor-pointer max-w-[190px] truncate"
+                            >
+                              <option value="Semua">Semua Kwarda & Qabilah ({ktaApps.length})</option>
+                              <optgroup label="1. Kwarda (Kabupaten / Kota)">
+                                {KWARDA_QABILAH_JATENG.slice(0, 35).map(k => {
+                                  const count = ktaApps.filter(a => (a.asalDaerah || '').toLowerCase().trim() === k.name.toLowerCase().trim()).length;
+                                  return (
+                                    <option key={k.code} value={k.name}>
+                                      {parseInt(k.code, 10)}. {k.name} ({count} Anggota)
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                              <optgroup label="2. Qabilah PTMA">
+                                {KWARDA_QABILAH_JATENG.slice(35).map(q => {
+                                  const count = ktaApps.filter(a => (a.asalDaerah || a.qabilah || '').toLowerCase().trim() === q.name.toLowerCase().trim()).length;
+                                  return (
+                                    <option key={q.code} value={q.name}>
+                                      {parseInt(q.code, 10)}. {q.name} ({count} Anggota)
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            </select>
+                            {ktaFilterKwarda !== 'Semua' && (
+                              <button
+                                onClick={() => setKtaFilterKwarda('Semua')}
+                                className="text-gray-400 hover:text-rose-500 transition-colors p-0.5"
+                                title="Reset Filter Kwarda"
+                              >
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Sort By Dropdown */}
+                          <div className="flex items-center gap-1.5 bg-white border border-gray-150 rounded-xl px-3 py-2 shadow-2xs text-xs">
+                            <ArrowUpDown size={14} className="text-hw-green shrink-0" />
+                            <span className="font-bold text-gray-400 whitespace-nowrap text-[10px] uppercase tracking-wider">Urutan:</span>
+                            <select
+                              value={ktaSortBy}
+                              onChange={(e) => setKtaSortBy(e.target.value as any)}
+                              className="bg-transparent font-extrabold text-gray-800 outline-none text-xs cursor-pointer"
+                            >
+                              <option value="kwarda">Urut Kwarda (A-Z) & No. KTA</option>
+                              <option value="ktaNumber">Urut Penomoran KTA (Kode/Seq)</option>
+                              <option value="nama">Urut Nama Anggota (A-Z)</option>
+                              <option value="tanggal">Urut Tanggal Ajuan (Terbaru)</option>
+                              <option value="status">Urut Status Verifikasi</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Filter Status Buttons */}
+                        <div className="flex gap-1 overflow-x-auto shrink-0">
+                          {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
+                            <button
+                              key={st}
+                              onClick={() => setKtaFilterStatus(st)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize whitespace-nowrap transition-all border ${
+                                ktaFilterStatus === st 
+                                ? 'bg-hw-dark text-white border-hw-dark shadow-xs' 
+                                : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200 shadow-2xs'
+                              }`}
+                            >
+                              {st === 'pending' ? 'Menunggu' : st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Semua Status'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Active Filter & KTA Sequence Info Bar */}
+                      {(ktaFilterKwarda !== 'Semua' || ktaFilterStatus !== 'Semua' || ktaSearchQuery || ktaSortBy !== 'kwarda') && (
+                        <div className="p-3 bg-emerald-50/90 border border-emerald-150 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white font-extrabold text-[10px] uppercase tracking-wider">
+                              Ringkasan Filter KTA
+                            </span>
+                            <span className="font-extrabold text-emerald-950">
+                              {ktaFilterKwarda !== 'Semua' ? `Kwarda: ${ktaFilterKwarda}` : 'Semua Kwarda'}
+                            </span>
+                            <span className="text-emerald-700 font-semibold">• Total: <strong>{filteredKtaApps.length}</strong> anggota</span>
+                            <span className="text-emerald-700 font-semibold">• KTA Aktif (Resmi): <strong>{filteredKtaApps.filter(a => a.status === 'approved').length}</strong></span>
+                            {(() => {
+                              const approvedKtas = filteredKtaApps.filter(a => a.status === 'approved' && a.ktaNumber).map(a => a.ktaNumber).sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+                              if (approvedKtas.length > 0) {
+                                return (
+                                  <span className="text-emerald-800 font-bold font-mono bg-white/80 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                                    KTA: {approvedKtas[0]} {approvedKtas.length > 1 ? `s/d ${approvedKtas[approvedKtas.length - 1]}` : ''}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setKtaSearchQuery('')}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                            onClick={() => {
+                              setKtaFilterKwarda('Semua');
+                              setKtaFilterStatus('Semua');
+                              setKtaSearchQuery('');
+                              setKtaSortBy('kwarda');
+                            }}
+                            className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded-lg font-black text-[10px] uppercase transition-all cursor-pointer shrink-0"
                           >
-                            <X size={16} />
+                            Reset Filter
                           </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-1.5 overflow-x-auto">
-                        {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
-                          <button
-                            key={st}
-                            onClick={() => setKtaFilterStatus(st)}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold capitalize whitespace-nowrap transition-all border ${
-                              ktaFilterStatus === st 
-                              ? 'bg-hw-dark text-white border-hw-dark shadow-sm' 
-                              : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200 shadow-sm'
-                            }`}
-                          >
-                            {st === 'pending' ? 'Menunggu' : st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Semua'}
-                          </button>
-                        ))}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Application List Table */}
@@ -4148,30 +4289,14 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
-                          {ktaApps.filter(app => {
-                            const matchSearch = 
-                              (app?.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app?.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app?.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                              (app?.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-                            const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
-                            return matchSearch && matchStatus;
-                          }).length === 0 ? (
+                          {filteredKtaApps.length === 0 ? (
                             <tr>
                               <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
-                                Belum ada pengajuan KTA yang sesuai kriteria
+                                Belum ada pengajuan KTA yang sesuai kriteria filter
                               </td>
                             </tr>
                           ) : (
-                            ktaApps.filter(app => {
-                              const matchSearch = 
-                                (app?.nama || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app?.email || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app?.asalDaerah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase()) ||
-                                (app?.qabilah || '').toLowerCase().includes(ktaSearchQuery.toLowerCase());
-                              const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
-                              return matchSearch && matchStatus;
-                            }).map((app) => (
+                            filteredKtaApps.map((app) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
                                 <td className="p-3.5 pl-5">
                                   <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs">
@@ -4346,13 +4471,15 @@ export default function AdminDashboard() {
                               <th className="p-3 pl-5">Nama Kwarda</th>
                               <th className="p-3 text-center">Approved</th>
                               <th className="p-3 text-center">Pending</th>
-                              <th className="p-3 text-right pr-5">Total</th>
+                              <th className="p-3 text-center">Total</th>
+                              <th className="p-3 text-center">Rentang No. KTA</th>
+                              <th className="p-3 pr-5 text-center">Aksi / Verifikasi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                             {kwardaStats.filter(item => item.name.toLowerCase().includes(ktaSearchQuery.toLowerCase())).length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="p-8 text-center text-gray-400 font-bold uppercase text-[10px]">
+                                <td colSpan={6} className="p-8 text-center text-gray-400 font-bold uppercase text-[10px]">
                                   Kwarda tidak ditemukan
                                 </td>
                               </tr>
@@ -4360,6 +4487,13 @@ export default function AdminDashboard() {
                               kwardaStats.filter(item => item.name.toLowerCase().includes(ktaSearchQuery.toLowerCase())).map((item) => {
                                 const foundItem = KWARDA_QABILAH_JATENG.find(x => x.name === item.name);
                                 const codeNum = foundItem ? parseInt(foundItem.code, 10) : '';
+                                
+                                const kwardaMembers = ktaApps.filter(a => (a.asalDaerah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
+                                const approvedKtas = kwardaMembers
+                                  .filter(a => a.status === 'approved' && a.ktaNumber)
+                                  .map(a => a.ktaNumber)
+                                  .sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+
                                 return (
                                   <tr key={item.name} className="hover:bg-gray-50/40 transition-colors">
                                     <td className="p-3 pl-5 font-extrabold text-gray-800">
@@ -4375,7 +4509,37 @@ export default function AdminDashboard() {
                                         {item.pending}
                                       </span>
                                     </td>
-                                    <td className="p-3 text-right pr-5 font-black text-gray-800 font-mono">{item.total}</td>
+                                    <td className="p-3 text-center font-black text-gray-800 font-mono">{item.total}</td>
+                                    <td className="p-3 text-center font-mono text-[10px]">
+                                      {approvedKtas.length > 0 ? (
+                                        <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-150 font-bold">
+                                          {approvedKtas[0]} {approvedKtas.length > 1 ? `s/d ${approvedKtas[approvedKtas.length - 1]}` : ''}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-300 italic text-[10px]">- Belum ada KTA -</span>
+                                      )}
+                                    </td>
+                                    <td className="p-3 pr-5 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button
+                                          onClick={() => {
+                                            setKtaFilterKwarda(item.name);
+                                            setActiveKtaSubTab('summary');
+                                          }}
+                                          className="px-2.5 py-1 bg-hw-dark hover:bg-black text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95"
+                                          title={`Filter tabel utama untuk ${item.name}`}
+                                        >
+                                          Filter Tabel Utama
+                                        </button>
+                                        <button
+                                          onClick={() => setSelectedKwardaModal(item.name)}
+                                          className="px-2.5 py-1 bg-hw-green/10 hover:bg-hw-green text-hw-green hover:text-white rounded-lg text-[10px] font-extrabold transition-all border border-hw-green/20 cursor-pointer active:scale-95"
+                                          title={`Lihat daftar anggota ${item.name}`}
+                                        >
+                                          Detail Anggota ({item.total})
+                                        </button>
+                                      </div>
+                                    </td>
                                   </tr>
                                 );
                               })
@@ -4403,13 +4567,15 @@ export default function AdminDashboard() {
                               <th className="p-3 pl-5">Nama Qabilah/Pangkalan</th>
                               <th className="p-3 text-center whitespace-nowrap">Approved</th>
                               <th className="p-3 text-center whitespace-nowrap">Pending</th>
-                              <th className="p-3 text-right pr-5 whitespace-nowrap">Total</th>
+                              <th className="p-3 text-center whitespace-nowrap">Total</th>
+                              <th className="p-3 text-center whitespace-nowrap">Rentang No. KTA</th>
+                              <th className="p-3 pr-5 text-center whitespace-nowrap">Aksi / Verifikasi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                             {qabilahStats.filter(item => item.name.toLowerCase().includes(ktaSearchQuery.toLowerCase())).length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="p-8 text-center text-gray-400 font-bold uppercase text-[10px]">
+                                <td colSpan={6} className="p-8 text-center text-gray-400 font-bold uppercase text-[10px]">
                                   Qabilah tidak ditemukan
                                 </td>
                               </tr>
@@ -4417,6 +4583,13 @@ export default function AdminDashboard() {
                               qabilahStats.filter(item => item.name.toLowerCase().includes(ktaSearchQuery.toLowerCase())).map((item) => {
                                 const foundItem = KWARDA_QABILAH_JATENG.find(x => x.name === item.name);
                                 const codeNum = foundItem ? parseInt(foundItem.code, 10) : '';
+
+                                const qabilahMembers = ktaApps.filter(a => (a.asalDaerah || a.qabilah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
+                                const approvedKtas = qabilahMembers
+                                  .filter(a => a.status === 'approved' && a.ktaNumber)
+                                  .map(a => a.ktaNumber)
+                                  .sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+
                                 return (
                                   <tr key={item.name} className="hover:bg-gray-50/40 transition-colors">
                                     <td className="p-3 pl-5 font-extrabold text-gray-800">
@@ -4432,7 +4605,37 @@ export default function AdminDashboard() {
                                         {item.pending}
                                       </span>
                                     </td>
-                                    <td className="p-3 text-right pr-5 font-black text-gray-800 font-mono whitespace-nowrap">{item.total}</td>
+                                    <td className="p-3 text-center font-black text-gray-800 font-mono whitespace-nowrap">{item.total}</td>
+                                    <td className="p-3 text-center font-mono text-[10px] whitespace-nowrap">
+                                      {approvedKtas.length > 0 ? (
+                                        <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-150 font-bold">
+                                          {approvedKtas[0]} {approvedKtas.length > 1 ? `s/d ${approvedKtas[approvedKtas.length - 1]}` : ''}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-300 italic text-[10px]">- Belum ada KTA -</span>
+                                      )}
+                                    </td>
+                                    <td className="p-3 pr-5 text-center whitespace-nowrap">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button
+                                          onClick={() => {
+                                            setKtaFilterKwarda(item.name);
+                                            setActiveKtaSubTab('summary');
+                                          }}
+                                          className="px-2.5 py-1 bg-hw-dark hover:bg-black text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95"
+                                          title={`Filter tabel utama untuk ${item.name}`}
+                                        >
+                                          Filter Tabel Utama
+                                        </button>
+                                        <button
+                                          onClick={() => setSelectedKwardaModal(item.name)}
+                                          className="px-2.5 py-1 bg-hw-green/10 hover:bg-hw-green text-hw-green hover:text-white rounded-lg text-[10px] font-extrabold transition-all border border-hw-green/20 cursor-pointer active:scale-95"
+                                          title={`Lihat daftar anggota ${item.name}`}
+                                        >
+                                          Detail Anggota ({item.total})
+                                        </button>
+                                      </div>
+                                    </td>
                                   </tr>
                                 );
                               })
@@ -9662,6 +9865,216 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* KWARDA MEMBER DETAIL MODAL */}
+        <AnimatePresence>
+          {selectedKwardaModal && (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => { setSelectedKwardaModal(null); setKwardaModalSearch(''); }}
+              />
+              
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white rounded-[2rem] p-6 max-w-[900px] w-full z-[140] border border-gray-100 shadow-2xl overflow-y-auto max-h-[90vh] relative text-gray-800"
+              >
+                {/* Modal Header */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 pb-4 mb-4 gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={18} className="text-hw-green" />
+                      <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider font-display">
+                        Daftar Anggota KTA - {selectedKwardaModal}
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
+                      Verifikasi dan kelola penomoran KTA untuk wilayah {selectedKwardaModal}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => { setSelectedKwardaModal(null); setKwardaModalSearch(''); }}
+                      className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Filter and Stats Bar */}
+                {(() => {
+                  const kwardaApps = ktaApps.filter(app => 
+                    (app.asalDaerah || app.qabilah || '').toLowerCase().trim() === selectedKwardaModal.toLowerCase().trim() ||
+                    (app.asalDaerah || '').toLowerCase().includes(selectedKwardaModal.toLowerCase().trim())
+                  );
+                  const searchFiltered = kwardaApps.filter(app => {
+                    const q = kwardaModalSearch.toLowerCase().trim();
+                    if (!q) return true;
+                    return (app.nama || '').toLowerCase().includes(q) ||
+                           (app.ktaNumber || '').toLowerCase().includes(q) ||
+                           (app.email || '').toLowerCase().includes(q) ||
+                           (app.qabilah || '').toLowerCase().includes(q);
+                  }).sort((a,b) => {
+                    const numA = a.ktaNumber || 'ZZZ999';
+                    const numB = b.ktaNumber || 'ZZZ999';
+                    return numA.localeCompare(numB, undefined, { numeric: true });
+                  });
+
+                  const approvedCount = kwardaApps.filter(a => a.status === 'approved').length;
+                  const pendingCount = kwardaApps.filter(a => a.status === 'pending').length;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Search Bar & Summary Pills */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                        <div className="relative w-full sm:w-72">
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
+                          <input 
+                            type="text" 
+                            placeholder="Cari anggota / no. KTA..." 
+                            value={kwardaModalSearch}
+                            onChange={(e) => setKwardaModalSearch(e.target.value)}
+                            className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-8 text-xs outline-none focus:ring-2 focus:ring-hw-green/20"
+                          />
+                          {kwardaModalSearch && (
+                            <button onClick={() => setKwardaModalSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-3 py-1 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-2xs">
+                            Total: <strong>{kwardaApps.length}</strong>
+                          </span>
+                          <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-800 shadow-2xs">
+                            Resmi Aktif: <strong>{approvedCount}</strong>
+                          </span>
+                          <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800 shadow-2xs">
+                            Menunggu: <strong>{pendingCount}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Member Table */}
+                      <div className="overflow-x-auto rounded-2xl border border-gray-150">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-gray-100/70 border-b border-gray-150 text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                              <th className="p-3 pl-4">No</th>
+                              <th className="p-3">Foto</th>
+                              <th className="p-3">Nama Lengkap & WA</th>
+                              <th className="p-3">Qabilah / Pangkalan</th>
+                              <th className="p-3">Tingkatan</th>
+                              <th className="p-3">No. KTA HW</th>
+                              <th className="p-3 text-center">Status</th>
+                              <th className="p-3 pr-4 text-center">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 font-semibold text-gray-750">
+                            {searchFiltered.length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="p-8 text-center text-gray-400 font-bold uppercase text-[10px]">
+                                  Tidak ada anggota KTA yang sesuai di wilayah ini
+                                </td>
+                              </tr>
+                            ) : (
+                              searchFiltered.map((app, idx) => (
+                                <tr key={app.id} className="hover:bg-gray-50/60 transition-colors">
+                                  <td className="p-3 pl-4 font-mono font-bold text-gray-400 text-[11px]">{idx + 1}</td>
+                                  <td className="p-3">
+                                    <div className="w-8 h-10 bg-gray-100 rounded overflow-hidden border border-gray-200">
+                                      {app.photo ? (
+                                        <img src={app.photo} alt="Foto" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                          <UserIcon size={16} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="font-extrabold text-gray-900">{app.nama}</div>
+                                    <div className="text-[10px] text-hw-green font-mono">{app.noWa || app.email}</div>
+                                  </td>
+                                  <td className="p-3 text-[11px] text-gray-600 font-medium">
+                                    {app.qabilah || '-'}
+                                  </td>
+                                  <td className="p-3">
+                                    <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-100">
+                                      {app.tingkatan || 'Pengenal'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 font-mono font-bold text-xs text-emerald-900">
+                                    {app.ktaNumber ? (
+                                      <span className="bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                        {app.ktaNumber}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-300 italic text-[10px]">- Belum ada -</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    {app.status === 'approved' ? (
+                                      <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-black uppercase">
+                                        Resmi
+                                      </span>
+                                    ) : app.status === 'pending' ? (
+                                      <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[10px] font-black uppercase">
+                                        Pending
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black uppercase">
+                                        Ditolak
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 pr-4 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedKwardaModal(null);
+                                          setViewingKtaApp(app);
+                                          setIsViewKtaModalOpen(true);
+                                          setFlippedAdmin(false);
+                                        }}
+                                        className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors"
+                                        title="Preview KTA"
+                                      >
+                                        <Eye size={14} />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedKwardaModal(null);
+                                          setEditingKtaApp(app);
+                                          setIsEditKtaModalOpen(true);
+                                        }}
+                                        className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors"
+                                        title="Edit Data KTA"
+                                      >
+                                        <Edit2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
             </div>
           )}

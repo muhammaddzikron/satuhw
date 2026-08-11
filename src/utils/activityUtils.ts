@@ -2,14 +2,15 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
   if (!app) return false;
   if (!activity || activity === 'semua') return true;
 
-  const actId = typeof activity === 'string' ? activity : activity.id;
-  if (actId === 'semua') return true;
+  const targetActId = String(typeof activity === 'string' ? activity : (activity?.id || '')).trim().toLowerCase();
+  if (!targetActId || targetActId === 'semua') return true;
 
-  if (app.activityId === actId) return true;
+  const appActId = String(app.activityId || app.activity_id || app.kegiatanId || app.idKegiatan || '').trim().toLowerCase();
 
-  const appActId = String(app.activityId || '').trim().toLowerCase();
-  const targetActId = String(actId || '').trim().toLowerCase();
+  // 1. Direct ID match
+  if (appActId && appActId === targetActId) return true;
 
+  // 2. Legacy alias check for default Silaturahmi Pelatih activity
   if (
     (appActId === 'keg-silaturahmi-pelatih' || appActId === 'keg-1') &&
     (targetActId === 'keg-silaturahmi-pelatih' || targetActId === 'keg-1')
@@ -17,21 +18,25 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
     return true;
   }
 
-  const actObj = typeof activity === 'object' ? activity : null;
-  const appTitle = String(app.namaKegiatan || '').trim().toLowerCase();
-  const actTitle = actObj
-    ? String(actObj.namaKegiatan || actObj.title || actObj.jenisPelatihan || '').trim().toLowerCase()
-    : (targetActId !== 'semua' ? targetActId : '');
-
-  if (appTitle && actTitle && (appTitle === actTitle || appTitle.includes(actTitle) || actTitle.includes(appTitle))) {
-    return true;
+  // 3. Strict separation: If both appActId and targetActId exist and differ, they belong to different activities
+  if (appActId && targetActId && appActId !== targetActId) {
+    return false;
   }
 
-  if (
-    (appTitle.includes('silaturahmi') || appTitle.includes('pelatih nasional')) &&
-    (actTitle.includes('silaturahmi') || actTitle.includes('pelatih nasional'))
-  ) {
-    return true;
+  // 4. Fallback matching by exact activity title if app has no activityId set
+  const actObj = typeof activity === 'object' ? activity : null;
+  const appTitle = String(app.namaKegiatan || app.activityTitle || app.title || '').trim().toLowerCase();
+  const actTitle = actObj
+    ? String(actObj.namaKegiatan || actObj.title || actObj.jenisPelatihan || '').trim().toLowerCase()
+    : targetActId;
+
+  if (appTitle && actTitle) {
+    if (appTitle === actTitle) return true;
+    const cleanApp = appTitle.replace(/[^a-z0-9]/g, '');
+    const cleanAct = actTitle.replace(/[^a-z0-9]/g, '');
+    if (cleanApp && cleanAct && cleanApp === cleanAct && cleanApp.length >= 5) {
+      return true;
+    }
   }
 
   return false;
