@@ -2208,12 +2208,9 @@ export const firestoreService = {
           return list;
         }
       }
-      for (const cat of defaults) {
-        const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-        setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }, { merge: true }).catch(() => {});
-      }
       return defaults;
     } catch (e) {
+      this.checkQuotaError(e);
       return defaults;
     }
   },
@@ -2253,13 +2250,10 @@ export const firestoreService = {
           const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
           callback(list);
         } else {
-          defaults.forEach(cat => {
-            const catId = `cat-${cat.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-            setDoc(doc(db, 'hw_activity_categories', catId), { id: catId, name: cat, createdAt: new Date().toISOString() }, { merge: true }).catch(() => {});
-          });
           callback(defaults);
         }
       }, (err) => {
+        this.checkQuotaError(err);
         console.warn('subscribeToActivityCategories warning:', err);
       });
       return unsub;
@@ -2361,10 +2355,6 @@ export const firestoreService = {
             };
           });
         } else {
-          // If Firestore collection is empty, initialize default activity in Firestore
-          defaults.forEach(a => {
-            setDoc(doc(db, 'hw_activities', a.id), a, { merge: true }).catch(() => {});
-          });
           fsActs = defaults;
         }
 
@@ -2615,25 +2605,13 @@ export const firestoreService = {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
 
-        // Seed any missing default applications to Firestore so Firestore is complete
-        defaultApps.forEach(a => {
-          if (!fsApps.some(f => String(f.id) === String(a.id))) {
-            setDoc(doc(db, 'activity_applications', String(a.id)), a, { merge: true }).catch(() => {});
-          }
-        });
-
-        // Sync unsynced local storage items up to Firestore
+        let localApps: any[] = [];
         try {
           const stored = localStorage.getItem('activity_applications') || '[]';
-          const localApps: any[] = JSON.parse(stored);
-          localApps.forEach((locApp: any) => {
-            if (locApp && locApp.id && !fsApps.some(f => String(f.id) === String(locApp.id))) {
-              setDoc(doc(db, 'activity_applications', String(locApp.id)), locApp, { merge: true }).catch(() => {});
-            }
-          });
+          localApps = JSON.parse(stored);
         } catch (e) {}
 
-        const mergedRaw = [...defaultApps, ...fsApps];
+        const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
         const list = this.deduplicateActivityApps(mergedRaw);
 
         try {
@@ -2642,6 +2620,7 @@ export const firestoreService = {
 
         callback(list);
       }, (err) => {
+        this.checkQuotaError(err);
         console.warn('subscribeToActivityApplications warning:', err);
         callback(initialMerged);
       });
@@ -3189,27 +3168,13 @@ export const firestoreService = {
       }
     }
 
-    // Seed default apps if missing
-    defaultApps.forEach(a => {
-      if (!fsApps.some(f => String(f.id) === String(a.id))) {
-        setDoc(doc(db, 'activity_applications', String(a.id)), a, { merge: true }).catch(() => {});
-      }
-    });
-
     let localApps: any[] = [];
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       localApps = JSON.parse(stored);
     } catch (e) {}
 
-    // Seed unsynced local apps to Firestore
-    localApps.forEach((locApp: any) => {
-      if (locApp && locApp.id && !fsApps.some(f => String(f.id) === String(locApp.id))) {
-        setDoc(doc(db, 'activity_applications', String(locApp.id)), locApp, { merge: true }).catch(() => {});
-      }
-    });
-
-    const mergedRaw = [...defaultApps, ...fsApps];
+    const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
     const list = this.deduplicateActivityApps(mergedRaw);
 
     try {
