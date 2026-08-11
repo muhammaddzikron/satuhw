@@ -43,7 +43,7 @@ function isActivityDeleted(act: any, deletedIds: string[] = [], deletedTitles: s
     for (const dt of deletedTitles) {
       if (!dt) continue;
       const dtNorm = dt.trim().toLowerCase();
-      if (dtNorm && (title === dtNorm || title.includes(dtNorm) || dtNorm.includes(title))) {
+      if (dtNorm && title === dtNorm) {
         return true;
       }
     }
@@ -62,18 +62,6 @@ function isSameActivity(a: any, b: any): boolean {
     (idA === 'keg-1' || idA === 'keg-silaturahmi-pelatih') &&
     (idB === 'keg-1' || idB === 'keg-silaturahmi-pelatih')
   ) {
-    return true;
-  }
-
-  const titleA = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
-  const titleB = (b.namaKegiatan || b.title || b.jenisPelatihan || '').trim().toLowerCase();
-
-  if (!titleA || !titleB) return false;
-  if (titleA === titleB) return true;
-
-  const cleanA = titleA.replace(/[^a-z0-9]/g, '');
-  const cleanB = titleB.replace(/[^a-z0-9]/g, '');
-  if (cleanA && cleanB && cleanA === cleanB && cleanA.length >= 5) {
     return true;
   }
 
