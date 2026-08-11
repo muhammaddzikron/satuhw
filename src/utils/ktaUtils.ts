@@ -164,13 +164,64 @@ export function isValidKtaNumberFormat(ktaNum?: string): boolean {
 export function parseKtaNumber(ktaNum?: string): { kodeProvinsi: string; kodeKwarda: string; nomorUrut: number } | null {
   if (!ktaNum) return null;
   const str = String(ktaNum).trim();
-  const match = str.match(/^11\.(\d{2})\.(\d{4})$/);
+  const match = str.match(/^(\d{2})\.(\d{2})\.(\d{1,8})$/);
   if (!match) return null;
   return {
-    kodeProvinsi: '11',
-    kodeKwarda: match[1],
-    nomorUrut: parseInt(match[2], 10)
+    kodeProvinsi: match[1],
+    kodeKwarda: match[2],
+    nomorUrut: parseInt(match[3], 10)
   };
+}
+
+/**
+ * Extracts structured numerical components of a KTA record for reliable comparison.
+ */
+export function parseKtaDetails(app: any) {
+  const rawKta = (app?.ktaNumber || app?.nomorKTA || '').toString().trim();
+  if (rawKta) {
+    const parsed = parseKtaNumber(rawKta);
+    if (parsed) {
+      return {
+        provCode: parseInt(parsed.kodeProvinsi, 10) || 11,
+        kwardaCode: parseInt(parsed.kodeKwarda, 10) || 1,
+        seq: parsed.nomorUrut || 0,
+        hasKta: true
+      };
+    }
+  }
+  // Fallback: Infer Kwarda code from region / qabilah name
+  const codeStr = getKwardaCode(app?.asalDaerah || app?.asalKwarda, app?.qabilah || app?.qabilahPtma);
+  return {
+    provCode: 11,
+    kwardaCode: parseInt(codeStr, 10) || 99,
+    seq: typeof app?.nomorUrut === 'number' ? app.nomorUrut : 999999,
+    hasKta: false
+  };
+}
+
+/**
+ * Comparator function to sort KTA items strictly according to KTA concept format (11.XX.YYYY).
+ * 1. Kwarda code numerical order (01, 02, ..., 35, 36..58)
+ * 2. Assigned KTA items before unassigned items
+ * 3. Sequence number numerical order (1, 2, ..., 100, 101...)
+ */
+export function compareKtaNumbers(a: any, b: any): number {
+  const detailA = parseKtaDetails(a);
+  const detailB = parseKtaDetails(b);
+
+  if (detailA.kwardaCode !== detailB.kwardaCode) {
+    return detailA.kwardaCode - detailB.kwardaCode;
+  }
+
+  if (detailA.hasKta !== detailB.hasKta) {
+    return detailA.hasKta ? -1 : 1;
+  }
+
+  if (detailA.seq !== detailB.seq) {
+    return detailA.seq - detailB.seq;
+  }
+
+  return (a?.nama || '').localeCompare(b?.nama || '');
 }
 
 /**

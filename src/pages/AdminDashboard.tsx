@@ -183,7 +183,7 @@ import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
@@ -594,17 +594,8 @@ export default function AdminDashboard() {
         return matchSearch && matchStatus && matchKwarda;
       })
       .sort((a, b) => {
-        if (ktaSortBy === 'kwarda') {
-          const kwardaA = (a.asalDaerah || a.qabilah || '').toLowerCase();
-          const kwardaB = (b.asalDaerah || b.qabilah || '').toLowerCase();
-          if (kwardaA !== kwardaB) return kwardaA.localeCompare(kwardaB);
-          const numA = a.ktaNumber || 'ZZZ999';
-          const numB = b.ktaNumber || 'ZZZ999';
-          return numA.localeCompare(numB, undefined, { numeric: true });
-        } else if (ktaSortBy === 'ktaNumber') {
-          const numA = a.ktaNumber || 'ZZZ999';
-          const numB = b.ktaNumber || 'ZZZ999';
-          return numA.localeCompare(numB, undefined, { numeric: true });
+        if (ktaSortBy === 'kwarda' || ktaSortBy === 'ktaNumber') {
+          return compareKtaNumbers(a, b);
         } else if (ktaSortBy === 'nama') {
           return (a.nama || '').localeCompare(b.nama || '');
         } else if (ktaSortBy === 'tanggal') {
@@ -4491,8 +4482,8 @@ export default function AdminDashboard() {
                                 const kwardaMembers = ktaApps.filter(a => (a.asalDaerah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
                                 const approvedKtas = kwardaMembers
                                   .filter(a => a.status === 'approved' && a.ktaNumber)
-                                  .map(a => a.ktaNumber)
-                                  .sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+                                  .sort((a,b) => compareKtaNumbers(a, b))
+                                  .map(a => a.ktaNumber);
 
                                 return (
                                   <tr key={item.name} className="hover:bg-gray-50/40 transition-colors">
@@ -4587,8 +4578,8 @@ export default function AdminDashboard() {
                                 const qabilahMembers = ktaApps.filter(a => (a.asalDaerah || a.qabilah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
                                 const approvedKtas = qabilahMembers
                                   .filter(a => a.status === 'approved' && a.ktaNumber)
-                                  .map(a => a.ktaNumber)
-                                  .sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+                                  .sort((a,b) => compareKtaNumbers(a, b))
+                                  .map(a => a.ktaNumber);
 
                                 return (
                                   <tr key={item.name} className="hover:bg-gray-50/40 transition-colors">
@@ -9924,11 +9915,7 @@ export default function AdminDashboard() {
                            (app.ktaNumber || '').toLowerCase().includes(q) ||
                            (app.email || '').toLowerCase().includes(q) ||
                            (app.qabilah || '').toLowerCase().includes(q);
-                  }).sort((a,b) => {
-                    const numA = a.ktaNumber || 'ZZZ999';
-                    const numB = b.ktaNumber || 'ZZZ999';
-                    return numA.localeCompare(numB, undefined, { numeric: true });
-                  });
+                  }).sort((a,b) => compareKtaNumbers(a, b));
 
                   const approvedCount = kwardaApps.filter(a => a.status === 'approved').length;
                   const pendingCount = kwardaApps.filter(a => a.status === 'pending').length;
