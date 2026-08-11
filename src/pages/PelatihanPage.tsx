@@ -646,7 +646,8 @@ export default function PelatihanPage() {
 
       const updatedTasks = [...currentTasks, newTask];
       await sheetsService.submitAssignment(userApp.id, JSON.stringify(updatedTasks));
-      alert('Tugas berhasil dikumpulkan ke Tim Pelatih!');
+      window.dispatchEvent(new Event('training_applications_updated'));
+      alert('Tugas berhasil dikumpulkan dan tersimpan di sistem Firebase!');
       setTaskTitle('');
       setTaskLink('');
       loadData();
@@ -846,7 +847,18 @@ export default function PelatihanPage() {
                   </div>
 
                   {/* Quick Access Feature Buttons */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+                    <button
+                      onClick={() => openApprovedPortal(approvedUserApps[0], 'beranda')}
+                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-teal-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
+                        <Info size={16} />
+                      </div>
+                      <div className="text-xs font-black uppercase tracking-wider">Beranda</div>
+                      <div className="text-[10px] text-emerald-100">Info & Rules</div>
+                    </button>
+
                     <button
                       onClick={() => openApprovedPortal(approvedUserApps[0], 'materi')}
                       className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
@@ -1129,14 +1141,22 @@ export default function PelatihanPage() {
               </div>
 
               {/* Portal Navigation Tabs: Beranda, Materi, Sesi & Absen, Tugas, Piagam */}
-              <div className="bg-white p-2 rounded-2xl border border-gray-200/80 shadow-sm">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Menu & Fitur Portal Peserta
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                    Pilih Fitur Pelatihan
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                   {[
-                    { id: 'beranda', shortLabel: 'Beranda', fullLabel: 'Beranda & Rules', icon: Info },
-                    { id: 'materi', shortLabel: 'Materi', fullLabel: 'Materi Pelatihan', icon: BookOpen },
-                    { id: 'sesi', shortLabel: 'Sesi & Absen', fullLabel: 'Sesi & Presensi', icon: Calendar },
-                    { id: 'tugas', shortLabel: 'Tugas Pelatih', fullLabel: 'Tugas Tim Pelatih', icon: ClipboardList },
-                    { id: 'piagam', shortLabel: 'Piagam Digital', fullLabel: 'Piagam Digital', icon: Award }
+                    { id: 'beranda', title: 'Beranda', sub: 'Info & Rules', icon: Info, color: 'bg-teal-500' },
+                    { id: 'materi', title: 'Materi', sub: 'Modul & PDF', icon: BookOpen, color: 'bg-amber-500' },
+                    { id: 'sesi', title: 'Absen', sub: 'Presensi Sesi', icon: CheckCircle2, color: 'bg-emerald-500' },
+                    { id: 'tugas', title: 'Tugas', sub: 'Upload Tugas', icon: FileText, color: 'bg-blue-500' },
+                    { id: 'piagam', title: 'Piagam', sub: 'E-Sertifikat', icon: Award, color: 'bg-purple-500' }
                   ].map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -1144,15 +1164,32 @@ export default function PelatihanPage() {
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`px-3.5 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap shrink-0 sm:shrink min-w-[110px] sm:min-w-0 ${
+                        className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer shadow-xs flex flex-col justify-between group ${
                           isActive
-                            ? 'bg-emerald-700 text-white shadow-sm font-black ring-2 ring-emerald-600/30 scale-[1.01]'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 active:scale-95'
+                            ? 'bg-gradient-to-br from-emerald-800 via-hw-green to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-md scale-[1.02]'
+                            : 'bg-white hover:bg-emerald-50/50 text-gray-800 border-gray-200 hover:border-emerald-300 hover:scale-[1.01]'
                         }`}
                       >
-                        <Icon size={16} className="shrink-0" />
-                        <span className="hidden lg:inline">{tab.fullLabel}</span>
-                        <span className="lg:hidden">{tab.shortLabel}</span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black transition-transform group-hover:scale-110 ${
+                            isActive ? 'bg-white text-emerald-950 shadow-xs' : `${tab.color} text-white`
+                          }`}>
+                            <Icon size={16} />
+                          </div>
+                          {isActive && (
+                            <span className="text-[9px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-md">
+                              Aktif
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <div className={`text-xs font-black uppercase tracking-wider ${isActive ? 'text-white' : 'text-gray-800'}`}>
+                            {tab.title}
+                          </div>
+                          <div className={`text-[10px] font-medium ${isActive ? 'text-emerald-100' : 'text-gray-400'}`}>
+                            {tab.sub}
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
@@ -1519,15 +1556,46 @@ export default function PelatihanPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Tugas (Google Drive / PDF / YouTube)</label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Tugas (Google Drive / PDF / YouTube)</label>
+                              <label className="text-[10px] font-extrabold text-hw-green hover:underline cursor-pointer flex items-center gap-1">
+                                <Upload size={12} /> Unggah Berkas
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      if (file.size > 10 * 1024 * 1024) {
+                                        alert('Ukuran file maksimal 10MB.');
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = (evt) => {
+                                        if (evt.target?.result) {
+                                          setTaskLink(evt.target.result as string);
+                                        }
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
                             <input 
-                              type="url" 
-                              placeholder="https://drive.google.com/..."
+                              type="text" 
+                              placeholder="https://drive.google.com/... atau unggah file di atas"
                               value={taskLink}
                               onChange={(e) => setTaskLink(e.target.value)}
                               className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800"
                               required
                             />
+                            {taskLink && taskLink.startsWith('data:') && (
+                              <p className="text-[9px] text-emerald-600 font-bold ml-1">
+                                ✓ File terlampir dalam bentuk Data URL (tersimpan ke Firebase)
+                              </p>
+                            )}
                           </div>
 
                           <button

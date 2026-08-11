@@ -2036,6 +2036,7 @@ export const firestoreService = {
       list[idx] = { ...list[idx], ...updates };
       localStorage.setItem('training_applications', JSON.stringify(list));
     }
+    window.dispatchEvent(new Event('training_applications_updated'));
     return list[idx];
   },
 
@@ -2104,6 +2105,7 @@ export const firestoreService = {
       list[idx] = { ...list[idx], ...updates };
       localStorage.setItem('training_applications', JSON.stringify(list));
     }
+    window.dispatchEvent(new Event('training_applications_updated'));
     return list[idx];
   },
 

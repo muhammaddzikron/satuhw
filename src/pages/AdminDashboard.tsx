@@ -348,7 +348,7 @@ export default function AdminDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-  const [notifActiveTab, setNotifActiveTab] = useState<'pendaftaran' | 'upgrade' | 'kta' | 'pelatihan'>('pendaftaran');
+  const [notifActiveTab, setNotifActiveTab] = useState<'pendaftaran' | 'upgrade' | 'kta' | 'pelatihan' | 'tugas'>('pendaftaran');
   const [editingMember, setEditingMember] = useState<any>(null);
   const [formData, setFormData] = useState({
     namaLengkap: '',
@@ -2858,7 +2858,21 @@ export default function AdminDashboard() {
   const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
   const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
   const pendingTrainingApps = trainingApps.filter(t => t && t.status === 'pending' && isValidName(t.nama || t.namaLengkap));
-  const totalNotifications = membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length + pendingTrainingApps.length;
+
+  // Training apps with submitted tasks
+  const parseAppTasks = (app: any) => {
+    try {
+      if (!app?.tugas) return [];
+      const parsed = typeof app.tugas === 'string' ? JSON.parse(app.tugas) : app.tugas;
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const submittedTaskApps = trainingApps.filter(t => t && isValidName(t.nama || t.namaLengkap) && parseAppTasks(t).length > 0);
+
+  const totalNotifications = (isDiklatAdmin ? 0 : (membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length)) + pendingTrainingApps.length + submittedTaskApps.length;
 
     // Simple RBAC check
   if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType)) {
@@ -2891,20 +2905,23 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {totalNotifications > 0 && !isDiklatAdmin && (
+          {totalNotifications > 0 && (
             <button 
               onClick={() => {
-                if (pendingMembers.length > 0) {
-                  setNotifActiveTab('pendaftaran');
-                } else if (membersWithUpgradeRequests.length > 0) {
-                  setNotifActiveTab('upgrade');
+                if (isDiklatAdmin) {
+                  if (pendingTrainingApps.length > 0) setNotifActiveTab('pelatihan');
+                  else setNotifActiveTab('tugas');
                 } else {
-                  setNotifActiveTab('kta');
+                  if (pendingMembers.length > 0) setNotifActiveTab('pendaftaran');
+                  else if (membersWithUpgradeRequests.length > 0) setNotifActiveTab('upgrade');
+                  else if (pendingKtaApps.length > 0) setNotifActiveTab('kta');
+                  else if (pendingTrainingApps.length > 0) setNotifActiveTab('pelatihan');
+                  else setNotifActiveTab('tugas');
                 }
                 setIsNotificationModalOpen(true);
               }}
-              className="relative p-3 text-hw-blue bg-hw-blue/10 rounded-xl hover:bg-hw-blue/20 transition-all animate-pulse"
-              title="Notifikasi Pendaftaran Baru, Upgrade, & KTA"
+              className="relative p-3 text-hw-blue bg-hw-blue/10 rounded-xl hover:bg-hw-blue/20 transition-all animate-pulse cursor-pointer"
+              title="Notifikasi Pendaftaran Baru, Upgrade, KTA & Penugasan"
             >
               <Bell size={20} />
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
@@ -3136,7 +3153,10 @@ export default function AdminDashboard() {
                               {row.namaLengkap.charAt(0)}
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-sm font-bold text-gray-800">{row.namaLengkap}</span>
+                              <span className="text-sm font-bold text-gray-800">
+                                <span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{i + 1}.</span>
+                                {row.namaLengkap}
+                              </span>
                               <span className="text-[10px] text-gray-400 font-medium">{row.asalKwarda}, {row.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
                               {(() => {
                                 const reqs = Array.isArray(row.upgradeRequests) 
@@ -4076,7 +4096,7 @@ export default function AdminDashboard() {
                               </td>
                             </tr>
                           ) : (
-                            ktaApps.filter(app => app.status === 'pending').slice(0, 8).map((app) => (
+                            ktaApps.filter(app => app.status === 'pending').slice(0, 8).map((app, idx) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
                                 <td className="p-3.5 pl-5">
                                   <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs shrink-0">
@@ -4090,7 +4110,7 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
+                                  <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 leading-none">{app.email || app.noWa}</div>
                                 </td>
                                 <td className="p-3.5">
@@ -4349,7 +4369,7 @@ export default function AdminDashboard() {
                               </td>
                             </tr>
                           ) : (
-                            filteredKtaApps.map((app) => (
+                            filteredKtaApps.map((app, idx) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
                                 <td className="p-3.5 pl-5">
                                   <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs">
@@ -4363,7 +4383,7 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
+                                  <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                   <div className="text-[10px] text-hw-green font-mono">{app.noWa}</div>
                                 </td>
@@ -5127,7 +5147,7 @@ export default function AdminDashboard() {
                                 (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
                               const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
                               return matchSearch && matchStatus;
-                            }).map((app) => {
+                            }).map((app, idx) => {
                               const matchMember = members.find(m => 
                                 (m.id && app.userId && String(m.id) === String(app.userId)) ||
                                 (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
@@ -5161,7 +5181,7 @@ export default function AdminDashboard() {
                                   </td>
 
                                   <td className="p-4">
-                                    <div className="font-extrabold text-sm text-gray-800">{app.nama}</div>
+                                    <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                     <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                     <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{dispJk}</span></div>
                                     <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
@@ -5409,61 +5429,41 @@ export default function AdminDashboard() {
                 {/* 2. PRESENSI SUB-TAB */}
                 {trainingSubTab === 'presensi' && (
                   <div className="space-y-6">
-                    {/* Level Selectors - Hidden for Diklat Admin as levels are auto-detected */}
-                    {!isDiklatAdmin ? (
-                      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                          <div className="flex gap-2">
-                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                              <button
-                                key={prog}
-                                onClick={() => setSelectedPresensiProg(prog as any)}
-                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                  selectedPresensiProg === prog 
-                                    ? 'bg-hw-green text-white border-hw-green' 
-                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                                }`}
-                              >
-                                {prog}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                          <span className="text-lg font-black text-hw-green">
-                            {trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg).length} Orang
-                          </span>
+                    {/* Level Selectors */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                        <div className="flex gap-2">
+                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                            <button
+                              key={prog}
+                              onClick={() => setSelectedPresensiProg(prog as any)}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                selectedPresensiProg === prog 
+                                  ? 'bg-hw-green text-white border-hw-green' 
+                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                              }`}
+                            >
+                              {prog}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-hw-green/10 flex items-center justify-center text-hw-green font-bold">
-                            <GraduationCap size={20} />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">Rekap Presensi Peserta Pelatihan</h4>
-                            <p className="text-[10px] text-gray-500 font-medium">Tingkat pelatihan terdeteksi otomatis dari pendaftaran peserta (Jati 1 / Jati 2 / Jari 1)</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                          <span className="text-lg font-black text-hw-green">
-                            {trainingApps.filter(app => app.status === 'approved').length} Orang
-                          </span>
-                        </div>
+                      
+                      <div className="text-right">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
+                        <span className="text-lg font-black text-hw-green">
+                          {trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg).length} Orang
+                        </span>
                       </div>
-                    )}
+                    </div>
 
                     {/* Presensi Grid Table */}
                     {(() => {
                       const prog = TRAINING_PROGRAMS.find(p => p.id === selectedPresensiProg);
                       const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
 
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedPresensiProg));
+                      const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg);
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5471,7 +5471,7 @@ export default function AdminDashboard() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
-                          <table className="w-full text-left border-collapse min-w-[900px]">
+                          <table className="w-full text-left border-collapse min-w-max">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                                 <th className="p-4 pl-6 w-[250px]">Nama Peserta</th>
@@ -5484,7 +5484,7 @@ export default function AdminDashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                              {enrolled.map((app) => {
+                              {enrolled.map((app, idx) => {
                                 let attObj: Record<string, any> = {};
                                 if (app.kehadiran) {
                                   attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
@@ -5510,7 +5510,7 @@ export default function AdminDashboard() {
                                           )}
                                         </div>
                                         <div>
-                                          <div className="font-extrabold text-gray-800 leading-snug">{app.nama}</div>
+                                          <div className="font-extrabold text-gray-800 leading-snug"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                           <div className="text-[9px] text-gray-400 uppercase tracking-tighter">{app.asalDaerah || 'Jawa Tengah'}</div>
                                         </div>
                                       </div>
@@ -5586,32 +5586,30 @@ export default function AdminDashboard() {
                 {/* 3. PENUGASAN SUB-TAB */}
                 {trainingSubTab === 'penugasan' && (
                   <div className="space-y-6">
-                    {/* Level Selectors - Hidden for Diklat Admin */}
-                    {!isDiklatAdmin && (
-                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                          <div className="flex gap-2">
-                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                              <button
-                                key={prog}
-                                onClick={() => {
-                                  setSelectedTugasProg(prog as any);
-                                  setSelectedTugasMateriId('all'); // reset filter when level changes
-                                }}
-                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                  selectedTugasProg === prog 
-                                    ? 'bg-hw-green text-white border-hw-green' 
-                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                                }`}
-                              >
-                                {prog}
-                              </button>
-                            ))}
-                          </div>
+                    {/* Level Selectors */}
+                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                        <div className="flex gap-2">
+                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                            <button
+                              key={prog}
+                              onClick={() => {
+                                setSelectedTugasProg(prog as any);
+                                setSelectedTugasMateriId('all'); // reset filter when level changes
+                              }}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                selectedTugasProg === prog 
+                                  ? 'bg-hw-green text-white border-hw-green' 
+                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                              }`}
+                            >
+                              {prog}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* Task Giving Button Panel */}
                     {(() => {
@@ -5715,7 +5713,21 @@ export default function AdminDashboard() {
                           return matched || defM;
                         });
                       }
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedTugasProg);
+                      const enrolled = trainingApps.filter(app => {
+                        if (app.status !== 'approved') return false;
+                        const appLevel = (app.pelatihanAkanDiikuti || '').toLowerCase();
+                        const targetLevel = selectedTugasProg.toLowerCase();
+                        if (targetLevel === 'jati 1') {
+                          return appLevel.includes('jati 1') || appLevel.includes('jaya matahari 1') || appLevel === 'jati 1' || !appLevel || appLevel === '-';
+                        }
+                        if (targetLevel === 'jati 2') {
+                          return appLevel.includes('jati 2') || appLevel.includes('jaya melati 2') || appLevel === 'jati 2';
+                        }
+                        if (targetLevel === 'jari 1') {
+                          return appLevel.includes('jari 1') || appLevel === 'jari 1';
+                        }
+                        return appLevel === targetLevel;
+                      });
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5762,7 +5774,7 @@ export default function AdminDashboard() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                                {enrolled.map((app) => {
+                                {enrolled.map((app, idx) => {
                                   let tasks: any[] = [];
                                   try {
                                     if (app.tugas) {
@@ -5789,7 +5801,7 @@ export default function AdminDashboard() {
                                             )}
                                           </div>
                                           <div>
-                                            <div className="font-extrabold text-gray-800 leading-snug">{app.nama}</div>
+                                            <div className="font-extrabold text-gray-800 leading-snug"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                             <div className="text-[9px] text-gray-400 uppercase tracking-tighter">{app.asalDaerah || 'Jawa Tengah'}</div>
                                           </div>
                                         </div>
@@ -5896,33 +5908,45 @@ export default function AdminDashboard() {
                 {/* 4. PENILAIAN & KELULUSAN SUB-TAB */}
                 {trainingSubTab === 'penilaian' && (
                   <div className="space-y-6">
-                    {/* Level Selectors - Hidden for Diklat Admin */}
-                    {!isDiklatAdmin && (
-                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                          <div className="flex gap-2">
-                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                              <button
-                                key={prog}
-                                onClick={() => setSelectedGradeProg(prog as any)}
-                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                  selectedGradeProg === prog 
-                                    ? 'bg-hw-green text-white border-hw-green' 
-                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                                }`}
-                              >
-                                {prog}
-                              </button>
-                            ))}
-                          </div>
+                    {/* Level Selectors */}
+                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                        <div className="flex gap-2">
+                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                            <button
+                              key={prog}
+                              onClick={() => setSelectedGradeProg(prog as any)}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                selectedGradeProg === prog 
+                                  ? 'bg-hw-green text-white border-hw-green' 
+                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                              }`}
+                            >
+                              {prog}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* Grading Table */}
                     {(() => {
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedGradeProg));
+                      const enrolled = trainingApps.filter(app => {
+                        if (app.status !== 'approved') return false;
+                        const appLevel = (app.pelatihanAkanDiikuti || '').toLowerCase();
+                        const targetLevel = selectedGradeProg.toLowerCase();
+                        if (targetLevel === 'jati 1') {
+                          return appLevel.includes('jati 1') || appLevel.includes('jaya matahari 1') || appLevel === 'jati 1' || !appLevel || appLevel === '-';
+                        }
+                        if (targetLevel === 'jati 2') {
+                          return appLevel.includes('jati 2') || appLevel.includes('jaya melati 2') || appLevel === 'jati 2';
+                        }
+                        if (targetLevel === 'jari 1') {
+                          return appLevel.includes('jari 1') || appLevel === 'jari 1';
+                        }
+                        return appLevel === targetLevel;
+                      });
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5941,7 +5965,7 @@ export default function AdminDashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                              {enrolled.map((app) => {
+                              {enrolled.map((app, idx) => {
                                 const calc = getCalculatedGrading(app);
                                 return (
                                   <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
@@ -5957,7 +5981,7 @@ export default function AdminDashboard() {
                                           )}
                                         </div>
                                         <div>
-                                          <div className="font-extrabold text-gray-800 leading-snug">{app.nama}</div>
+                                          <div className="font-extrabold text-gray-800 leading-snug"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                           <div className="text-[9px] text-gray-400 uppercase tracking-tighter">{app.asalDaerah || 'Jawa Tengah'}</div>
                                         </div>
                                       </div>
@@ -6035,36 +6059,34 @@ export default function AdminDashboard() {
                 {/* 5. CETAK PIAGAM SUB-TAB */}
                 {trainingSubTab === 'piagam' && (
                   <div className="space-y-6">
-                    {/* Level Selectors - Hidden for Diklat Admin */}
-                    {!isDiklatAdmin && (
-                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                          <div className="flex gap-2">
-                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                              <button
-                                key={prog}
-                                onClick={() => setSelectedPiagamProg(prog as any)}
-                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                  selectedPiagamProg === prog 
-                                    ? 'bg-hw-green text-white border-hw-green' 
-                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                                }`}
-                              >
-                                {prog}
-                              </button>
-                            ))}
-                          </div>
+                    {/* Level Selectors */}
+                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                        <div className="flex gap-2">
+                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                            <button
+                              key={prog}
+                              onClick={() => setSelectedPiagamProg(prog as any)}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                selectedPiagamProg === prog 
+                                  ? 'bg-hw-green text-white border-hw-green' 
+                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                              }`}
+                            >
+                              {prog}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* Piagam Table */}
                     {(() => {
                       // Filter approved participants who are Lulus or Lulus Bersyarat
                       const graduates = trainingApps.filter(app => 
                         app.status === 'approved' && 
-                        (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedPiagamProg) && 
+                        app.pelatihanAkanDiikuti === selectedPiagamProg && 
                         (app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat')
                       );
 
@@ -6085,7 +6107,7 @@ export default function AdminDashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                              {graduates.map((app) => (
+                              {graduates.map((app, idx) => (
                                 <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
                                   <td className="p-4 pl-6">
                                     <div className="flex items-center gap-3">
@@ -6099,7 +6121,7 @@ export default function AdminDashboard() {
                                         )}
                                       </div>
                                       <div>
-                                        <div className="font-extrabold text-gray-800 leading-snug">{app.nama}</div>
+                                        <div className="font-extrabold text-gray-800 leading-snug"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
                                         <div className="text-[9px] text-gray-400 uppercase tracking-tighter">{app.email}</div>
                                       </div>
                                     </div>
@@ -7247,6 +7269,21 @@ export default function AdminDashboard() {
                     </span>
                   )}
                 </button>
+                <button
+                  onClick={() => setNotifActiveTab('tugas')}
+                  className={`flex-1 min-w-[90px] py-2.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    notifActiveTab === 'tugas'
+                      ? 'bg-white text-hw-dark shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Tugas
+                  {submittedTaskApps.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] rounded-full font-black">
+                      {submittedTaskApps.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
               {/* Body */}
@@ -7432,7 +7469,7 @@ export default function AdminDashboard() {
                       </div>
                     ))
                   )
-                ) : (
+                ) : notifActiveTab === 'pelatihan' ? (
                   pendingTrainingApps.length === 0 ? (
                     <div className="text-center py-10 space-y-3">
                       <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
@@ -7490,6 +7527,85 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ))
+                  )
+                ) : (
+                  submittedTaskApps.length === 0 ? (
+                    <div className="text-center py-10 space-y-3">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-200">
+                        <FileText size={32} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Belum ada pengumpulan tugas peserta</p>
+                    </div>
+                  ) : (
+                    submittedTaskApps.map((app) => {
+                      const userTasks = parseAppTasks(app);
+                      return (
+                        <div 
+                          key={`task-notif-${app.id}`}
+                          className="p-4 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0">
+                                TGS
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-800">{app.nama || 'Peserta'}</p>
+                                <p className="text-[10px] text-gray-400 font-medium">
+                                  {app.asalDaerah || 'Kwarda'} • {app.pelatihanAkanDiikuti || 'Jati 1'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setIsNotificationModalOpen(false);
+                                setActiveTabState('pelatihan');
+                                setTrainingSubTab('penugasan');
+                                if (app.pelatihanAkanDiikuti?.includes('Jati 2')) {
+                                  setSelectedTugasProg('Jati 2');
+                                } else if (app.pelatihanAkanDiikuti?.includes('Jari 1')) {
+                                  setSelectedTugasProg('Jari 1');
+                                } else {
+                                  setSelectedTugasProg('Jati 1');
+                                }
+                                handleOpenGradingModal(app);
+                              }}
+                              className="px-3 py-1.5 bg-hw-green text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm"
+                            >
+                              Beri Nilai & Tinjau
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
+                              Daftar Tugas Dikumpulkan ({userTasks.length}):
+                            </span>
+                            {userTasks.map((t: any, idx: number) => (
+                              <div key={idx} className="bg-white p-2.5 rounded-2xl border border-gray-100 flex items-center justify-between text-[10px]">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-gray-800">{t.title}</span>
+                                  {t.submittedAt && (
+                                    <span className="text-[8px] text-gray-400">
+                                      Dikirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}
+                                    </span>
+                                  )}
+                                </div>
+                                {t.link && (
+                                  <a 
+                                    href={t.link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[9px] font-bold hover:underline flex items-center gap-1 shrink-0"
+                                  >
+                                    Lihat Tugas <ArrowUpRight size={10} />
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
                   )
                 )}
               </div>
