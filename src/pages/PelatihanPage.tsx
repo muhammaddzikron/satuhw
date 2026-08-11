@@ -294,6 +294,24 @@ export default function PelatihanPage() {
         }
       });
 
+      const unsubTrainingApps = sheetsService.subscribeToTrainingApplications((freshApps: any[]) => {
+        if (Array.isArray(freshApps) && freshApps.length > 0) {
+          setApplications(freshApps);
+          if (user) {
+            const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');
+            const myApp = freshApps.find((a: any) => {
+              const isUserMatch = (a.email && a.email.toLowerCase() === user.email.toLowerCase()) || 
+                                  (a.userId && String(a.userId) === String(user.id));
+              if (!isUserMatch) return false;
+              
+              const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
+              return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
+            });
+            setUserApp(myApp || null);
+          }
+        }
+      });
+
       // Find user app for selected level or activity
       if (user) {
         const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');

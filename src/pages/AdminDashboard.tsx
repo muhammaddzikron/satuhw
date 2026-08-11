@@ -1833,25 +1833,26 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchData = async () => {
-    const isValidName = (name?: string) => {
-      if (!name) return false;
-      const trimmed = name.trim().toLowerCase();
-      return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
-    };
+  const isValidName = (name?: string) => {
+    if (!name) return false;
+    const trimmed = name.trim().toLowerCase();
+    return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
+  };
 
-    const isValidTrainingApp = (t: any) => {
-      if (!t) return false;
-      const name = (t?.nama || t?.namaLengkap || '').trim();
-      const email = (t?.email || '').toLowerCase().trim();
-      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-      if (sysEmails.includes(email)) return false;
-      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) return false;
-      const prog = (t?.pelatihanAkanDiikuti || '').trim();
-      if (!prog || prog === '-') return false;
-      if (t?.id && (String(t.id).startsWith('training-100') || String(t.id).startsWith('train-api-'))) return false;
-      return true;
-    };
+  const isValidTrainingApp = (t: any) => {
+    if (!t) return false;
+    const name = (t?.nama || t?.namaLengkap || '').trim();
+    const email = (t?.email || '').toLowerCase().trim();
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    if (sysEmails.includes(email)) return false;
+    if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) return false;
+    const prog = (t?.pelatihanAkanDiikuti || '').trim();
+    if (!prog || prog === '-') return false;
+    if (t?.id && (String(t.id).startsWith('training-100') || String(t.id).startsWith('train-api-'))) return false;
+    return true;
+  };
+
+  const fetchData = async () => {
 
     // Instant cache pre-fill to render UI immediately without blank/spinner delay
     try {
@@ -1950,11 +1951,18 @@ export default function AdminDashboard() {
       setActivityApplicationsList(apps || []);
     });
 
+    const unsubTrainingApps = sheetsService.subscribeToTrainingApplications((tApps: any[]) => {
+      if (Array.isArray(tApps) && tApps.length > 0) {
+        setTrainingApps(tApps.filter(t => isValidTrainingApp(t)));
+      }
+    });
+
     return () => {
       unsubMembers();
       unsubCategories();
       unsubActivities();
       unsubApps();
+      unsubTrainingApps();
     };
   }, []);
 
@@ -2839,12 +2847,6 @@ export default function AdminDashboard() {
       }).length
     };
   }, [members]);
-
-  const isValidName = (name?: string) => {
-    if (!name) return false;
-    const trimmed = name.trim().toLowerCase();
-    return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
-  };
 
   const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0);
   const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
@@ -5401,41 +5403,61 @@ export default function AdminDashboard() {
                 {/* 2. PRESENSI SUB-TAB */}
                 {trainingSubTab === 'presensi' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedPresensiProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedPresensiProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
+                    {/* Level Selectors - Hidden for Diklat Admin as levels are auto-detected */}
+                    {!isDiklatAdmin ? (
+                      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                          <div className="flex gap-2">
+                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                              <button
+                                key={prog}
+                                onClick={() => setSelectedPresensiProg(prog as any)}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                  selectedPresensiProg === prog 
+                                    ? 'bg-hw-green text-white border-hw-green' 
+                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                }`}
+                              >
+                                {prog}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
+                          <span className="text-lg font-black text-hw-green">
+                            {trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg).length} Orang
+                          </span>
                         </div>
                       </div>
-                      
-                      <div className="text-right">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                        <span className="text-lg font-black text-hw-green">
-                          {trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg).length} Orang
-                        </span>
+                    ) : (
+                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-hw-green/10 flex items-center justify-center text-hw-green font-bold">
+                            <GraduationCap size={20} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">Rekap Presensi Peserta Pelatihan</h4>
+                            <p className="text-[10px] text-gray-500 font-medium">Tingkat pelatihan terdeteksi otomatis dari pendaftaran peserta (Jati 1 / Jati 2 / Jari 1)</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
+                          <span className="text-lg font-black text-hw-green">
+                            {trainingApps.filter(app => app.status === 'approved').length} Orang
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Presensi Grid Table */}
                     {(() => {
                       const prog = TRAINING_PROGRAMS.find(p => p.id === selectedPresensiProg);
                       const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
 
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg);
+                      const enrolled = trainingApps.filter(app => app.status === 'approved' && (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedPresensiProg));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5558,30 +5580,32 @@ export default function AdminDashboard() {
                 {/* 3. PENUGASAN SUB-TAB */}
                 {trainingSubTab === 'penugasan' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => {
-                                setSelectedTugasProg(prog as any);
-                                setSelectedTugasMateriId('all'); // reset filter when level changes
-                              }}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedTugasProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
+                    {/* Level Selectors - Hidden for Diklat Admin */}
+                    {!isDiklatAdmin && (
+                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                          <div className="flex gap-2">
+                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                              <button
+                                key={prog}
+                                onClick={() => {
+                                  setSelectedTugasProg(prog as any);
+                                  setSelectedTugasMateriId('all'); // reset filter when level changes
+                                }}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                  selectedTugasProg === prog 
+                                    ? 'bg-hw-green text-white border-hw-green' 
+                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                }`}
+                              >
+                                {prog}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Task Giving Button Panel */}
                     {(() => {
@@ -5842,31 +5866,33 @@ export default function AdminDashboard() {
                 {/* 4. PENILAIAN & KELULUSAN SUB-TAB */}
                 {trainingSubTab === 'penilaian' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedGradeProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedGradeProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
+                    {/* Level Selectors - Hidden for Diklat Admin */}
+                    {!isDiklatAdmin && (
+                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                          <div className="flex gap-2">
+                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                              <button
+                                key={prog}
+                                onClick={() => setSelectedGradeProg(prog as any)}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                  selectedGradeProg === prog 
+                                    ? 'bg-hw-green text-white border-hw-green' 
+                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                }`}
+                              >
+                                {prog}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Grading Table */}
                     {(() => {
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedGradeProg);
+                      const enrolled = trainingApps.filter(app => app.status === 'approved' && (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedGradeProg));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5979,34 +6005,36 @@ export default function AdminDashboard() {
                 {/* 5. CETAK PIAGAM SUB-TAB */}
                 {trainingSubTab === 'piagam' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedPiagamProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedPiagamProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
+                    {/* Level Selectors - Hidden for Diklat Admin */}
+                    {!isDiklatAdmin && (
+                      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
+                          <div className="flex gap-2">
+                            {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                              <button
+                                key={prog}
+                                onClick={() => setSelectedPiagamProg(prog as any)}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                  selectedPiagamProg === prog 
+                                    ? 'bg-hw-green text-white border-hw-green' 
+                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                }`}
+                              >
+                                {prog}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Piagam Table */}
                     {(() => {
                       // Filter approved participants who are Lulus or Lulus Bersyarat
                       const graduates = trainingApps.filter(app => 
                         app.status === 'approved' && 
-                        app.pelatihanAkanDiikuti === selectedPiagamProg && 
+                        (isDiklatAdmin || app.pelatihanAkanDiikuti === selectedPiagamProg) && 
                         (app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat')
                       );
 

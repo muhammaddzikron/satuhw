@@ -107,11 +107,16 @@ const Navigation = () => {
   
   const canAccessAdmin = () => {
     if (!user) return false;
-    const adminRoles = ['admin', 'superadmin', 'sugli', 'kwarda'];
+    const adminRoles = ['admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat'];
     if (adminRoles.includes(user.role)) return true;
+    if ((user as any).adminType === 'diklat') return true;
     if (user.roles?.some(r => adminRoles.includes(r))) return true;
     return false;
   };
+
+  const isDiklatAdmin = Boolean(
+    user && ((user as any).adminType === 'diklat' || user.email === 'diklat' || user.email === 'diklat@hwjateng.com' || user.role === 'admin_diklat' || user.role === 'diklat')
+  );
 
   const isMemberView = !canAccessAdmin() || activeRole === 'umum';
 
@@ -120,51 +125,75 @@ const Navigation = () => {
       <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
         {isAuthenticated && !isMemberView ? (
           /* Admin/Staff view */
-          <>
-            <NavigationLink 
-              to="/" 
-              icon={HomeIcon} 
-              label="Home" 
-              active={location.pathname === '/'} 
-            />
-            <NavigationLink 
-              to="/admin?tab=anggota" 
-              icon={LayoutDashboard} 
-              label="Dasbor" 
-              active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
-            />
-            <NavigationLink 
-              to="/admin?tab=kta" 
-              icon={CreditCard} 
-              label="KTA" 
-              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kta'} 
-            />
-            <NavigationLink 
-              to="/admin?tab=pelatihan" 
-              icon={GraduationCap} 
-              label="Pelatihan" 
-              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'pelatihan'} 
-            />
-            <NavigationLink 
-              to="/admin?tab=kegiatan" 
-              icon={Calendar} 
-              label="Kegiatan" 
-              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kegiatan'} 
-            />
-            <NavigationLink 
-              to="/admin?tab=materi" 
-              icon={BookOpen} 
-              label="Materi" 
-              active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
-            />
-            <button 
-              onClick={logout}
-              className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-rose-200 hover:text-white transition-colors"
-            >
-              <LogOut size={20} />
-              <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
-            </button>
-          </>
+          isDiklatAdmin ? (
+            <>
+              <NavigationLink 
+                to="/" 
+                icon={HomeIcon} 
+                label="Home" 
+                active={location.pathname === '/'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=pelatihan" 
+                icon={GraduationCap} 
+                label="Pelatihan" 
+                active={location.pathname === '/admin'} 
+              />
+              <button 
+                onClick={logout}
+                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-rose-200 hover:text-white transition-colors cursor-pointer"
+              >
+                <LogOut size={20} />
+                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <NavigationLink 
+                to="/" 
+                icon={HomeIcon} 
+                label="Home" 
+                active={location.pathname === '/'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=anggota" 
+                icon={LayoutDashboard} 
+                label="Dasbor" 
+                active={location.pathname === '/admin' && (new URLSearchParams(location.search).get('tab') === 'anggota' || !new URLSearchParams(location.search).get('tab'))} 
+              />
+              <NavigationLink 
+                to="/admin?tab=kta" 
+                icon={CreditCard} 
+                label="KTA" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kta'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=pelatihan" 
+                icon={GraduationCap} 
+                label="Pelatihan" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'pelatihan'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=kegiatan" 
+                icon={Calendar} 
+                label="Kegiatan" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kegiatan'} 
+              />
+              <NavigationLink 
+                to="/admin?tab=materi" 
+                icon={BookOpen} 
+                label="Materi" 
+                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'materi'} 
+              />
+              <button 
+                onClick={logout}
+                className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-rose-200 hover:text-white transition-colors"
+              >
+                <LogOut size={20} />
+                <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
+              </button>
+            </>
+          )
         ) : (
           /* Standard view (Unauthenticated or Member/Participant) */
           <>

@@ -1631,6 +1631,10 @@ export const sheetsService = {
     return firestoreService.subscribeToActivityApplications(callback);
   },
 
+  subscribeToTrainingApplications(callback: (apps: any[]) => void): () => void {
+    return firestoreService.subscribeToTrainingApplications(callback);
+  },
+
   async getActivities(): Promise<any[]> {
     return await firestoreService.getActivities();
   },

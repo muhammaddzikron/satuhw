@@ -2054,7 +2054,36 @@ export const firestoreService = {
       list[idx].kehadiran = kehadiranStr;
       localStorage.setItem('training_applications', JSON.stringify(list));
     }
+    // Dispatch custom event for real-time local sync across tabs & components
+    window.dispatchEvent(new Event('training_applications_updated'));
     return list[idx];
+  },
+
+  subscribeToTrainingApplications(callback: (apps: any[]) => void): () => void {
+    this.getTrainingApplications().then(list => callback(list)).catch(() => {});
+
+    let unsub: (() => void) | null = null;
+    try {
+      unsub = onSnapshot(collection(db, 'training_applications'), async () => {
+        const list = await this.getTrainingApplications();
+        callback(list);
+      }, (err) => {
+        this.checkQuotaError(err);
+        console.warn('subscribeToTrainingApplications warning:', err);
+      });
+    } catch (e) {}
+
+    const handleStorage = (e: Event) => {
+      this.getTrainingApplications().then(list => callback(list)).catch(() => {});
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('training_applications_updated', handleStorage);
+
+    return () => {
+      if (unsub) unsub();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('training_applications_updated', handleStorage);
+    };
   },
 
   async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string): Promise<any> {
