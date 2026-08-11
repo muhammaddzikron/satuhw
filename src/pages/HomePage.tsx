@@ -195,11 +195,15 @@ export default function HomePage() {
   const [selectedTrainingForReg, setSelectedTrainingForReg] = useState<any | null>(null);
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
+  const [activityApps, setActivityApps] = useState<any[]>([]);
 
-  // Subscribe to real-time activities and settings so edited activities in Admin immediately update on HomePage
+  // Subscribe to real-time activities, activity applications, and settings so edited activities in Admin immediately update on HomePage
   useEffect(() => {
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       setActivitiesList(acts || []);
+    });
+    const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
+      setActivityApps(apps || []);
     });
     const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
       if (sData && sData.trainingActivities) {
@@ -213,6 +217,7 @@ export default function HomePage() {
     });
     return () => {
       unsubActivities();
+      unsubApps();
       unsubSettings();
     };
   }, []);
@@ -1023,12 +1028,20 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2.5">
-              {activitiesList.filter(a => a.isPublished !== false).slice(0, 2).map((act: any, idx: number) => {
+              {activitiesList.filter(a => a.isPublished !== false).slice(0, 3).map((act: any, idx: number) => {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';
                 const img = act.gambarUrl || act.imageUrl;
                 const cat = act.kategori || act.category || 'Silaturahmi';
+
+                const pCount = (activityApps || []).filter((app: any) => {
+                  if (!app) return false;
+                  if (app.activityId && act.id && app.activityId === act.id) return true;
+                  const appName = (app.namaKegiatan || '').trim().toLowerCase();
+                  const actName = (act.namaKegiatan || act.title || '').trim().toLowerCase();
+                  return appName && actName && (appName === actName || appName.includes(actName) || actName.includes(appName));
+                }).length;
 
                 return (
                   <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">
@@ -1083,6 +1096,16 @@ export default function HomePage() {
                         <Calendar size={12} className="text-teal-600 shrink-0" />
                         <span className="truncate">{date}</span>
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] font-extrabold bg-emerald-50/80 px-2.5 py-1.5 rounded-xl border border-emerald-100 text-emerald-800">
+                      <div className="flex items-center gap-1.5">
+                        <Users size={13} className="text-emerald-600" />
+                        <span>Jumlah Pendaftar Realtime:</span>
+                      </div>
+                      <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px]">
+                        {pCount} Orang
+                      </span>
                     </div>
 
                     <Link

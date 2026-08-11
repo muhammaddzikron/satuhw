@@ -2353,34 +2353,15 @@ export const firestoreService = {
               status: data.status || 'Buka'
             };
           });
+        } else {
+          // If Firestore collection is empty, initialize default activity in Firestore
+          defaults.forEach(a => {
+            setDoc(doc(db, 'hw_activities', a.id), a, { merge: true }).catch(() => {});
+          });
+          fsActs = defaults;
         }
 
-        let localActs: any[] = [];
-        try {
-          if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-            const stored = localStorage.getItem('hw_activities') || '[]';
-            localActs = JSON.parse(stored);
-          }
-        } catch (e) {}
-
         const map = new Map<string, any>();
-
-        defaults.forEach(a => {
-          if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
-            if (snap.empty && localActs.length === 0) {
-              map.set(a.id, a);
-            } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
-              map.set(a.id, a);
-            }
-          }
-        });
-
-        localActs.forEach(a => {
-          if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
-            const prev = map.get(a.id) || {};
-            map.set(a.id, { ...prev, ...a });
-          }
-        });
 
         fsActs.forEach(a => {
           if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
@@ -2628,16 +2609,15 @@ export const firestoreService = {
         let fsApps: any[] = [];
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } else {
+          // If collection is empty, seed default initial applications to Firestore
+          defaultApps.forEach(a => {
+            setDoc(doc(db, 'activity_applications', a.id), a, { merge: true }).catch(() => {});
+          });
+          fsApps = defaultApps;
         }
 
-        let localApps: any[] = [];
-        try {
-          const stored = localStorage.getItem('activity_applications') || '[]';
-          localApps = JSON.parse(stored);
-        } catch (e) {}
-
-        const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
-        const list = this.deduplicateActivityApps(mergedRaw);
+        const list = this.deduplicateActivityApps(fsApps);
 
         try {
           localStorage.setItem('activity_applications', JSON.stringify(list));
@@ -3157,18 +3137,17 @@ export const firestoreService = {
   async getActivityApplications(): Promise<any[]> {
     const defaultApps = this.getDefaultActivityApplications();
 
-    let localApps: any[] = [];
-    try {
-      const stored = localStorage.getItem('activity_applications') || '[]';
-      localApps = JSON.parse(stored);
-    } catch (e) {}
-
     let fsApps: any[] = [];
     if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await getDocs(collection(db, 'activity_applications'));
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const list = this.deduplicateActivityApps(fsApps);
+          try {
+            localStorage.setItem('activity_applications', JSON.stringify(list));
+          } catch (e) {}
+          return list;
         }
       } catch (err: any) {
         this.checkQuotaError(err);
@@ -3176,7 +3155,13 @@ export const firestoreService = {
       }
     }
 
-    const mergedRaw = [...defaultApps, ...localApps, ...fsApps];
+    let localApps: any[] = [];
+    try {
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      localApps = JSON.parse(stored);
+    } catch (e) {}
+
+    const mergedRaw = [...defaultApps, ...localApps];
     const list = this.deduplicateActivityApps(mergedRaw);
 
     localStorage.setItem('activity_applications', JSON.stringify(list));
