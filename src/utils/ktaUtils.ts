@@ -221,7 +221,33 @@ export function compareKtaNumbers(a: any, b: any): number {
     return detailA.seq - detailB.seq;
   }
 
-  return (a?.nama || '').localeCompare(b?.nama || '');
+  return (a?.nama || a?.namaLengkap || '').localeCompare(b?.nama || b?.namaLengkap || '');
+}
+
+/**
+ * Comparator function to sort KTA items strictly by sequence number (nomor urut: 1, 2, 3...) ascending.
+ * 1. Assigned KTA items before unassigned items
+ * 2. Sequence number numerical order (1, 2, 3...)
+ * 3. Kwarda code numerical order (01, 02, ..., 58)
+ * 4. Name alphabetical order
+ */
+export function compareByKtaSequence(a: any, b: any): number {
+  const detailA = parseKtaDetails(a);
+  const detailB = parseKtaDetails(b);
+
+  if (detailA.hasKta !== detailB.hasKta) {
+    return detailA.hasKta ? -1 : 1;
+  }
+
+  if (detailA.seq !== detailB.seq) {
+    return detailA.seq - detailB.seq;
+  }
+
+  if (detailA.kwardaCode !== detailB.kwardaCode) {
+    return detailA.kwardaCode - detailB.kwardaCode;
+  }
+
+  return (a?.nama || a?.namaLengkap || '').localeCompare(b?.nama || b?.namaLengkap || '');
 }
 
 /**

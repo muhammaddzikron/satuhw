@@ -183,7 +183,7 @@ import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, resequenceKtaNumbers } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
 export { KWARDA_QABILAH_JATENG };
 
@@ -574,7 +574,8 @@ export default function AdminDashboard() {
 
   // Filtered and Sorted KTA Applications
   const filteredKtaApps = React.useMemo(() => {
-    return (ktaApps || [])
+    const appsWithNumbers = ensureUniqueKtaNumbers([...(ktaApps || [])]);
+    return appsWithNumbers
       .filter(app => {
         const query = ktaSearchQuery.toLowerCase().trim();
         const matchSearch = !query ||
@@ -596,13 +597,15 @@ export default function AdminDashboard() {
         return matchSearch && matchStatus && matchKwarda;
       })
       .sort((a, b) => {
-        if (ktaSortBy === 'kwarda' || ktaSortBy === 'ktaNumber') {
+        if (ktaSortBy === 'kwarda') {
           return compareKtaNumbers(a, b);
+        } else if (ktaSortBy === 'ktaNumber') {
+          return compareByKtaSequence(a, b);
         } else if (ktaSortBy === 'nama') {
-          return (a.nama || '').localeCompare(b.nama || '');
+          return (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '');
         } else if (ktaSortBy === 'tanggal') {
-          const dateA = new Date(a.tanggalAjuan || 0).getTime();
-          const dateB = new Date(b.tanggalAjuan || 0).getTime();
+          const dateA = new Date(a.tanggalAjuan || a.createdAt || 0).getTime();
+          const dateB = new Date(b.tanggalAjuan || b.createdAt || 0).getTime();
           return dateB - dateA;
         } else if (ktaSortBy === 'status') {
           return (a.status || '').localeCompare(b.status || '');
@@ -1852,8 +1855,8 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      if (cachedMembers) setMembers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama)));
-      if (cachedKtas) setKtaApps(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)));
+      if (cachedMembers) setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama))));
+      if (cachedKtas) setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap))));
       if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t)));
       if (cachedMateri) setMateriList(safeJsonParse(cachedMateri, []));
       if (cachedContents) setContents(safeJsonParse(cachedContents, []));
@@ -1888,9 +1891,9 @@ export default function AdminDashboard() {
       };
 
       setMateriList(materi || []);
-      setMembers((membersData || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama)));
+      setMembers(ensureUniqueKtaNumbers((membersData || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama))));
       setContents(contentsData || []);
-      setKtaApps((ktaData || []).filter(k => isValidName(k?.nama || k?.namaLengkap)));
+      setKtaApps(ensureUniqueKtaNumbers((ktaData || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
       setTrainingApps((trainingData || []).filter(t => isValidTrainingApp(t)));
       setActivitiesList(activitiesData || []);
       setActivityApplicationsList(actRegData || []);
@@ -9964,7 +9967,7 @@ export default function AdminDashboard() {
                            (app.ktaNumber || '').toLowerCase().includes(q) ||
                            (app.email || '').toLowerCase().includes(q) ||
                            (app.qabilah || '').toLowerCase().includes(q);
-                  }).sort((a,b) => compareKtaNumbers(a, b));
+                  }).sort((a,b) => compareByKtaSequence(a, b));
 
                   const approvedCount = kwardaApps.filter(a => a.status === 'approved').length;
                   const pendingCount = kwardaApps.filter(a => a.status === 'pending').length;
