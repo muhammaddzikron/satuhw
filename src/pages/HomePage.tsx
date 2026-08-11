@@ -924,29 +924,7 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-2.5 px-1">
-          {/* 1. Banner Kegiatan HW Jateng */}
-          <Link 
-            to="/kegiatan" 
-            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
-                <Calendar size={18} />
-              </div>
-              <div className="text-left space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
-                  <span className="bg-white text-teal-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
-                    Terbaru
-                  </span>
-                </div>
-                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
-          </Link>
-
-          {/* 2. Banner Pelatihan HW Jateng */}
+          {/* 1. Banner Pelatihan HW Jateng */}
           <button 
             onClick={() => setShowTrainingModal(true)}
             className="w-full text-left flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
@@ -972,7 +950,7 @@ export default function HomePage() {
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </button>
 
-          {/* 3. Banner KTA Digital HW Jateng */}
+          {/* 2. Banner KTA Digital HW Jateng */}
           <Link 
             to={isAuthenticated ? "/kta" : "/register"} 
             className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
@@ -989,7 +967,7 @@ export default function HomePage() {
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
 
-          {/* 4. Banner Pelatih Nasional HW Jateng */}
+          {/* 3. Banner Pelatih Nasional HW Jateng */}
           <Link 
             to="/pelatih-nasional" 
             className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
@@ -1010,6 +988,28 @@ export default function HomePage() {
                 <p className="text-[9px] text-emerald-100 font-bold leading-none">
                   Data Pelatih Kategori Jaya Matahari 1 & 2
                 </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
+          </Link>
+
+          {/* 4. Banner Kegiatan HW Jateng */}
+          <Link 
+            to="/kegiatan" 
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-teal-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <Calendar size={18} />
+              </div>
+              <div className="text-left space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kegiatan HW Jateng</h4>
+                  <span className="bg-white text-teal-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                    Terbaru
+                  </span>
+                </div>
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
               </div>
             </div>
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />
