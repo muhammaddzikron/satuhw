@@ -3,9 +3,9 @@ export const formatAudioUrl = (url?: string): string => {
   let trimmed = String(url).trim();
   if (!trimmed) return '';
 
-  // Fix Pixabay CDN URLs that give 403 Forbidden
-  if (trimmed.includes('pixabay.com')) {
-    return 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3';
+  // Fix Pixabay CDN URLs or broken GitHub raw sample URLs that give 403 or 404
+  if (trimmed.includes('pixabay.com') || trimmed.includes('rafaelreis-hotmart')) {
+    return 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
   }
 
   // Handle Google Drive links

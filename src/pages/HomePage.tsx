@@ -383,7 +383,7 @@ export default function HomePage() {
       audioRef.current.src = streamUrl;
       audioRef.current.load(); // Force re-load
       audioRef.current.play().catch(err => {
-        console.error('Play error:', err);
+        console.warn('Play warning:', err);
         setIsPlaying(false);
       });
     }
@@ -1245,7 +1245,6 @@ export default function HomePage() {
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onError={() => {
-          console.error('Audio element failed to load source');
           setIsPlaying(false);
         }}
       />

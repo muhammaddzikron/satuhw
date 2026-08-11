@@ -2288,7 +2288,7 @@ export const firestoreService = {
         description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        themeSongUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+        themeSongUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         proposalUrl: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
         proposal: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
@@ -2325,7 +2325,7 @@ export const firestoreService = {
             const actDesc = data.deskripsi || data.description || '';
             const actLoc = data.lokasi || data.location || '';
             const actDate = data.tanggal || data.startDate || '';
-            const actImg = data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+            const actImg = data.gambarUrl || data.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
             const actCat = data.kategori || data.category || 'Silaturahmi';
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
@@ -2370,6 +2370,13 @@ export const firestoreService = {
 
         const map = new Map<string, any>();
 
+        // Always put defaults into map first as baseline
+        defaults.forEach(a => {
+          if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
+            map.set(a.id, a);
+          }
+        });
+
         fsActs.forEach(a => {
           if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
             const prev = map.get(a.id) || {};
@@ -2377,6 +2384,13 @@ export const firestoreService = {
             const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
             const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
             const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
+            const finalImg = a.gambarUrl || a.imageUrl || prev.gambarUrl || prev.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
+            const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
+            const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
+            const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
+            const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || '';
+            const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '';
+
             map.set(a.id, {
               ...merged,
               namaKegiatan: finalTitle,
@@ -2386,7 +2400,18 @@ export const firestoreService = {
               lokasiPelatihan: finalLoc,
               tanggal: finalDate,
               startDate: finalDate,
-              tanggalPelatihan: finalDate
+              tanggalPelatihan: finalDate,
+              gambarUrl: finalImg,
+              imageUrl: finalImg,
+              themeSongUrl: finalSongUrl,
+              themeSongTitle: finalSongTitle,
+              proposalUrl: finalProposal,
+              proposal: finalProposal,
+              linkProposal: finalProposal,
+              rekeningPembayaran: finalRekening,
+              rekeningPembiayaan: finalRekening,
+              konfirmasiPembayaran: finalKonfirmasi,
+              noWhatsappPanitia: finalKonfirmasi
             });
           }
         });
@@ -2616,15 +2641,17 @@ export const firestoreService = {
         let fsApps: any[] = [];
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        } else {
-          // If collection is empty, seed default initial applications to Firestore
-          defaultApps.forEach(a => {
-            setDoc(doc(db, 'activity_applications', a.id), a, { merge: true }).catch(() => {});
-          });
-          fsApps = defaultApps;
         }
 
-        const list = this.deduplicateActivityApps(fsApps);
+        // Seed any missing default applications to Firestore so Firestore is complete
+        defaultApps.forEach(a => {
+          if (!fsApps.some(f => f.id === a.id)) {
+            setDoc(doc(db, 'activity_applications', a.id), a, { merge: true }).catch(() => {});
+          }
+        });
+
+        const mergedRaw = [...defaultApps, ...fsApps, ...initialLocal];
+        const list = this.deduplicateActivityApps(mergedRaw);
 
         try {
           localStorage.setItem('activity_applications', JSON.stringify(list));
@@ -2691,7 +2718,7 @@ export const firestoreService = {
         description: 'Pertemuan silaturahmi Pelatih Nasional HW Jateng, Pandu Senior, dan Alumni Jaya Melati 2 se-Jawa Tengah di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
         gambarUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
         imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800',
-        themeSongUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+        themeSongUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
         proposalUrl: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
         proposal: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
@@ -2771,13 +2798,10 @@ export const firestoreService = {
     }
 
     const map = new Map<string, any>();
+    // Always populate defaults into map baseline
     defaults.forEach(a => {
       if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
-        if (fsActs.length === 0 && localActs.length === 0) {
-          map.set(a.id, a);
-        } else if (fsActs.some(f => f.id === a.id) || localActs.some(l => l.id === a.id)) {
-          map.set(a.id, a);
-        }
+        map.set(a.id, a);
       }
     });
 
@@ -2795,6 +2819,13 @@ export const firestoreService = {
         const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
         const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
         const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
+        const finalImg = a.gambarUrl || a.imageUrl || prev.gambarUrl || prev.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
+        const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
+        const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
+        const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
+        const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || '';
+        const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '';
+
         map.set(a.id, {
           ...merged,
           namaKegiatan: finalTitle,
@@ -2804,7 +2835,18 @@ export const firestoreService = {
           lokasiPelatihan: finalLoc,
           tanggal: finalDate,
           startDate: finalDate,
-          tanggalPelatihan: finalDate
+          tanggalPelatihan: finalDate,
+          gambarUrl: finalImg,
+          imageUrl: finalImg,
+          themeSongUrl: finalSongUrl,
+          themeSongTitle: finalSongTitle,
+          proposalUrl: finalProposal,
+          proposal: finalProposal,
+          linkProposal: finalProposal,
+          rekeningPembayaran: finalRekening,
+          rekeningPembiayaan: finalRekening,
+          konfirmasiPembayaran: finalKonfirmasi,
+          noWhatsappPanitia: finalKonfirmasi
         });
       }
     });
@@ -3157,11 +3199,6 @@ export const firestoreService = {
         const snap = await getDocs(collection(db, 'activity_applications'));
         if (!snap.empty) {
           fsApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          const list = this.deduplicateActivityApps(fsApps);
-          try {
-            localStorage.setItem('activity_applications', JSON.stringify(list));
-          } catch (e) {}
-          return list;
         }
       } catch (err: any) {
         this.checkQuotaError(err);
@@ -3175,10 +3212,13 @@ export const firestoreService = {
       localApps = JSON.parse(stored);
     } catch (e) {}
 
-    const mergedRaw = [...defaultApps, ...localApps];
+    const mergedRaw = [...defaultApps, ...fsApps, ...localApps];
     const list = this.deduplicateActivityApps(mergedRaw);
 
-    localStorage.setItem('activity_applications', JSON.stringify(list));
+    try {
+      localStorage.setItem('activity_applications', JSON.stringify(list));
+    } catch (e) {}
+
     return list;
   },
 
