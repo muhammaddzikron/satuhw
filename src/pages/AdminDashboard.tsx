@@ -11704,15 +11704,29 @@ export default function AdminDashboard() {
                           if (!m) return false;
                           const roleStr = (m.role || '').toLowerCase();
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                          const emailStr = (m.email || '').toLowerCase();
+                          
+                          // Sembunyikan akun Super Admin
+                          if (roleStr === 'superadmin' || rolesArr.includes('superadmin') || emailStr.includes('superadmin')) {
+                            return false;
+                          }
+
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
-                          return roleStr.includes('jari') || roleStr.includes('matahari') || roleStr.includes('superadmin') || roleStr.includes('admin') || roleStr.includes('pelatih') ||
-                            rolesArr.some(r => r.includes('jari') || r.includes('matahari') || r.includes('superadmin') || r.includes('admin') || r.includes('pelatih')) ||
-                            pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') || pel.includes('pelatih') ||
-                            tingk.includes('matahari') || tingk.includes('jari') || tingk.includes('pelatih');
+                          return roleStr.includes('jari') || roleStr.includes('matahari') ||
+                            rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
+                            pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') ||
+                            tingk.includes('matahari') || tingk.includes('jari');
                         });
 
-                        const listToDisplay = eligible.length > 0 ? eligible : (members || []);
+                        const listToDisplay = eligible.length > 0 
+                          ? eligible 
+                          : (members || []).filter((m: any) => {
+                              const roleStr = (m.role || '').toLowerCase();
+                              const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                              const emailStr = (m.email || '').toLowerCase();
+                              return !(roleStr === 'superadmin' || rolesArr.includes('superadmin') || emailStr.includes('superadmin'));
+                            });
 
                         return listToDisplay.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
@@ -11800,21 +11814,43 @@ export default function AdminDashboard() {
                       }}
                       className="flex-1 bg-white border border-blue-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
                     >
-                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Jaya Melati 2 / Matahari) --</option>
+                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Min. Jaya Melati 2) --</option>
                       {(() => {
                         const eligible = (members || []).filter((m: any) => {
                           if (!m) return false;
                           const roleStr = (m.role || '').toLowerCase();
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                          const emailStr = (m.email || '').toLowerCase();
+
+                          // 1. Sembunyikan akun Super Admin / Admin
+                          const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin');
+                          if (isAdminOrSuper) return false;
+
+                          // 2. Sembunyikan yang mempunyai role akses Jaya Matahari 1 dan 2
+                          const isMatahari = roleStr.includes('jari') || roleStr.includes('matahari') ||
+                            rolesArr.some(r => r.includes('jari') || r.includes('matahari'));
+                          if (isMatahari) return false;
+
+                          // 3. Minimal mempunyai role akses Jaya Melati 2
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
-                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('jari') || roleStr.includes('matahari') || roleStr.includes('superadmin') || roleStr.includes('admin') || roleStr.includes('pelatih') ||
-                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('jari') || r.includes('matahari') || r.includes('superadmin') || r.includes('admin') || r.includes('pelatih')) ||
-                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') || pel.includes('pelatih') ||
-                            tingk.includes('melati 2') || tingk.includes('matahari') || tingk.includes('jari') || tingk.includes('pelatih');
+
+                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('melati2') ||
+                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('melati2')) ||
+                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('melati2') ||
+                            tingk.includes('melati 2') || tingk.includes('melati2');
                         });
 
-                        const listToDisplay = eligible.length > 0 ? eligible : (members || []);
+                        const listToDisplay = eligible.length > 0 
+                          ? eligible 
+                          : (members || []).filter((m: any) => {
+                              const roleStr = (m.role || '').toLowerCase();
+                              const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                              const emailStr = (m.email || '').toLowerCase();
+                              const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin');
+                              const isMatahari = roleStr.includes('jari') || roleStr.includes('matahari') || rolesArr.some(r => r.includes('jari') || r.includes('matahari'));
+                              return !isAdminOrSuper && !isMatahari;
+                            });
 
                         return listToDisplay.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
