@@ -64,6 +64,21 @@ export default function ProfilePage() {
   const [message, setMessage] = React.useState<{type: 'success' | 'error', text: string} | null>(null);
   const [ktaApp, setKtaApp] = React.useState<any | null>(null);
   const [loadingKta, setLoadingKta] = React.useState(false);
+  const [trainingActivities, setTrainingActivities] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await sheetsService.getSettings();
+        if (settings && settings.trainingActivities) {
+          setTrainingActivities(settings.trainingActivities);
+        }
+      } catch (e) {
+        console.error('Error loading training activities in ProfilePage:', e);
+      }
+    };
+    loadSettings();
+  }, []);
   
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -874,6 +889,104 @@ export default function ProfilePage() {
         </div>
       ) : (
         <>
+          {/* Pengelolaan Pelatihan Ditugaskan Card (For Jaya Matahari or Assigned Trainers) */}
+          {(() => {
+            const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : ['umum']);
+            const isJayaMatahari = userRoles.some(r => ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase()));
+            const userEmail = (user?.email || '').toLowerCase().trim();
+            const userName = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
+
+            const assignedActs = (trainingActivities || []).filter((act: any) => {
+              const pelatihList = Array.isArray(act.pelatih) 
+                ? act.pelatih 
+                : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
+              const asistenList = Array.isArray(act.asistenPelatih) 
+                ? act.asistenPelatih 
+                : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
+              const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+              return allTrainers.some(t => t && ((userName && t.includes(userName)) || (userName && userName.includes(t)) || (userEmail && t.includes(userEmail))));
+            });
+
+            const showTrainerCard = isJayaMatahari || assignedActs.length > 0;
+
+            if (!showTrainerCard) return null;
+
+            return (
+              <div className="bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white rounded-[2rem] p-5 shadow-xl shadow-orange-500/20 border border-amber-300/40 relative overflow-hidden space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-100 font-black text-2xl shadow-inner shrink-0">
+                      🎓
+                    </div>
+                    <div>
+                      <span className="px-2.5 py-0.5 bg-amber-300 text-amber-950 font-black text-[9px] uppercase tracking-wider rounded-md shadow-xs">
+                        Pelatih / Jaya Matahari
+                      </span>
+                      <h3 className="text-sm font-black tracking-tight font-display mt-0.5 leading-tight">
+                        Pengelolaan Pelatihan Ditugaskan
+                      </h3>
+                    </div>
+                  </div>
+                  <Link 
+                    to="/admin?tab=pelatihan"
+                    className="px-3.5 py-2 bg-white text-amber-900 rounded-xl text-xs font-black hover:bg-amber-50 transition-all shadow-md active:scale-95 flex items-center gap-1 shrink-0"
+                  >
+                    Buka Kelola <ChevronRight size={14} />
+                  </Link>
+                </div>
+
+                <p className="text-xs text-amber-100 font-medium leading-relaxed">
+                  Sebagai Pelatih/Asisten Pelatih, Anda memiliki akses untuk mengelola peserta, presensi sesi, penugasan, penilaian, dan kelulusan pelatihan yang ditugaskan kepada Anda.
+                </p>
+
+                {assignedActs.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-white/20">
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-200">Kegiatan Ditugaskan:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {assignedActs.map((act: any, idx: number) => (
+                        <span key={idx} className="px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-xl text-[11px] font-bold border border-white/20 text-white flex items-center gap-1">
+                          📍 {act.namaKegiatan || act.jenisPelatihan}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Access Menu Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <Link 
+                    to="/admin?tab=pelatihan" 
+                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-xs border border-white/15 flex flex-col items-center text-center transition-all group"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">👥</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider mt-1 text-amber-100">1. Data Peserta</span>
+                  </Link>
+                  <Link 
+                    to="/admin?tab=pelatihan" 
+                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-xs border border-white/15 flex flex-col items-center text-center transition-all group"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">📝</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider mt-1 text-amber-100">2. Presensi Sesi</span>
+                  </Link>
+                  <Link 
+                    to="/admin?tab=pelatihan" 
+                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-xs border border-white/15 flex flex-col items-center text-center transition-all group"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">📑</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider mt-1 text-amber-100">3. Penugasan</span>
+                  </Link>
+                  <Link 
+                    to="/admin?tab=pelatihan" 
+                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-xs border border-white/15 flex flex-col items-center text-center transition-all group"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">⭐</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider mt-1 text-amber-100">4. Penilaian</span>
+                  </Link>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Stats/Quick Info Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-1">

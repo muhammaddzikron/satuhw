@@ -107,10 +107,27 @@ const Navigation = () => {
   
   const canAccessAdmin = () => {
     if (!user) return false;
-    const adminRoles = ['admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat'];
-    if (adminRoles.includes(user.role)) return true;
+    const adminRoles = ['admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat', 'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'];
+    const roles = Array.isArray(user.roles) ? user.roles : [user.role || 'umum'];
+    if (roles.some(r => adminRoles.includes(r))) return true;
     if ((user as any).adminType === 'diklat') return true;
-    if (user.roles?.some(r => adminRoles.includes(r))) return true;
+
+    try {
+      const rawSettings = localStorage.getItem('hw_settings');
+      if (rawSettings) {
+        const settings = JSON.parse(rawSettings);
+        const acts = settings?.trainingActivities || [];
+        const userEmail = (user.email || '').toLowerCase().trim();
+        const userName = (user.namaLengkap || user.nama || (user as any)?.name || '').toLowerCase().trim();
+        return (acts || []).some((act: any) => {
+          const pelatihList = Array.isArray(act.pelatih) ? act.pelatih : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
+          const asistenList = Array.isArray(act.asistenPelatih) ? act.asistenPelatih : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
+          const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+          return allTrainers.some(t => t && ((userName && t.includes(userName)) || (userName && userName.includes(t)) || (userEmail && t.includes(userEmail))));
+        });
+      }
+    } catch (e) {}
+
     return false;
   };
 

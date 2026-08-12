@@ -350,8 +350,56 @@ export default function AdminDashboard() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const isDiklatAdmin = (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com' || user?.role === 'admin_diklat';
+
+  const [settings, setSettings] = useState({
+    appName: '',
+    orgName: '',
+    waConfirmation: '628',
+    gSheetApiUrl: typeof window !== 'undefined' ? (localStorage.getItem('VITE_GSHEET_API_URL') || import.meta.env.VITE_GSHEET_API_URL || '') : '',
+    lastBackup: '-',
+    ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+    ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+    ktaKetuaNama: 'TAUFIQ',
+    ktaKetuaNbm: 'NBM 1015096',
+    ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+    ktaSekretarisNbm: 'NBM 1029863',
+    ktaKotaPenerbit: 'Semarang',
+    ktaTandaTanganKetua: '',
+    ktaTandaTanganSekretaris: '',
+    ktaStempelImage: '',
+    trainingTypes: ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'] as string[],
+    trainingActivities: [] as any[],
+    trainingLocations: [] as string[],
+    trainingDates: [] as string[],
+    upgradeFees: [
+      { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
+      { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
+      { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
+      { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
+      { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
+    ],
+    assignedTasks: [] as any[]
+  });
+
+  const userRolesList = Array.isArray(user?.roles) ? user.roles : [user?.role || 'umum'];
+  const isJayaMatahariRole = userRolesList.some((r: any) => ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase()));
+  
+  const rawActsList = settings?.trainingActivities || [];
+  const userEmailStr = (user?.email || '').toLowerCase().trim();
+  const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
+  
+  const isAssignedTrainerInAnyActivity = (Array.isArray(rawActsList) ? rawActsList : []).some((act: any) => {
+    const pelatihList = Array.isArray(act.pelatih) ? act.pelatih : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
+    const asistenList = Array.isArray(act.asistenPelatih) ? act.asistenPelatih : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
+    const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+    return allTrainers.some((t: string) => t && ((userNameStr && t.includes(userNameStr)) || (userNameStr && userNameStr.includes(t)) || (userEmailStr && t.includes(userEmailStr))));
+  });
+
+  const isPelatihUser = isJayaMatahariRole || isAssignedTrainerInAnyActivity;
+  const isPelatihOnly = isPelatihUser && user?.role !== 'superadmin' && user?.role !== 'admin' && !isDiklatAdmin;
+
   const [activeTab, setActiveTabState] = useState(() => {
-    if (isDiklatAdmin) return 'pelatihan';
+    if (isDiklatAdmin || isPelatihOnly) return 'pelatihan';
     return searchParams.get('tab') || 'anggota';
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -362,7 +410,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (isDiklatAdmin && activeTab !== 'pelatihan' && activeTab !== 'akun') {
+    if ((isDiklatAdmin || isPelatihOnly) && activeTab !== 'pelatihan' && activeTab !== 'akun') {
       setActiveTabState('pelatihan');
       return;
     }
@@ -370,7 +418,7 @@ export default function AdminDashboard() {
     if (tab && tab !== activeTab) {
       setActiveTabState(tab);
     }
-  }, [searchParams, isDiklatAdmin]);
+  }, [searchParams, isDiklatAdmin, isPelatihOnly]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['Semua']);
   const [loading, setLoading] = useState(false);
   
@@ -468,35 +516,6 @@ export default function AdminDashboard() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
   
-  const [settings, setSettings] = useState({
-    appName: '',
-    orgName: '',
-    waConfirmation: '628',
-    gSheetApiUrl: typeof window !== 'undefined' ? (localStorage.getItem('VITE_GSHEET_API_URL') || import.meta.env.VITE_GSHEET_API_URL || '') : '',
-    lastBackup: '-',
-    ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-    ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
-    ktaKetuaNama: 'TAUFIQ',
-    ktaKetuaNbm: 'NBM 1015096',
-    ktaSekretarisNama: 'MUHAMMAD DZIKRON',
-    ktaSekretarisNbm: 'NBM 1029863',
-    ktaKotaPenerbit: 'Semarang',
-    ktaTandaTanganKetua: '',
-    ktaTandaTanganSekretaris: '',
-    ktaStempelImage: '',
-    trainingTypes: ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'] as string[],
-    trainingActivities: [] as any[],
-    trainingLocations: [] as string[],
-    trainingDates: [] as string[],
-    upgradeFees: [
-      { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-      { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-      { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-      { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-      { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-    ],
-    assignedTasks: [] as any[]
-  });
   const ktaFrontBg = settings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
   const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -3556,7 +3575,7 @@ export default function AdminDashboard() {
   const totalNotifications = (isDiklatAdmin ? 0 : (membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length)) + pendingTrainingApps.length + submittedTaskApps.length;
 
     // Simple RBAC check
-  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType)) {
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType && !isPelatihUser)) {
     return <Navigate to="/" />;
   }
 
@@ -3572,11 +3591,11 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h2 className="text-xl font-display font-black text-gray-800 tracking-tight">
-              {isDiklatAdmin ? 'Dashboard Admin Diklat' : 'Dashboard Admin'}
+              {isPelatihOnly ? 'Dashboard Pengelolaan Pelatihan' : (isDiklatAdmin ? 'Dashboard Admin Diklat' : 'Dashboard Admin')}
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[9px] font-black uppercase rounded-lg tracking-wider">
-                {isDiklatAdmin ? 'Admin Diklat' : user?.role}
+                {isPelatihOnly ? 'Pelatih / Jaya Matahari' : (isDiklatAdmin ? 'Admin Diklat' : user?.role)}
               </span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
@@ -3589,7 +3608,7 @@ export default function AdminDashboard() {
           {totalNotifications > 0 && (
             <button 
               onClick={() => {
-                if (isDiklatAdmin) {
+                if (isDiklatAdmin || isPelatihOnly) {
                   if (pendingTrainingApps.length > 0) setNotifActiveTab('pelatihan');
                   else setNotifActiveTab('tugas');
                 } else {
@@ -3629,14 +3648,14 @@ export default function AdminDashboard() {
       <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
         <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 max-w-6xl mx-auto">
           {[
-            !isDiklatAdmin && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-            !isDiklatAdmin && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
             { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
-            !isDiklatAdmin && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
-            !isDiklatAdmin && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
-            !isDiklatAdmin && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
-            !isDiklatAdmin && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
-            !isDiklatAdmin && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
+            (!isDiklatAdmin && !isPelatihOnly) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
+            (!isDiklatAdmin && !isPelatihOnly) && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
             { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
           ].filter(Boolean).map((tab: any) => (
             <button
