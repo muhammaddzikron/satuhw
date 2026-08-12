@@ -2221,7 +2221,7 @@ export const firestoreService = {
           const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
           const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
           if (Array.isArray(settings.trainingActivities)) {
-            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
+            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
           }
           localStorage.setItem('hw_settings', JSON.stringify(settings));
           return settings;
@@ -2238,7 +2238,7 @@ export const firestoreService = {
         const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
         const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
         if (Array.isArray(parsed.trainingActivities)) {
-          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
+          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
         }
         return parsed;
       } catch (e) {}
