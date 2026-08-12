@@ -24,7 +24,7 @@ import { sheetsService } from '../services/sheetsService';
 import { ActivationModal } from '../components/ActivationModal';
 import { Materi } from '../types';
 import LoadingPage from './LoadingPage';
-import { safeJsonParse } from '../lib/utils';
+import { safeJsonParse, getCorsSafeUrl } from '../lib/utils';
 
 const ROLE_DISPLAY: Record<string, string> = {
   umum: 'Umum',
@@ -460,7 +460,7 @@ export default function MateriPage() {
             >
               <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
                 <img 
-                  src={item.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
+                  src={getCorsSafeUrl(item.coverImage, item.updatedAt || item.id) || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
                   alt={item.judul} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                 />
@@ -633,7 +633,7 @@ export default function MateriPage() {
               {selectedMateri.coverImage && (
                 <div className="rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 max-h-56">
                   <img 
-                    src={selectedMateri.coverImage} 
+                    src={getCorsSafeUrl(selectedMateri.coverImage, selectedMateri.updatedAt || selectedMateri.id)} 
                     alt={selectedMateri.judul} 
                     className="w-full h-full object-cover" 
                   />

@@ -3398,7 +3398,7 @@ export default function AdminDashboard() {
               .map((m, i) => (
               <div key={`materi-card-${m.id}-${m.kategori}-${i}`} className="bg-gray-50/50 p-4 rounded-3xl border border-gray-100 flex items-center gap-4 group hover:bg-white hover:shadow-xl hover:shadow-hw-dark/5 transition-all">
                 <div className="w-16 h-16 rounded-2xl bg-gray-200 overflow-hidden shrink-0">
-                  <img src={m.coverImage} alt={m.judul} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <img src={getCorsSafeUrl(m.coverImage, m.updatedAt || m.id)} alt={m.judul} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -6651,7 +6651,7 @@ export default function AdminDashboard() {
                         <div key={act.id} className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                           <div>
                             <div className="relative h-40 bg-gray-100 overflow-hidden">
-                              <img src={act.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} alt={act.namaKegiatan} className="w-full h-full object-cover" />
+                              <img src={getCorsSafeUrl(act.gambarUrl, act.updatedAt || act.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} alt={act.namaKegiatan} className="w-full h-full object-cover" />
                               <div className="absolute top-3 left-3 bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
                                 {act.kategori}
                               </div>

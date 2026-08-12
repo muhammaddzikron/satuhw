@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
+import { getCorsSafeUrl } from '../lib/utils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -485,7 +486,7 @@ export default function KegiatanPage() {
             >
               <div className="w-full h-48 sm:h-56 relative bg-gray-100 shrink-0 overflow-hidden">
                 <img 
-                  src={activity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
+                  src={getCorsSafeUrl(activity.gambarUrl, activity.updatedAt || activity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={activity.namaKegiatan} 
                   className="w-full h-full object-cover"
                 />
@@ -615,7 +616,7 @@ export default function KegiatanPage() {
             >
               <div className="relative h-48 bg-gray-900 shrink-0">
                 <img 
-                  src={selectedActivity.gambarUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
+                  src={getCorsSafeUrl(selectedActivity.gambarUrl, selectedActivity.updatedAt || selectedActivity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={selectedActivity.namaKegiatan} 
                   className="w-full h-full object-cover opacity-80"
                 />

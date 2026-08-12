@@ -1,4 +1,4 @@
-export const formatAudioUrl = (url?: string): string => {
+export const formatAudioUrl = (url?: string, version?: string | number): string => {
   if (!url) return '';
   let trimmed = String(url).trim();
   if (!trimmed) return '';
@@ -14,13 +14,13 @@ export const formatAudioUrl = (url?: string): string => {
                   trimmed.match(/id=([a-zA-Z0-9_-]+)/) ||
                   trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      trimmed = `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
 
   // Handle Dropbox links
   if (trimmed.includes('dropbox.com')) {
-    return trimmed.replace('dl=0', 'raw=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    trimmed = trimmed.replace('dl=0', 'raw=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
   }
 
   // Handle data URLs or base64 strings
@@ -34,6 +34,11 @@ export const formatAudioUrl = (url?: string): string => {
   // If raw base64 string without data: prefix
   if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('blob:') && trimmed.length > 50) {
     return `data:audio/mp3;base64,${trimmed}`;
+  }
+
+  if (version && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+    const sep = trimmed.includes('?') ? '&' : '?';
+    return `${trimmed}${sep}_v=${version}`;
   }
 
   return trimmed;

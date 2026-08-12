@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatAudioUrl } from '../utils/audioUtils';
 
 // Function to convert Drive Link to Direct Stream Link if possible
 // Note: Drive direct links are tricky, usually: https://drive.google.com/uc?export=download&id=FILE_ID
@@ -79,7 +80,8 @@ const PlaylistPage: React.FC = () => {
 
   useEffect(() => {
     if (currentTrackIndex !== null && audioRef.current && playlist[currentTrackIndex]) {
-      const streamUrl = getDriveStreamUrl(playlist[currentTrackIndex].field1);
+      const track = playlist[currentTrackIndex];
+      const streamUrl = formatAudioUrl(track.field1, track.updatedAt || track.id);
       audioRef.current.src = streamUrl;
       audioRef.current.load(); // Force re-load
       audioRef.current.play().catch(err => {

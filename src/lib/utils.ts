@@ -166,34 +166,55 @@ export function safeJsonParse<T>(val: any, fallback: T): T {
 
 export function getDriveDirectLink(url: string | null | undefined): string {
   if (!url || typeof url !== 'string') return '';
-  if (url.includes('drive.google.com')) {
-    const match = url.match(/\/d\/(.+?)(\/|$|\?|#)/) || url.match(/[?&]id=(.+?)(&|$|#)/);
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
+    const match = trimmed.match(/\/d\/(.+?)(\/|$|\?|#)/) || 
+                  trimmed.match(/[?&]id=(.+?)(&|$|#)/) ||
+                  trimmed.match(/\/file\/d\/(.+?)(\/|$|\?|#)/);
     if (match && match[1]) {
-      // Use lh3.googleusercontent.com format for native Google CORS support!
+      // Use lh3.googleusercontent.com format for native Google CORS support and direct image loading
       return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
-  return url;
+  return trimmed;
 }
 
-export function getCorsSafeUrl(url: string | null | undefined): string {
+export function getCorsSafeUrl(url: string | null | undefined, version?: string | number): string {
   if (!url || typeof url !== 'string') return '';
-  if (url.startsWith('data:')) return url;
-  if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('http://localhost') || url.startsWith('https://localhost')) return url;
-  
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('blob:')) return trimmed;
+
   // Resolve Google Drive links first
-  const resolvedUrl = getDriveDirectLink(url);
-  
+  let resolvedUrl = getDriveDirectLink(trimmed);
+
   if (resolvedUrl.includes('googleusercontent.com')) {
-    // Already supports CORS perfectly, no proxy needed!
+    if (version) {
+      const sep = resolvedUrl.includes('?') ? '&' : '?';
+      return `${resolvedUrl}${sep}_v=${version}`;
+    }
     return resolvedUrl;
   }
-  
+
+  if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('http://localhost') || resolvedUrl.startsWith('https://localhost')) {
+    if (version) {
+      const sep = resolvedUrl.includes('?') ? '&' : '?';
+      return `${resolvedUrl}${sep}_v=${version}`;
+    }
+    return resolvedUrl;
+  }
+
   // Proxy other external URLs via images.weserv.nl (high speed, CORS enabled)
   if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
-    return `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}`;
+    let proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}`;
+    if (version) {
+      proxyUrl += `&_v=${version}`;
+    }
+    return proxyUrl;
   }
-  
+
   return resolvedUrl;
 }
 

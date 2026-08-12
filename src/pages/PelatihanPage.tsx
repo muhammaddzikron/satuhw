@@ -37,6 +37,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
+import { getCorsSafeUrl } from '../lib/utils';
 
 export interface TrainingProgram {
   id: 'Jati 1' | 'Jati 2' | 'Jari 1';
@@ -1323,7 +1324,7 @@ export default function PelatihanPage() {
                           >
                             <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
                               <img 
-                                src={item.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
+                                src={getCorsSafeUrl(item.coverImage, item.updatedAt || item.id) || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
                                 alt={item.judul} 
                                 className="w-full h-full object-cover" 
                               />
