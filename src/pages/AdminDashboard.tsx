@@ -11717,7 +11717,7 @@ export default function AdminDashboard() {
                       }}
                       className="flex-1 bg-white border border-emerald-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer"
                     >
-                      <option value="" disabled>-- Pilih Pelatih dari Anggota (Min. Jaya Matahari 1) --</option>
+                      <option value="" disabled>-- Pilih Pelatih dari Anggota (Syarat: Min. Role Jaya Matahari 1) --</option>
                       {(() => {
                         const eligible = (members || []).filter((m: any) => {
                           if (!m) return false;
@@ -11732,22 +11732,26 @@ export default function AdminDashboard() {
 
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
-                          return roleStr.includes('jari') || roleStr.includes('matahari') ||
+                          
+                          const hasJayaMatahariRole = 
+                            ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].some(r => roleStr === r || rolesArr.includes(r)) ||
+                            roleStr.includes('jari') || roleStr.includes('matahari') ||
                             rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
                             pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') ||
                             tingk.includes('matahari') || tingk.includes('jari');
+
+                          return hasJayaMatahariRole;
                         });
 
-                        const listToDisplay = eligible.length > 0 
-                          ? eligible 
-                          : (members || []).filter((m: any) => {
-                              const roleStr = (m.role || '').toLowerCase();
-                              const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
-                              const emailStr = (m.email || '').toLowerCase();
-                              return !(roleStr === 'superadmin' || rolesArr.includes('superadmin') || emailStr.includes('superadmin'));
-                            });
+                        if (eligible.length === 0) {
+                          return (
+                            <option value="" disabled>
+                              (Belum ada anggota yang memiliki role/kualifikasi Jaya Matahari 1)
+                            </option>
+                          );
+                        }
 
-                        return listToDisplay.map((m: any, idx: number) => {
+                        return eligible.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
                           const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
@@ -11860,18 +11864,15 @@ export default function AdminDashboard() {
                             tingk.includes('melati 2') || tingk.includes('melati2');
                         });
 
-                        const listToDisplay = eligible.length > 0 
-                          ? eligible 
-                          : (members || []).filter((m: any) => {
-                              const roleStr = (m.role || '').toLowerCase();
-                              const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
-                              const emailStr = (m.email || '').toLowerCase();
-                              const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin');
-                              const isMatahari = roleStr.includes('jari') || roleStr.includes('matahari') || rolesArr.some(r => r.includes('jari') || r.includes('matahari'));
-                              return !isAdminOrSuper && !isMatahari;
-                            });
+                        if (eligible.length === 0) {
+                          return (
+                            <option value="" disabled>
+                              (Belum ada anggota yang memiliki role/kualifikasi Jaya Melati 2)
+                            </option>
+                          );
+                        }
 
-                        return listToDisplay.map((m: any, idx: number) => {
+                        return eligible.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
                           const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
