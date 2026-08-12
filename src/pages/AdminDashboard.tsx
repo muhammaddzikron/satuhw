@@ -723,7 +723,8 @@ export default function AdminDashboard() {
   const [trainingRejectId, setTrainingRejectId] = useState<string | null>(null);
   const [trainingRejectReason, setTrainingRejectReason] = useState('');
   const [isTrainingRejectModalOpen, setIsTrainingRejectModalOpen] = useState(false);
-  const [trainingSubTab, setTrainingSubTab] = useState<'peserta' | 'presensi' | 'penugasan' | 'penilaian' | 'piagam' | 'pengaturan'>('peserta');
+  const [trainingMainTab, setTrainingMainTab] = useState<'manajemen' | 'kelola_jenis'>('manajemen');
+  const [trainingSubTab, setTrainingSubTab] = useState<'peserta' | 'presensi' | 'penugasan' | 'penilaian' | 'piagam'>('peserta');
 
   // Training Edit States
   const [editingTrainingApp, setEditingTrainingApp] = useState<any | null>(null);
@@ -2834,6 +2835,25 @@ export default function AdminDashboard() {
   // =========================================================================
   // EXPORT FUNCTIONS FOR PELATIHAN (TRAINING MODULE)
   // =========================================================================
+
+  // Helper for matching selected training activity across all tabs
+  const isMatchSelectedActivity = (app: any, filterActivity: string, settingsActivities: any[]) => {
+    if (!filterActivity || filterActivity === 'Semua') return true;
+    const acts = settingsActivities || [];
+    const selAct = acts.find((a: any) => String(a.id) === String(filterActivity) || a.namaKegiatan === filterActivity);
+    if (!selAct) return true;
+
+    const filterStr = (selAct.namaKegiatan || selAct.jenisPelatihan || filterActivity).toLowerCase();
+    const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
+    const loc = (app?.lokasiPelatihan || '').toLowerCase();
+    const dt = (app?.tanggalPelatihan || '').toLowerCase();
+
+    const matchProg = isMatchTrainingLevel(app, selAct.jenisPelatihan || selAct.namaKegiatan) || prog.includes(filterStr);
+    const matchLoc = !selAct.lokasiPelatihan || !loc || loc.includes(selAct.lokasiPelatihan.toLowerCase()) || selAct.lokasiPelatihan.toLowerCase().includes(loc);
+    const matchDt = !selAct.tanggalPelatihan || !dt || dt.includes(selAct.tanggalPelatihan.toLowerCase()) || selAct.tanggalPelatihan.toLowerCase().includes(dt);
+
+    return matchProg && matchLoc && matchDt;
+  };
 
   // 1. Export Data Pelatihan (Kegiatan / Program Pelatihan)
   const exportTrainingActivitiesToExcel = () => {
@@ -5614,61 +5634,170 @@ export default function AdminDashboard() {
           {/* KELOLA PELATIHAN TAB */}
           {activeTab === 'pelatihan' && (
             <div className="flex flex-col h-full">
-              <div className="p-6 border-b border-gray-50 bg-gray-50/30 space-y-4">
+              <div className="p-6 border-b border-gray-100 bg-gray-50/50 space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider font-display">Pengelolaan Pelatihan HW Jateng</h3>
-                    <p className="text-xs text-gray-400 font-medium">Verifikasi, absensi, pengumpulan tugas, dan penilaian pelatihan (Jati 1 / Jati 2 / Jari 1)</p>
+                    <h3 className="text-base font-black text-gray-800 uppercase tracking-wider font-display flex items-center gap-2">
+                      <span className="p-1.5 bg-hw-green text-white rounded-xl text-xs shadow-xs">🎖️</span>
+                      Pengelolaan Pelatihan HW Jateng
+                    </h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      Kelola data peserta, presensi, penugasan, penilaian, cetak piagam, dan pengaturan jenis pelatihan
+                    </p>
                   </div>
                   
                   {/* Stats Counter */}
-                  <div className="flex gap-4">
-                    <div className="px-4 py-2 bg-yellow-50 text-yellow-700 rounded-2xl border border-yellow-100 flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider">Menunggu</span>
-                      <span className="text-sm font-black">{trainingApps.filter(t => t.status === 'pending').length}</span>
+                  <div className="flex gap-2.5">
+                    <div className="px-3.5 py-1.5 bg-yellow-50 text-yellow-700 rounded-2xl border border-yellow-200/80 flex flex-col items-center">
+                      <span className="text-[9px] font-black text-yellow-600 uppercase tracking-wider">Menunggu</span>
+                      <span className="text-xs font-black">{trainingApps.filter(t => t.status === 'pending').length}</span>
                     </div>
-                    <div className="px-4 py-2 bg-green-50 text-green-700 rounded-2xl border border-green-100 flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Disetujui</span>
-                      <span className="text-sm font-black">{trainingApps.filter(t => t.status === 'approved').length}</span>
+                    <div className="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-200/80 flex flex-col items-center">
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Disetujui</span>
+                      <span className="text-xs font-black">{trainingApps.filter(t => t.status === 'approved').length}</span>
                     </div>
-                    <div className="px-4 py-2 bg-rose-50 text-rose-700 rounded-2xl border border-rose-100 flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Ditolak</span>
-                      <span className="text-sm font-black">{trainingApps.filter(t => t.status === 'rejected').length}</span>
+                    <div className="px-3.5 py-1.5 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200/80 flex flex-col items-center">
+                      <span className="text-[9px] font-black text-rose-600 uppercase tracking-wider">Ditolak</span>
+                      <span className="text-xs font-black">{trainingApps.filter(t => t.status === 'rejected').length}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Sub-Tab Navigation Pills */}
-                <div className="flex border-b border-gray-150/60 overflow-x-auto scrollbar-none gap-2 px-1 pt-2">
-                  {[
-                    { id: 'peserta', label: '1. Data Peserta Pelatihan', desc: 'Verifikasi & Biodata', activeClass: 'border-blue-600 text-blue-700 bg-blue-50 font-black shadow-xs' },
-                    { id: 'presensi', label: '2. Presensi', desc: 'Absensi per Materi', activeClass: 'border-emerald-600 text-emerald-700 bg-emerald-50 font-black shadow-xs' },
-                    { id: 'penugasan', label: '3. Penugasan', desc: 'Ulasan Tugas', activeClass: 'border-amber-500 text-amber-700 bg-amber-50 font-black shadow-xs' },
-                    { id: 'penilaian', label: '4. Penilaian & Kelulusan', desc: 'Status Kelulusan', activeClass: 'border-purple-600 text-purple-700 bg-purple-50 font-black shadow-xs' },
-                    { id: 'piagam', label: '5. Cetak Piagam', desc: 'Unduh Sertifikat', activeClass: 'border-rose-500 text-rose-700 bg-rose-50 font-black shadow-xs' },
-                    { id: 'pengaturan', label: '6. Kelola Jenis Pelatihan', desc: 'Kegiatan & Jadwal', activeClass: 'border-orange-500 text-orange-700 bg-orange-50 font-black shadow-xs' },
-                  ].map(sub => (
-                    <button
-                      key={sub.id}
-                      onClick={() => setTrainingSubTab(sub.id as any)}
-                      className={cn(
-                        "flex flex-col items-start px-5 py-3 rounded-t-2xl text-xs transition-all border-b-2 font-bold whitespace-nowrap min-w-[170px] text-left cursor-pointer",
-                        trainingSubTab === sub.id 
-                          ? sub.activeClass
-                          : "border-transparent text-gray-400 hover:text-gray-700 hover:bg-gray-50"
-                      )}
-                    >
-                      <span className="tracking-tight">{sub.label}</span>
-                      <span className="text-[9px] font-bold opacity-75 mt-0.5 tracking-wider uppercase">{sub.desc}</span>
-                    </button>
-                  ))}
+                {/* 2 UTAMA TAB MENU PELATIHAN */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-200/70 p-1.5 rounded-3xl border border-gray-200/90 shadow-xs">
+                  {/* MENU 1: MANAJEMEN PELATIHAN */}
+                  <button
+                    type="button"
+                    onClick={() => setTrainingMainTab('manajemen')}
+                    className={cn(
+                      "flex items-center gap-3.5 py-3 px-4.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer text-left",
+                      trainingMainTab === 'manajemen'
+                        ? "bg-gradient-to-r from-hw-dark to-slate-900 text-white shadow-md shadow-hw-dark/20 scale-[1.01]"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 transition-all font-black",
+                      trainingMainTab === 'manajemen' ? "bg-hw-green text-white shadow-sm" : "bg-gray-300/80 text-gray-600"
+                    )}>
+                      📊
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-black tracking-wider truncate">Menu 1: Manajemen Pelatihan</span>
+                      <span className={cn("text-[10px] font-semibold lowercase tracking-normal truncate opacity-90", trainingMainTab === 'manajemen' ? "text-emerald-300" : "text-gray-500")}>
+                        Data Peserta, Presensi, Penugasan, Penilaian & Piagam
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* MENU 2: KELOLA JENIS PELATIHAN */}
+                  <button
+                    type="button"
+                    onClick={() => setTrainingMainTab('kelola_jenis')}
+                    className={cn(
+                      "flex items-center gap-3.5 py-3 px-4.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer text-left",
+                      trainingMainTab === 'kelola_jenis'
+                        ? "bg-gradient-to-r from-emerald-800 to-teal-900 text-white shadow-md shadow-emerald-800/20 scale-[1.01]"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 transition-all font-black",
+                      trainingMainTab === 'kelola_jenis' ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-gray-300/80 text-gray-600"
+                    )}>
+                      ⚙️
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-black tracking-wider truncate">Menu 2: Kelola Jenis Pelatihan</span>
+                      <span className={cn("text-[10px] font-semibold lowercase tracking-normal truncate opacity-90", trainingMainTab === 'kelola_jenis' ? "text-amber-200" : "text-gray-500")}>
+                        Pengaturan kegiatan, lokasi & jadwal pelatihan
+                      </span>
+                    </div>
+                  </button>
                 </div>
               </div>
 
-              {/* SUB-TAB CONTENTS */}
-              <div className="p-6 flex-1">
-                
-                {/* 1. DATA PESERTA PELATIHAN SUB-TAB */}
+              {/* MAIN TAB 1: MANAJEMEN PELATIHAN */}
+              {trainingMainTab === 'manajemen' && (
+                <div className="space-y-4 p-6 flex-1">
+                  {/* GLOBAL FILTER JENIS PELATIHAN */}
+                  <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-100/50 border-2 border-emerald-200/90 p-4 rounded-3xl shadow-2xs space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                        <span className="p-1 bg-emerald-600 text-white rounded-lg text-xs">🏅</span>
+                        <span>Filter Jenis & Kegiatan Pelatihan (Filter Utama)</span>
+                      </label>
+                      <span className="text-[9.5px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-200/80 self-start sm:self-auto">
+                        ⚡ Mempengaruhi Semua Data: Peserta, Presensi, Penugasan, Penilaian & Piagam
+                      </span>
+                    </div>
+                    
+                    <div className="relative">
+                      <select
+                        value={trainingFilterActivity}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTrainingFilterActivity(val);
+                          if (val !== 'Semua') {
+                            const acts = settings.trainingActivities || [];
+                            const selAct = acts.find((a: any) => String(a.id) === val || a.namaKegiatan === val);
+                            if (selAct && selAct.jenisPelatihan) {
+                              const normalizedProg = selAct.jenisPelatihan.includes('Jati 2') ? 'Jati 2' : selAct.jenisPelatihan.includes('Jari 1') ? 'Jari 1' : 'Jati 1';
+                              setSelectedPresensiProg(normalizedProg as any);
+                              setSelectedTugasProg(normalizedProg as any);
+                              setSelectedGradeProg(normalizedProg as any);
+                              setSelectedPiagamProg(normalizedProg as any);
+                            }
+                          }
+                        }}
+                        className="w-full bg-white border-2 border-emerald-300/80 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-black text-xs sm:text-sm outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
+                      >
+                        <option value="Semua">🌐 SEMUA JENIS & KEGIATAN PELATIHAN (Semua Tempat & Tanggal)</option>
+                        {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
+                          const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
+                          const loc = act.lokasiPelatihan || 'Lokasi Belum Ditentukan';
+                          const dt = act.tanggalPelatihan || 'Tanggal Belum Ditentukan';
+                          return (
+                            <option key={act.id || idx} value={act.id || title}>
+                              📍 {title} • {loc} (📅 {dt})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 5 SUB-TAB NAVIGATION PILLS */}
+                  <div className="flex border-b border-gray-150/80 overflow-x-auto scrollbar-none gap-2 px-1 pt-1">
+                    {[
+                      { id: 'peserta', label: '1. Data Peserta Pelatihan', desc: 'Verifikasi & Biodata', icon: '📋', activeClass: 'border-blue-600 text-blue-700 bg-blue-50 font-black shadow-xs' },
+                      { id: 'presensi', label: '2. Presensi', desc: 'Absensi per Materi', icon: '📝', activeClass: 'border-emerald-600 text-emerald-700 bg-emerald-50 font-black shadow-xs' },
+                      { id: 'penugasan', label: '3. Penugasan', desc: 'Ulasan Tugas', icon: '📚', activeClass: 'border-amber-500 text-amber-700 bg-amber-50 font-black shadow-xs' },
+                      { id: 'penilaian', label: '4. Penilaian & Kelulusan', desc: 'Status Kelulusan', icon: '🎓', activeClass: 'border-purple-600 text-purple-700 bg-purple-50 font-black shadow-xs' },
+                      { id: 'piagam', label: '5. Cetak Piagam', desc: 'Unduh Sertifikat', icon: '🏆', activeClass: 'border-rose-500 text-rose-700 bg-rose-50 font-black shadow-xs' },
+                    ].map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setTrainingSubTab(sub.id as any)}
+                        className={cn(
+                          "flex flex-col items-start px-4 py-2.5 rounded-t-2xl text-xs transition-all border-b-2 font-bold whitespace-nowrap min-w-[160px] text-left cursor-pointer",
+                          trainingSubTab === sub.id 
+                            ? sub.activeClass
+                            : "border-transparent text-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs">{sub.icon}</span>
+                          <span className="tracking-tight">{sub.label}</span>
+                        </div>
+                        <span className="text-[9px] font-bold opacity-75 mt-0.5 tracking-wider uppercase">{sub.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* SUB-TAB CONTENTS */}
+                  <div className="pt-2">
+                    {/* 1. DATA PESERTA PELATIHAN SUB-TAB */}
                 {trainingSubTab === 'peserta' && (
                   <div className="space-y-4">
                     {/* Search & Filter Bar */}
@@ -6933,10 +7062,13 @@ export default function AdminDashboard() {
                     })()}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
 
-                {/* 6. ATUR JENIS, LOKASI & TANGGAL PELATIHAN SUB-TAB */}
-                {trainingSubTab === 'pengaturan' && (
-                  <div className="space-y-6">
+          {/* MAIN TAB 2: KELOLA JENIS PELATIHAN */}
+          {trainingMainTab === 'kelola_jenis' && (
+            <div className="p-6 flex-1 space-y-6">
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-2 font-display">
@@ -7219,8 +7351,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-
-              </div>
             </div>
           )}
 
