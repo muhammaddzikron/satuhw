@@ -2257,12 +2257,13 @@ export default function AdminDashboard() {
       );
 
       const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : [];
-      const rolesArr = Array.isArray(member.roles) ? member.roles : (member.role ? [member.role] : ['umum']);
+      const rolesArr = Array.isArray(member.roles) && member.roles.length > 0 ? member.roles : (member.role ? [member.role] : ['umum']);
+      const primaryRole = (member.role && member.role !== 'umum') ? member.role : (rolesArr.find((r: string) => r !== 'umum') || rolesArr[0] || 'umum');
 
       setFormData({
         email: member.email || matchingKta?.email || '',
         namaLengkap: matchingKta?.nama || member.namaLengkap || member.nama || '',
-        role: member.role || (rolesArr[0] || 'umum'),
+        role: primaryRole,
         roles: rolesArr,
         jenisKelamin: matchingKta?.jenisKelamin || member.jenisKelamin || 'L',
         golongan: matchingKta?.tingkatan || member.golongan || 'Penghela',
@@ -2320,12 +2321,15 @@ export default function AdminDashboard() {
       setLoading(true);
       const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
       const memberId = editingMember?.id || Date.now().toString();
+      const primaryRole = formData.roles.find(r => r !== 'umum') || formData.roles[0] || formData.role || 'umum';
 
       const payload = editingMember 
         ? { 
             ...editingMember, 
             ...formData,
             id: memberId,
+            role: primaryRole,
+            roles: formData.roles && formData.roles.length > 0 ? formData.roles : [primaryRole],
             photo: formData.photo,
             noHp: formData.noHp,
             asalKwarda: formData.asalKwarda,
@@ -2342,6 +2346,8 @@ export default function AdminDashboard() {
         : { 
             ...formData, 
             id: memberId,
+            role: primaryRole,
+            roles: formData.roles && formData.roles.length > 0 ? formData.roles : [primaryRole],
             photo: formData.photo,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
@@ -8784,7 +8790,8 @@ export default function AdminDashboard() {
                               } else {
                                 next = [...current, key];
                               }
-                              setFormData({ ...formData, roles: next, role: next[0] });
+                              const primaryRole = next.find(k => k !== 'umum') || next[0] || 'umum';
+                              setFormData({ ...formData, roles: next, role: primaryRole });
                             }}
                             className={cn(
                               "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full",
@@ -11698,22 +11705,23 @@ export default function AdminDashboard() {
                           const roleStr = (m.role || '').toLowerCase();
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
-                          const tingk = (m.tingkatan || m.golongan || '').toLowerCase();
-                          return roleStr.includes('jari') || roleStr.includes('matahari') ||
-                            rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
-                            pel.includes('jari') || pel.includes('matahari') ||
-                            tingk.includes('matahari');
+                          const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
+                          return roleStr.includes('jari') || roleStr.includes('matahari') || roleStr.includes('superadmin') || roleStr.includes('admin') || roleStr.includes('pelatih') ||
+                            rolesArr.some(r => r.includes('jari') || r.includes('matahari') || r.includes('superadmin') || r.includes('admin') || r.includes('pelatih')) ||
+                            pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') || pel.includes('pelatih') ||
+                            tingk.includes('matahari') || tingk.includes('jari') || tingk.includes('pelatih');
                         });
 
                         const listToDisplay = eligible.length > 0 ? eligible : (members || []);
 
                         return listToDisplay.map((m: any, idx: number) => {
-                          const name = m.nama || m.name || `Anggota ${idx + 1}`;
+                          const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
-                          const roleLabel = m.role ? ` [${m.role}]` : '';
+                          const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
+                          const roleName = rKeys.map((rk: string) => ROLE_LABELS[rk] || rk).join(', ');
                           return (
                             <option key={m.id || m.nbm || idx} value={name}>
-                              {name}{nbm}{roleLabel}
+                              {name}{nbm} — [{roleName}]
                             </option>
                           );
                         });
@@ -11792,29 +11800,30 @@ export default function AdminDashboard() {
                       }}
                       className="flex-1 bg-white border border-blue-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
                     >
-                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Jaya Melati 2) --</option>
+                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Jaya Melati 2 / Matahari) --</option>
                       {(() => {
                         const eligible = (members || []).filter((m: any) => {
                           if (!m) return false;
                           const roleStr = (m.role || '').toLowerCase();
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
-                          const tingk = (m.tingkatan || m.golongan || '').toLowerCase();
-                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('jari') || roleStr.includes('matahari') ||
-                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('jari') || r.includes('matahari')) ||
-                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('jari') || pel.includes('matahari') ||
-                            tingk.includes('melati 2') || tingk.includes('matahari');
+                          const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
+                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('jari') || roleStr.includes('matahari') || roleStr.includes('superadmin') || roleStr.includes('admin') || roleStr.includes('pelatih') ||
+                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('jari') || r.includes('matahari') || r.includes('superadmin') || r.includes('admin') || r.includes('pelatih')) ||
+                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') || pel.includes('pelatih') ||
+                            tingk.includes('melati 2') || tingk.includes('matahari') || tingk.includes('jari') || tingk.includes('pelatih');
                         });
 
                         const listToDisplay = eligible.length > 0 ? eligible : (members || []);
 
                         return listToDisplay.map((m: any, idx: number) => {
-                          const name = m.nama || m.name || `Anggota ${idx + 1}`;
+                          const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
-                          const roleLabel = m.role ? ` [${m.role}]` : '';
+                          const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
+                          const roleName = rKeys.map((rk: string) => ROLE_LABELS[rk] || rk).join(', ');
                           return (
                             <option key={m.id || m.nbm || idx} value={name}>
-                              {name}{nbm}{roleLabel}
+                              {name}{nbm} — [{roleName}]
                             </option>
                           );
                         });

@@ -837,10 +837,10 @@ export const sheetsService = {
               if (match.golongan) sm.golongan = match.golongan;
               if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
               if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
-                // Merge roles cleanly without losing any assigned role
-                const mergedRoles = Array.from(new Set([...(sm.roles || []), ...match.roles].filter(Boolean))) as UserRole[];
+                // Merge roles cleanly with Firestore updated roles taking precedence
+                const mergedRoles = Array.from(new Set([...match.roles, ...(sm.roles || [])].filter(Boolean))) as UserRole[];
                 sm.roles = mergedRoles.length > 0 ? mergedRoles : match.roles;
-                sm.role = match.roles[0] || sm.role || 'umum';
+                sm.role = match.roles.find(r => r !== 'umum') || match.roles[0] || match.role || sm.role || 'umum';
                 if (match.activeRole) sm.activeRole = match.activeRole;
               } else if (match.role) {
                 if (!sm.roles || sm.roles.length === 0) sm.roles = [match.role as UserRole];
