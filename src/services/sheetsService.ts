@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
-import { firestoreService } from './firestoreService';
+import { firestoreService, parseRolesField } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 
@@ -366,26 +366,12 @@ export const sheetsService = {
       password: data.password || ''
     };
 
-    let rolesArr: UserRole[] = [];
-    if (data.roles) {
-      const parsedRoles = parseArrayField(data.roles);
-      parsedRoles.forEach(r => {
-        if (r && !rolesArr.includes(r as UserRole)) rolesArr.push(r as UserRole);
-      });
-    }
-    if (data.role) {
-      const parsedSingle = parseArrayField(data.role);
-      parsedSingle.forEach(r => {
-        if (r && !rolesArr.includes(r as UserRole)) rolesArr.push(r as UserRole);
-      });
-    }
-    if (rolesArr.length === 0) {
-      rolesArr = ['umum'];
-    }
+    const rolesArr = parseRolesField(data.roles, data.role);
+    const primaryRole = rolesArr.find(r => r !== 'umum') || rolesArr[0] || 'umum';
 
     user.roles = rolesArr;
-    user.role = rolesArr[0] || 'umum';
-    user.activeRole = data.activeRole || rolesArr[0] || 'umum';
+    user.role = primaryRole;
+    user.activeRole = data.activeRole || primaryRole;
     
     // Handle truthy values from Sheets for isVerified
     if (typeof user.isVerified !== 'boolean') {
@@ -837,13 +823,11 @@ export const sheetsService = {
               if (match.golongan) sm.golongan = match.golongan;
               if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
               if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
-                // Merge roles cleanly with Firestore updated roles taking precedence
-                const mergedRoles = Array.from(new Set([...match.roles, ...(sm.roles || [])].filter(Boolean))) as UserRole[];
-                sm.roles = mergedRoles.length > 0 ? mergedRoles : match.roles;
-                sm.role = match.roles.find(r => r !== 'umum') || match.roles[0] || match.role || sm.role || 'umum';
+                sm.roles = match.roles;
+                sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
                 if (match.activeRole) sm.activeRole = match.activeRole;
               } else if (match.role) {
-                if (!sm.roles || sm.roles.length === 0) sm.roles = [match.role as UserRole];
+                sm.roles = parseRolesField(null, match.role);
                 sm.role = match.role as UserRole;
               }
               if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
@@ -897,24 +881,33 @@ export const sheetsService = {
   },
 
   async saveMember(userData: any): Promise<any> {
+    const normRoles = parseRolesField(userData.roles, userData.role);
+    const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+    const cleanUserData = {
+      ...userData,
+      role: primaryRole,
+      roles: normRoles
+    };
+
     if (!IS_API_VALID) {
-      const saved = await firestoreService.saveMember(userData as User);
+      const saved = await firestoreService.saveMember(cleanUserData as User);
       return { success: true, message: 'Saved to Firestore', member: saved };
     }
     const payload = {
-      ...userData,
-      email: userData.email,
-      namaLengkap: userData.namaLengkap,
-      role: Array.isArray(userData.roles) ? JSON.stringify(userData.roles) : userData.role,
-      pelatihan: Array.isArray(userData.pelatihan) ? JSON.stringify(userData.pelatihan) : userData.pelatihan,
-      upgradeRequests: Array.isArray(userData.upgradeRequests) ? JSON.stringify(userData.upgradeRequests) : userData.upgradeRequests
+      ...cleanUserData,
+      email: cleanUserData.email,
+      namaLengkap: cleanUserData.namaLengkap,
+      role: JSON.stringify(normRoles),
+      roles: JSON.stringify(normRoles),
+      pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
+      upgradeRequests: Array.isArray(cleanUserData.upgradeRequests) ? JSON.stringify(cleanUserData.upgradeRequests) : cleanUserData.upgradeRequests
     };
     try {
       const res = await this.post({ action: 'saveMember', ...payload });
-      await firestoreService.saveMember(userData as User);
+      await firestoreService.saveMember(cleanUserData as User);
       return res;
     } catch (err) {
-      const saved = await firestoreService.saveMember(userData as User);
+      const saved = await firestoreService.saveMember(cleanUserData as User);
       return { success: true, member: saved };
     }
   },

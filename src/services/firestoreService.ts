@@ -88,6 +88,63 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
   return result;
 };
 
+export function parseRolesField(rolesVal: any, roleVal: any): UserRole[] {
+  const result: UserRole[] = [];
+
+  const normalizeRoleKey = (r: any): string => {
+    if (!r) return '';
+    const clean = String(r).trim().toLowerCase();
+    if (clean === 'jaya_melati_1' || clean === 'jati_1' || clean === 'jati1' || clean === 'jaya melati 1') return 'jati1';
+    if (clean === 'jaya_melati_2' || clean === 'jati_2' || clean === 'jati2' || clean === 'jaya melati 2') return 'jati2';
+    if (clean === 'jaya_matahari_1' || clean === 'jari_1' || clean === 'jari1' || clean === 'jaya matahari 1') return 'jari1';
+    if (clean === 'jaya_matahari_2' || clean === 'jari_2' || clean === 'jari2' || clean === 'jaya matahari 2') return 'jari2';
+    if (clean === 'dewan_sugli' || clean === 'sugli_daerah' || clean === 'sugli_wilayah' || clean === 'sugli') return 'sugli';
+    if (clean === 'admin_kwarda' || clean === 'kwarda') return 'kwarda';
+    if (clean === 'super_admin' || clean === 'superadmin') return 'superadmin';
+    if (clean === 'admin_petugas' || clean === 'admin') return 'admin';
+    if (clean === 'admin_diklat' || clean === 'diklat') return 'diklat';
+    return clean;
+  };
+
+  const addRole = (r: any) => {
+    if (!r) return;
+    const norm = normalizeRoleKey(r);
+    if (norm && !result.includes(norm as UserRole)) {
+      result.push(norm as UserRole);
+    }
+  };
+
+  const parseVal = (v: any) => {
+    if (!v) return;
+    if (Array.isArray(v)) {
+      v.forEach(parseVal);
+    } else if (typeof v === 'string') {
+      const trimmed = v.trim();
+      if (!trimmed) return;
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(parseVal);
+            return;
+          }
+        } catch (e) {}
+      }
+      trimmed.split(',').forEach(addRole);
+    } else {
+      addRole(v);
+    }
+  };
+
+  parseVal(rolesVal);
+  parseVal(roleVal);
+
+  if (result.length === 0) {
+    result.push('umum');
+  }
+  return result;
+}
+
 const isValidName = (n?: string): boolean => {
   if (!n) return false;
   const lower = n.trim().toLowerCase();
@@ -624,17 +681,8 @@ export const firestoreService = {
     const filteredMembers = members
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
       .map(m => {
-        let role = m.role || 'umum';
-        let roles: UserRole[] = Array.isArray(m.roles) ? m.roles : [];
-        if (typeof role === 'string' && role.startsWith('[')) {
-          try {
-            roles = JSON.parse(role);
-            role = roles[0] || 'umum';
-          } catch(e) {}
-        }
-        if (roles.length === 0) {
-          roles = [role as UserRole];
-        }
+        const roles = parseRolesField(m.roles, m.role);
+        const role = roles.find(r => r !== 'umum') || roles[0] || 'umum';
 
         const mEmail = (m.email || '').trim().toLowerCase();
         const mId = String(m.id || '').trim().toLowerCase();
@@ -1249,10 +1297,15 @@ export const firestoreService = {
       );
     }
 
+    const normRoles = parseRolesField(member.roles, member.role);
+    const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+
     const dataToSave = cleanData({
       ...member,
       id: memberId,
       uid: member.uid || memberId,
+      role: primaryRole,
+      roles: normRoles,
       nama: member.nama || member.namaLengkap,
       email: member.email,
       nomorKTA: ktaInfo.nomorKTA,
@@ -1337,9 +1390,17 @@ export const firestoreService = {
   },
 
   async updateMember(id: string, updates: Partial<User>): Promise<User> {
+    const normUpdates = { ...updates };
+    if (updates.roles || updates.role) {
+      const normRoles = parseRolesField(updates.roles, updates.role);
+      const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+      normUpdates.roles = normRoles;
+      normUpdates.role = primaryRole;
+    }
+
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'members', id), cleanData(updates), { merge: true });
+        await setDoc(doc(db, 'members', id), cleanData(normUpdates), { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         console.error('Firestore updateMember error:', err);
@@ -1349,7 +1410,7 @@ export const firestoreService = {
     const idx = current.findIndex(m => m.id === id);
     let updatedMember: any = {};
     if (idx >= 0) {
-      updatedMember = { ...current[idx], ...updates };
+      updatedMember = { ...current[idx], ...normUpdates };
       current[idx] = updatedMember;
       localStorage.setItem('mock_members', JSON.stringify(current));
     }

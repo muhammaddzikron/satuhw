@@ -207,7 +207,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
-import { firestoreService } from '../services/firestoreService';
+import { firestoreService, parseRolesField } from '../services/firestoreService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
@@ -251,11 +251,19 @@ const ROLE_LABELS: Record<string, string> = {
   superadmin: 'Super Admin',
   admin: 'Admin Petugas',
   kwarda: 'Admin Kwarda',
+  admin_kwarda: 'Admin Kwarda',
   sugli: 'Dewan Sugli',
+  dewan_sugli: 'Dewan Sugli',
+  sugli_daerah: 'Dewan Sugli',
+  sugli_wilayah: 'Dewan Sugli',
   jati1: 'Jaya Melati 1',
+  jaya_melati_1: 'Jaya Melati 1',
   jati2: 'Jaya Melati 2',
+  jaya_melati_2: 'Jaya Melati 2',
   jari1: 'Jaya Matahari 1',
+  jaya_matahari_1: 'Jaya Matahari 1',
   jari2: 'Jaya Matahari 2',
+  jaya_matahari_2: 'Jaya Matahari 2',
   umum: 'Umum'
 };
 
@@ -3492,20 +3500,21 @@ export default function AdminDashboard() {
           if (filter === 'Pengenal') return m.golongan === 'Pengenal';
           if (filter === 'Penghela') return m.golongan === 'Penghela';
           if (filter === 'Penuntun') return m.golongan === 'Penuntun';
-          if (filter === 'Dewan Sugli') return (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah');
-          if (filter === 'Kwarda') return (m.role === 'kwarda' || m.role === 'admin_kwarda');
-          
+
+          const normRoles = parseRolesField(m.roles, m.role);
+          const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((p: any) => String(p).toLowerCase()) : [];
+
+          if (filter === 'Dewan Sugli') return normRoles.includes('sugli') || normRoles.includes('sugli_daerah') || normRoles.includes('sugli_wilayah') || (m.role || '').includes('sugli');
+          if (filter === 'Kwarda') return normRoles.includes('kwarda') || normRoles.includes('admin_kwarda') || (m.role || '').includes('kwarda');
+
           if (filter === 'Jaya Melati 1') {
-            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-            return p.includes('Jati 1');
+            return normRoles.includes('jati1') || pList.some(p => p.includes('jati 1') || p.includes('melati 1') || p.includes('jati1'));
           }
           if (filter === 'Jaya Melati 2') {
-            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-            return p.includes('Jati 2');
+            return normRoles.includes('jati2') || pList.some(p => p.includes('jati 2') || p.includes('melati 2') || p.includes('jati2'));
           }
           if (filter === 'Jaya Matahari 1') {
-            const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-            return p.includes('Jari 1');
+            return normRoles.includes('jari1') || pList.some(p => p.includes('jari 1') || p.includes('matahari 1') || p.includes('jari1'));
           }
           return false;
         });
@@ -3534,22 +3543,33 @@ export default function AdminDashboard() {
       pengenal: members.filter(m => m.golongan === 'Pengenal' && m.role !== 'superadmin' && m.role !== 'admin').length,
       penghela: members.filter(m => m.golongan === 'Penghela' && m.role !== 'superadmin' && m.role !== 'admin').length,
       penuntun: members.filter(m => m.golongan === 'Penuntun' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      sugli: members.filter(m => (m.role === 'sugli' || m.role === 'sugli_daerah' || m.role === 'sugli_wilayah') && m.role !== 'superadmin' && m.role !== 'admin').length,
-      kwarda: members.filter(m => (m.role === 'kwarda' || m.role === 'admin_kwarda') && m.role !== 'superadmin' && m.role !== 'admin').length,
+      sugli: members.filter(m => {
+        if (m.role === 'superadmin' || m.role === 'admin') return false;
+        const normRoles = parseRolesField(m.roles, m.role);
+        return normRoles.includes('sugli') || normRoles.includes('sugli_daerah') || normRoles.includes('sugli_wilayah') || (m.role || '').includes('sugli');
+      }).length,
+      kwarda: members.filter(m => {
+        if (m.role === 'superadmin' || m.role === 'admin') return false;
+        const normRoles = parseRolesField(m.roles, m.role);
+        return normRoles.includes('kwarda') || normRoles.includes('admin_kwarda') || (m.role || '').includes('kwarda');
+      }).length,
       jm1: members.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
-        const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-        return p.includes('Jati 1');
+        const normRoles = parseRolesField(m.roles, m.role);
+        const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
+        return normRoles.includes('jati1') || pList.some(x => x.includes('jati 1') || x.includes('melati 1') || x.includes('jati1'));
       }).length,
       jm2: members.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
-        const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-        return p.includes('Jati 2');
+        const normRoles = parseRolesField(m.roles, m.role);
+        const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
+        return normRoles.includes('jati2') || pList.some(x => x.includes('jati 2') || x.includes('melati 2') || x.includes('jati2'));
       }).length,
       jm3: members.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
-        const p = Array.isArray(m.pelatihan) ? m.pelatihan : [];
-        return p.includes('Jari 1');
+        const normRoles = parseRolesField(m.roles, m.role);
+        const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
+        return normRoles.includes('jari1') || pList.some(x => x.includes('jari 1') || x.includes('matahari 1') || x.includes('jari1'));
       }).length
     };
   }, [members]);
@@ -5693,7 +5713,10 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 2 UTAMA TAB MENU PELATIHAN */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-200/70 p-1.5 rounded-3xl border border-gray-200/90 shadow-xs">
+                <div className={cn(
+                  "grid gap-3 bg-gray-200/70 p-1.5 rounded-3xl border border-gray-200/90 shadow-xs",
+                  isPelatihOnly ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"
+                )}>
                   {/* MENU 1: MANAJEMEN PELATIHAN */}
                   <button
                     type="button"
@@ -5719,30 +5742,32 @@ export default function AdminDashboard() {
                     </div>
                   </button>
 
-                  {/* MENU 2: KELOLA JENIS PELATIHAN */}
-                  <button
-                    type="button"
-                    onClick={() => setTrainingMainTab('kelola_jenis')}
-                    className={cn(
-                      "flex items-center gap-3.5 py-3 px-4.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer text-left",
-                      trainingMainTab === 'kelola_jenis'
-                        ? "bg-gradient-to-r from-emerald-800 to-teal-900 text-white shadow-md shadow-emerald-800/20 scale-[1.01]"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 transition-all font-black",
-                      trainingMainTab === 'kelola_jenis' ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-gray-300/80 text-gray-600"
-                    )}>
-                      ⚙️
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-black tracking-wider truncate">Menu 2: Kelola Jenis Pelatihan</span>
-                      <span className={cn("text-[10px] font-semibold lowercase tracking-normal truncate opacity-90", trainingMainTab === 'kelola_jenis' ? "text-amber-200" : "text-gray-500")}>
-                        Pengaturan kegiatan, lokasi & jadwal pelatihan
-                      </span>
-                    </div>
-                  </button>
+                  {/* MENU 2: KELOLA JENIS PELATIHAN (Sembunyikan untuk Pelatih / Jaya Matahari 1) */}
+                  {!isPelatihOnly && (
+                    <button
+                      type="button"
+                      onClick={() => setTrainingMainTab('kelola_jenis')}
+                      className={cn(
+                        "flex items-center gap-3.5 py-3 px-4.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer text-left",
+                        trainingMainTab === 'kelola_jenis'
+                          ? "bg-gradient-to-r from-emerald-800 to-teal-900 text-white shadow-md shadow-emerald-800/20 scale-[1.01]"
+                          : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 transition-all font-black",
+                        trainingMainTab === 'kelola_jenis' ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-gray-300/80 text-gray-600"
+                      )}>
+                        ⚙️
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black tracking-wider truncate">Menu 2: Kelola Jenis Pelatihan</span>
+                        <span className={cn("text-[10px] font-semibold lowercase tracking-normal truncate opacity-90", trainingMainTab === 'kelola_jenis' ? "text-amber-200" : "text-gray-500")}>
+                          Pengaturan kegiatan, lokasi & jadwal pelatihan
+                        </span>
+                      </div>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -11702,7 +11727,7 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Select Pelatih from Members */}
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0 max-w-full">
                     <select
                       id="select-pelatih-dropdown"
                       defaultValue=""
@@ -11716,7 +11741,7 @@ export default function AdminDashboard() {
                         }
                         e.target.value = '';
                       }}
-                      className="flex-1 bg-white border border-emerald-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer"
+                      className="flex-1 w-full min-w-0 max-w-full bg-white border border-emerald-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer truncate overflow-hidden"
                     >
                       <option value="" disabled>-- Pilih Pelatih dari Anggota (Syarat: Min. Role Jaya Matahari 1) --</option>
                       {(() => {
@@ -11733,8 +11758,10 @@ export default function AdminDashboard() {
 
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
+                          const normRoles = parseRolesField(m.roles, m.role);
                           
                           const hasJayaMatahariRole = 
+                            normRoles.includes('jari1') || normRoles.includes('jari2') ||
                             ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].some(r => roleStr === r || rolesArr.includes(r)) ||
                             roleStr.includes('jari') || roleStr.includes('matahari') ||
                             rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
@@ -11755,7 +11782,7 @@ export default function AdminDashboard() {
                         return eligible.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
-                          const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
+                          const rKeys = parseRolesField(m.roles, m.role);
                           const roleName = rKeys.map((rk: string) => ROLE_LABELS[rk] || rk).join(', ');
                           return (
                             <option key={m.id || m.nbm || idx} value={name}>
@@ -11777,7 +11804,7 @@ export default function AdminDashboard() {
                           }));
                         }
                       }}
-                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs"
+                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs shrink-0"
                     >
                       + Ketik Manual
                     </button>
@@ -11789,7 +11816,7 @@ export default function AdminDashboard() {
                       <span className="text-[10px] text-gray-400 font-bold italic">Belum ada Pelatih dipilih.</span>
                     ) : (
                       (activityForm.pelatih || []).map((pName, pIdx) => (
-                        <span key={pIdx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-xs">
+                        <span key={pIdx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-xs max-w-full truncate">
                           👨‍🏫 {pName}
                           <button
                             type="button"
@@ -11799,7 +11826,7 @@ export default function AdminDashboard() {
                                 pelatih: (prev.pelatih || []).filter((_, i) => i !== pIdx)
                               }));
                             }}
-                            className="hover:text-rose-200 cursor-pointer ml-1 font-extrabold"
+                            className="hover:text-rose-200 cursor-pointer ml-1 font-extrabold shrink-0"
                             title="Hapus pelatih ini"
                           >
                             ✕
@@ -11822,7 +11849,7 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Select Asisten Pelatih from Members */}
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0 max-w-full">
                     <select
                       id="select-asisten-dropdown"
                       defaultValue=""
@@ -11836,33 +11863,38 @@ export default function AdminDashboard() {
                         }
                         e.target.value = '';
                       }}
-                      className="flex-1 bg-white border border-blue-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                      className="flex-1 w-full min-w-0 max-w-full bg-white border border-blue-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer truncate overflow-hidden"
                     >
-                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Min. Jaya Melati 2) --</option>
+                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Jaya Melati 2) --</option>
                       {(() => {
                         const eligible = (members || []).filter((m: any) => {
                           if (!m) return false;
                           const roleStr = (m.role || '').toLowerCase();
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
                           const emailStr = (m.email || '').toLowerCase();
+                          const normRoles = parseRolesField(m.roles, m.role);
 
                           // 1. Sembunyikan akun Super Admin / Admin
-                          const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin');
+                          const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin') || normRoles.includes('admin') || normRoles.includes('superadmin');
                           if (isAdminOrSuper) return false;
 
                           // 2. Sembunyikan yang mempunyai role akses Jaya Matahari 1 dan 2
-                          const isMatahari = roleStr.includes('jari') || roleStr.includes('matahari') ||
+                          const isMatahari = normRoles.includes('jari1') || normRoles.includes('jari2') ||
+                            roleStr.includes('jari') || roleStr.includes('matahari') ||
                             rolesArr.some(r => r.includes('jari') || r.includes('matahari'));
                           if (isMatahari) return false;
 
-                          // 3. Minimal mempunyai role akses Jaya Melati 2
+                          // 3. Hanya tampilkan yang mempunyai kualifikasi/role Jaya Melati 2
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
 
-                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('melati2') ||
+                          const hasJM2 = normRoles.includes('jati2') ||
+                            roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('melati2') ||
                             rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('melati2')) ||
                             pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('melati2') ||
                             tingk.includes('melati 2') || tingk.includes('melati2');
+
+                          return hasJM2;
                         });
 
                         if (eligible.length === 0) {
@@ -11876,7 +11908,7 @@ export default function AdminDashboard() {
                         return eligible.map((m: any, idx: number) => {
                           const name = m.namaLengkap || m.nama || m.name || `Anggota ${idx + 1}`;
                           const nbm = m.nbm ? ` (${m.nbm})` : '';
-                          const rKeys = Array.isArray(m.roles) && m.roles.length > 0 ? m.roles : (m.role ? [m.role] : ['umum']);
+                          const rKeys = parseRolesField(m.roles, m.role);
                           const roleName = rKeys.map((rk: string) => ROLE_LABELS[rk] || rk).join(', ');
                           return (
                             <option key={m.id || m.nbm || idx} value={name}>
@@ -11898,7 +11930,7 @@ export default function AdminDashboard() {
                           }));
                         }
                       }}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs"
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs shrink-0"
                     >
                       + Ketik Manual
                     </button>
