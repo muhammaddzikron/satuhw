@@ -789,6 +789,8 @@ export default function AdminDashboard() {
     tanggalPelatihan: '',
     status: 'Buka' as 'Buka' | 'Tutup',
     deskripsi: '',
+    pelatih: [] as string[],
+    asistenPelatih: [] as string[],
     biayaPelatihan: 'Rp 50.000',
     rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
     noWhatsappPanitia: '089688754000',
@@ -2865,13 +2867,15 @@ export default function AdminDashboard() {
       { namaKegiatan: 'Pelatihan Jaya Rintisan 1 (Jari 1)', jenisPelatihan: 'Jaya Rintisan 1', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Spesialis', status: 'Buka', biayaPelatihan: 'Rp 100.000', noWhatsappPanitia: '089688754000' }
     ];
 
-    const headers = ['No', 'Nama Kegiatan / Program', 'Jenis Pelatihan', 'Lokasi Pelatihan', 'Tanggal Pelatihan', 'Status', 'Biaya Pelatihan', 'Rekening Pembiayaan', 'No. WA Panitia'];
+    const headers = ['No', 'Nama Kegiatan / Program', 'Jenis Pelatihan', 'Lokasi Pelatihan', 'Tanggal Pelatihan', 'Pelatih (Jaya Matahari 1+)', 'Asisten Pelatih (Jaya Melati 2)', 'Status', 'Biaya Pelatihan', 'Rekening Pembiayaan', 'No. WA Panitia'];
     const data = list.map((a: any, idx: number) => [
       idx + 1,
       a.namaKegiatan || a.jenisPelatihan || '-',
       a.jenisPelatihan || '-',
       a.lokasiPelatihan || '-',
       a.tanggalPelatihan || '-',
+      Array.isArray(a.pelatih) ? (a.pelatih.length > 0 ? a.pelatih.join('; ') : '-') : (a.pelatih || '-'),
+      Array.isArray(a.asistenPelatih) ? (a.asistenPelatih.length > 0 ? a.asistenPelatih.join('; ') : '-') : (a.asistenPelatih || '-'),
       a.status || 'Buka',
       a.biayaPelatihan || 'Rp 50.000',
       a.rekeningPembiayaan || '-',
@@ -7106,6 +7110,8 @@ export default function AdminDashboard() {
                               tanggalPelatihan: (settings.trainingDates || [])[0] || '',
                               status: 'Buka',
                               deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
+                              pelatih: [],
+                              asistenPelatih: [],
                               biayaPelatihan: 'Rp 50.000',
                               rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                               noWhatsappPanitia: '089688754000',
@@ -7151,6 +7157,8 @@ export default function AdminDashboard() {
                                   tanggalPelatihan: (settings.trainingDates || [])[0] || '',
                                   status: 'Buka',
                                   deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
+                                  pelatih: [],
+                                  asistenPelatih: [],
                                   biayaPelatihan: 'Rp 50.000',
                                   rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                                   noWhatsappPanitia: '089688754000',
@@ -7200,6 +7208,12 @@ export default function AdminDashboard() {
                                         tanggalPelatihan: act.tanggalPelatihan || '',
                                         status: act.status || 'Buka',
                                         deskripsi: act.deskripsi || '',
+                                        pelatih: Array.isArray(act.pelatih)
+                                          ? act.pelatih
+                                          : (typeof act.pelatih === 'string' && act.pelatih.trim() ? act.pelatih.split(',').map((s: string) => s.trim()) : []),
+                                        asistenPelatih: Array.isArray(act.asistenPelatih)
+                                          ? act.asistenPelatih
+                                          : (typeof act.asistenPelatih === 'string' && act.asistenPelatih.trim() ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []),
                                         biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
                                         rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                                         noWhatsappPanitia: act.noWhatsappPanitia || '089688754000',
@@ -7247,6 +7261,18 @@ export default function AdminDashboard() {
                                 <p className="flex items-center gap-1.5 font-semibold">
                                   <span className="text-gray-400">📅 Tanggal:</span>
                                   <strong className="text-gray-800">{act.tanggalPelatihan || '-'}</strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">👨‍🏫 Pelatih:</span>
+                                  <strong className="text-emerald-800 font-black">
+                                    {Array.isArray(act.pelatih) ? (act.pelatih.length > 0 ? act.pelatih.join(', ') : '-') : (act.pelatih || '-')}
+                                  </strong>
+                                </p>
+                                <p className="flex items-center gap-1.5 font-semibold">
+                                  <span className="text-gray-400">🤝 Asisten Pelatih:</span>
+                                  <strong className="text-blue-800 font-black">
+                                    {Array.isArray(act.asistenPelatih) ? (act.asistenPelatih.length > 0 ? act.asistenPelatih.join(', ') : '-') : (act.asistenPelatih || '-')}
+                                  </strong>
                                 </p>
                                 <p className="flex items-center gap-1.5 font-semibold">
                                   <span className="text-gray-400">💰 Biaya:</span>
@@ -9912,7 +9938,7 @@ export default function AdminDashboard() {
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, golonganAnggota: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         >
-                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                             <option key={g} value={g}>{g}</option>
                           ))}
                         </select>
@@ -9954,7 +9980,7 @@ export default function AdminDashboard() {
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, pelatihGolongan: e.target.value })}
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
                         >
-                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                             <option key={g} value={g}>{g}</option>
                           ))}
                         </select>
@@ -10465,7 +10491,7 @@ export default function AdminDashboard() {
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, pelatihGolongan: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       >
-                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
                       </select>
@@ -10479,7 +10505,7 @@ export default function AdminDashboard() {
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, golonganAnggota: e.target.value, tingkatan: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       >
-                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
                       </select>
@@ -11633,8 +11659,210 @@ export default function AdminDashboard() {
                     placeholder="Keterangan singkat kegiatan..."
                     value={activityForm.deskripsi}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, deskripsi: e.target.value }))}
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none"
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none text-xs"
                   />
+                </div>
+
+                {/* 1. SELEKSI DATA PELATIH (Minimal Role Jaya Matahari 1) */}
+                <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                      <span>👨‍🏫</span> Data Pelatih Kegiatan
+                    </label>
+                    <span className="text-[9px] font-extrabold bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-300/60">
+                      Syarat: Min. Role Jaya Matahari 1
+                    </span>
+                  </div>
+
+                  {/* Select Pelatih from Members */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      id="select-pelatih-dropdown"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val && !(activityForm.pelatih || []).includes(val)) {
+                          setActivityForm(prev => ({
+                            ...prev,
+                            pelatih: [...(prev.pelatih || []), val]
+                          }));
+                        }
+                        e.target.value = '';
+                      }}
+                      className="flex-1 bg-white border border-emerald-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer"
+                    >
+                      <option value="" disabled>-- Pilih Pelatih dari Anggota (Min. Jaya Matahari 1) --</option>
+                      {(() => {
+                        const eligible = (members || []).filter((m: any) => {
+                          if (!m) return false;
+                          const roleStr = (m.role || '').toLowerCase();
+                          const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                          const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
+                          const tingk = (m.tingkatan || m.golongan || '').toLowerCase();
+                          return roleStr.includes('jari') || roleStr.includes('matahari') ||
+                            rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
+                            pel.includes('jari') || pel.includes('matahari') ||
+                            tingk.includes('matahari');
+                        });
+
+                        const listToDisplay = eligible.length > 0 ? eligible : (members || []);
+
+                        return listToDisplay.map((m: any, idx: number) => {
+                          const name = m.nama || m.name || `Anggota ${idx + 1}`;
+                          const nbm = m.nbm ? ` (${m.nbm})` : '';
+                          const roleLabel = m.role ? ` [${m.role}]` : '';
+                          return (
+                            <option key={m.id || m.nbm || idx} value={name}>
+                              {name}{nbm}{roleLabel}
+                            </option>
+                          );
+                        });
+                      })()}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const customName = prompt('Ketikkan Nama Pelatih kegiatan:');
+                        if (customName && customName.trim() && !(activityForm.pelatih || []).includes(customName.trim())) {
+                          setActivityForm(prev => ({
+                            ...prev,
+                            pelatih: [...(prev.pelatih || []), customName.trim()]
+                          }));
+                        }
+                      }}
+                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs"
+                    >
+                      + Ketik Manual
+                    </button>
+                  </div>
+
+                  {/* Display selected Pelatih chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(activityForm.pelatih || []).length === 0 ? (
+                      <span className="text-[10px] text-gray-400 font-bold italic">Belum ada Pelatih dipilih.</span>
+                    ) : (
+                      (activityForm.pelatih || []).map((pName, pIdx) => (
+                        <span key={pIdx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-xs">
+                          👨‍🏫 {pName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActivityForm(prev => ({
+                                ...prev,
+                                pelatih: (prev.pelatih || []).filter((_, i) => i !== pIdx)
+                              }));
+                            }}
+                            className="hover:text-rose-200 cursor-pointer ml-1 font-extrabold"
+                            title="Hapus pelatih ini"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. SELEKSI DATA ASISTEN PELATIH (Role Jaya Melati 2) */}
+                <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-blue-950 flex items-center gap-1.5">
+                      <span>🤝</span> Data Asisten Pelatih Kegiatan
+                    </label>
+                    <span className="text-[9px] font-extrabold bg-blue-200/70 text-blue-900 px-2 py-0.5 rounded-md border border-blue-300/60">
+                      Syarat: Role Jaya Melati 2
+                    </span>
+                  </div>
+
+                  {/* Select Asisten Pelatih from Members */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      id="select-asisten-dropdown"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val && !(activityForm.asistenPelatih || []).includes(val)) {
+                          setActivityForm(prev => ({
+                            ...prev,
+                            asistenPelatih: [...(prev.asistenPelatih || []), val]
+                          }));
+                        }
+                        e.target.value = '';
+                      }}
+                      className="flex-1 bg-white border border-blue-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                    >
+                      <option value="" disabled>-- Pilih Asisten Pelatih dari Anggota (Role Jaya Melati 2) --</option>
+                      {(() => {
+                        const eligible = (members || []).filter((m: any) => {
+                          if (!m) return false;
+                          const roleStr = (m.role || '').toLowerCase();
+                          const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
+                          const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
+                          const tingk = (m.tingkatan || m.golongan || '').toLowerCase();
+                          return roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('jari') || roleStr.includes('matahari') ||
+                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('jari') || r.includes('matahari')) ||
+                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('jari') || pel.includes('matahari') ||
+                            tingk.includes('melati 2') || tingk.includes('matahari');
+                        });
+
+                        const listToDisplay = eligible.length > 0 ? eligible : (members || []);
+
+                        return listToDisplay.map((m: any, idx: number) => {
+                          const name = m.nama || m.name || `Anggota ${idx + 1}`;
+                          const nbm = m.nbm ? ` (${m.nbm})` : '';
+                          const roleLabel = m.role ? ` [${m.role}]` : '';
+                          return (
+                            <option key={m.id || m.nbm || idx} value={name}>
+                              {name}{nbm}{roleLabel}
+                            </option>
+                          );
+                        });
+                      })()}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const customName = prompt('Ketikkan Nama Asisten Pelatih kegiatan:');
+                        if (customName && customName.trim() && !(activityForm.asistenPelatih || []).includes(customName.trim())) {
+                          setActivityForm(prev => ({
+                            ...prev,
+                            asistenPelatih: [...(prev.asistenPelatih || []), customName.trim()]
+                          }));
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer shadow-xs"
+                    >
+                      + Ketik Manual
+                    </button>
+                  </div>
+
+                  {/* Display selected Asisten Pelatih chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(activityForm.asistenPelatih || []).length === 0 ? (
+                      <span className="text-[10px] text-gray-400 font-bold italic">Belum ada Asisten Pelatih dipilih.</span>
+                    ) : (
+                      (activityForm.asistenPelatih || []).map((aName, aIdx) => (
+                        <span key={aIdx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-700 text-white rounded-lg text-[10px] font-black shadow-xs">
+                          🤝 {aName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActivityForm(prev => ({
+                                ...prev,
+                                asistenPelatih: (prev.asistenPelatih || []).filter((_, i) => i !== aIdx)
+                              }));
+                            }}
+                            className="hover:text-rose-200 cursor-pointer ml-1 font-extrabold"
+                            title="Hapus asisten pelatih ini"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -11704,6 +11932,8 @@ export default function AdminDashboard() {
                         proposal: newAct.proposalUrl || '',
                         linkProposal: newAct.proposalUrl || '',
                         deskripsi: newAct.deskripsi || '',
+                        pelatih: Array.isArray(newAct.pelatih) ? newAct.pelatih.join(', ') : (newAct.pelatih || ''),
+                        asistenPelatih: Array.isArray(newAct.asistenPelatih) ? newAct.asistenPelatih.join(', ') : (newAct.asistenPelatih || ''),
                         kuota: '100 Peserta',
                         penyelenggara: 'Kwarwil HW Jateng'
                       });

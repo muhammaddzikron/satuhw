@@ -596,7 +596,7 @@ export default function DaftarPelatihanPage() {
                   onChange={handleChange} 
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
-                  {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                  {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                     <option key={g} value={g}>{g}</option>
                   ))}
                 </select>
@@ -860,7 +860,7 @@ export default function DaftarPelatihanPage() {
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                     >
-                      {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                      {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun', 'Dewasa'].map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
