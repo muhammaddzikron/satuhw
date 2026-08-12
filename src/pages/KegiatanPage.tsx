@@ -69,7 +69,7 @@ export default function KegiatanPage() {
   const [editingActivity, setEditingActivity] = useState<any | null>(null);
   const [newActivityForm, setNewActivityForm] = useState({
     namaKegiatan: '',
-    kategori: 'Pelatihan',
+    kategori: 'Rapat HW',
     tanggal: '',
     lokasi: '',
     biaya: 'Gratis',
@@ -129,7 +129,7 @@ export default function KegiatanPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [regSuccess, setRegSuccess] = useState<any | null>(null);
 
-  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan']);
+  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Perkemahan', 'Musyawarah']);
 
   useEffect(() => {
     setIsLoading(true);
@@ -201,7 +201,7 @@ export default function KegiatanPage() {
     }
   }, [activities]);
 
-  const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya')];
+  const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')];
 
   const filteredActivities = activities.filter(act => {
     const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -312,7 +312,7 @@ export default function KegiatanPage() {
       setEditingActivity(null);
       setNewActivityForm({
         namaKegiatan: '',
-        kategori: 'Pelatihan',
+        kategori: 'Rapat HW',
         tanggal: '',
         lokasi: '',
         biaya: 'Gratis',
@@ -342,7 +342,7 @@ export default function KegiatanPage() {
     setEditingActivity(act);
     setNewActivityForm({
       namaKegiatan: act.namaKegiatan || act.title || '',
-      kategori: act.kategori || act.category || 'Pelatihan',
+      kategori: act.kategori || act.category || 'Rapat HW',
       tanggal: act.tanggal || act.startDate || '',
       lokasi: act.lokasi || act.location || '',
       biaya: act.biaya || 'Gratis',
@@ -402,7 +402,7 @@ export default function KegiatanPage() {
               setEditingActivity(null);
               setNewActivityForm({
                 namaKegiatan: '',
-                kategori: activityCategoriesList[0] || 'Pelatihan',
+                kategori: activityCategoriesList.filter(c => c.toLowerCase() !== 'pelatihan')[0] || 'Rapat HW',
                 tanggal: '',
                 lokasi: '',
                 biaya: 'Gratis',
@@ -1284,13 +1284,12 @@ export default function KegiatanPage() {
                       onChange={e => setNewActivityForm({ ...newActivityForm, kategori: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                     >
-                      {activityCategoriesList.map((cat, idx) => (
+                      {activityCategoriesList.filter(c => c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan').map((cat, idx) => (
                         <option key={idx} value={cat}>{cat}</option>
                       ))}
-                      <option value="Perkemahan">Perkemahan</option>
-                      <option value="Pelatihan">Pelatihan</option>
-                      <option value="Silaturahmi">Silaturahmi</option>
                       <option value="Rapat HW">Rapat HW</option>
+                      <option value="Silaturahmi">Silaturahmi</option>
+                      <option value="Perkemahan">Perkemahan</option>
                       <option value="Musyawarah">Musyawarah</option>
                       <option value="Lainnya">Lainnya</option>
                     </select>

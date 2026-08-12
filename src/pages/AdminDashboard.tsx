@@ -472,7 +472,7 @@ export default function AdminDashboard() {
   // Kegiatan HW Jateng State
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
   const [activityApplicationsList, setActivityApplicationsList] = useState<any[]>([]);
-  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan']);
+  const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Perkemahan', 'Musyawarah']);
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [activitySubTab, setActivitySubTab] = useState<'kegiatan' | 'jenis' | 'peserta'>('kegiatan');
   const [isKegiatanModalOpen, setIsKegiatanModalOpen] = useState(false);
@@ -7846,8 +7846,9 @@ export default function AdminDashboard() {
                         >
                           <option value="Rapat HW">Rapat HW</option>
                           <option value="Silaturahmi">Silaturahmi</option>
-                          <option value="Pelatihan">Pelatihan</option>
                           <option value="Perkemahan">Perkemahan</option>
+                          <option value="Musyawarah">Musyawarah</option>
+                          <option value="Lainnya">Lainnya</option>
                         </select>
                       </div>
                       <div>

@@ -2309,11 +2309,14 @@ export const firestoreService = {
 
   // --- JENIS KEGIATAN (ACTIVITY CATEGORIES) REALTIME ---
   async getActivityCategories(): Promise<string[]> {
-    const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
+    const defaults = ['Rapat HW', 'Silaturahmi', 'Perkemahan', 'Musyawarah', 'Lomba'];
     try {
       const snap = await getDocs(collection(db, 'hw_activity_categories'));
       if (!snap.empty) {
-        const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
+        const list = snap.docs
+          .map(d => d.data().name || d.id)
+          .filter(Boolean)
+          .filter(n => n.toLowerCase() !== 'pelatihan' && n.toLowerCase() !== 'kegiatan pelatihan');
         if (list.length > 0) {
           return list;
         }
@@ -2352,13 +2355,16 @@ export const firestoreService = {
   },
 
   subscribeToActivityCategories(callback: (categories: string[]) => void): () => void {
-    const defaults = ['Rapat HW', 'Silaturahmi', 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Lomba'];
+    const defaults = ['Rapat HW', 'Silaturahmi', 'Perkemahan', 'Musyawarah', 'Lomba'];
 
     try {
       const unsub = onSnapshot(collection(db, 'hw_activity_categories'), (snap) => {
         if (!snap.empty) {
-          const list = snap.docs.map(d => d.data().name || d.id).filter(Boolean);
-          callback(list);
+          const list = snap.docs
+            .map(d => d.data().name || d.id)
+            .filter(Boolean)
+            .filter(n => n.toLowerCase() !== 'pelatihan' && n.toLowerCase() !== 'kegiatan pelatihan');
+          callback(list.length > 0 ? list : defaults);
         } else {
           callback(defaults);
         }
