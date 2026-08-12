@@ -36,9 +36,12 @@ export const formatAudioUrl = (url?: string, version?: string | number): string 
     return `data:audio/mp3;base64,${trimmed}`;
   }
 
-  if (version && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const cacheVersion = version 
+      ? String(version) 
+      : String(Math.floor(Date.now() / 300000)); // 5-minute rolling timestamp cache buster
     const sep = trimmed.includes('?') ? '&' : '?';
-    return `${trimmed}${sep}_v=${version}`;
+    return `${trimmed}${sep}_v=${cacheVersion}`;
   }
 
   return trimmed;

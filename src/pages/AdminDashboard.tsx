@@ -100,16 +100,48 @@ const DefaultStempel = ({ idSuffix }: { idSuffix: string }) => (
 );
 import { TRAINING_PROGRAMS, DEFAULT_JATI1_36_MATERI } from './PelatihanPage';
 
+const getNormalizedLevelKey = (str?: string): 'jati1' | 'jati2' | 'jari1' => {
+  if (!str) return 'jati1';
+  const clean = str.toLowerCase().trim();
+  if (clean.includes('jati 2') || clean.includes('jati2') || clean.includes('jaya melati 2')) return 'jati2';
+  if (clean.includes('jari 1') || clean.includes('jari1') || clean.includes('jaya rintisan 1') || clean.includes('jaya matahari 1')) return 'jari1';
+  if (clean.includes('jati 1') || clean.includes('jati1') || clean.includes('jaya melati 1')) return 'jati1';
+  return 'jati1';
+};
+
+const isApprovedParticipant = (app: any): boolean => {
+  if (!app) return false;
+  const st = (app.status || '').toLowerCase().trim();
+  const kelulusan = (app.statusKelulusan || '').toLowerCase().trim();
+  if (st === 'approved' || st === 'disetujui' || st === 'lulus' || st === 'lulus bersyarat' || st === 'aktif') return true;
+  if (kelulusan === 'lulus' || kelulusan === 'lulus bersyarat') return true;
+  return false;
+};
+
+const isMatchTrainingLevel = (app: any, targetLevel: string): boolean => {
+  if (!app) return false;
+  const appLevelKey = getNormalizedLevelKey(app.pelatihanAkanDiikuti || app.jenisPelatihan || app.namaKegiatan);
+  const targetLevelKey = getNormalizedLevelKey(targetLevel);
+  return appLevelKey === targetLevelKey;
+};
+
 const isSessionPresent = (attObj: any, sesId: string): boolean => {
   if (!attObj) return false;
-  const val = attObj[sesId];
+  let val = attObj[sesId];
+  if (val === undefined) {
+    const numMatch = sesId.match(/\d+/);
+    if (numMatch) {
+      const num = numMatch[0];
+      val = attObj[`Sesi ${num}`] ?? attObj[`sesi_${num}`] ?? attObj[`Materi ${num}`] ?? attObj[`materi_${num}`];
+    }
+  }
   if (val === undefined || val === null) return false;
   if (typeof val === 'boolean') return val;
   if (typeof val === 'string') {
-    return val === 'hadir' || val === 'true';
+    return val === 'hadir' || val === 'true' || val === 'Hadir';
   }
   if (typeof val === 'object' && val !== null) {
-    return val.status === 'hadir';
+    return val.status === 'hadir' || val.status === 'Hadir';
   }
   return false;
 };
@@ -1824,7 +1856,8 @@ export default function AdminDashboard() {
   };
 
   const getCalculatedGrading = (app: any) => {
-    const prog = TRAINING_PROGRAMS.find(p => p.id === app.pelatihanAkanDiikuti);
+    const targetKey = getNormalizedLevelKey(app.pelatihanAkanDiikuti || app.jenisPelatihan);
+    const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
     const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
 
     let attObj: Record<string, any> = {};
@@ -2795,6 +2828,526 @@ export default function AdminDashboard() {
 
     const dateStr = new Date().toISOString().split('T')[0];
     doc.save(`Daftar_Hadir_Peserta_${activityNameFile}_${dateStr}.pdf`);
+  };
+
+  // =========================================================================
+  // EXPORT FUNCTIONS FOR PELATIHAN (TRAINING MODULE)
+  // =========================================================================
+
+  // 1. Export Data Pelatihan (Kegiatan / Program Pelatihan)
+  const exportTrainingActivitiesToExcel = () => {
+    const rawActs = settings.trainingActivities || [];
+    const acts = Array.isArray(rawActs) ? rawActs : (typeof rawActs === 'string' ? safeJsonParse(rawActs, []) : []);
+    const list = acts.length > 0 ? acts : [
+      { namaKegiatan: 'Pelatihan Jaya Melati 1 (Jati 1)', jenisPelatihan: 'Jaya Melati 1', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Reguler', status: 'Buka', biayaPelatihan: 'Rp 50.000', noWhatsappPanitia: '089688754000' },
+      { namaKegiatan: 'Pelatihan Jaya Melati 2 (Jati 2)', jenisPelatihan: 'Jaya Melati 2', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Lanjutan', status: 'Buka', biayaPelatihan: 'Rp 75.000', noWhatsappPanitia: '089688754000' },
+      { namaKegiatan: 'Pelatihan Jaya Rintisan 1 (Jari 1)', jenisPelatihan: 'Jaya Rintisan 1', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Spesialis', status: 'Buka', biayaPelatihan: 'Rp 100.000', noWhatsappPanitia: '089688754000' }
+    ];
+
+    const headers = ['No', 'Nama Kegiatan / Program', 'Jenis Pelatihan', 'Lokasi Pelatihan', 'Tanggal Pelatihan', 'Status', 'Biaya Pelatihan', 'Rekening Pembiayaan', 'No. WA Panitia'];
+    const data = list.map((a: any, idx: number) => [
+      idx + 1,
+      a.namaKegiatan || a.jenisPelatihan || '-',
+      a.jenisPelatihan || '-',
+      a.lokasiPelatihan || '-',
+      a.tanggalPelatihan || '-',
+      a.status || 'Buka',
+      a.biayaPelatihan || 'Rp 50.000',
+      a.rekeningPembiayaan || '-',
+      a.noWhatsappPanitia ? `'${a.noWhatsappPanitia}` : '-'
+    ]);
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Data_Kegiatan_Pelatihan_HW_Jateng_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTrainingActivitiesToPDF = () => {
+    const rawActs = settings.trainingActivities || [];
+    const acts = Array.isArray(rawActs) ? rawActs : (typeof rawActs === 'string' ? safeJsonParse(rawActs, []) : []);
+    const list = acts.length > 0 ? acts : [
+      { namaKegiatan: 'Pelatihan Jaya Melati 1 (Jati 1)', jenisPelatihan: 'Jaya Melati 1', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Reguler', status: 'Buka', biayaPelatihan: 'Rp 50.000', noWhatsappPanitia: '089688754000' },
+      { namaKegiatan: 'Pelatihan Jaya Melati 2 (Jati 2)', jenisPelatihan: 'Jaya Melati 2', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Lanjutan', status: 'Buka', biayaPelatihan: 'Rp 75.000', noWhatsappPanitia: '089688754000' },
+      { namaKegiatan: 'Pelatihan Jaya Rintisan 1 (Jari 1)', jenisPelatihan: 'Jaya Rintisan 1', lokasiPelatihan: 'Pusdiklat HW Jateng', tanggalPelatihan: 'Spesialis', status: 'Buka', biayaPelatihan: 'Rp 100.000', noWhatsappPanitia: '089688754000' }
+    ];
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'Nama Kegiatan / Program', 'Jenis', 'Lokasi', 'Tanggal', 'Biaya', 'Status']];
+    const data = list.map((a: any, idx: number) => [
+      idx + 1,
+      a.namaKegiatan || a.jenisPelatihan || '-',
+      a.jenisPelatihan || '-',
+      a.lokasiPelatihan || '-',
+      a.tanggalPelatihan || '-',
+      a.biayaPelatihan || 'Rp 50.000',
+      a.status || 'Buka'
+    ]);
+
+    doc.setFontSize(14);
+    doc.text('DAFTAR KEGIATAN & PROGRAM PELATIHAN HW JATENG', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Total Program Aktif: ${list.length} Kegiatan`, 14, 26);
+
+    autoTable(doc, {
+      head: headers,
+      body: data,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Laporan_Kegiatan_Pelatihan_HW_Jateng_${dateStr}.pdf`);
+  };
+
+  // 2. Export Data Peserta Pelatihan
+  const exportTrainingParticipantsToExcel = () => {
+    const list = trainingApps.filter(app => {
+      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+
+      const matchSearch = 
+        name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
+      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
+      return matchSearch && matchStatus;
+    });
+
+    const headers = ['No', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Nomor KTA / NBM', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Asal Kwarda / Daerah', 'Qabilah', 'Program Pelatihan', 'Pelatih Golongan', 'Status Pendaftaran', 'Status Pembayaran', 'Tanggal Ajuan'];
+    const data = list.map((app, idx) => {
+      const matchMember = members.find(m => 
+        (m.id && app.userId && String(m.id) === String(app.userId)) ||
+        (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
+        (m.namaLengkap && app.nama && String(m.namaLengkap).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
+      );
+      const matchKta = ktaApps.find(k => 
+        (k.userId && app.userId && String(k.userId) === String(app.userId)) ||
+        (k.email && app.email && String(k.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
+        (k.nama && app.nama && String(k.nama).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
+      );
+
+      const dispTempat = app.tempatLahir || matchMember?.tempatLahir || matchKta?.tempatLahir || (matchMember?.alamat ? cleanTempatLahir(matchMember.alamat) : '') || '-';
+      const dispTanggal = app.tanggalLahir || matchMember?.tanggalLahir || matchKta?.tanggalLahir || '-';
+      const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nomorKTA || matchMember?.nbm || matchKta?.ktaNumber || matchKta?.nomorKTA || matchKta?.nbm || '-';
+      const dispJkRaw = app.jenisKelamin || matchMember?.jenisKelamin || matchKta?.jenisKelamin || 'L';
+      const dispJk = (dispJkRaw === 'P' || dispJkRaw === 'Perempuan') ? 'Perempuan' : 'Laki-Laki';
+
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        app.email || '-',
+        app.noWa ? `'${app.noWa}` : '-',
+        dispNbm,
+        dispTempat,
+        dispTanggal,
+        dispJk,
+        app.asalDaerah || matchMember?.asalKwarda || matchKta?.asalDaerah || '-',
+        app.qabilah || matchMember?.qabilah || matchKta?.qabilah || '-',
+        app.pelatihanAkanDiikuti || 'Jaya Melati 1',
+        app.pelatihGolongan || '-',
+        app.status === 'pending' ? 'Menunggu' : app.status === 'approved' ? 'Disetujui' : 'Ditolak',
+        app.statusPembayaran || 'Lunas',
+        app.createdAt ? new Date(app.createdAt).toLocaleDateString('id-ID') : '-'
+      ];
+    });
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const statusSuffix = trainingFilterStatus !== 'Semua' ? `_${trainingFilterStatus}` : '';
+    link.setAttribute("download", `Data_Peserta_Pelatihan_HW_Jateng${statusSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTrainingParticipantsToPDF = () => {
+    const list = trainingApps.filter(app => {
+      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+
+      const matchSearch = 
+        name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+        (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
+      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
+      return matchSearch && matchStatus;
+    });
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'Nama Peserta', 'No. KTA / WA', 'Asal Daerah / Qabilah', 'Program Pelatihan', 'Status']];
+    const data = list.map((app, idx) => {
+      const matchMember = members.find(m => (m.id && app.userId && String(m.id) === String(app.userId)) || (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()));
+      const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        `${dispNbm} / ${app.noWa || '-'}`,
+        `${app.asalDaerah || '-'}${app.qabilah ? ` (${app.qabilah})` : ''}`,
+        app.pelatihanAkanDiikuti || 'Jaya Melati 1',
+        app.status === 'pending' ? 'Menunggu' : app.status === 'approved' ? 'Disetujui' : 'Ditolak'
+      ];
+    });
+
+    doc.setFontSize(14);
+    doc.text('LAPORAN DATA PESERTA PELATIHAN HW JATENG', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Total Filter: ${list.length} Peserta (Status: ${trainingFilterStatus === 'Semua' ? 'Semua Status' : trainingFilterStatus})`, 14, 26);
+
+    autoTable(doc, {
+      head: headers,
+      body: data,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Laporan_Peserta_Pelatihan_HW_Jateng_${dateStr}.pdf`);
+  };
+
+  // 3. Export Data Presensi Pelatihan
+  const exportTrainingAttendanceToExcel = () => {
+    const targetKey = getNormalizedLevelKey(selectedPresensiProg);
+    const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
+    const sessionList = prog ? prog.sessions : [];
+    const sessions = sessionList.map(s => s.id);
+
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const enrolled = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+    });
+
+    const sessionHeaders = sessionList.map(s => `${s.id} (${s.title})`);
+    const headers = ['No', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Asal Daerah', 'Qabilah', ...sessionHeaders, 'Jumlah Hadir', 'Total Sesi', 'Persentase Kehadiran (%)'];
+
+    const data = enrolled.map((app, idx) => {
+      let attObj: Record<string, any> = {};
+      if (app.kehadiran) {
+        attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
+      }
+      const totalSessions = sessions.length;
+      const attendedSessions = sessions.filter(sesi => isSessionPresent(attObj, sesi)).length;
+      const attendancePercentage = totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 100) : 0;
+
+      const sessionStatuses = sessions.map(sesi => {
+        const isPresent = isSessionPresent(attObj, sesi);
+        const rawItem = attObj[sesi];
+        if (isPresent) {
+          const ts = typeof rawItem === 'object' && rawItem?.timestamp ? ` (${rawItem.timestamp})` : '';
+          return `Hadir${ts}`;
+        }
+        if ((typeof rawItem === 'object' && rawItem?.status === 'izin') || (typeof rawItem === 'string' && rawItem === 'izin')) {
+          return 'Izin';
+        }
+        return 'Absen';
+      });
+
+      const matchMember = members.find(m => (m.id && app.userId && String(m.id) === String(app.userId)) || (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()));
+      const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
+
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        dispNbm,
+        selectedPresensiProg,
+        app.asalDaerah || '-',
+        app.qabilah || '-',
+        ...sessionStatuses,
+        attendedSessions,
+        totalSessions,
+        `${attendancePercentage}%`
+      ];
+    });
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedPresensiProg.replace(/\s+/g, '_');
+    link.setAttribute("download", `Data_Presensi_Pelatihan_${progSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTrainingAttendanceToPDF = () => {
+    const targetKey = getNormalizedLevelKey(selectedPresensiProg);
+    const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
+    const sessionList = prog ? prog.sessions : [];
+    const sessions = sessionList.map(s => s.id);
+
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const enrolled = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+    });
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'Nama Peserta', 'Asal Daerah / Qabilah', 'Jumlah Hadir', 'Total Sesi', '% Kehadiran']];
+    const data = enrolled.map((app, idx) => {
+      let attObj: Record<string, any> = {};
+      if (app.kehadiran) {
+        attObj = safeJsonParse<Record<string, any>>(app.kehadiran, {});
+      }
+      const totalSessions = sessions.length;
+      const attendedSessions = sessions.filter(sesi => isSessionPresent(attObj, sesi)).length;
+      const attendancePercentage = totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 100) : 0;
+
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        `${app.asalDaerah || '-'}${app.qabilah ? ` (${app.qabilah})` : ''}`,
+        attendedSessions,
+        totalSessions,
+        `${attendancePercentage}%`
+      ];
+    });
+
+    doc.setFontSize(14);
+    doc.text(`REKAPITULASI PRESENSI PELATIHAN ${selectedPresensiProg.toUpperCase()}`, 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Tingkat Pelatihan: ${selectedPresensiProg} | Total Peserta: ${enrolled.length} Orang | Jumlah Sesi Kurikulum: ${sessions.length}`, 14, 26);
+
+    autoTable(doc, {
+      head: headers,
+      body: data,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedPresensiProg.replace(/\s+/g, '_');
+    doc.save(`Rekap_Presensi_Pelatihan_${progSuffix}_${dateStr}.pdf`);
+  };
+
+  // 4. Export Data Kelulusan Pelatihan
+  const exportTrainingGraduationToExcel = () => {
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const enrolled = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
+    });
+
+    const headers = ['No', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Asal Daerah', 'Qabilah', 'Nilai / Predikat', 'Kehadiran (%)', 'Tugas (%)', 'Status Kelulusan', 'Catatan / Ulasan Pelatih'];
+    const data = enrolled.map((app, idx) => {
+      const calc = getCalculatedGrading(app);
+      const matchMember = members.find(m => (m.id && app.userId && String(m.id) === String(app.userId)) || (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()));
+      const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
+
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        dispNbm,
+        selectedGradeProg,
+        app.asalDaerah || '-',
+        app.qabilah || '-',
+        app.nilai || `${calc.finalPercentage}%`,
+        `${calc.attendancePercentage}%`,
+        `${calc.assignmentPercentage}%`,
+        app.statusKelulusan || calc.calculatedStatus || 'Belum Diproses',
+        app.remark || '-'
+      ];
+    });
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedGradeProg.replace(/\s+/g, '_');
+    link.setAttribute("download", `Data_Kelulusan_Pelatihan_${progSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTrainingGraduationToPDF = () => {
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const enrolled = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
+    });
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'Nama Peserta', 'Asal Daerah / Qabilah', 'Nilai / Predikat', '% Presensi', '% Tugas', 'Status Kelulusan']];
+    const data = enrolled.map((app, idx) => {
+      const calc = getCalculatedGrading(app);
+      return [
+        idx + 1,
+        app.nama || app.namaLengkap || '-',
+        `${app.asalDaerah || '-'}${app.qabilah ? ` (${app.qabilah})` : ''}`,
+        app.nilai || `${calc.finalPercentage}%`,
+        `${calc.attendancePercentage}%`,
+        `${calc.assignmentPercentage}%`,
+        app.statusKelulusan || calc.calculatedStatus || 'Belum Diproses'
+      ];
+    });
+
+    doc.setFontSize(14);
+    doc.text(`LAPORAN KELULUSAN PELATIHAN ${selectedGradeProg.toUpperCase()}`, 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Tingkat: ${selectedGradeProg} | Total Peserta Evaluasi: ${enrolled.length} Orang`, 14, 26);
+
+    autoTable(doc, {
+      head: headers,
+      body: data,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedGradeProg.replace(/\s+/g, '_');
+    doc.save(`Laporan_Kelulusan_Pelatihan_${progSuffix}_${dateStr}.pdf`);
+  };
+
+  // 5. Export Piagam Tervalidasi
+  const exportValidatedCertificatesToExcel = () => {
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const graduates = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+    });
+
+    const headers = ['No', 'No. Seri Piagam', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Predikat Nilai', 'Asal Daerah', 'Qabilah', 'Status Validasi', 'Tanggal Terbit', 'URL Verifikasi'];
+    const data = graduates.map((app, idx) => {
+      const matchMember = members.find(m => (m.id && app.userId && String(m.id) === String(app.userId)) || (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()));
+      const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
+      const serialNo = `HW-JT/PLT/${new Date().getFullYear()}/${app.id.slice(0, 4).toUpperCase()}`;
+      const verifyUrl = `${window.location.origin}/pelatihan?verify=${app.id}`;
+
+      return [
+        idx + 1,
+        serialNo,
+        app.nama || app.namaLengkap || '-',
+        dispNbm,
+        selectedPiagamProg,
+        app.nilai || 'A',
+        app.asalDaerah || '-',
+        app.qabilah || '-',
+        'Tervalidasi / Valid (Sah Kwarwil HW Jateng)',
+        app.updatedAt ? new Date(app.updatedAt).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID'),
+        verifyUrl
+      ];
+    });
+
+    let csvContent = "\ufeff" 
+      + headers.join(",") + "\n"
+      + data.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedPiagamProg.replace(/\s+/g, '_');
+    link.setAttribute("download", `Data_Piagam_Tervalidasi_${progSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportValidatedCertificatesToPDF = () => {
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const graduates = trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+      const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
+      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+    });
+
+    const doc = new jsPDF() as any;
+    const headers = [['No', 'No. Seri Piagam', 'Nama Peserta', 'Predikat', 'Asal Daerah / Qabilah', 'Status Validasi']];
+    const data = graduates.map((app, idx) => {
+      const serialNo = `HW-JT/PLT/${new Date().getFullYear()}/${app.id.slice(0, 4).toUpperCase()}`;
+      return [
+        idx + 1,
+        serialNo,
+        app.nama || app.namaLengkap || '-',
+        app.nilai || 'A',
+        `${app.asalDaerah || '-'}${app.qabilah ? ` (${app.qabilah})` : ''}`,
+        'TERVALIDASI'
+      ];
+    });
+
+    doc.setFontSize(14);
+    doc.text(`DAFTAR PIAGAM KELULUSAN TERVALIDASI - ${selectedPiagamProg.toUpperCase()}`, 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+    doc.text(`Tingkat Pelatihan: ${selectedPiagamProg} | Total Piagam Sah: ${graduates.length} Sertifikat`, 14, 26);
+
+    autoTable(doc, {
+      head: headers,
+      body: data,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: '#1a413d', textColor: '#ffffff', fontStyle: 'bold' }
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const progSuffix = selectedPiagamProg.replace(/\s+/g, '_');
+    doc.save(`Laporan_Piagam_Tervalidasi_${progSuffix}_${dateStr}.pdf`);
   };
 
   const getMemberRegionalCodeIndex = (m: any): number => {
@@ -5131,45 +5684,61 @@ export default function AdminDashboard() {
                         ))}
                       </div>
 
-                      <button
-                        onClick={() => {
-                          setAddParticipantSelectedMemberId('');
-                          setAddParticipantSearchQuery('');
-                          setAddParticipantMode('select');
+                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                        <button
+                          onClick={exportTrainingParticipantsToExcel}
+                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport Excel (CSV)"
+                        >
+                          <FileSpreadsheet size={14} /> Export Excel
+                        </button>
+                        <button
+                          onClick={exportTrainingParticipantsToPDF}
+                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport PDF"
+                        >
+                          <Download size={14} /> Export PDF
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAddParticipantSelectedMemberId('');
+                            setAddParticipantSearchQuery('');
+                            setAddParticipantMode('select');
 
-                          // Auto-detect training program, location, date, and fee from active activities/settings
-                          const activeActs = settings.trainingActivities || [];
-                          const firstAct = activeActs.find((a: any) => a.status !== 'Tutup') || activeActs[0];
+                            // Auto-detect training program, location, date, and fee from active activities/settings
+                            const activeActs = settings.trainingActivities || [];
+                            const firstAct = activeActs.find((a: any) => a.status !== 'Tutup') || activeActs[0];
 
-                          const prefillTraining = firstAct?.namaKegiatan || firstAct?.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1';
-                          const prefillLocation = firstAct?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng';
-                          const prefillDate = firstAct?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler';
-                          const prefillBiaya = firstAct?.biayaPelatihan || 'Rp 50.000';
-                          const prefillRekening = firstAct?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+                            const prefillTraining = firstAct?.namaKegiatan || firstAct?.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1';
+                            const prefillLocation = firstAct?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng';
+                            const prefillDate = firstAct?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler';
+                            const prefillBiaya = firstAct?.biayaPelatihan || 'Rp 50.000';
+                            const prefillRekening = firstAct?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
 
-                          setAddParticipantLokasi(prefillLocation);
-                          setAddParticipantTanggal(prefillDate);
+                            setAddParticipantLokasi(prefillLocation);
+                            setAddParticipantTanggal(prefillDate);
 
-                          setAddParticipantForm({
-                            nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
-                            jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
-                            pelatihanAkanDiikuti: prefillTraining,
-                            pelatihGolongan: 'Tunas Athfal',
-                            golonganAnggota: 'Pengenal',
-                            lokasiPelatihan: prefillLocation,
-                            tanggalPelatihan: prefillDate,
-                            biayaPelatihan: prefillBiaya,
-                            rekeningPembiayaan: prefillRekening,
-                            status: 'approved',
-                            statusPembayaran: 'Lunas'
-                          });
+                            setAddParticipantForm({
+                              nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+                              jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
+                              pelatihanAkanDiikuti: prefillTraining,
+                              pelatihGolongan: 'Tunas Athfal',
+                              golonganAnggota: 'Pengenal',
+                              lokasiPelatihan: prefillLocation,
+                              tanggalPelatihan: prefillDate,
+                              biayaPelatihan: prefillBiaya,
+                              rekeningPembiayaan: prefillRekening,
+                              status: 'approved',
+                              statusPembayaran: 'Lunas'
+                            });
 
-                          setIsAddParticipantModalOpen(true);
-                        }}
-                        className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
-                      >
-                        <UserPlus size={14} /> Tambah Peserta
-                      </button>
+                            setIsAddParticipantModalOpen(true);
+                          }}
+                          className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <UserPlus size={14} /> Tambah Peserta
+                        </button>
+                      </div>
                     </div>
 
                     {/* Participant Table */}
@@ -5523,20 +6092,46 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       
-                      <div className="text-right">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                        <span className="text-lg font-black text-hw-green">
-                          {trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg).length} Orang
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right border-r border-gray-100 pr-4 hidden sm:block">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
+                          <span className="text-lg font-black text-hw-green">
+                            {trainingApps.filter(app => isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg)).length} Orang
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={exportTrainingAttendanceToExcel}
+                            className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Eksport Excel (CSV)"
+                          >
+                            <FileSpreadsheet size={14} /> Export Excel
+                          </button>
+                          <button
+                            onClick={exportTrainingAttendanceToPDF}
+                            className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Eksport PDF"
+                          >
+                            <Download size={14} /> Export PDF
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     {/* Presensi Grid Table */}
                     {(() => {
-                      const prog = TRAINING_PROGRAMS.find(p => p.id === selectedPresensiProg);
-                      const sessions = prog ? prog.sessions.map(s => s.id) : ['Sesi 1', 'Sesi 2', 'Sesi 3'];
+                      const targetKey = getNormalizedLevelKey(selectedPresensiProg);
+                      const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
+                      const sessionList = prog ? prog.sessions : [];
+                      const sessions = sessionList.map(s => s.id);
 
-                      const enrolled = trainingApps.filter(app => app.status === 'approved' && app.pelatihanAkanDiikuti === selectedPresensiProg);
+                      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+                      const enrolled = trainingApps.filter(app => {
+                        const name = (app?.nama || app?.namaLengkap || '').trim();
+                        const email = (app?.email || '').toLowerCase().trim();
+                        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+                      });
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -5547,13 +6142,16 @@ export default function AdminDashboard() {
                           <table className="w-full text-left border-collapse min-w-max">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                                <th className="p-4 pl-6 w-[250px]">Nama Peserta</th>
-                                {sessions.map((sesi) => (
-                                  <th key={sesi} className="p-4 text-center break-words max-w-[150px] leading-tight text-[9px]">
-                                    {sesi}
+                                <th className="p-4 pl-6 w-[260px] min-w-[260px] sticky left-0 bg-gray-50 z-20 border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
+                                  Nama Peserta
+                                </th>
+                                {sessionList.map((s, idx) => (
+                                  <th key={s.id || idx} className="p-3 text-center min-w-[130px] max-w-[170px] border-r border-gray-100 last:border-r-0" title={s.title}>
+                                    <div className="font-extrabold text-hw-green text-[10px] uppercase tracking-wider">{s.id || `Sesi ${idx + 1}`}</div>
+                                    <div className="text-[9px] text-gray-600 font-semibold leading-tight mt-0.5 line-clamp-2">{s.title}</div>
                                   </th>
                                 ))}
-                                <th className="p-4 pr-6 text-center w-[120px] border-l border-gray-100">% Kehadiran</th>
+                                <th className="p-4 pr-6 text-center w-[120px] min-w-[120px] border-l border-gray-100">% Kehadiran</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
@@ -5571,7 +6169,7 @@ export default function AdminDashboard() {
 
                                 return (
                                   <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="p-4 pl-6">
+                                    <td className="p-4 pl-6 sticky left-0 bg-white z-10 border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden shrink-0">
                                           {app.photo ? (
@@ -5786,20 +6384,12 @@ export default function AdminDashboard() {
                           return matched || defM;
                         });
                       }
+                      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
                       const enrolled = trainingApps.filter(app => {
-                        if (app.status !== 'approved') return false;
-                        const appLevel = (app.pelatihanAkanDiikuti || '').toLowerCase();
-                        const targetLevel = selectedTugasProg.toLowerCase();
-                        if (targetLevel === 'jati 1') {
-                          return appLevel.includes('jati 1') || appLevel.includes('jaya matahari 1') || appLevel === 'jati 1' || !appLevel || appLevel === '-';
-                        }
-                        if (targetLevel === 'jati 2') {
-                          return appLevel.includes('jati 2') || appLevel.includes('jaya melati 2') || appLevel === 'jati 2';
-                        }
-                        if (targetLevel === 'jari 1') {
-                          return appLevel.includes('jari 1') || appLevel === 'jari 1';
-                        }
-                        return appLevel === targetLevel;
+                        const name = (app?.nama || app?.namaLengkap || '').trim();
+                        const email = (app?.email || '').toLowerCase().trim();
+                        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedTugasProg);
                       });
 
                       return enrolled.length === 0 ? (
@@ -6019,24 +6609,33 @@ export default function AdminDashboard() {
                           ))}
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={exportTrainingGraduationToExcel}
+                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport Excel (CSV)"
+                        >
+                          <FileSpreadsheet size={14} /> Export Excel
+                        </button>
+                        <button
+                          onClick={exportTrainingGraduationToPDF}
+                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport PDF"
+                        >
+                          <Download size={14} /> Export PDF
+                        </button>
+                      </div>
                     </div>
 
                     {/* Grading Table */}
                     {(() => {
+                      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
                       const enrolled = trainingApps.filter(app => {
-                        if (app.status !== 'approved') return false;
-                        const appLevel = (app.pelatihanAkanDiikuti || '').toLowerCase();
-                        const targetLevel = selectedGradeProg.toLowerCase();
-                        if (targetLevel === 'jati 1') {
-                          return appLevel.includes('jati 1') || appLevel.includes('jaya matahari 1') || appLevel === 'jati 1' || !appLevel || appLevel === '-';
-                        }
-                        if (targetLevel === 'jati 2') {
-                          return appLevel.includes('jati 2') || appLevel.includes('jaya melati 2') || appLevel === 'jati 2';
-                        }
-                        if (targetLevel === 'jari 1') {
-                          return appLevel.includes('jari 1') || appLevel === 'jari 1';
-                        }
-                        return appLevel === targetLevel;
+                        const name = (app?.nama || app?.namaLengkap || '').trim();
+                        const email = (app?.email || '').toLowerCase().trim();
+                        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
                       });
 
                       return enrolled.length === 0 ? (
@@ -6170,16 +6769,35 @@ export default function AdminDashboard() {
                           ))}
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={exportValidatedCertificatesToExcel}
+                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport Excel (CSV)"
+                        >
+                          <FileSpreadsheet size={14} /> Export Excel
+                        </button>
+                        <button
+                          onClick={exportValidatedCertificatesToPDF}
+                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport PDF"
+                        >
+                          <Download size={14} /> Export PDF
+                        </button>
+                      </div>
                     </div>
 
                     {/* Piagam Table */}
                     {(() => {
-                      // Filter approved participants who are Lulus or Lulus Bersyarat
-                      const graduates = trainingApps.filter(app => 
-                        app.status === 'approved' && 
-                        app.pelatihanAkanDiikuti === selectedPiagamProg && 
-                        (app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat')
-                      );
+                      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+                      const graduates = trainingApps.filter(app => {
+                        const name = (app?.nama || app?.namaLengkap || '').trim();
+                        const email = (app?.email || '').toLowerCase().trim();
+                        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+                        const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
+                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+                      });
 
                       return graduates.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -6266,28 +6884,46 @@ export default function AdminDashboard() {
                           Kelola jenis pelatihan, daftar kegiatan pelatihan aktif (lokasi & tanggal pelaksanaan), serta opsi pilihan untuk formulir pendaftaran.
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingActivityId(null);
-                          setActivityForm({
-                            namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
-                            jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
-                            lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
-                            tanggalPelatihan: (settings.trainingDates || [])[0] || '',
-                            status: 'Buka',
-                            deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
-                            biayaPelatihan: 'Rp 50.000',
-                            rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                            noWhatsappPanitia: '089688754000',
-                            proposalUrl: ''
-                          });
-                          setIsActivityModalOpen(true);
-                        }}
-                        className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-900/10 flex items-center gap-2 self-start md:self-auto cursor-pointer"
-                      >
-                        <Plus size={16} /> Tambah Kegiatan Pelatihan
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                        <button
+                          type="button"
+                          onClick={exportTrainingActivitiesToExcel}
+                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport Excel (CSV)"
+                        >
+                          <FileSpreadsheet size={15} /> Export Excel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={exportTrainingActivitiesToPDF}
+                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Eksport PDF"
+                        >
+                          <Download size={15} /> Export PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingActivityId(null);
+                            setActivityForm({
+                              namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
+                              jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
+                              lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
+                              tanggalPelatihan: (settings.trainingDates || [])[0] || '',
+                              status: 'Buka',
+                              deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
+                              biayaPelatihan: 'Rp 50.000',
+                              rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+                              noWhatsappPanitia: '089688754000',
+                              proposalUrl: ''
+                            });
+                            setIsActivityModalOpen(true);
+                          }}
+                          className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-900/10 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Plus size={16} /> Tambah Kegiatan Pelatihan
+                        </button>
+                      </div>
                     </div>
 
                     {/* DAFTAR KEGIATAN PELATIHAN HW JATENG */}

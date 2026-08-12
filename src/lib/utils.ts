@@ -190,28 +190,24 @@ export function getCorsSafeUrl(url: string | null | undefined, version?: string 
   // Resolve Google Drive links first
   let resolvedUrl = getDriveDirectLink(trimmed);
 
+  // Derive cache-buster version if not explicitly provided
+  const cacheVersion = version 
+    ? String(version) 
+    : String(Math.floor(Date.now() / 300000)); // 5-minute rolling timestamp cache buster
+
   if (resolvedUrl.includes('googleusercontent.com')) {
-    if (version) {
-      const sep = resolvedUrl.includes('?') ? '&' : '?';
-      return `${resolvedUrl}${sep}_v=${version}`;
-    }
-    return resolvedUrl;
+    const sep = resolvedUrl.includes('?') ? '&' : '?';
+    return `${resolvedUrl}${sep}_v=${cacheVersion}`;
   }
 
   if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('http://localhost') || resolvedUrl.startsWith('https://localhost')) {
-    if (version) {
-      const sep = resolvedUrl.includes('?') ? '&' : '?';
-      return `${resolvedUrl}${sep}_v=${version}`;
-    }
-    return resolvedUrl;
+    const sep = resolvedUrl.includes('?') ? '&' : '?';
+    return `${resolvedUrl}${sep}_v=${cacheVersion}`;
   }
 
   // Proxy other external URLs via images.weserv.nl (high speed, CORS enabled)
   if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
-    let proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}`;
-    if (version) {
-      proxyUrl += `&_v=${version}`;
-    }
+    let proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&_v=${cacheVersion}`;
     return proxyUrl;
   }
 
