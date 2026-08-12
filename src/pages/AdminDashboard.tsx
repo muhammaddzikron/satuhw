@@ -719,6 +719,7 @@ export default function AdminDashboard() {
   const trainingApps = trainingAppsRaw;
   const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
   const [trainingFilterStatus, setTrainingFilterStatus] = useState('Semua');
+  const [trainingFilterActivity, setTrainingFilterActivity] = useState('Semua');
   const [trainingRejectId, setTrainingRejectId] = useState<string | null>(null);
   const [trainingRejectReason, setTrainingRejectReason] = useState('');
   const [isTrainingRejectModalOpen, setIsTrainingRejectModalOpen] = useState(false);
@@ -2927,10 +2928,22 @@ export default function AdminDashboard() {
         (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
         (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
       const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-      return matchSearch && matchStatus;
+
+      let matchActivity = true;
+      if (trainingFilterActivity !== 'Semua') {
+        const acts = settings.trainingActivities || [];
+        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
+        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
+        const loc = (app?.lokasiPelatihan || '').toLowerCase();
+        const dt = (app?.tanggalPelatihan || '').toLowerCase();
+        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+      }
+
+      return matchSearch && matchStatus && matchActivity;
     });
 
-    const headers = ['No', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Nomor KTA / NBM', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Asal Kwarda / Daerah', 'Qabilah', 'Program Pelatihan', 'Pelatih Golongan', 'Status Pendaftaran', 'Status Pembayaran', 'Tanggal Ajuan'];
+    const headers = ['No', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Nomor KTA', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Asal Kwarda / Daerah', 'Qabilah', 'Program Pelatihan', 'Pelatih Golongan', 'Status Pendaftaran', 'Status Pembayaran', 'Tanggal Ajuan'];
     const data = list.map((app, idx) => {
       const matchMember = members.find(m => 
         (m.id && app.userId && String(m.id) === String(app.userId)) ||
@@ -2998,7 +3011,19 @@ export default function AdminDashboard() {
         (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
         (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
       const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-      return matchSearch && matchStatus;
+
+      let matchActivity = true;
+      if (trainingFilterActivity !== 'Semua') {
+        const acts = settings.trainingActivities || [];
+        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
+        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
+        const loc = (app?.lokasiPelatihan || '').toLowerCase();
+        const dt = (app?.tanggalPelatihan || '').toLowerCase();
+        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+      }
+
+      return matchSearch && matchStatus && matchActivity;
     });
 
     const doc = new jsPDF() as any;
@@ -5647,7 +5672,8 @@ export default function AdminDashboard() {
                 {trainingSubTab === 'peserta' && (
                   <div className="space-y-4">
                     {/* Search & Filter Bar */}
-                    <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="flex flex-col lg:flex-row gap-3 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm items-stretch lg:items-center">
+                      {/* Search Query Input */}
                       <div className="relative flex-1">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input 
@@ -5667,13 +5693,35 @@ export default function AdminDashboard() {
                           </button>
                         )}
                       </div>
-                      
-                      <div className="flex gap-1.5 overflow-x-auto">
+
+                      {/* Filter Jenis & Kegiatan Pelatihan (Memuat Tempat Pelaksanaan & Tanggal, Terbaru di Atas) */}
+                      <div className="relative min-w-[260px] shrink-0">
+                        <select
+                          value={trainingFilterActivity}
+                          onChange={(e) => setTrainingFilterActivity(e.target.value)}
+                          className="w-full bg-emerald-50/70 border border-emerald-200 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-extrabold text-xs outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
+                        >
+                          <option value="Semua">🏅 Semua Jenis & Kegiatan Pelatihan</option>
+                          {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
+                            const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
+                            const loc = act.lokasiPelatihan || 'Lokasi -';
+                            const dt = act.tanggalPelatihan || 'Tanggal -';
+                            return (
+                              <option key={act.id || idx} value={act.id || title}>
+                                {title} • 📍 {loc} (📅 {dt})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Filter Status Pendaftaran */}
+                      <div className="flex gap-1.5 overflow-x-auto shrink-0">
                         {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
                           <button
                             key={st}
                             onClick={() => setTrainingFilterStatus(st)}
-                            className={`px-4 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border ${
                               trainingFilterStatus === st 
                               ? 'bg-hw-dark text-white border-hw-dark' 
                               : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
@@ -5684,7 +5732,8 @@ export default function AdminDashboard() {
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 shrink-0 self-start lg:self-center">
                         <button
                           onClick={exportTrainingParticipantsToExcel}
                           className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -5756,27 +5805,8 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                          {trainingApps.filter(app => {
-                            const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-                            const name = (app?.nama || app?.namaLengkap || '').trim();
-                            const email = (app?.email || '').toLowerCase().trim();
-                            if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-
-                            const matchSearch = 
-                              name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                              (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                              (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                              (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-                            const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-                            return matchSearch && matchStatus;
-                          }).length === 0 ? (
-                            <tr>
-                              <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
-                                Belum ada pendaftaran peserta yang sesuai kriteria
-                              </td>
-                            </tr>
-                          ) : (
-                            trainingApps.filter(app => {
+                          {(() => {
+                            const filteredList = trainingApps.filter(app => {
                               const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
                               const name = (app?.nama || app?.namaLengkap || '').trim();
                               const email = (app?.email || '').toLowerCase().trim();
@@ -5788,8 +5818,40 @@ export default function AdminDashboard() {
                                 (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
                                 (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
                               const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-                              return matchSearch && matchStatus;
-                            }).map((app, idx) => {
+
+                              let matchActivity = true;
+                              if (trainingFilterActivity !== 'Semua') {
+                                const acts = settings.trainingActivities || [];
+                                const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+                                const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
+                                const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
+                                const loc = (app?.lokasiPelatihan || '').toLowerCase();
+                                const dt = (app?.tanggalPelatihan || '').toLowerCase();
+                                matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+                              }
+
+                              return matchSearch && matchStatus && matchActivity;
+                            });
+
+                            // Always sort newest participants / applications first
+                            const sortedList = [...filteredList].sort((a, b) => {
+                              const timeA = new Date(a.tanggalAjuan || a.updatedAt || a.createdAt || 0).getTime();
+                              const timeB = new Date(b.tanggalAjuan || b.updatedAt || b.createdAt || 0).getTime();
+                              if (timeA !== timeB) return timeB - timeA;
+                              return String(b.id || '').localeCompare(String(a.id || ''));
+                            });
+
+                            if (sortedList.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
+                                    Belum ada pendaftaran peserta yang sesuai kriteria
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            return sortedList.map((app, idx) => {
                               const matchMember = members.find(m => 
                                 (m.id && app.userId && String(m.id) === String(app.userId)) ||
                                 (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
@@ -6060,8 +6122,8 @@ export default function AdminDashboard() {
                                 </td>
                               </tr>
                             );
-                          })
-                        )}
+                          });
+                        })()}
                         </tbody>
                       </table>
                     </div>
@@ -9715,13 +9777,15 @@ export default function AdminDashboard() {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan Anggota</label>
-                        <input
-                          type="text"
-                          placeholder="Pengenal, Penghela..."
-                          value={addParticipantForm.golonganAnggota}
+                        <select
+                          value={addParticipantForm.golonganAnggota || 'Pengenal'}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, golonganAnggota: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                        />
+                        >
+                          {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   )}
@@ -10196,37 +10260,19 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Nomor KTA */}
+                    {/* Nomor KTA (Tidak Dapat Diedit / Fixed) */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA / NBM</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nomor KTA</label>
+                        <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">🔒 Fixed</span>
+                      </div>
                       <input 
                         type="text"
-                        value={editingTrainingApp.nbm || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, nbm: e.target.value })}
+                        readOnly
+                        disabled
+                        value={editingTrainingApp.nbm || editingTrainingApp.ktaNumber || editingTrainingApp.nomorKTA || '-'}
                         placeholder="Nomor KTA..."
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
-                    {/* Tempat Lahir */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
-                      <input 
-                        type="text"
-                        value={editingTrainingApp.tempatLahir || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tempatLahir: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                    </div>
-
-                    {/* Tanggal Lahir */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
-                      <input 
-                        type="date"
-                        value={editingTrainingApp.tanggalLahir || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tanggalLahir: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                        className="w-full bg-gray-100 border border-gray-200 rounded-2xl py-2.5 px-4 font-extrabold text-xs text-gray-500 cursor-not-allowed select-none"
                       />
                     </div>
 
@@ -10295,15 +10341,18 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    {/* Golongan Anggota */}
+                    {/* Golongan Anggota (Pilihan Golongan Sesuai Data Anggota) */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan Anggota</label>
-                      <input 
-                        type="text"
-                        value={editingTrainingApp.golonganAnggota || editingTrainingApp.tingkatan || ''}
+                      <select 
+                        value={editingTrainingApp.golonganAnggota || editingTrainingApp.tingkatan || 'Pengenal'}
                         onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, golonganAnggota: e.target.value, tingkatan: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
+                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
+                      >
+                        {['Tunas Athfal', 'Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Lokasi Pelatihan */}
@@ -10370,33 +10419,61 @@ export default function AdminDashboard() {
                       </datalist>
                     </div>
 
-                    {/* Status Verifikasi / Approval */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Verifikasi Pendaftaran</label>
-                      <select 
-                        value={editingTrainingApp.status || 'approved'}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, status: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      >
-                        <option value="approved">Disetujui (Approved)</option>
-                        <option value="pending">Menunggu Verifikasi (Pending)</option>
-                        <option value="rejected">Ditolak (Rejected)</option>
-                      </select>
-                    </div>
+                    {/* DIPISAHKAN AGAR LEBIH MENYOLOK: STATUS VERIFIKASI PENDAFTARAN & STATUS PEMBAYARAN */}
+                    <div className="col-span-1 md:col-span-2 mt-2 space-y-3">
+                      <div className="text-[11px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-1">
+                        📌 Status Pendaftaran & Pembayaran (Dipisahkan)
+                      </div>
 
-                    {/* Status Pembayaran & Pelunasan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Pembayaran / Pelunasan</label>
-                      <select 
-                        value={editingTrainingApp.statusPembayaran || (editingTrainingApp.status === 'approved' ? 'Lunas' : 'Belum Lunas')}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, statusPembayaran: e.target.value })}
-                        className="w-full bg-emerald-50/50 border border-emerald-200 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-emerald-900"
-                      >
-                        <option value="Lunas">💰 Lunas (Terverifikasi)</option>
-                        <option value="Belum Lunas">⏳ Belum Lunas</option>
-                        <option value="Menunggu Pelunasan">⌛ Menunggu Pelunasan (DP)</option>
-                        <option value="Gratis">🎁 Gratis / Beasiswa</option>
-                      </select>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Status Verifikasi Pendaftaran Box */}
+                        <div className="p-4 rounded-2xl bg-blue-50/70 border-2 border-blue-200 space-y-2 shadow-xs">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-black text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>📋 STATUS VERIFIKASI PENDAFTARAN</span>
+                            </label>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                              editingTrainingApp.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                              editingTrainingApp.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {editingTrainingApp.status === 'approved' ? 'Disetujui' : editingTrainingApp.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
+                            </span>
+                          </div>
+                          <select 
+                            value={editingTrainingApp.status || 'approved'}
+                            onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, status: e.target.value })}
+                            className="w-full bg-white border border-blue-300 rounded-xl py-2.5 px-3 font-extrabold text-xs outline-none focus:ring-2 focus:ring-blue-400 text-blue-950 cursor-pointer shadow-2xs"
+                          >
+                            <option value="approved">✅ Disetujui (Approved)</option>
+                            <option value="pending">⏳ Menunggu Verifikasi (Pending)</option>
+                            <option value="rejected">❌ Ditolak (Rejected)</option>
+                          </select>
+                        </div>
+
+                        {/* Status Pembayaran / Pelunasan Box */}
+                        <div className="p-4 rounded-2xl bg-emerald-50/70 border-2 border-emerald-200 space-y-2 shadow-xs">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>💰 STATUS PEMBAYARAN / PELUNASAN</span>
+                            </label>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                              editingTrainingApp.statusPembayaran === 'Lunas' ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900'
+                            }`}>
+                              {editingTrainingApp.statusPembayaran || 'Lunas'}
+                            </span>
+                          </div>
+                          <select 
+                            value={editingTrainingApp.statusPembayaran || (editingTrainingApp.status === 'approved' ? 'Lunas' : 'Belum Lunas')}
+                            onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, statusPembayaran: e.target.value })}
+                            className="w-full bg-white border border-emerald-300 rounded-xl py-2.5 px-3 font-extrabold text-xs outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-950 cursor-pointer shadow-2xs"
+                          >
+                            <option value="Lunas">💰 Lunas (Terverifikasi)</option>
+                            <option value="Belum Lunas">⏳ Belum Lunas</option>
+                            <option value="Menunggu Pelunasan">⌛ Menunggu Pelunasan (DP)</option>
+                            <option value="Gratis">🎁 Gratis / Beasiswa</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Catatan Keterangan Pembayaran */}
