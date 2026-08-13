@@ -837,25 +837,62 @@ export default function PelatihanPage() {
         /* MODE ANGGOTA: DAFTAR KEGIATAN & PORTAL KEBUTUHAN PELATIHAN                */
         /* ========================================================================= */
         <div className="space-y-6">
-          {/* Pengelolaan Pelatihan Ditugaskan Card (For Jaya Matahari or Assigned Trainers) */}
+          {/* Pengelolaan Pelatihan Ditugaskan Card (For Jaya Matahari, Jaya Melati, or Assigned Trainers) */}
           {(() => {
-            const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : ['umum']);
-            const isJayaMatahari = userRoles.some(r => ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase()));
+            const userRolesList = [
+              ...(Array.isArray(user?.roles) ? user.roles : []),
+              user?.role,
+              ...(Array.isArray(user?.pelatihan) ? user.pelatihan : [user?.pelatihan]),
+              (user as any)?.golonganPelatih,
+              (user as any)?.tingkatan
+            ].filter(Boolean).map(r => String(r).toLowerCase().trim());
+
+            const trainerRoleIdentifiers = [
+              'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
+              'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
+              'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
+              'pelatih kegiatan', 'asisten pelatih'
+            ];
+
+            const isTrainerRole = userRolesList.some(r => 
+              trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+              r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+            );
+
             const userEmail = (user?.email || '').toLowerCase().trim();
             const userName = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
+            const userNbm = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
 
             const assignedActs = (trainingActivities || []).filter((act: any) => {
-              const pelatihList = Array.isArray(act.pelatih) 
-                ? act.pelatih 
-                : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
-              const asistenList = Array.isArray(act.asistenPelatih) 
-                ? act.asistenPelatih 
-                : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
+              if (!act) return false;
+              const parseList = (val: any) => {
+                if (Array.isArray(val)) return val;
+                if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
+                return [];
+              };
+              const pelatihList = parseList(act.pelatih);
+              const asistenList = parseList(act.asistenPelatih);
               const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
-              return allTrainers.some(t => t && ((userName && t.includes(userName)) || (userName && userName.includes(t)) || (userEmail && t.includes(userEmail))));
+
+              return allTrainers.some(t => {
+                if (!t) return false;
+                if (userName && (t.includes(userName) || userName.includes(t))) return true;
+                if (userNbm && userNbm.length >= 4 && t.includes(userNbm)) return true;
+                if (userEmail && userEmail.length >= 4) {
+                  const prefix = userEmail.split('@')[0];
+                  if (prefix && prefix.length >= 3 && t.includes(prefix)) return true;
+                }
+                const nameWords = userName.split(/\s+/).filter(w => w.length >= 3);
+                if (nameWords.length > 0) {
+                  const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
+                  if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
+                  if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
+                }
+                return false;
+              });
             });
 
-            const showTrainerCard = isJayaMatahari || assignedActs.length > 0;
+            const showTrainerCard = isTrainerRole || assignedActs.length > 0;
 
             if (!showTrainerCard) return null;
 
@@ -868,7 +905,7 @@ export default function PelatihanPage() {
                     </div>
                     <div>
                       <span className="px-2.5 py-0.5 bg-amber-300 text-amber-950 font-black text-[9px] uppercase tracking-wider rounded-md shadow-xs">
-                        Pelatih / Jaya Matahari
+                        Pelatih / Asisten Pelatih
                       </span>
                       <h3 className="text-sm sm:text-base font-black tracking-tight font-display mt-0.5 leading-tight">
                         Pengelolaan Pelatihan Ditugaskan

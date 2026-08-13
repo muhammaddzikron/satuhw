@@ -315,6 +315,12 @@ function handleSyncDatabase() {
   ensureHeaders('Activities', ['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
   ensureHeaders('Activity_Categories', ['id', 'name', 'createdAt']);
   ensureHeaders('Settings', ['key', 'value']);
+
+  try {
+    var actSheet = getSheet('Activity_Applications');
+    deduplicateSheetActivityApplications(actSheet);
+  } catch (e) {}
+
   return responseOk({ success: true, message: "Database synchronized successfully" });
 }
 
@@ -2188,10 +2194,68 @@ function handleDeleteKTAApplication(id) {
   return responseError("Pengajuan KTA tidak ditemukan");
 }
 
+function cleanGasPhone(p) {
+  if (!p) return "";
+  var str = p.toString().replace(/\D/g, "");
+  if (str.indexOf("0") === 0) str = str.substring(1);
+  else if (str.indexOf("62") === 0) str = str.substring(2);
+  return str;
+}
+
+function cleanGasName(n) {
+  if (!n) return "";
+  var str = n.toString().toLowerCase();
+  str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, " ");
+  str = str.replace(/[^a-z0-9\s]/gi, " ");
+  return str.replace(/\s+/g, " ").trim();
+}
+
 function handleGetActivityApplications() {
   var sheet = getSheet('Activity_Applications');
+  var requiredHeaders = ['id', 'activityid', 'namakegiatan', 'userid', 'namalengkap', 'email', 'unsur', 'utusan', 'qabilahptma', 'jabatan', 'kategoriundangan', 'nohp', 'asalkwarda', 'qabilah', 'status', 'tanggaldaftar'];
+  ensureHeaders('Activity_Applications', requiredHeaders);
+
+  try {
+    deduplicateSheetActivityApplications(sheet);
+  } catch (e) {}
+
   var apps = getRowsAsObjects(sheet);
   return responseOk(apps);
+}
+
+function deduplicateSheetActivityApplications(sheet) {
+  if (!sheet) sheet = getSheet('Activity_Applications');
+  var requiredHeaders = ['id', 'activityid', 'namakegiatan', 'userid', 'namalengkap', 'email', 'unsur', 'utusan', 'qabilahptma', 'jabatan', 'kategoriundangan', 'nohp', 'asalkwarda', 'qabilah', 'status', 'tanggaldaftar'];
+  ensureHeaders('Activity_Applications', requiredHeaders);
+
+  var apps = getRowsAsObjects(sheet);
+  if (apps.length <= 1) return;
+
+  var seenMap = {};
+  var rowsToDelete = [];
+
+  for (var i = 0; i < apps.length; i++) {
+    var app = apps[i];
+    var appId = (app.id || app.Id || '').toString().trim();
+    var appName = cleanGasName(app.namalengkap || app.namaLengkap || app.nama || '');
+    var appPhone = cleanGasPhone(app.nohp || app.noHp || app.noWa || '');
+    var appActId = (app.activityid || app.activityId || '').toString().trim();
+
+    var key = appId ? ('id_' + appId) : ('pn_' + appPhone + '_' + appName);
+    if (!appId && appPhone && appPhone.length >= 7) {
+      key = 'p_' + appPhone + '_' + (appName || appActId);
+    }
+
+    if (seenMap[key]) {
+      rowsToDelete.push(i + 2);
+    } else {
+      seenMap[key] = true;
+    }
+  }
+
+  for (var r = rowsToDelete.length - 1; r >= 0; r--) {
+    sheet.deleteRow(rowsToDelete[r]);
+  }
 }
 
 function handleRegisterActivity(data) {
@@ -2204,43 +2268,62 @@ function handleRegisterActivity(data) {
   });
   
   var apps = getRowsAsObjects(sheet);
-  var regId = (data.id || 'actreg-' + new Date().getTime().toString()).toString().trim();
-  
-  var rowIndex = apps.findIndex(function(app) {
+
+  var dataId = (data.id || '').toString().trim();
+  var dataName = cleanGasName(data.namaLengkap || data.nama || '');
+  var dataPhone = cleanGasPhone(data.noHp || data.noWa || '');
+  var dataActId = (data.activityId || '').toString().trim();
+
+  var matchingIndices = [];
+  var matchedApp = null;
+
+  for (var idx = 0; idx < apps.length; idx++) {
+    var app = apps[idx];
     var appId = (app.id || app.Id || '').toString().trim();
-    if (appId === regId && appId !== '') return true;
-    
-    var sameAct = (app.activityid || app.activityId || '').toString().trim() === (data.activityId || '').toString().trim();
-    if (!sameAct) return false;
-    
-    var sameUser = data.userId && (app.userid || app.userId || '').toString().trim() === data.userId.toString().trim();
-    var sameEmail = data.email && (app.email || '').toString().trim().toLowerCase() === data.email.toString().trim().toLowerCase();
-    var samePhone = (data.noHp || data.noWa) && (app.nohp || app.noHp || app.noWa || '').toString().trim() === (data.noHp || data.noWa).toString().trim();
-    return (sameUser && sameUser !== '') || (sameEmail && sameEmail !== '') || (samePhone && samePhone !== '');
-  });
+    var appName = cleanGasName(app.namalengkap || app.namaLengkap || app.nama || '');
+    var appPhone = cleanGasPhone(app.nohp || app.noHp || app.noWa || '');
+    var appActId = (app.activityid || app.activityId || '').toString().trim();
+
+    var isSameId = dataId && appId && dataId === appId;
+    var isSamePhoneAndName = dataPhone && appPhone && dataPhone === appPhone && dataPhone.length >= 7 && (dataName === appName || (dataName && appName && (dataName.indexOf(appName) > -1 || appName.indexOf(dataName) > -1)));
+    var isSamePhoneAndAct = dataPhone && appPhone && dataPhone === appPhone && dataPhone.length >= 7 && dataActId && appActId && dataActId === appActId;
+    var isSameNameAndAct = dataName && appName && dataName === appName && dataName.length >= 3 && dataActId && appActId && dataActId === appActId;
+
+    if (isSameId || isSamePhoneAndName || isSamePhoneAndAct || isSameNameAndAct) {
+      matchingIndices.push(idx);
+      if (!matchedApp) matchedApp = app;
+    }
+  }
+
+  var regId = dataId || (matchedApp ? (matchedApp.id || matchedApp.Id) : '') || ('actreg-' + new Date().getTime().toString());
 
   var rowData = new Array(headers.length).fill("");
   headers.forEach(function(header, i) {
     if (header === 'id') rowData[i] = regId;
-    else if (header === 'activityid') rowData[i] = data.activityId || "";
-    else if (header === 'namakegiatan') rowData[i] = data.namaKegiatan || "";
-    else if (header === 'userid') rowData[i] = data.userId || "";
-    else if (header === 'namalengkap') rowData[i] = data.namaLengkap || data.nama || "";
-    else if (header === 'email') rowData[i] = data.email || "";
-    else if (header === 'unsur') rowData[i] = data.unsur || "";
-    else if (header === 'utusan') rowData[i] = data.utusan || "";
-    else if (header === 'qabilahptma') rowData[i] = data.qabilahPtma || "";
-    else if (header === 'jabatan') rowData[i] = data.jabatan || "";
-    else if (header === 'kategoriundangan') rowData[i] = data.kategoriUndangan || "";
-    else if (header === 'nohp') rowData[i] = data.noHp || data.noWa || "";
-    else if (header === 'asalkwarda') rowData[i] = data.asalKwarda || "";
-    else if (header === 'qabilah') rowData[i] = data.qabilah || "";
-    else if (header === 'status') rowData[i] = data.status || "approved";
-    else if (header === 'tanggaldaftar') rowData[i] = data.tanggalDaftar || new Date().toISOString();
+    else if (header === 'activityid') rowData[i] = data.activityId || (matchedApp ? matchedApp.activityid || matchedApp.activityId : "") || "";
+    else if (header === 'namakegiatan') rowData[i] = data.namaKegiatan || (matchedApp ? matchedApp.namakegiatan || matchedApp.namaKegiatan : "") || "";
+    else if (header === 'userid') rowData[i] = data.userId || (matchedApp ? matchedApp.userid || matchedApp.userId : "") || "";
+    else if (header === 'namalengkap') rowData[i] = data.namaLengkap || data.nama || (matchedApp ? matchedApp.namalengkap || matchedApp.namaLengkap : "") || "";
+    else if (header === 'email') rowData[i] = data.email || (matchedApp ? matchedApp.email : "") || "";
+    else if (header === 'unsur') rowData[i] = data.unsur || (matchedApp ? matchedApp.unsur : "") || "";
+    else if (header === 'utusan') rowData[i] = data.utusan || (matchedApp ? matchedApp.utusan : "") || "";
+    else if (header === 'qabilahptma') rowData[i] = data.qabilahPtma || (matchedApp ? matchedApp.qabilahptma || matchedApp.qabilahPtma : "") || "";
+    else if (header === 'jabatan') rowData[i] = data.jabatan || (matchedApp ? matchedApp.jabatan : "") || "";
+    else if (header === 'kategoriundangan') rowData[i] = data.kategoriUndangan || (matchedApp ? matchedApp.kategoriundangan || matchedApp.kategoriUndangan : "") || "";
+    else if (header === 'nohp') rowData[i] = data.noHp || data.noWa || (matchedApp ? matchedApp.nohp || matchedApp.noHp || matchedApp.noWa : "") || "";
+    else if (header === 'asalkwarda') rowData[i] = data.asalKwarda || (matchedApp ? matchedApp.asalkwarda || matchedApp.asalKwarda : "") || "";
+    else if (header === 'qabilah') rowData[i] = data.qabilah || (matchedApp ? matchedApp.qabilah : "") || "";
+    else if (header === 'status') rowData[i] = data.status || (matchedApp ? matchedApp.status : "") || "approved";
+    else if (header === 'tanggaldaftar') rowData[i] = data.tanggalDaftar || (matchedApp ? matchedApp.tanggaldaftar || matchedApp.tanggalDaftar : "") || new Date().toISOString();
   });
 
-  if (rowIndex > -1) {
-    sheet.getRange(rowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
+  if (matchingIndices.length > 0) {
+    var primaryRowIndex = matchingIndices[0];
+    sheet.getRange(primaryRowIndex + 2, 1, 1, rowData.length).setValues([rowData]);
+
+    for (var d = matchingIndices.length - 1; d >= 1; d--) {
+      sheet.deleteRow(matchingIndices[d] + 2);
+    }
   } else {
     sheet.appendRow(rowData);
   }

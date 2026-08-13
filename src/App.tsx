@@ -107,25 +107,70 @@ const Navigation = () => {
   
   const canAccessAdmin = () => {
     if (!user) return false;
-    const adminRoles = ['admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat', 'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'];
-    const roles = Array.isArray(user.roles) ? user.roles : [user.role || 'umum'];
-    if (roles.some(r => adminRoles.includes(r))) return true;
+    const adminRoles = [
+      'admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat',
+      'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
+      'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
+      'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
+      'pelatih kegiatan', 'asisten pelatih'
+    ];
+
+    const userRolesList = [
+      ...(Array.isArray(user.roles) ? user.roles : []),
+      user.role,
+      ...(Array.isArray(user.pelatihan) ? user.pelatihan : [user.pelatihan]),
+      (user as any).golonganPelatih,
+      (user as any).tingkatan
+    ].filter(Boolean).map(r => String(r).toLowerCase().trim());
+
+    if (userRolesList.some(r => adminRoles.some(ar => r.includes(ar) || ar.includes(r)) || r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari'))) return true;
     if ((user as any).adminType === 'diklat') return true;
 
     try {
+      let acts: any[] = [];
       const rawSettings = localStorage.getItem('hw_settings');
       if (rawSettings) {
         const settings = JSON.parse(rawSettings);
-        const acts = settings?.trainingActivities || [];
-        const userEmail = (user.email || '').toLowerCase().trim();
-        const userName = (user.namaLengkap || user.nama || (user as any)?.name || '').toLowerCase().trim();
-        return (acts || []).some((act: any) => {
-          const pelatihList = Array.isArray(act.pelatih) ? act.pelatih : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
-          const asistenList = Array.isArray(act.asistenPelatih) ? act.asistenPelatih : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
-          const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
-          return allTrainers.some(t => t && ((userName && t.includes(userName)) || (userName && userName.includes(t)) || (userEmail && t.includes(userEmail))));
-        });
+        if (Array.isArray(settings?.trainingActivities)) acts = [...acts, ...settings.trainingActivities];
       }
+      if (typeof window !== 'undefined' && (window as any)?.hw_settings?.trainingActivities) {
+        if (Array.isArray((window as any).hw_settings.trainingActivities)) {
+          acts = [...acts, ...(window as any).hw_settings.trainingActivities];
+        }
+      }
+
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const userName = (user.namaLengkap || user.nama || (user as any)?.name || '').toLowerCase().trim();
+      const userNbm = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
+
+      return acts.some((act: any) => {
+        if (!act) return false;
+        const parseList = (val: any) => {
+          if (Array.isArray(val)) return val;
+          if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
+          return [];
+        };
+        const pelatihList = parseList(act.pelatih);
+        const asistenList = parseList(act.asistenPelatih);
+        const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+
+        return allTrainers.some(t => {
+          if (!t) return false;
+          if (userName && (t.includes(userName) || userName.includes(t))) return true;
+          if (userNbm && userNbm.length >= 4 && t.includes(userNbm)) return true;
+          if (userEmail && userEmail.length >= 4) {
+            const prefix = userEmail.split('@')[0];
+            if (prefix && prefix.length >= 3 && t.includes(prefix)) return true;
+          }
+          const nameWords = userName.split(/\s+/).filter(w => w.length >= 3);
+          if (nameWords.length > 0) {
+            const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
+            if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
+            if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
+          }
+          return false;
+        });
+      });
     } catch (e) {}
 
     return false;

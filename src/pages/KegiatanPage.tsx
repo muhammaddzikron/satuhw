@@ -230,7 +230,31 @@ export default function KegiatanPage() {
 
     setIsSubmitting(true);
     try {
+      const normP = (p: any) => {
+        let str = String(p || '').replace(/\D/g, '');
+        if (str.startsWith('0')) str = str.substring(1);
+        else if (str.startsWith('62')) str = str.substring(2);
+        return str;
+      };
+      const normN = (n: any) => String(n || '').toLowerCase().replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, ' ').replace(/[^a-z0-9\s]/gi, ' ').trim();
+
+      const reqPhone = normP(formData.noHp);
+      const reqName = normN(formData.namaLengkap);
+
+      const existingReg = activityApps.find((a: any) => {
+        const aPhone = normP(a.noHp || a.noWa);
+        const aName = normN(a.namaLengkap || a.nama);
+        const sameAct = a.activityId === selectedActivity.id;
+
+        const samePhoneAndName = reqPhone && aPhone && reqPhone === aPhone && reqPhone.length >= 7 && (reqName === aName || (reqName && aName && (reqName.includes(aName) || aName.includes(reqName))));
+        const samePhoneAndAct = reqPhone && aPhone && reqPhone === aPhone && reqPhone.length >= 7 && sameAct;
+        const sameNameAndAct = reqName && aName && reqName === aName && reqName.length >= 3 && sameAct;
+
+        return samePhoneAndName || samePhoneAndAct || sameNameAndAct;
+      });
+
       const payload = {
+        id: existingReg?.id || `actreg-${Date.now()}`,
         activityId: selectedActivity.id,
         namaKegiatan: selectedActivity.namaKegiatan,
         userId: user?.id || `user-act-${Date.now()}`,

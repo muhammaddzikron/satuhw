@@ -404,17 +404,49 @@ export default function AdminDashboard() {
     assignedTasks: [] as any[]
   });
 
-  const userRolesList = Array.isArray(user?.roles) ? user.roles : [user?.role || 'umum'];
-  const isJayaMatahariRole = userRolesList.some((r: any) =>
-    ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase())
-  ) || ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].some(r => (user?.role || '').toLowerCase().includes(r));
-  
-  const rawActsList = settings?.trainingActivities || [];
+  const userRolesList = [
+    ...(Array.isArray(user?.roles) ? user.roles : []),
+    user?.role,
+    ...(Array.isArray(user?.pelatihan) ? user.pelatihan : [user?.pelatihan]),
+    (user as any)?.golonganPelatih,
+    (user as any)?.tingkatan
+  ].filter(Boolean).map(r => String(r).toLowerCase().trim());
+
+  const trainerRoleIdentifiers = [
+    'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
+    'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
+    'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
+    'pelatih kegiatan', 'asisten pelatih'
+  ];
+
+  const isJayaMatahariRole = userRolesList.some(r => 
+    trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+    r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+  );
+
+  let cachedActsList: any[] = [];
+  try {
+    const rawLs = localStorage.getItem('hw_settings');
+    if (rawLs) {
+      const parsedLs = JSON.parse(rawLs);
+      if (Array.isArray(parsedLs?.trainingActivities)) {
+        cachedActsList = parsedLs.trainingActivities;
+      }
+    }
+  } catch (e) {}
+
+  const rawActsList = [
+    ...(Array.isArray(settings?.trainingActivities) ? settings.trainingActivities : []),
+    ...cachedActsList,
+    ...(Array.isArray((window as any)?.hw_settings?.trainingActivities) ? (window as any).hw_settings.trainingActivities : [])
+  ];
+
   const userEmailStr = (user?.email || '').toLowerCase().trim();
   const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
   const userNbmStr = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
 
   const isAssignedTrainerInAnyActivity = (Array.isArray(rawActsList) ? rawActsList : []).some((act: any) => {
+    if (!act) return false;
     const parseList = (val: any) => {
       if (Array.isArray(val)) return val;
       if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
@@ -434,9 +466,9 @@ export default function AdminDashboard() {
       }
       const nameWords = userNameStr.split(/\s+/).filter(w => w.length >= 3);
       if (nameWords.length > 0) {
-        const matchingWords = nameWords.filter(w => t.includes(w));
+        const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
         if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
-        if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 5) return true;
+        if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
       }
       return false;
     });
@@ -2118,7 +2150,11 @@ export default function AdminDashboard() {
           ...settingsData,
           gSheetApiUrl: prev.gSheetApiUrl,
           trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
-          trainingActivities: (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity),
+          trainingActivities: (() => {
+            const fromSettings = (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity);
+            if (fromSettings.length > 0) return fromSettings;
+            return (Array.isArray(activitiesData) ? activitiesData : []).filter(isOnlyTrainingActivity);
+          })(),
           trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
           trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
           assignedTasks: Array.isArray(settingsData.assignedTasks) 

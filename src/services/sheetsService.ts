@@ -618,6 +618,7 @@ export const sheetsService = {
   isMock: () => !IS_API_VALID,
 
   async post(data: any): Promise<any> {
+    updateApiUrlFromStorage();
     if (!IS_API_VALID) throw new Error('Konfigurasi API Google Sheets belum diatur (VITE_GSHEET_API_URL)');
     
     // We use text/plain to avoid CORS preflight (OPTIONS) which Google Apps Script doesn't support
@@ -1646,6 +1647,20 @@ export const sheetsService = {
   },
 
   async syncDatabase(): Promise<any> {
+    updateApiUrlFromStorage();
+    if (IS_API_VALID) {
+      try {
+        const actApps = await firestoreService.getActivityApplications();
+        if (actApps && actApps.length > 0) {
+          for (const a of actApps) {
+            await this.post({ action: 'registerActivity', ...a }).catch((e) => console.warn('syncDatabase registerActivity warning:', e));
+          }
+        }
+        await this.post({ action: 'syncDatabase' }).catch((e) => console.warn('syncDatabase GAS warning:', e));
+      } catch (e) {
+        console.warn('syncDatabase error:', e);
+      }
+    }
     return await firestoreService.backupAndUploadAllToFirestore();
   },
 

@@ -2681,13 +2681,40 @@ export const firestoreService = {
         tanggalDaftar: rawItem.tanggalDaftar || new Date().toISOString()
       };
 
+      const normPhone = (p: any) => {
+        if (!p) return '';
+        let str = String(p).replace(/\D/g, '');
+        if (str.startsWith('0')) str = str.substring(1);
+        else if (str.startsWith('62')) str = str.substring(2);
+        return str;
+      };
+
+      const normName = (n: any) => {
+        if (!n) return '';
+        let str = String(n).toLowerCase();
+        str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, ' ');
+        str = str.replace(/[^a-z0-9\s]/gi, ' ');
+        return str.replace(/\s+/g, ' ').trim();
+      };
+
+      const itemPhone = normPhone(normalizedItem.noHp || normalizedItem.noWa);
+      const itemNameClean = normName(normalizedItem.namaLengkap);
+
       const existingIdx = deduped.findIndex(ex => {
         if (String(ex.id) === String(normalizedItem.id)) return true;
-        const sameName = ex.namaLengkap && normalizedItem.namaLengkap &&
-          ex.namaLengkap.trim().toLowerCase() === normalizedItem.namaLengkap.trim().toLowerCase() &&
-          normalizedItem.namaLengkap.trim().length > 2;
-        const sameAct = ex.activityId === normalizedItem.activityId;
-        return sameName && sameAct;
+
+        const exPhone = normPhone(ex.noHp || ex.noWa);
+        const exNameClean = normName(ex.namaLengkap);
+        const sameAct = ex.activityId && normalizedItem.activityId && ex.activityId === normalizedItem.activityId;
+
+        const samePhoneAndName = itemPhone && exPhone && itemPhone === exPhone && itemPhone.length >= 7 &&
+          (itemNameClean === exNameClean || (itemNameClean && exNameClean && (itemNameClean.includes(exNameClean) || exNameClean.includes(itemNameClean))));
+
+        const samePhoneAndAct = itemPhone && exPhone && itemPhone === exPhone && itemPhone.length >= 7 && sameAct;
+
+        const sameNameAndAct = itemNameClean && exNameClean && itemNameClean === exNameClean && itemNameClean.length >= 3 && sameAct;
+
+        return samePhoneAndName || samePhoneAndAct || sameNameAndAct;
       });
 
       if (existingIdx >= 0) {
@@ -3625,7 +3652,49 @@ export const firestoreService = {
   },
 
   async registerActivity(appData: any): Promise<any> {
+    const normPhone = (p: any) => {
+      if (!p) return '';
+      let str = String(p).replace(/\D/g, '');
+      if (str.startsWith('0')) str = str.substring(1);
+      else if (str.startsWith('62')) str = str.substring(2);
+      return str;
+    };
+
+    const normName = (n: any) => {
+      if (!n) return '';
+      let str = String(n).toLowerCase();
+      str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, ' ');
+      str = str.replace(/[^a-z0-9\s]/gi, ' ');
+      return str.replace(/\s+/g, ' ').trim();
+    };
+
     let regId = appData.id;
+
+    try {
+      const stored = localStorage.getItem('activity_applications') || '[]';
+      const localApps: any[] = JSON.parse(stored);
+      const appPhone = normPhone(appData.noHp || appData.noWa);
+      const appNameClean = normName(appData.namaLengkap || appData.nama);
+      const appActId = appData.activityId;
+
+      const existingMatch = localApps.find((ex: any) => {
+        if (regId && String(ex.id) === String(regId)) return true;
+        const exPhone = normPhone(ex.noHp || ex.noWa);
+        const exNameClean = normName(ex.namaLengkap || ex.nama);
+        const exActId = ex.activityId;
+
+        const samePhoneAndName = appPhone && exPhone && appPhone === exPhone && appPhone.length >= 7 &&
+          (appNameClean === exNameClean || (appNameClean && exNameClean && (appNameClean.includes(exNameClean) || exNameClean.includes(appNameClean))));
+        const samePhoneAndAct = appPhone && exPhone && appPhone === exPhone && appPhone.length >= 7 && appActId && exActId && appActId === exActId;
+        const sameNameAndAct = appNameClean && exNameClean && appNameClean === exNameClean && appNameClean.length >= 3 && appActId && exActId && appActId === exActId;
+
+        return samePhoneAndName || samePhoneAndAct || sameNameAndAct;
+      });
+
+      if (existingMatch && existingMatch.id) {
+        regId = existingMatch.id;
+      }
+    } catch (e) {}
 
     if (!regId) {
       regId = `actreg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
