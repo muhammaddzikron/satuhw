@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { isParticipantOfActivity, isOnlyTrainingActivity } from '../utils/activityUtils';
+import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
 import { 
   Calendar, 
   MapPin, 
@@ -1156,7 +1156,8 @@ export default function KegiatanPage() {
 
               <div className="p-5 overflow-y-auto space-y-4 flex-1">
                 {(() => {
-                  const pendaftarList = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
+                  const filteredList = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
+                  const pendaftarList = sortActivityAppsByDate(filteredList, true);
                   if (pendaftarList.length === 0) {
                     return (
                       <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">

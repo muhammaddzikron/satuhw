@@ -120,3 +120,78 @@ export const isOnlyTrainingActivity = (act: any): boolean => {
 
   return false;
 };
+
+export const parseDateToTimestamp = (d: any): number => {
+  if (!d) return 0;
+  if (typeof d === 'number') return d;
+  if (d instanceof Date) return isNaN(d.getTime()) ? 0 : d.getTime();
+  const str = String(d).trim();
+  if (!str) return 0;
+
+  // 1. Try standard ISO or RFC parse
+  const direct = Date.parse(str);
+  if (!isNaN(direct) && direct > 0) return direct;
+
+  // 2. Parse Indonesian date strings (e.g. "1 Agu 2026", "12 Agustus 2026", "01/08/2026", "01-08-2026")
+  const bulanMap: Record<string, number> = {
+    jan: 0, januari: 0, january: 0,
+    feb: 1, februari: 1, february: 1,
+    mar: 2, maret: 2, march: 2,
+    apr: 3, april: 3,
+    mei: 4, may: 4,
+    jun: 5, juni: 5, june: 5,
+    jul: 6, juli: 6, july: 6,
+    agu: 7, ags: 7, agustus: 7, aug: 7, august: 7,
+    sep: 8, september: 8,
+    okt: 9, oktober: 9, oct: 9, october: 9,
+    nov: 10, november: 10,
+    des: 11, desember: 11, dec: 11, december: 11
+  };
+
+  const parts = str.split(/[\s,./-]+/).filter(Boolean);
+  if (parts.length >= 3) {
+    let day = parseInt(parts[0], 10);
+    let monthStr = parts[1].toLowerCase();
+    let year = parseInt(parts[2], 10);
+
+    // If string format is YYYY-MM-DD
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      monthStr = parts[1].toLowerCase();
+      day = parseInt(parts[2], 10);
+    }
+
+    let month = bulanMap[monthStr];
+    if (month === undefined) {
+      const mNum = parseInt(monthStr, 10);
+      if (!isNaN(mNum) && mNum >= 1 && mNum <= 12) {
+        month = mNum - 1;
+      }
+    }
+
+    if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+      if (year < 100) year += 2000;
+      const dt = new Date(year, month, day);
+      if (!isNaN(dt.getTime())) return dt.getTime();
+    }
+  }
+
+  return 0;
+};
+
+export const sortActivityAppsByDate = (apps: any[], ascending: boolean = true): any[] => {
+  if (!Array.isArray(apps)) return [];
+  return [...apps].sort((a, b) => {
+    const timeA = parseDateToTimestamp(a?.tanggalDaftar || a?.createdAt || a?.tanggal || a?.tglAjuan);
+    const timeB = parseDateToTimestamp(b?.tanggalDaftar || b?.createdAt || b?.tanggal || b?.tglAjuan);
+
+    if (timeA === timeB) {
+      const nameA = String(a?.namaLengkap || a?.nama || '');
+      const nameB = String(b?.namaLengkap || b?.nama || '');
+      return nameA.localeCompare(nameB);
+    }
+
+    return ascending ? timeA - timeB : timeB - timeA;
+  });
+};
+

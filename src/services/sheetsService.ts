@@ -5,6 +5,7 @@ import { firestoreService, parseRolesField } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { pickValidImageUrl } from '../lib/utils';
+import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey } from '../utils/trainingUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -26,6 +27,52 @@ if (!IS_API_VALID) {
 } else {
   console.log('[SHEETS SERVICE] API_URL is active:', API_URL.substring(0, 30) + '...');
 }
+
+// In-Memory Cache and In-flight Promise Deduplication for ultra-fast response
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+const MEMORY_CACHE = new Map<string, CacheItem<any>>();
+const IN_FLIGHT_PROMISES = new Map<string, Promise<any>>();
+const DEFAULT_CACHE_TTL = 20000; // 20s TTL
+
+export const clearSheetsCache = (keyPrefix?: string) => {
+  if (!keyPrefix) {
+    MEMORY_CACHE.clear();
+  } else {
+    for (const key of MEMORY_CACHE.keys()) {
+      if (key.startsWith(keyPrefix)) MEMORY_CACHE.delete(key);
+    }
+  }
+};
+
+const cachedFetch = async <T>(cacheKey: string, fetchFn: () => Promise<T>, ttl: number = DEFAULT_CACHE_TTL): Promise<T> => {
+  const cached = MEMORY_CACHE.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < ttl)) {
+    return cached.data;
+  }
+
+  const inFlight = IN_FLIGHT_PROMISES.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const promise = (async () => {
+    try {
+      const data = await fetchFn();
+      MEMORY_CACHE.set(cacheKey, { data, timestamp: Date.now() });
+      return data;
+    } finally {
+      IN_FLIGHT_PROMISES.delete(cacheKey);
+    }
+  })();
+
+  IN_FLIGHT_PROMISES.set(cacheKey, promise);
+  return promise;
+};
+
 
 // Initialize mock data on load if not present and trigger Firestore sync
 export const initMockData = () => {
@@ -708,41 +755,44 @@ export const sheetsService = {
   },
 
   async getMateri(role: string): Promise<Materi[]> {
-    if (!IS_API_VALID) {
-      const materiList = await firestoreService.getMateri();
-      return (materiList || [])
-        .map((m: any) => this.mapMateri(m))
-        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
-    }
-    try {
-      const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`);
-      let listData: any[] = [];
-      if (Array.isArray(response.data)) {
-        listData = response.data;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        listData = response.data.data;
-      } else if (response.data && Array.isArray(response.data.materi)) {
-        listData = response.data.materi;
+    return cachedFetch(`materi_${role}`, async () => {
+      if (!IS_API_VALID) {
+        const materiList = await firestoreService.getMateri();
+        return (materiList || [])
+          .map((m: any) => this.mapMateri(m))
+          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
       }
+      try {
+        const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`, { timeout: 3500 });
+        let listData: any[] = [];
+        if (Array.isArray(response.data)) {
+          listData = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          listData = response.data.data;
+        } else if (response.data && Array.isArray(response.data.materi)) {
+          listData = response.data.materi;
+        }
 
-      if (listData.length > 0) {
-        return listData.map((m: any) => this.mapMateri(m));
+        if (listData.length > 0) {
+          return listData.map((m: any) => this.mapMateri(m));
+        }
+
+        const materiList = await firestoreService.getMateri();
+        return (materiList || [])
+          .map((m: any) => this.mapMateri(m))
+          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
+      } catch (error) {
+        console.warn('getMateri API error, falling back to Firestore:', (error as any)?.message || error);
+        const materiList = await firestoreService.getMateri();
+        return (materiList || [])
+          .map((m: any) => this.mapMateri(m))
+          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
       }
-
-      const materiList = await firestoreService.getMateri();
-      return (materiList || [])
-        .map((m: any) => this.mapMateri(m))
-        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
-    } catch (error) {
-      console.warn('getMateri API error, falling back to Firestore:', (error as any)?.message || error);
-      const materiList = await firestoreService.getMateri();
-      return (materiList || [])
-        .map((m: any) => this.mapMateri(m))
-        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
-    }
+    }, 30000);
   },
 
   async saveMateri(materi: any): Promise<any> {
+    clearSheetsCache('materi');
     if (!IS_API_VALID) {
       const saved = await firestoreService.saveMateri(materi);
       return { success: true, data: saved };
@@ -764,6 +814,7 @@ export const sheetsService = {
   },
 
   async deleteMateri(id: string): Promise<any> {
+    clearSheetsCache('materi');
     if (!IS_API_VALID) {
       await firestoreService.deleteMateri(id);
       return { success: true };
@@ -779,110 +830,113 @@ export const sheetsService = {
   },
 
   async getMembers(): Promise<User[]> {
-    if (!IS_API_VALID) {
-      const members = await firestoreService.getMembers();
-      return members.map((m: any) => this.mapUser(m));
-    }
-    try {
-      const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 4000 });
-      if (Array.isArray(response.data)) {
-        const sheetMembers = response.data.map((m: any) => this.mapUser(m));
-        // Merge Firestore & Local Storage member updates
-        try {
-          const fsMembers = await firestoreService.getMembers();
-          const fsKtas = await firestoreService.getKTAApplications();
-          let localMocks: any[] = [];
-          try {
-            localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
-          } catch(e) {}
-
-          const cachedMembers = [...fsMembers, ...localMocks];
-
-          sheetMembers.forEach(sm => {
-            const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
-            const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
-            const smId = sm.id ? String(sm.id) : '';
-
-            const match = cachedMembers.find(fm => 
-              (fm && fm.id && smId && String(fm.id) === smId) ||
-              (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
-              (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
-            );
-
-            if (match) {
-              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
-              if (match.photo) sm.photo = match.photo;
-              if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
-              if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
-              if (match.noHp) sm.noHp = match.noHp;
-              if (match.alamat) sm.alamat = match.alamat;
-              if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
-              if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
-              if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
-              if (match.qabilah) sm.qabilah = match.qabilah;
-              if (match.sosmed) sm.sosmed = match.sosmed;
-              if (match.pendidikan) sm.pendidikan = match.pendidikan;
-              if (match.golongan) sm.golongan = match.golongan;
-              if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
-              if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
-                sm.roles = match.roles;
-                sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
-                if (match.activeRole) sm.activeRole = match.activeRole;
-              } else if (match.role) {
-                sm.roles = parseRolesField(null, match.role);
-                sm.role = match.role as UserRole;
-              }
-              if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
-              if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
-              if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
-            } else {
-              const ktaMatch = fsKtas.find(fk =>
-                (fk.userId && smId && String(fk.userId) === smId) ||
-                (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
-                (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
-              );
-              if (ktaMatch) {
-                if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
-                if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
-                if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
-                if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
-                if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
-                if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
-                if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
-              }
-            }
-          });
-
-          // Add any cached member missing from sheetMembers
-          cachedMembers.forEach(fm => {
-            if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
-            const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
-            const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
-            const fmId = fm.id ? String(fm.id) : '';
-
-            const existsInSheet = sheetMembers.some(sm => 
-              (sm.id && fmId && String(sm.id) === fmId) ||
-              (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
-              (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
-            );
-            if (!existsInSheet) {
-              sheetMembers.push(this.mapUser(fm));
-            }
-          });
-        } catch (e) {
-          console.warn('Error merging Firestore photos and member data into getMembers:', e);
-        }
-        return ensureUniqueKtaNumbers(sheetMembers);
+    return cachedFetch('members', async () => {
+      if (!IS_API_VALID) {
+        const members = await firestoreService.getMembers();
+        return members.map((m: any) => this.mapUser(m));
       }
-      return [];
-    } catch (error) {
-      console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
-      const members = await firestoreService.getMembers();
-      return members.map((m: any) => this.mapUser(m));
-    }
+      try {
+        const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 3500 });
+        if (Array.isArray(response.data)) {
+          const sheetMembers = response.data.map((m: any) => this.mapUser(m));
+          // Merge Firestore & Local Storage member updates
+          try {
+            const fsMembers = await firestoreService.getMembers();
+            const fsKtas = await firestoreService.getKTAApplications();
+            let localMocks: any[] = [];
+            try {
+              localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
+            } catch(e) {}
+
+            const cachedMembers = [...fsMembers, ...localMocks];
+
+            sheetMembers.forEach(sm => {
+              const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
+              const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
+              const smId = sm.id ? String(sm.id) : '';
+
+              const match = cachedMembers.find(fm => 
+                (fm && fm.id && smId && String(fm.id) === smId) ||
+                (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
+                (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
+              );
+
+              if (match) {
+                if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
+                if (match.photo) sm.photo = match.photo;
+                if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
+                if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
+                if (match.noHp) sm.noHp = match.noHp;
+                if (match.alamat) sm.alamat = match.alamat;
+                if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
+                if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
+                if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
+                if (match.qabilah) sm.qabilah = match.qabilah;
+                if (match.sosmed) sm.sosmed = match.sosmed;
+                if (match.pendidikan) sm.pendidikan = match.pendidikan;
+                if (match.golongan) sm.golongan = match.golongan;
+                if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
+                if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
+                  sm.roles = match.roles;
+                  sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
+                  if (match.activeRole) sm.activeRole = match.activeRole;
+                } else if (match.role) {
+                  sm.roles = parseRolesField(null, match.role);
+                  sm.role = match.role as UserRole;
+                }
+                if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
+                if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
+                if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
+              } else {
+                const ktaMatch = fsKtas.find(fk =>
+                  (fk.userId && smId && String(fk.userId) === smId) ||
+                  (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
+                  (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
+                );
+                if (ktaMatch) {
+                  if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
+                  if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
+                  if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
+                  if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
+                  if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
+                  if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
+                  if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
+                }
+              }
+            });
+
+            // Add any cached member missing from sheetMembers
+            cachedMembers.forEach(fm => {
+              if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
+              const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
+              const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
+              const fmId = fm.id ? String(fm.id) : '';
+
+              const existsInSheet = sheetMembers.some(sm => 
+                (sm.id && fmId && String(sm.id) === fmId) ||
+                (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
+                (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
+              );
+              if (!existsInSheet) {
+                sheetMembers.push(this.mapUser(fm));
+              }
+            });
+          } catch (e) {
+            console.warn('Error merging Firestore photos and member data into getMembers:', e);
+          }
+          return ensureUniqueKtaNumbers(sheetMembers);
+        }
+        return [];
+      } catch (error) {
+        console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
+        const members = await firestoreService.getMembers();
+        return members.map((m: any) => this.mapUser(m));
+      }
+    }, 25000);
   },
 
   async saveMember(userData: any): Promise<any> {
+    clearSheetsCache('members');
     const normRoles = parseRolesField(userData.roles, userData.role);
     const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
     const cleanUserData = {
@@ -915,6 +969,7 @@ export const sheetsService = {
   },
 
   async deleteMember(id: string): Promise<any> {
+    clearSheetsCache('members');
     if (!IS_API_VALID) {
       await firestoreService.deleteMember(id);
       return { success: true };
@@ -1002,39 +1057,42 @@ export const sheetsService = {
   },
 
   async getKTAApplications(): Promise<any[]> {
-    if (!IS_API_VALID) {
-      return await firestoreService.getKTAApplications();
-    }
-    try {
-      const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 4000 });
-      if (Array.isArray(response.data)) {
-        const apps = response.data;
-        // Merge photos from Firestore if empty in Google Sheets response
-        try {
-          const fsApps = await firestoreService.getKTAApplications();
-          apps.forEach(a => {
-            if (!a.photo) {
-              const match = fsApps.find(fa => 
-                (fa.id && a.id && String(fa.id) === String(a.id)) ||
-                (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
-                (fa.userId && a.userId && String(fa.userId) === String(a.userId))
-              );
-              if (match && match.photo) {
-                a.photo = match.photo;
-              }
-            }
-          });
-        } catch (e) {}
-        return ensureUniqueKtaNumbers(apps);
+    return cachedFetch('ktaApplications', async () => {
+      if (!IS_API_VALID) {
+        return await firestoreService.getKTAApplications();
       }
-      return await firestoreService.getKTAApplications();
-    } catch (e) {
-      console.warn('getKTAApplications API error, falling back to Firestore:', (e as any)?.message || e);
-      return await firestoreService.getKTAApplications();
-    }
+      try {
+        const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 3500 });
+        if (Array.isArray(response.data)) {
+          const apps = response.data;
+          // Merge photos from Firestore if empty in Google Sheets response
+          try {
+            const fsApps = await firestoreService.getKTAApplications();
+            apps.forEach(a => {
+              if (!a.photo) {
+                const match = fsApps.find(fa => 
+                  (fa.id && a.id && String(fa.id) === String(a.id)) ||
+                  (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
+                  (fa.userId && a.userId && String(fa.userId) === String(a.userId))
+                );
+                if (match && match.photo) {
+                  a.photo = match.photo;
+                }
+              }
+            });
+          } catch (e) {}
+          return ensureUniqueKtaNumbers(apps);
+        }
+        return await firestoreService.getKTAApplications();
+      } catch (e) {
+        console.warn('getKTAApplications API error, falling back to Firestore:', (e as any)?.message || e);
+        return await firestoreService.getKTAApplications();
+      }
+    }, 20000);
   },
 
   async applyKTA(ktaData: any): Promise<any> {
+    clearSheetsCache('kta');
     if (!IS_API_VALID) {
       const saved = await firestoreService.createKTAApplication(ktaData);
       return { success: true, application: saved };
@@ -1050,6 +1108,7 @@ export const sheetsService = {
   },
 
   async saveKTAApplication(appData: any): Promise<any> {
+    clearSheetsCache('kta');
     if (!IS_API_VALID) {
       const saved = await firestoreService.createKTAApplication(appData);
       return { success: true, application: saved };
@@ -1065,6 +1124,8 @@ export const sheetsService = {
   },
 
   async saveTrainingApplicationAndSyncMember(appData: any): Promise<any> {
+    clearSheetsCache('training');
+    clearSheetsCache('members');
     if (IS_API_VALID) {
       try {
         await this.post({
@@ -1144,6 +1205,8 @@ export const sheetsService = {
   },
 
   async updateKTAStatus(id: string, status: 'approved' | 'rejected' | 'pending', param3?: string, param4?: string): Promise<any> {
+    clearSheetsCache('kta');
+    clearSheetsCache('members');
     let remark = param4;
     let ktaNumber = param3;
 
@@ -1169,6 +1232,7 @@ export const sheetsService = {
   },
 
   async deleteKTAApplication(id: string): Promise<any> {
+    clearSheetsCache('kta');
     try {
       if (IS_API_VALID) {
         await this.post({ action: 'deleteKTAApplication', id }).catch(() => {});
@@ -1181,42 +1245,45 @@ export const sheetsService = {
   },
 
   async getTrainingApplications(): Promise<any[]> {
-    const fsTrainings = await firestoreService.getTrainingApplications();
-    if (!IS_API_VALID) {
-      return fsTrainings;
-    }
-    try {
-      const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`);
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-        const apiTrainings = response.data.map((t: any, idx: number) => ({
-          ...t,
-          id: t.id || `train-api-${idx}`
-        })).filter((t: any) => {
-          const name = (t.nama || t.namaLengkap || '').trim();
-          const email = (t.email || '').toLowerCase().trim();
-          return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
-        });
-        
-        apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
-
-        const map = new Map<string, any>();
-        fsTrainings.forEach(t => {
-          if (t && t.id) map.set(t.id, t);
-        });
-        apiTrainings.forEach(t => {
-          if (t && t.id && !map.has(t.id)) map.set(t.id, t);
-        });
-        return Array.from(map.values());
+    return cachedFetch('trainingApplications', async () => {
+      const fsTrainings = await firestoreService.getTrainingApplications();
+      if (!IS_API_VALID) {
+        return fsTrainings;
       }
-      return fsTrainings;
-    } catch (e) {
-      console.warn('getTrainingApplications API error, falling back to Firestore:', (e as any)?.message || e);
-      return fsTrainings;
-    }
+      try {
+        const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`, { timeout: 3500 });
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+          const apiTrainings = response.data.map((t: any, idx: number) => ({
+            ...t,
+            id: t.id || `train-api-${idx}`
+          })).filter((t: any) => {
+            const name = (t.nama || t.namaLengkap || '').trim();
+            const email = (t.email || '').toLowerCase().trim();
+            return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
+          });
+          
+          apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
+
+          const map = new Map<string, any>();
+          fsTrainings.forEach(t => {
+            if (t && t.id) map.set(t.id, t);
+          });
+          apiTrainings.forEach(t => {
+            if (t && t.id && !map.has(t.id)) map.set(t.id, t);
+          });
+          return Array.from(map.values());
+        }
+        return fsTrainings;
+      } catch (e) {
+        console.warn('getTrainingApplications API error, falling back to Firestore:', (e as any)?.message || e);
+        return fsTrainings;
+      }
+    }, 20000);
   },
 
   async applyTraining(trainingData: any): Promise<any> {
+    clearSheetsCache('training');
     const existingApps = await firestoreService.getTrainingApplications();
     const duplicate = existingApps.find((item: any) => {
       if (item.status === 'rejected' || item.status === 'deleted') return false;
@@ -1258,6 +1325,8 @@ export const sheetsService = {
   },
 
   async updateTrainingStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'deleted', param3?: string, param4?: string): Promise<any> {
+    clearSheetsCache('training');
+    clearSheetsCache('members');
     const remark = param3 || param4;
     if (IS_API_VALID) {
       this.post({ action: 'updateTrainingStatus', id, status, remark }).catch(e => console.warn('Background updateTrainingStatus post error:', e));
@@ -1481,7 +1550,7 @@ export const sheetsService = {
       return fallback;
     };
 
-    const DEFAULT_TYPES = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
+    const DEFAULT_TYPES = DEFAULT_TRAINING_TYPES;
     const DEFAULT_ACTIVITIES: any[] = [];
 
     const fsSettings = await firestoreService.getSettings();
@@ -1496,13 +1565,7 @@ export const sheetsService = {
         trainingActivities: DEFAULT_ACTIVITIES,
         trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
         trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
-        upgradeFees: [
-          { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-        ]
+        upgradeFees: DEFAULT_UPGRADE_FEES
       };
       const result = {
         ...parsed,
@@ -1510,13 +1573,7 @@ export const sheetsService = {
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, [
-          { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-        ])
+        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES)
       };
       localStorage.setItem('hw_settings', JSON.stringify(result));
       return result;
@@ -1545,13 +1602,7 @@ export const sheetsService = {
         trainingActivities: safeParse(apiSettings.trainingActivities || fsSettings?.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(apiSettings.trainingLocations || fsSettings?.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(apiSettings.trainingDates || fsSettings?.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, [
-          { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-        ])
+        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, DEFAULT_UPGRADE_FEES)
       };
       localStorage.setItem('hw_settings', JSON.stringify(merged));
       return merged;
@@ -1575,13 +1626,7 @@ export const sheetsService = {
         trainingActivities: DEFAULT_ACTIVITIES,
         trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
         trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
-        upgradeFees: [
-          { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-        ]
+        upgradeFees: DEFAULT_UPGRADE_FEES
       };
       return {
         ...parsed,
@@ -1599,13 +1644,7 @@ export const sheetsService = {
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, [
-          { id: 'sugli', label: 'Dewan Sugli', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'kwarda', label: 'Kwarda', value: 'Rp 0', note: 'Ajuan + SK via WhatsApp' },
-          { id: 'jati1', label: 'Jaya Melati 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jati2', label: 'Jaya Melati 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-          { id: 'jari1', label: 'Jaya Matahari 1', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
-        ])
+        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES)
       };
     }
   },
@@ -1754,13 +1793,14 @@ export const sheetsService = {
   },
 
   async getActivities(): Promise<any[]> {
-    const fsActs = await firestoreService.getActivities();
-    if (!IS_API_VALID) return fsActs;
-    try {
-      const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`);
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        const map = new Map<string, any>();
-        fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+    return cachedFetch('activities', async () => {
+      const fsActs = await firestoreService.getActivities();
+      if (!IS_API_VALID) return fsActs;
+      try {
+        const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`, { timeout: 3500 });
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          const map = new Map<string, any>();
+          fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
 
         response.data.forEach((sheetAct: any) => {
           if (!sheetAct || !sheetAct.id) return;
@@ -1882,9 +1922,11 @@ export const sheetsService = {
       console.warn('getActivities Sheets API error:', e);
       return fsActs;
     }
-  },
+  }, 20000);
+},
 
   async saveActivity(activityData: any): Promise<any> {
+    clearSheetsCache('activities');
     const actId = activityData.id || `keg-${Date.now()}`;
     const nowIso = new Date().toISOString();
     const titleVal = activityData.namaKegiatan || activityData.title || activityData.jenisPelatihan || '';
@@ -1943,6 +1985,7 @@ export const sheetsService = {
   },
 
   async deleteActivity(id: string, title?: string): Promise<boolean> {
+    clearSheetsCache('activities');
     const res = await firestoreService.deleteActivity(id, title);
     if (IS_API_VALID) {
       this.post({ action: 'deleteActivity', id }).catch(e => console.warn('deleteActivity Sheets API warning:', e));
@@ -1951,69 +1994,91 @@ export const sheetsService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
-    const fsApps = await firestoreService.getActivityApplications();
-    if (!IS_API_VALID) {
-      return fsApps;
-    }
+    return cachedFetch('activityApplications', async () => {
+      updateApiUrlFromStorage();
+      const fsApps = await firestoreService.getActivityApplications();
+      if (!IS_API_VALID) {
+        return fsApps;
+      }
 
-    try {
-      const response = await axios.get(`${API_URL}?action=getActivityApplications&_t=${Date.now()}`);
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        const apiApps = response.data.map((item: any, idx: number) => {
-          return {
-            id: item.id || item.Id || `actreg-api-${idx}`,
-            activityId: item.activityId || item.activityid || item.kegiatanId || 'keg-silaturahmi-pelatih',
-            namaKegiatan: item.namaKegiatan || item.namakegiatan || item.title || '',
-            userId: item.userId || item.userid || '',
-            namaLengkap: item.namaLengkap || item.namalengkap || item.nama || '',
-            email: item.email || item.Email || '',
-            unsur: item.unsur || item.Unsur || '',
-            utusan: item.utusan || item.Utusan || '',
-            qabilahPtma: item.qabilahPtma || item.qabilahptma || '',
-            jabatan: item.jabatan || item.Jabatan || '',
-            kategoriUndangan: item.kategoriUndangan || item.kategoriundangan || '',
-            noHp: item.noHp || item.nohp || item.noWa || item.nowa || '',
-            asalKwarda: item.asalKwarda || item.asalkwarda || '',
-            qabilah: item.qabilah || item.Qabilah || '',
-            status: item.status || 'approved',
-            tanggalDaftar: item.tanggalDaftar || item.tanggaldaftar || new Date().toISOString()
-          };
-        }).filter((item: any) => {
-          const name = (item.namaLengkap || item.nama || '').trim();
-          return name && name !== '-' && name.toLowerCase() !== 'tanpa nama' && item.status !== 'deleted';
+      try {
+        const response = await axios.get(`${API_URL}?action=getActivityApplications&_t=${Date.now()}`, { timeout: 3500 });
+        let apiApps: any[] = [];
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          apiApps = response.data.map((item: any, idx: number) => {
+            return {
+              id: item.id || item.Id || `actreg-api-${idx}`,
+              activityId: item.activityId || item.activityid || item.kegiatanId || 'keg-silaturahmi-pelatih',
+              namaKegiatan: item.namaKegiatan || item.namakegiatan || item.title || '',
+              userId: item.userId || item.userid || '',
+              namaLengkap: item.namaLengkap || item.namalengkap || item.nama || '',
+              email: item.email || item.Email || '',
+              unsur: item.unsur || item.Unsur || '',
+              utusan: item.utusan || item.Utusan || '',
+              qabilahPtma: item.qabilahPtma || item.qabilahptma || '',
+              jabatan: item.jabatan || item.Jabatan || '',
+              kategoriUndangan: item.kategoriUndangan || item.kategoriundangan || '',
+              noHp: item.noHp || item.nohp || item.noWa || item.nowa || '',
+              asalKwarda: item.asalKwarda || item.asalkwarda || '',
+              qabilah: item.qabilah || item.Qabilah || '',
+              status: item.status || 'approved',
+              tanggalDaftar: item.tanggalDaftar || item.tanggaldaftar || new Date().toISOString()
+            };
+          }).filter((item: any) => {
+            const name = (item.namaLengkap || item.nama || '').trim();
+            return name && name !== '-' && name.toLowerCase() !== 'tanpa nama' && item.status !== 'deleted';
+          });
+
+          apiApps.forEach(app => firestoreService.registerActivity(app).catch(() => {}));
+        }
+
+        // Auto-sync any local/firestore applications to Sheets if Sheets is missing them in background
+        const missingApps = fsApps.filter(fsApp => {
+          const normN = (n: string) => String(n || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normP = (p: string) => String(p || '').replace(/\D/g, '').replace(/^(0|62)/, '');
+          const fsName = normN(fsApp.namaLengkap);
+          const fsPhone = normP(fsApp.noHp);
+          
+          return !apiApps.some(apiApp => {
+            if (fsApp.id && apiApp.id && fsApp.id === apiApp.id) return true;
+            const apiName = normN(apiApp.namaLengkap);
+            const apiPhone = normP(apiApp.noHp);
+            if (fsPhone && apiPhone && fsPhone === apiPhone && fsPhone.length >= 7) return true;
+            if (fsName && apiName && fsName === apiName && fsName.length >= 3) return true;
+            return false;
+          });
         });
 
-        apiApps.forEach(app => firestoreService.registerActivity(app).catch(() => {}));
+        if (missingApps.length > 0) {
+          setTimeout(() => {
+            for (const app of missingApps) {
+              this.post({ action: 'registerActivity', ...app }).catch((err) => console.warn('Auto-sync registerActivity error:', err));
+            }
+          }, 500);
+        }
 
         return firestoreService.deduplicateActivityApps([...fsApps, ...apiApps]);
+      } catch (e) {
+        console.warn('getActivityApplications Sheets API error, falling back to Firestore:', (e as any)?.message || e);
+        return fsApps;
       }
-      return fsApps;
-    } catch (e) {
-      console.warn('getActivityApplications Sheets API error, falling back to Firestore:', (e as any)?.message || e);
-      return fsApps;
-    }
+    }, 15000);
   },
 
   async registerActivity(appData: any): Promise<any> {
+    clearSheetsCache('activityApplications');
     const saved = await firestoreService.registerActivity(appData);
     if (IS_API_VALID) {
-      try {
-        await this.post({ action: 'registerActivity', ...saved });
-      } catch (e) {
-        console.warn('registerActivity Sheets API error:', e);
-      }
+      this.post({ action: 'registerActivity', ...saved }).catch(e => console.warn('registerActivity Sheets API error:', e));
     }
     return saved;
   },
 
   async deleteActivityApplication(id: string): Promise<boolean> {
+    clearSheetsCache('activityApplications');
     const res = await firestoreService.deleteActivityApplication(id);
     if (IS_API_VALID) {
-      try {
-        await this.post({ action: 'deleteActivityApplication', id });
-      } catch (e) {
-        console.warn('deleteActivityApplication Sheets API error:', e);
-      }
+      this.post({ action: 'deleteActivityApplication', id }).catch(e => console.warn('deleteActivityApplication Sheets API error:', e));
     }
     return res;
   },

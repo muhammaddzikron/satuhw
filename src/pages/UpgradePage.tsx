@@ -12,6 +12,8 @@ const ROLE_OPTIONS = [
   { id: 'jati1', title: 'Jaya Melati 1', price: 'Rp 50.000', description: 'Akses penuh materi pelatihan tingkat Jaya Melati 1.' },
   { id: 'jati2', title: 'Jaya Melati 2', price: 'Rp 50.000', description: 'Akses penuh materi pelatihan tingkat Jaya Melati 2.' },
   { id: 'jari1', title: 'Jaya Matahari 1', price: 'Rp 50.000', description: 'Akses penuh materi pelatihan tingkat Jaya Matahari 1.' },
+  { id: 'jari2', title: 'Jaya Matahari 2', price: 'Rp 50.000', description: 'Akses penuh materi pelatihan tingkat Jaya Matahari 2.' },
+  { id: 'jawi', title: 'Jaya Pertiwi', price: 'Rp 50.000', description: 'Akses penuh materi pelatihan tingkat Jaya Pertiwi.' },
 ];
 
 export default function UpgradePage() {

@@ -1,4 +1,4 @@
-export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'sugli_daerah' | 'sugli_wilayah' | 'admin_kwarda' | 'jati1' | 'jati2' | 'jari1' | 'jari2' | 'admin' | 'superadmin' | 'admin_diklat' | 'diklat';
+export type UserRole = 'umum' | 'umum_pandu' | 'kwarda' | 'sugli' | 'sugli_daerah' | 'sugli_wilayah' | 'admin_kwarda' | 'jati1' | 'jayamelati1' | 'jati2' | 'jayamelati2' | 'jari1' | 'jayamatahari1' | 'jari2' | 'jayamatahari2' | 'jawi' | 'jayapertiwi' | 'admin' | 'superadmin' | 'admin_diklat' | 'diklat';
 
 export interface User {
   id: string;

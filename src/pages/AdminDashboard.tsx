@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
-import { isParticipantOfActivity } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate } from '../utils/activityUtils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -216,7 +216,6 @@ import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/docum
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
-import { isOnlyTrainingActivity } from '../utils/activityUtils';
 export { KWARDA_QABILAH_JATENG };
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
@@ -2091,8 +2090,14 @@ export default function AdminDashboard() {
   };
 
   const fetchData = async () => {
+    const isValidName = (name?: string) => {
+      if (!name) return false;
+      const trimmed = name.trim().toLowerCase();
+      return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
+    };
 
-    // Instant cache pre-fill to render UI immediately without blank/spinner delay
+    // 1. Instant cache pre-fill to render UI immediately without blank/spinner delay
+    let hasLocalCache = false;
     try {
       const cachedMembers = localStorage.getItem('mock_members');
       const cachedKtas = localStorage.getItem('kta_applications');
@@ -2102,15 +2107,19 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      if (cachedMembers) setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama))));
-      if (cachedKtas) setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap))));
-      if (cachedTrainings) setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t)));
-      if (cachedMateri) setMateriList(safeJsonParse(cachedMateri, []));
-      if (cachedContents) setContents(safeJsonParse(cachedContents, []));
-      if (cachedActivities) setActivitiesList(safeJsonParse(cachedActivities, []));
-      if (cachedActRegs) setActivityApplicationsList(safeJsonParse(cachedActRegs, []));
+      if (cachedMembers) { setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama)))); hasLocalCache = true; }
+      if (cachedKtas) { setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)))); hasLocalCache = true; }
+      if (cachedTrainings) { setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t))); hasLocalCache = true; }
+      if (cachedMateri) { setMateriList(safeJsonParse(cachedMateri, [])); }
+      if (cachedContents) { setContents(safeJsonParse(cachedContents, [])); }
+      if (cachedActivities) { setActivitiesList(safeJsonParse(cachedActivities, [])); }
+      if (cachedActRegs) { setActivityApplicationsList(sortActivityAppsByDate(safeJsonParse(cachedActRegs, []), true)); }
     } catch (e) {
       console.warn('Cache prefill warning:', e);
+    }
+
+    if (hasLocalCache) {
+      setLoading(false);
     }
 
     try {
@@ -2120,7 +2129,17 @@ export default function AdminDashboard() {
         firestoreService.purgeEmptyData().catch(() => {});
       }, 500);
 
-      const [materi, membersData, contentsData, settingsData, ktaData, trainingData, activitiesData, actRegData] = await Promise.all([
+      // Progressive data loading using Promise.allSettled to eliminate UI bottlenecks
+      const [
+        materiRes,
+        membersRes,
+        contentsRes,
+        settingsRes,
+        ktaRes,
+        trainingRes,
+        activitiesRes,
+        actRegRes
+      ] = await Promise.allSettled([
         sheetsService.getMateri('admin'),
         sheetsService.getMembers(),
         sheetsService.getContents(),
@@ -2131,20 +2150,31 @@ export default function AdminDashboard() {
         sheetsService.getActivityApplications()
       ]);
 
-      const isValidName = (name?: string) => {
-        if (!name) return false;
-        const trimmed = name.trim().toLowerCase();
-        return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
-      };
+      if (materiRes.status === 'fulfilled' && materiRes.value) {
+        setMateriList(materiRes.value);
+      }
+      if (membersRes.status === 'fulfilled' && membersRes.value) {
+        setMembers(ensureUniqueKtaNumbers((membersRes.value || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama))));
+      }
+      if (contentsRes.status === 'fulfilled' && contentsRes.value) {
+        setContents(contentsRes.value || []);
+      }
+      if (ktaRes.status === 'fulfilled' && ktaRes.value) {
+        setKtaApps(ensureUniqueKtaNumbers((ktaRes.value || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
+      }
+      if (trainingRes.status === 'fulfilled' && trainingRes.value) {
+        setTrainingApps((trainingRes.value || []).filter(t => isValidTrainingApp(t)));
+      }
+      if (activitiesRes.status === 'fulfilled' && activitiesRes.value) {
+        setActivitiesList(activitiesRes.value || []);
+      }
+      if (actRegRes.status === 'fulfilled' && actRegRes.value) {
+        setActivityApplicationsList(sortActivityAppsByDate(actRegRes.value || [], true));
+      }
 
-      setMateriList(materi || []);
-      setMembers(ensureUniqueKtaNumbers((membersData || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama))));
-      setContents(contentsData || []);
-      setKtaApps(ensureUniqueKtaNumbers((ktaData || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
-      setTrainingApps((trainingData || []).filter(t => isValidTrainingApp(t)));
-      setActivitiesList(activitiesData || []);
-      setActivityApplicationsList(actRegData || []);
-      if (settingsData) {
+      if (settingsRes.status === 'fulfilled' && settingsRes.value) {
+        const settingsData = settingsRes.value;
+        const activitiesData = activitiesRes.status === 'fulfilled' ? activitiesRes.value : [];
         setSettings(prev => ({
           ...prev,
           ...settingsData,
@@ -2190,7 +2220,7 @@ export default function AdminDashboard() {
     });
 
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
-      setActivityApplicationsList(apps || []);
+      setActivityApplicationsList(sortActivityAppsByDate(apps || [], true));
     });
 
     const unsubTrainingApps = sheetsService.subscribeToTrainingApplications((tApps: any[]) => {
@@ -2879,11 +2909,12 @@ export default function AdminDashboard() {
   };
 
   const exportActivityParticipantsToExcel = () => {
-    const list = activityApplicationsList.filter(app => {
+    const rawList = activityApplicationsList.filter(app => {
       if (selectedActivityForParticipants === 'semua') return true;
       const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
       return isParticipantOfActivity(app, targetAct);
     });
+    const list = sortActivityAppsByDate(rawList, true);
     
     let activityName = 'Semua_Kegiatan';
     if (selectedActivityForParticipants !== 'semua') {
@@ -2923,11 +2954,12 @@ export default function AdminDashboard() {
   };
 
   const exportActivityParticipantsToPDF = () => {
-    const list = activityApplicationsList.filter(app => {
+    const rawList = activityApplicationsList.filter(app => {
       if (selectedActivityForParticipants === 'semua') return true;
       const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
       return isParticipantOfActivity(app, targetAct);
     });
+    const list = sortActivityAppsByDate(rawList, true);
 
     let activityTitle = 'Semua Kegiatan HW Jateng';
     let activityNameFile = 'Semua_Kegiatan';
@@ -7804,13 +7836,14 @@ export default function AdminDashboard() {
                   <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
                     {/* 1. Mobile Card View (Visible on small screens) */}
                     <div className="block md:hidden divide-y divide-gray-100">
-                      {activityApplicationsList
-                        .filter(app => {
+                      {sortActivityAppsByDate(
+                        activityApplicationsList.filter(app => {
                           if (selectedActivityForParticipants === 'semua') return true;
                           const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
                           return isParticipantOfActivity(app, targetAct);
-                        })
-                        .map((app, index) => (
+                        }),
+                        true
+                      ).map((app, index) => (
                           <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div className="space-y-0.5">
@@ -7889,13 +7922,14 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {activityApplicationsList
-                            .filter(app => {
+                          {sortActivityAppsByDate(
+                            activityApplicationsList.filter(app => {
                               if (selectedActivityForParticipants === 'semua') return true;
                               const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
                               return isParticipantOfActivity(app, targetAct);
-                            })
-                            .map((app, index) => (
+                            }),
+                            true
+                          ).map((app, index) => (
                               <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
                                 <td className="p-4 font-bold text-gray-400 text-center text-[11px]">
                                   {index + 1}

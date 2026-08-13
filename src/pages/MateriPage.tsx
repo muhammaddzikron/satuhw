@@ -25,31 +25,48 @@ import { ActivationModal } from '../components/ActivationModal';
 import { Materi } from '../types';
 import LoadingPage from './LoadingPage';
 import { safeJsonParse, getCorsSafeUrl } from '../lib/utils';
+import { normalizeTrainingKey } from '../utils/trainingUtils';
 
 const ROLE_DISPLAY: Record<string, string> = {
   umum: 'Umum',
-  kwarda: 'Kwarda',
-  sugli: 'Sugli',
-  jati1: 'Jati 1',
-  jati2: 'Jati 2',
-  jari1: 'Jari 1',
-  umum_pandu: 'Umum Pandu'
+  umum_pandu: 'Umum Pandu',
+  jati1: 'Jaya Melati 1',
+  jayamelati1: 'Jaya Melati 1',
+  jati2: 'Jaya Melati 2',
+  jayamelati2: 'Jaya Melati 2',
+  jari1: 'Jaya Matahari 1',
+  jayamatahari1: 'Jaya Matahari 1',
+  jari2: 'Jaya Matahari 2',
+  jayamatahari2: 'Jaya Matahari 2',
+  jawi: 'Jaya Pertiwi',
+  jayapertiwi: 'Jaya Pertiwi',
+  sugli: 'Dewan Sugli',
+  kwarda: 'Kwarda'
 };
 
 const KATEGORI_COLORS: Record<string, string> = {
   umum: 'bg-blue-100 text-blue-600',
+  umum_pandu: 'bg-teal-100 text-teal-600',
   kwarda: 'bg-purple-100 text-purple-600',
   sugli: 'bg-orange-100 text-orange-600',
   jati1: 'bg-green-100 text-green-600',
+  jayamelati1: 'bg-green-100 text-green-600',
   jati2: 'bg-emerald-100 text-emerald-600',
+  jayamelati2: 'bg-emerald-100 text-emerald-600',
   jari1: 'bg-yellow-100 text-yellow-600',
-  umum_pandu: 'bg-teal-100 text-teal-600'
+  jayamatahari1: 'bg-yellow-100 text-yellow-600',
+  jari2: 'bg-amber-100 text-amber-600',
+  jayamatahari2: 'bg-amber-100 text-amber-600',
+  jawi: 'bg-rose-100 text-rose-600',
+  jayapertiwi: 'bg-rose-100 text-rose-600'
 };
 
 const UPGRADE_FEES_DEFAULT: Record<string, string> = {
   jati1: 'Rp 50.000',
   jati2: 'Rp 50.000',
   jari1: 'Rp 50.000',
+  jari2: 'Rp 50.000',
+  jawi: 'Rp 50.000',
   sugli: 'Rp 0',
   kwarda: 'Rp 0'
 };
@@ -60,39 +77,28 @@ const getUserRoleCategories = (user: any, apps: any[] = []): string[] => {
 
   const isPrivileged = user.role === 'admin' || user.role === 'superadmin' || user.role === 'admin_diklat' || user.role === 'diklat' || user.activeRole === 'admin' || user.activeRole === 'superadmin' || (user as any).adminType === 'diklat';
   if (isPrivileged) {
-    return ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'];
+    return ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda'];
   }
 
   const addCategoryByText = (txt?: string) => {
     if (!txt) return;
-    const clean = String(txt).toLowerCase().trim();
-    if (clean.includes('jati 1') || clean.includes('jati1') || clean.includes('jaya melati 1') || clean.includes('jm 1') || clean.includes('jm1')) {
-      categories.add('jati1');
-    }
-    if (clean.includes('jati 2') || clean.includes('jati2') || clean.includes('jaya melati 2') || clean.includes('jm 2') || clean.includes('jm2')) {
-      categories.add('jati2');
-    }
-    if (clean.includes('jari 1') || clean.includes('jari1') || clean.includes('jaya matahari 1') || clean.includes('jm 3') || clean.includes('jm3')) {
-      categories.add('jari1');
-    }
-    if (clean.includes('sugli') || clean.includes('dewan sugli')) {
-      categories.add('sugli');
-    }
-    if (clean.includes('kwarda')) {
-      categories.add('kwarda');
+    const norm = normalizeTrainingKey(txt);
+    if (norm) {
+      categories.add(norm);
     }
   };
 
   // 1. Check user.role & user.activeRole
   addCategoryByText(user.role);
   addCategoryByText(user.activeRole);
-  if (user.role) categories.add(user.role);
-  if (user.activeRole) categories.add(user.activeRole);
+  if (user.role) categories.add(normalizeTrainingKey(user.role) || user.role);
+  if (user.activeRole) categories.add(normalizeTrainingKey(user.activeRole) || user.activeRole);
 
   // 2. Check user.roles array
   if (user.roles && Array.isArray(user.roles)) {
     user.roles.forEach(r => {
-      categories.add(r);
+      const norm = normalizeTrainingKey(r) || r;
+      categories.add(norm);
       addCategoryByText(r);
     });
   }
@@ -113,7 +119,7 @@ const getUserRoleCategories = (user: any, apps: any[] = []): string[] => {
   // 5. Check approved training applications
   if (apps && Array.isArray(apps)) {
     apps.forEach(app => {
-      const isMatch = (app.email && app.email.toLowerCase() === user.email.toLowerCase()) ||
+      const isMatch = (app.email && app.email.toLowerCase() === user.email?.toLowerCase()) ||
                       (app.userId && String(app.userId) === String(user.id));
       const isApproved = app.status === 'approved' || app.status === 'terverifikasi' || app.status === 'disetujui' || app.statusPembayaran === 'Lunas' || app.statusKelulusan === 'Lulus';
       if (isMatch && isApproved) {
@@ -186,7 +192,7 @@ export default function MateriPage() {
         const isPrivileged = activeRole === 'admin' || activeRole === 'superadmin' || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
         
         let rolesToFetch = isPrivileged
-          ? ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda']
+          ? ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda']
           : Array.from(new Set(['umum', 'umum_pandu', ...userCategories, activeRole].filter(Boolean)));
 
         const results = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
@@ -368,7 +374,7 @@ export default function MateriPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 pb-2">
-          {['umum', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'].map((k) => (
+          {['umum', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda'].map((k) => (
             <button
               key={k}
               onClick={() => setFilter(k)}

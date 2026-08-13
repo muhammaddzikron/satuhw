@@ -27,6 +27,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { sheetsService } from '../services/sheetsService';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
+import { DEFAULT_TRAINING_TYPES } from '../utils/trainingUtils';
 
 export default function DaftarPelatihanPage() {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export default function DaftarPelatihanPage() {
               : [];
         }
 
-        const defaultTypes = ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'];
+        const defaultTypes = DEFAULT_TRAINING_TYPES;
         const activityTypes = activities.map((a: any) => a.jenisPelatihan).filter(Boolean);
         const mergedTypes = Array.from(new Set([...types, ...activityTypes, ...defaultTypes])).filter(Boolean);
 

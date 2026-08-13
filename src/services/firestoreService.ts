@@ -22,7 +22,8 @@ import {
   ensureUniqueKtaNumbers,
   resequenceKtaNumbers
 } from '../utils/ktaUtils';
-import { isOnlyTrainingActivity } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
+import { normalizeTrainingKey } from '../utils/trainingUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
@@ -91,24 +92,9 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
 export function parseRolesField(rolesVal: any, roleVal: any): UserRole[] {
   const result: UserRole[] = [];
 
-  const normalizeRoleKey = (r: any): string => {
-    if (!r) return '';
-    const clean = String(r).trim().toLowerCase();
-    if (clean === 'jaya_melati_1' || clean === 'jati_1' || clean === 'jati1' || clean === 'jaya melati 1') return 'jati1';
-    if (clean === 'jaya_melati_2' || clean === 'jati_2' || clean === 'jati2' || clean === 'jaya melati 2') return 'jati2';
-    if (clean === 'jaya_matahari_1' || clean === 'jari_1' || clean === 'jari1' || clean === 'jaya matahari 1') return 'jari1';
-    if (clean === 'jaya_matahari_2' || clean === 'jari_2' || clean === 'jari2' || clean === 'jaya matahari 2') return 'jari2';
-    if (clean === 'dewan_sugli' || clean === 'sugli_daerah' || clean === 'sugli_wilayah' || clean === 'sugli') return 'sugli';
-    if (clean === 'admin_kwarda' || clean === 'kwarda') return 'kwarda';
-    if (clean === 'super_admin' || clean === 'superadmin') return 'superadmin';
-    if (clean === 'admin_petugas' || clean === 'admin') return 'admin';
-    if (clean === 'admin_diklat' || clean === 'diklat') return 'diklat';
-    return clean;
-  };
-
   const addRole = (r: any) => {
     if (!r) return;
-    const norm = normalizeRoleKey(r);
+    const norm = normalizeTrainingKey(r);
     if (norm && !result.includes(norm as UserRole)) {
       result.push(norm as UserRole);
     }
@@ -2743,7 +2729,7 @@ export const firestoreService = {
       }
     }
 
-    return deduped;
+    return sortActivityAppsByDate(deduped, true);
   },
 
   getDefaultActivityApplications(): any[] {
