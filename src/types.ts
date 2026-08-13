@@ -1,4 +1,4 @@
-export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'jati1' | 'jati2' | 'jari1' | 'admin' | 'superadmin' | 'admin_diklat' | 'diklat';
+export type UserRole = 'umum' | 'kwarda' | 'sugli' | 'sugli_daerah' | 'sugli_wilayah' | 'admin_kwarda' | 'jati1' | 'jati2' | 'jari1' | 'jari2' | 'admin' | 'superadmin' | 'admin_diklat' | 'diklat';
 
 export interface User {
   id: string;

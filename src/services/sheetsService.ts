@@ -1660,6 +1660,18 @@ export const sheetsService = {
   },
 
   async backupNow(): Promise<any> {
+    if (IS_API_VALID) {
+      try {
+        const res = await this.post({ action: 'backupNow' });
+        if (res && res.success) {
+          // Also back up Firestore in background
+          firestoreService.backupAndUploadAllToFirestore().catch(() => {});
+          return res;
+        }
+      } catch (e) {
+        console.warn('Sheets backupNow warning, falling back to Firestore backup:', e);
+      }
+    }
     return await firestoreService.backupAndUploadAllToFirestore();
   },
 
@@ -1693,15 +1705,42 @@ export const sheetsService = {
   },
 
   async getActivities(): Promise<any[]> {
-    return await firestoreService.getActivities();
+    const fsActs = await firestoreService.getActivities();
+    if (!IS_API_VALID) return fsActs;
+    try {
+      const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`);
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const map = new Map<string, any>();
+        fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+        response.data.forEach((a: any) => {
+          if (a && a.id) {
+            map.set(a.id, a);
+            firestoreService.saveActivity(a).catch(() => {});
+          }
+        });
+        return Array.from(map.values());
+      }
+      return fsActs;
+    } catch (e) {
+      console.warn('getActivities Sheets API error:', e);
+      return fsActs;
+    }
   },
 
   async saveActivity(activityData: any): Promise<any> {
-    return await firestoreService.saveActivity(activityData);
+    const saved = await firestoreService.saveActivity(activityData);
+    if (IS_API_VALID) {
+      this.post({ action: 'saveActivity', ...activityData }).catch(e => console.warn('saveActivity Sheets API warning:', e));
+    }
+    return saved;
   },
 
   async deleteActivity(id: string, title?: string): Promise<boolean> {
-    return await firestoreService.deleteActivity(id, title);
+    const res = await firestoreService.deleteActivity(id, title);
+    if (IS_API_VALID) {
+      this.post({ action: 'deleteActivity', id }).catch(e => console.warn('deleteActivity Sheets API warning:', e));
+    }
+    return res;
   },
 
   async getActivityApplications(): Promise<any[]> {
