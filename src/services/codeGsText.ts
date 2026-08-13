@@ -2257,24 +2257,51 @@ function handleGetActivities() {
     var cleanApp = {};
     for (var key in app) {
       var lowerKey = key.toLowerCase();
-      var clientKey = key;
-      if (lowerKey === 'namakegiatan') clientKey = 'namaKegiatan';
-      else if (lowerKey === 'jenispelatihan') clientKey = 'jenisPelatihan';
-      else if (lowerKey === 'lokasipelatihan') clientKey = 'lokasiPelatihan';
-      else if (lowerKey === 'tanggalpelatihan') clientKey = 'tanggalPelatihan';
-      else if (lowerKey === 'biayapelatihan') clientKey = 'biayaPelatihan';
-      else if (lowerKey === 'proposalurl') clientKey = 'proposalUrl';
-      else if (lowerKey === 'rekeningpembayaran') clientKey = 'rekeningPembayaran';
-      else if (lowerKey === 'nowhatsapppanitia') clientKey = 'noWhatsappPanitia';
-      else if (lowerKey === 'themesongurl') clientKey = 'themeSongUrl';
-      else if (lowerKey === 'themesongtitle') clientKey = 'themeSongTitle';
-      else if (lowerKey === 'gambarurl') clientKey = 'gambarUrl';
-      else if (lowerKey === 'pelatihgolongan') clientKey = 'pelatihGolongan';
-      else if (lowerKey === 'golongananggota') clientKey = 'golonganAnggota';
-      else if (lowerKey === 'asistenpelatih') clientKey = 'asistenPelatih';
-      else if (lowerKey === 'createdat') clientKey = 'createdAt';
-      
-      cleanApp[clientKey] = app[key];
+      cleanApp[key] = app[key];
+      if (lowerKey === 'namakegiatan' || lowerKey === 'title') {
+        cleanApp['namaKegiatan'] = app[key];
+        cleanApp['title'] = app[key];
+      } else if (lowerKey === 'jenispelatihan') {
+        cleanApp['jenisPelatihan'] = app[key];
+        if (!cleanApp['namaKegiatan']) cleanApp['namaKegiatan'] = app[key];
+      } else if (lowerKey === 'lokasipelatihan' || lowerKey === 'lokasi' || lowerKey === 'location') {
+        cleanApp['lokasiPelatihan'] = app[key];
+        cleanApp['lokasi'] = app[key];
+        cleanApp['location'] = app[key];
+      } else if (lowerKey === 'tanggalpelatihan' || lowerKey === 'tanggal' || lowerKey === 'startdate') {
+        cleanApp['tanggalPelatihan'] = app[key];
+        cleanApp['tanggal'] = app[key];
+        cleanApp['startDate'] = app[key];
+      } else if (lowerKey === 'biayapelatihan' || lowerKey === 'biaya' || lowerKey === 'infaq') {
+        cleanApp['biayaPelatihan'] = app[key];
+        cleanApp['biaya'] = app[key];
+      } else if (lowerKey === 'proposalurl' || lowerKey === 'proposal' || lowerKey === 'linkproposal') {
+        cleanApp['proposalUrl'] = app[key];
+        cleanApp['proposal'] = app[key];
+        cleanApp['linkProposal'] = app[key];
+      } else if (lowerKey === 'rekeningpembayaran' || lowerKey === 'rekeningpembiayaan') {
+        cleanApp['rekeningPembayaran'] = app[key];
+        cleanApp['rekeningPembiayaan'] = app[key];
+      } else if (lowerKey === 'nowhatsapppanitia' || lowerKey === 'konfirmasipembayaran' || lowerKey === 'nokonfirmasi') {
+        cleanApp['noWhatsappPanitia'] = app[key];
+        cleanApp['konfirmasiPembayaran'] = app[key];
+      } else if (lowerKey === 'themesongurl' || lowerKey === 'themesong') {
+        cleanApp['themeSongUrl'] = app[key];
+        cleanApp['themeSong'] = app[key];
+      } else if (lowerKey === 'themesongtitle' || lowerKey === 'themesongname') {
+        cleanApp['themeSongTitle'] = app[key];
+        cleanApp['themeSongName'] = app[key];
+      } else if (lowerKey === 'gambarurl' || lowerKey === 'imageurl') {
+        cleanApp['gambarUrl'] = app[key];
+        cleanApp['imageUrl'] = app[key];
+      } else if (lowerKey === 'kategori' || lowerKey === 'category') {
+        cleanApp['kategori'] = app[key];
+        cleanApp['category'] = app[key];
+      } else if (lowerKey === 'createdat') {
+        cleanApp['createdAt'] = app[key];
+      } else if (lowerKey === 'updatedat') {
+        cleanApp['updatedAt'] = app[key];
+      }
     }
     
     if (typeof cleanApp.pelatih === 'string' && cleanApp.pelatih.indexOf('[') === 0) {
@@ -2308,11 +2335,33 @@ function handleSaveActivity(data) {
   headers.forEach(function(header, i) {
     var val = undefined;
     if (header === 'id') val = actId;
-    else if (header === 'namakegiatan') val = data.namaKegiatan !== undefined ? data.namaKegiatan : (existing ? (existing.namakegiatan || existing.namaKegiatan) : "");
-    else if (header === 'jenispelatihan') val = data.jenisPelatihan !== undefined ? data.jenisPelatihan : (existing ? (existing.jenispelatihan || existing.jenisPelatihan) : "");
-    else if (header === 'lokasipelatihan') val = data.lokasiPelatihan !== undefined ? data.lokasiPelatihan : (existing ? (existing.lokasipelatihan || existing.lokasiPelatihan) : "");
-    else if (header === 'tanggalpelatihan') val = data.tanggalPelatihan !== undefined ? data.tanggalPelatihan : (existing ? (existing.tanggalpelatihan || existing.tanggalPelatihan) : "");
-    else if (header === 'status') val = data.status !== undefined ? data.status : (existing ? (existing.status) : "Buka");
+    else if (header === 'namakegiatan' || header === 'title') {
+      val = (data.namaKegiatan !== undefined && data.namaKegiatan !== "") ? data.namaKegiatan :
+            ((data.title !== undefined && data.title !== "") ? data.title :
+            ((data.jenisPelatihan !== undefined && data.jenisPelatihan !== "") ? data.jenisPelatihan :
+            (existing ? (existing.namakegiatan || existing.namaKegiatan || existing.title || existing.jenispelatihan) : "")));
+    }
+    else if (header === 'jenispelatihan') {
+      val = (data.jenisPelatihan !== undefined && data.jenisPelatihan !== "") ? data.jenisPelatihan :
+            ((data.namaKegiatan !== undefined && data.namaKegiatan !== "") ? data.namaKegiatan :
+            ((data.title !== undefined && data.title !== "") ? data.title :
+            (existing ? (existing.jenispelatihan || existing.jenisPelatihan || existing.namakegiatan) : "")));
+    }
+    else if (header === 'lokasipelatihan' || header === 'lokasi' || header === 'location') {
+      val = (data.lokasiPelatihan !== undefined && data.lokasiPelatihan !== "") ? data.lokasiPelatihan :
+            ((data.lokasi !== undefined && data.lokasi !== "") ? data.lokasi :
+            ((data.location !== undefined && data.location !== "") ? data.location :
+            (existing ? (existing.lokasipelatihan || existing.lokasiPelatihan || existing.lokasi || existing.location) : "")));
+    }
+    else if (header === 'tanggalpelatihan' || header === 'tanggal' || header === 'startdate') {
+      val = (data.tanggalPelatihan !== undefined && data.tanggalPelatihan !== "") ? data.tanggalPelatihan :
+            ((data.tanggal !== undefined && data.tanggal !== "") ? data.tanggal :
+            ((data.startDate !== undefined && data.startDate !== "") ? data.startDate :
+            (existing ? (existing.tanggalpelatihan || existing.tanggalPelatihan || existing.tanggal || existing.startDate) : "")));
+    }
+    else if (header === 'status') {
+      val = data.status !== undefined ? data.status : (existing ? existing.status : "Buka");
+    }
     else if (header === 'pelatih') {
       var p = data.pelatih !== undefined ? data.pelatih : (existing ? existing.pelatih : []);
       val = typeof p === 'object' ? JSON.stringify(p) : p;
@@ -2321,20 +2370,72 @@ function handleSaveActivity(data) {
       var ap = data.asistenPelatih !== undefined ? data.asistenPelatih : (existing ? existing.asistenpelatih : []);
       val = typeof ap === 'object' ? JSON.stringify(ap) : ap;
     }
-    else if (header === 'pelatihgolongan') val = data.pelatihGolongan !== undefined ? data.pelatihGolongan : (existing ? existing.pelatihgolongan : "");
-    else if (header === 'golongananggota') val = data.golonganAnggota !== undefined ? data.golonganAnggota : (existing ? existing.golongananggota : "");
-    else if (header === 'deskripsi') val = data.deskripsi !== undefined ? data.deskripsi : (existing ? existing.deskripsi : "");
-    else if (header === 'biayapelatihan') val = data.biayaPelatihan !== undefined ? data.biayaPelatihan : (existing ? existing.biayapelatihan : "Gratis");
-    else if (header === 'proposalurl') val = data.proposalUrl !== undefined ? data.proposalUrl : (existing ? existing.proposalurl : "");
-    else if (header === 'rekeningpembayaran') val = data.rekeningPembayaran !== undefined ? data.rekeningPembayaran : (existing ? existing.rekeningpembayaran : "");
-    else if (header === 'nowhatsapppanitia') val = data.noWhatsappPanitia !== undefined ? data.noWhatsappPanitia : (existing ? existing.nowhatsapppanitia : "");
-    else if (header === 'themesongurl') val = data.themeSongUrl !== undefined ? data.themeSongUrl : (existing ? existing.themesongurl : "");
-    else if (header === 'themesongtitle') val = data.themeSongTitle !== undefined ? data.themeSongTitle : (existing ? existing.themesongtitle : "");
-    else if (header === 'gambarurl') val = data.gambarUrl !== undefined ? data.gambarUrl : (existing ? existing.gambarurl : "");
-    else if (header === 'penyelenggara') val = data.penyelenggara !== undefined ? data.penyelenggara : (existing ? existing.penyelenggara : "");
-    else if (header === 'kuota') val = data.kuota !== undefined ? data.kuota : (existing ? existing.kuota : "");
-    else if (header === 'kategori') val = data.kategori !== undefined ? data.kategori : (existing ? existing.kategori : "");
-    else if (header === 'createdat') val = data.createdAt !== undefined ? data.createdAt : (existing ? existing.createdat : new Date().toISOString());
+    else if (header === 'pelatihgolongan') {
+      val = data.pelatihGolongan !== undefined ? data.pelatihGolongan : (existing ? existing.pelatihgolongan : "");
+    }
+    else if (header === 'golongananggota') {
+      val = data.golonganAnggota !== undefined ? data.golonganAnggota : (existing ? existing.golongananggota : "");
+    }
+    else if (header === 'deskripsi' || header === 'description') {
+      val = (data.deskripsi !== undefined && data.deskripsi !== "") ? data.deskripsi :
+            ((data.description !== undefined && data.description !== "") ? data.description :
+            (existing ? (existing.deskripsi || existing.description) : ""));
+    }
+    else if (header === 'biayapelatihan' || header === 'biaya' || header === 'infaq') {
+      val = (data.biayaPelatihan !== undefined && data.biayaPelatihan !== "") ? data.biayaPelatihan :
+            ((data.biaya !== undefined && data.biaya !== "") ? data.biaya :
+            ((data.infaq !== undefined && data.infaq !== "") ? data.infaq :
+            (existing ? (existing.biayapelatihan || existing.biaya) : "Gratis")));
+    }
+    else if (header === 'proposalurl' || header === 'proposal' || header === 'linkproposal') {
+      val = (data.proposalUrl !== undefined && data.proposalUrl !== "") ? data.proposalUrl :
+            ((data.proposal !== undefined && data.proposal !== "") ? data.proposal :
+            ((data.linkProposal !== undefined && data.linkProposal !== "") ? data.linkProposal :
+            (existing ? (existing.proposalurl || existing.proposal || existing.linkproposal) : "")));
+    }
+    else if (header === 'rekeningpembayaran' || header === 'rekeningpembiayaan') {
+      val = (data.rekeningPembayaran !== undefined && data.rekeningPembayaran !== "") ? data.rekeningPembayaran :
+            ((data.rekeningPembiayaan !== undefined && data.rekeningPembiayaan !== "") ? data.rekeningPembiayaan :
+            (existing ? (existing.rekeningpembayaran || existing.rekeningpembiayaan) : ""));
+    }
+    else if (header === 'nowhatsapppanitia' || header === 'konfirmasipembayaran' || header === 'nokonfirmasi') {
+      val = (data.noWhatsappPanitia !== undefined && data.noWhatsappPanitia !== "") ? data.noWhatsappPanitia :
+            ((data.konfirmasiPembayaran !== undefined && data.konfirmasiPembayaran !== "") ? data.konfirmasiPembayaran :
+            ((data.noKonfirmasi !== undefined && data.noKonfirmasi !== "") ? data.noKonfirmasi :
+            (existing ? (existing.nowhatsapppanitia || existing.konfirmasipembayaran) : "")));
+    }
+    else if (header === 'themesongurl' || header === 'themesong') {
+      val = (data.themeSongUrl !== undefined && data.themeSongUrl !== "") ? data.themeSongUrl :
+            ((data.themeSong !== undefined && data.themeSong !== "") ? data.themeSong :
+            (existing ? (existing.themesongurl || existing.themesong) : ""));
+    }
+    else if (header === 'themesongtitle' || header === 'themesongname') {
+      val = (data.themeSongTitle !== undefined && data.themeSongTitle !== "") ? data.themeSongTitle :
+            ((data.themeSongName !== undefined && data.themeSongName !== "") ? data.themeSongName :
+            (existing ? (existing.themesongtitle || existing.themesongname) : ""));
+    }
+    else if (header === 'gambarurl' || header === 'imageurl') {
+      val = (data.gambarUrl !== undefined && data.gambarUrl !== "") ? data.gambarUrl :
+            ((data.imageUrl !== undefined && data.imageUrl !== "") ? data.imageUrl :
+            (existing ? (existing.gambarurl || existing.imageurl) : ""));
+    }
+    else if (header === 'penyelenggara') {
+      val = data.penyelenggara !== undefined ? data.penyelenggara : (existing ? existing.penyelenggara : "");
+    }
+    else if (header === 'kuota') {
+      val = data.kuota !== undefined ? data.kuota : (existing ? existing.kuota : "");
+    }
+    else if (header === 'kategori' || header === 'category') {
+      val = (data.kategori !== undefined && data.kategori !== "") ? data.kategori :
+            ((data.category !== undefined && data.category !== "") ? data.category :
+            (existing ? (existing.kategori || existing.category) : ""));
+    }
+    else if (header === 'createdat') {
+      val = data.createdAt !== undefined ? data.createdAt : (existing ? existing.createdat : new Date().toISOString());
+    }
+    else if (header === 'updatedat') {
+      val = new Date().toISOString();
+    }
 
     rowData[i] = val !== undefined ? val : "";
   });

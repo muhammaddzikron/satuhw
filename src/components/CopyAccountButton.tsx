@@ -19,7 +19,7 @@ export const CopyAccountButton: React.FC<CopyAccountButtonProps> = ({
   const handleCopy = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const cleanNum = accountNumber.replace(/[^0-9]/g, '') || '7307427448';
+    const cleanNum = String(accountNumber || '7307427448').replace(/[^0-9]/g, '') || '7307427448';
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(cleanNum);
     } else {

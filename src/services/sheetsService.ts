@@ -1662,6 +1662,12 @@ export const sheetsService = {
   async backupNow(): Promise<any> {
     if (IS_API_VALID) {
       try {
+        const actApps = await firestoreService.getActivityApplications();
+        if (actApps && actApps.length > 0) {
+          actApps.forEach(a => {
+            this.post({ action: 'registerActivity', ...a }).catch(() => {});
+          });
+        }
         const res = await this.post({ action: 'backupNow' });
         if (res && res.success) {
           // Also back up Firestore in background
@@ -1734,12 +1740,119 @@ export const sheetsService = {
       if (Array.isArray(response.data) && response.data.length > 0) {
         const map = new Map<string, any>();
         fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
-        response.data.forEach((a: any) => {
-          if (a && a.id) {
-            map.set(a.id, a);
-            firestoreService.saveActivity(a).catch(() => {});
+
+        response.data.forEach((sheetAct: any) => {
+          if (!sheetAct || !sheetAct.id) return;
+          const fsAct = map.get(sheetAct.id);
+
+          const sheetTitle = sheetAct.namakegiatan || sheetAct.namaKegiatan || sheetAct.title || sheetAct.jenispelatihan || sheetAct.jenisPelatihan || '';
+          const sheetLoc = sheetAct.lokasipelatihan || sheetAct.lokasiPelatihan || sheetAct.lokasi || sheetAct.location || '';
+          const sheetDate = sheetAct.tanggalpelatihan || sheetAct.tanggalPelatihan || sheetAct.tanggal || sheetAct.startDate || '';
+          const sheetBiaya = sheetAct.biayapelatihan || sheetAct.biayaPelatihan || sheetAct.biaya || '';
+          const sheetDesc = sheetAct.deskripsi || sheetAct.description || '';
+          const sheetCat = sheetAct.kategori || sheetAct.category || '';
+          const sheetImg = sheetAct.gambarurl || sheetAct.gambarUrl || sheetAct.imageurl || sheetAct.imageUrl || '';
+          const sheetSongUrl = sheetAct.themesongurl || sheetAct.themeSongUrl || sheetAct.themesong || sheetAct.themeSong || '';
+          const sheetSongTitle = sheetAct.themesongtitle || sheetAct.themeSongTitle || sheetAct.themesongname || sheetAct.themeSongName || '';
+          const sheetProposal = sheetAct.proposalurl || sheetAct.proposalUrl || sheetAct.proposal || sheetAct.linkproposal || sheetAct.linkProposal || '';
+          const sheetRekening = sheetAct.rekeningpembayaran || sheetAct.rekeningPembayaran || sheetAct.rekeningpembiayaan || sheetAct.rekeningPembiayaan || '';
+          const sheetKonfirmasi = sheetAct.nowhatsapppanitia || sheetAct.noWhatsappPanitia || sheetAct.konfirmasipembayaran || sheetAct.konfirmasiPembayaran || '';
+
+          if (fsAct) {
+            const fsTime = new Date(fsAct.updatedAt || fsAct.createdAt || 0).getTime();
+            const sheetTime = new Date(sheetAct.updatedAt || sheetAct.createdat || 0).getTime();
+
+            if (fsTime >= sheetTime && fsTime > 0) {
+              const merged = {
+                ...sheetAct,
+                ...fsAct,
+                namaKegiatan: fsAct.namaKegiatan || fsAct.title || sheetTitle,
+                title: fsAct.namaKegiatan || fsAct.title || sheetTitle,
+                lokasi: fsAct.lokasi || fsAct.lokasiPelatihan || sheetLoc,
+                location: fsAct.lokasi || fsAct.lokasiPelatihan || sheetLoc,
+                lokasiPelatihan: fsAct.lokasi || fsAct.lokasiPelatihan || sheetLoc,
+                tanggal: fsAct.tanggal || fsAct.tanggalPelatihan || sheetDate,
+                startDate: fsAct.tanggal || fsAct.tanggalPelatihan || sheetDate,
+                tanggalPelatihan: fsAct.tanggal || fsAct.tanggalPelatihan || sheetDate,
+                biaya: fsAct.biaya || fsAct.biayaPelatihan || sheetBiaya,
+                biayaPelatihan: fsAct.biaya || fsAct.biayaPelatihan || sheetBiaya,
+                deskripsi: fsAct.deskripsi || fsAct.description || sheetDesc,
+                description: fsAct.deskripsi || fsAct.description || sheetDesc,
+                kategori: fsAct.kategori || fsAct.category || sheetCat,
+                category: fsAct.kategori || fsAct.category || sheetCat,
+                gambarUrl: fsAct.gambarUrl || fsAct.imageUrl || sheetImg,
+                themeSongUrl: fsAct.themeSongUrl || fsAct.themeSong || sheetSongUrl,
+                themeSongTitle: fsAct.themeSongTitle || fsAct.themeSongName || sheetSongTitle,
+                proposalUrl: fsAct.proposalUrl || fsAct.proposal || sheetProposal,
+                rekeningPembayaran: fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan || sheetRekening,
+                rekeningPembiayaan: fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan || sheetRekening,
+                noWhatsappPanitia: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi,
+                konfirmasiPembayaran: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi
+              };
+              map.set(sheetAct.id, merged);
+            } else {
+              const merged = {
+                ...fsAct,
+                ...sheetAct,
+                namaKegiatan: sheetTitle || fsAct.namaKegiatan || fsAct.title,
+                title: sheetTitle || fsAct.namaKegiatan || fsAct.title,
+                lokasi: sheetLoc || fsAct.lokasi || fsAct.lokasiPelatihan,
+                location: sheetLoc || fsAct.lokasi || fsAct.lokasiPelatihan,
+                lokasiPelatihan: sheetLoc || fsAct.lokasi || fsAct.lokasiPelatihan,
+                tanggal: sheetDate || fsAct.tanggal || fsAct.tanggalPelatihan,
+                startDate: sheetDate || fsAct.tanggal || fsAct.tanggalPelatihan,
+                tanggalPelatihan: sheetDate || fsAct.tanggal || fsAct.tanggalPelatihan,
+                biaya: sheetBiaya || fsAct.biaya || fsAct.biayaPelatihan,
+                biayaPelatihan: sheetBiaya || fsAct.biaya || fsAct.biayaPelatihan,
+                deskripsi: sheetDesc || fsAct.deskripsi || fsAct.description,
+                description: sheetDesc || fsAct.deskripsi || fsAct.description,
+                kategori: sheetCat || fsAct.kategori || fsAct.category,
+                category: sheetCat || fsAct.kategori || fsAct.category,
+                gambarUrl: sheetImg || fsAct.gambarUrl || fsAct.imageUrl,
+                themeSongUrl: sheetSongUrl || fsAct.themeSongUrl || fsAct.themeSong,
+                themeSongTitle: sheetSongTitle || fsAct.themeSongTitle || fsAct.themeSongName,
+                proposalUrl: sheetProposal || fsAct.proposalUrl || fsAct.proposal,
+                rekeningPembayaran: sheetRekening || fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan,
+                rekeningPembiayaan: sheetRekening || fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan,
+                noWhatsappPanitia: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran,
+                konfirmasiPembayaran: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran
+              };
+              map.set(sheetAct.id, merged);
+              firestoreService.saveActivity(merged).catch(() => {});
+            }
+          } else {
+            const normalizedSheetAct = {
+              ...sheetAct,
+              id: sheetAct.id,
+              namaKegiatan: sheetTitle,
+              title: sheetTitle,
+              lokasi: sheetLoc,
+              location: sheetLoc,
+              lokasiPelatihan: sheetLoc,
+              tanggal: sheetDate,
+              startDate: sheetDate,
+              tanggalPelatihan: sheetDate,
+              biaya: sheetBiaya || 'Gratis',
+              biayaPelatihan: sheetBiaya || 'Gratis',
+              deskripsi: sheetDesc,
+              description: sheetDesc,
+              kategori: sheetCat || 'Silaturahmi',
+              category: sheetCat || 'Silaturahmi',
+              gambarUrl: sheetImg || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              themeSongUrl: sheetSongUrl,
+              themeSongTitle: sheetSongTitle,
+              proposalUrl: sheetProposal,
+              rekeningPembayaran: sheetRekening || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+              rekeningPembiayaan: sheetRekening || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+              noWhatsappPanitia: sheetKonfirmasi || '089688754000',
+              konfirmasiPembayaran: sheetKonfirmasi || '089688754000',
+              status: sheetAct.status || 'Buka'
+            };
+            map.set(sheetAct.id, normalizedSheetAct);
+            firestoreService.saveActivity(normalizedSheetAct).catch(() => {});
           }
         });
+
         return Array.from(map.values());
       }
       return fsActs;
@@ -1750,11 +1863,61 @@ export const sheetsService = {
   },
 
   async saveActivity(activityData: any): Promise<any> {
-    const saved = await firestoreService.saveActivity(activityData);
+    const actId = activityData.id || `keg-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const titleVal = activityData.namaKegiatan || activityData.title || activityData.jenisPelatihan || '';
+    const descVal = activityData.deskripsi || activityData.description || '';
+    const locVal = activityData.lokasi || activityData.lokasiPelatihan || activityData.location || '';
+    const dateVal = activityData.tanggal || activityData.tanggalPelatihan || activityData.startDate || '';
+    const biayaVal = activityData.biaya || activityData.biayaPelatihan || 'Gratis';
+    const catVal = activityData.kategori || activityData.category || 'Silaturahmi';
+    const kuotaVal = activityData.kuota || 'Terbuka';
+    const imgVal = activityData.gambarUrl || activityData.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const songUrlVal = activityData.themeSongUrl || activityData.themeSong || '';
+    const songTitleVal = activityData.themeSongTitle || activityData.themeSongName || '';
+    const proposalVal = activityData.proposalUrl || activityData.proposal || activityData.linkProposal || '';
+    const rekeningVal = activityData.rekeningPembayaran || activityData.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+    const konfirmasiVal = activityData.noWhatsappPanitia || activityData.konfirmasiPembayaran || '089688754000';
+
+    const normalizedPayload = {
+      ...activityData,
+      id: actId,
+      namaKegiatan: titleVal,
+      title: titleVal,
+      deskripsi: descVal,
+      description: descVal,
+      lokasi: locVal,
+      location: locVal,
+      lokasiPelatihan: locVal,
+      tanggal: dateVal,
+      startDate: dateVal,
+      tanggalPelatihan: dateVal,
+      biaya: biayaVal,
+      biayaPelatihan: biayaVal,
+      kuota: kuotaVal,
+      kategori: catVal,
+      category: catVal,
+      gambarUrl: imgVal,
+      imageUrl: imgVal,
+      themeSongUrl: songUrlVal,
+      themeSong: songUrlVal,
+      themeSongTitle: songTitleVal,
+      themeSongName: songTitleVal,
+      proposalUrl: proposalVal,
+      proposal: proposalVal,
+      linkProposal: proposalVal,
+      rekeningPembayaran: rekeningVal,
+      rekeningPembiayaan: rekeningVal,
+      noWhatsappPanitia: konfirmasiVal,
+      konfirmasiPembayaran: konfirmasiVal,
+      updatedAt: nowIso
+    };
+
+    const saved = await firestoreService.saveActivity(normalizedPayload);
     if (IS_API_VALID) {
-      this.post({ action: 'saveActivity', ...activityData }).catch(e => console.warn('saveActivity Sheets API warning:', e));
+      this.post({ action: 'saveActivity', ...normalizedPayload }).catch(e => console.warn('saveActivity Sheets API warning:', e));
     }
-    return saved;
+    return saved || normalizedPayload;
   },
 
   async deleteActivity(id: string, title?: string): Promise<boolean> {
@@ -1769,6 +1932,12 @@ export const sheetsService = {
     try {
       const apps = await firestoreService.getActivityApplications();
       if (apps && apps.length > 0) {
+        if (IS_API_VALID) {
+          // Sync applications to Google Sheets in background
+          apps.forEach(a => {
+            this.post({ action: 'registerActivity', ...a }).catch(() => {});
+          });
+        }
         return apps;
       }
     } catch (e) {

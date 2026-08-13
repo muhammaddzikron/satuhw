@@ -286,6 +286,17 @@ export default function KegiatanPage() {
         ...(editingActivity || {}),
         ...newActivityForm,
         id: actId,
+        namaKegiatan: newActivityForm.namaKegiatan,
+        title: newActivityForm.namaKegiatan,
+        jenisPelatihan: newActivityForm.namaKegiatan,
+        tanggal: newActivityForm.tanggal,
+        tanggalPelatihan: newActivityForm.tanggal,
+        startDate: newActivityForm.tanggal,
+        lokasi: newActivityForm.lokasi,
+        lokasiPelatihan: newActivityForm.lokasi,
+        location: newActivityForm.lokasi,
+        biaya: newActivityForm.biaya,
+        biayaPelatihan: newActivityForm.biaya,
         proposal: newActivityForm.proposalUrl,
         proposalUrl: newActivityForm.proposalUrl,
         linkProposal: newActivityForm.proposalUrl,
@@ -307,7 +318,7 @@ export default function KegiatanPage() {
       if (selectedActivity && selectedActivity.id === actId) {
         setSelectedActivity(saved || payload);
       }
-      alert(editingActivity ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
+      alert(editingActivity ? 'Kegiatan berhasil diperbarui dan tersimpan ke Spreadsheet & Firebase!' : 'Kegiatan baru berhasil ditambahkan dan tersimpan ke Spreadsheet & Firebase!');
       setIsAddActivityModalOpen(false);
       setEditingActivity(null);
       setNewActivityForm({
@@ -341,11 +352,11 @@ export default function KegiatanPage() {
     }
     setEditingActivity(act);
     setNewActivityForm({
-      namaKegiatan: act.namaKegiatan || act.title || '',
+      namaKegiatan: act.namaKegiatan || act.title || act.jenisPelatihan || '',
       kategori: act.kategori || act.category || 'Rapat HW',
-      tanggal: act.tanggal || act.startDate || '',
-      lokasi: act.lokasi || act.location || '',
-      biaya: act.biaya || 'Gratis',
+      tanggal: act.tanggal || act.tanggalPelatihan || act.startDate || '',
+      lokasi: act.lokasi || act.lokasiPelatihan || act.location || '',
+      biaya: act.biaya || act.biayaPelatihan || 'Gratis',
       kuota: act.kuota || 'Terbuka',
       penyelenggara: act.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
       gambarUrl: act.gambarUrl || act.imageUrl || '',
@@ -730,7 +741,7 @@ export default function KegiatanPage() {
                         {selectedActivity.rekeningPembayaran || selectedActivity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'}
                       </span>
                       <CopyAccountButton 
-                        accountNumber={(selectedActivity.rekeningPembayaran || selectedActivity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng').replace(/[^0-9]/g, '') || '7307427448'} 
+                        accountNumber={String(selectedActivity.rekeningPembayaran || selectedActivity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng').replace(/[^0-9]/g, '') || '7307427448'} 
                         className="shrink-0"
                       />
                     </div>
@@ -744,7 +755,7 @@ export default function KegiatanPage() {
                       </span>
                     </div>
                     {(() => {
-                      const rawContact = (selectedActivity.konfirmasiPembayaran || selectedActivity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
+                      const rawContact = String(selectedActivity.konfirmasiPembayaran || selectedActivity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
                       const formattedContact = rawContact.startsWith('0') ? '62' + rawContact.slice(1) : (rawContact.startsWith('62') ? rawContact : '6289688754000');
                       const waText = encodeURIComponent(`Assalamu'alaikum Medkom/Panitia HW Jateng, saya mau konfirmasi pembayaran kegiatan: ${selectedActivity.namaKegiatan}`);
                       return (
@@ -870,9 +881,9 @@ export default function KegiatanPage() {
                       </div>
                     </div>
                     {(() => {
-                      const actRek = regSuccess.activity.rekeningPembayaran || regSuccess.activity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+                      const actRek = String(regSuccess.activity.rekeningPembayaran || regSuccess.activity.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng');
                       const actNum = actRek.replace(/[^0-9]/g, '') || '7307427448';
-                      const actWa = (regSuccess.activity.konfirmasiPembayaran || regSuccess.activity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
+                      const actWa = String(regSuccess.activity.konfirmasiPembayaran || regSuccess.activity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
                       const formattedWa = actWa.startsWith('0') ? '62' + actWa.slice(1) : (actWa.startsWith('62') ? actWa : '6289688754000');
                       return (
                         <>

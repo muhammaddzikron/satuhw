@@ -1141,7 +1141,7 @@ export default function PelatihanPage() {
                               </div>
 
                               <a
-                                href={`https://wa.me/${(userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Assalamu'alaikum Panitia, saya ${userApplication.nama || user?.namaLengkap} telah mendaftar pelatihan ${act.namaKegiatan}. Berikut bukti konfirmasi transfer pembiayaan (${userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}). Mohon konfirmasinya. Terima kasih.`)}`}
+                                href={`https://wa.me/${String(userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Assalamu'alaikum Panitia, saya ${userApplication.nama || user?.namaLengkap} telah mendaftar pelatihan ${act.namaKegiatan}. Berikut bukti konfirmasi transfer pembiayaan (${userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}). Mohon konfirmasinya. Terima kasih.`)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"

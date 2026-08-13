@@ -1727,11 +1727,11 @@ export default function AdminDashboard() {
     if (activity) {
       setEditingKegiatan(activity);
       setKegiatanFormData({
-        namaKegiatan: activity.namaKegiatan || activity.title || '',
+        namaKegiatan: activity.namaKegiatan || activity.title || activity.jenisPelatihan || '',
         kategori: activity.kategori || activity.category || 'Rapat HW',
-        tanggal: activity.tanggal || activity.startDate || '',
-        lokasi: activity.lokasi || activity.location || '',
-        biaya: activity.biaya || 'Gratis',
+        tanggal: activity.tanggal || activity.tanggalPelatihan || activity.startDate || '',
+        lokasi: activity.lokasi || activity.lokasiPelatihan || activity.location || '',
+        biaya: activity.biaya || activity.biayaPelatihan || 'Gratis',
         status: activity.status || 'Buka',
         kuota: activity.kuota || '100 Peserta',
         deskripsi: activity.deskripsi || activity.description || '',
@@ -1778,7 +1778,26 @@ export default function AdminDashboard() {
       const payload = {
         ...(editingKegiatan || {}),
         ...kegiatanFormData,
-        id: actId
+        id: actId,
+        namaKegiatan: kegiatanFormData.namaKegiatan,
+        title: kegiatanFormData.namaKegiatan,
+        jenisPelatihan: kegiatanFormData.namaKegiatan,
+        tanggal: kegiatanFormData.tanggal,
+        tanggalPelatihan: kegiatanFormData.tanggal,
+        startDate: kegiatanFormData.tanggal,
+        lokasi: kegiatanFormData.lokasi,
+        lokasiPelatihan: kegiatanFormData.lokasi,
+        location: kegiatanFormData.lokasi,
+        biaya: kegiatanFormData.biaya,
+        biayaPelatihan: kegiatanFormData.biaya,
+        rekeningPembayaran: kegiatanFormData.rekeningPembiayaan,
+        rekeningPembiayaan: kegiatanFormData.rekeningPembiayaan,
+        noWhatsappPanitia: kegiatanFormData.noWhatsappPanitia,
+        konfirmasiPembayaran: kegiatanFormData.noWhatsappPanitia,
+        proposalUrl: kegiatanFormData.proposalUrl,
+        proposal: kegiatanFormData.proposalUrl,
+        linkProposal: kegiatanFormData.proposalUrl,
+        updatedAt: new Date().toISOString()
       };
       const saved = await sheetsService.saveActivity(payload);
 
@@ -1794,7 +1813,7 @@ export default function AdminDashboard() {
       filteredActs.unshift(saved || payload);
       setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
 
-      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Firebase!');
+      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Spreadsheet & Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Spreadsheet & Firebase!');
       setIsKegiatanModalOpen(false);
       const actData = await sheetsService.getActivities();
       setActivitiesList(actData || []);
@@ -8959,7 +8978,7 @@ export default function AdminDashboard() {
                         { key: 'Jati 2', label: 'Jaya Melati 2 (Jati 2)' },
                         { key: 'Jari 1', label: 'Jaya Matahari 1 (Jari 1)' },
                         { key: 'Jari 2', label: 'Jaya Matahari 2 (Jari 2)' },
-                        { key: 'Jawi', label: 'Jaya Wisata (Jawi)' }
+                        { key: 'Jawi', label: 'Jaya Pertiwi (Jawi)' }
                       ].map((item) => {
                         const currentList = Array.isArray(formData.pelatihan) ? formData.pelatihan : [];
                         const isSelected = currentList.some((p: string) => {
@@ -8970,7 +8989,7 @@ export default function AdminDashboard() {
                           if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return true;
                           if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return true;
                           if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return true;
-                          if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('wisata'))) return true;
+                          if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('pertiwi') || cleanP.includes('wisata'))) return true;
                           return false;
                         });
 
@@ -8989,7 +9008,7 @@ export default function AdminDashboard() {
                                   if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return false;
                                   if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return false;
                                   if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return false;
-                                  if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('wisata'))) return false;
+                                  if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('pertiwi') || cleanP.includes('wisata'))) return false;
                                   return true;
                                 });
                               } else {
