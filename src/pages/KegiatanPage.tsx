@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { isParticipantOfActivity } from '../utils/activityUtils';
+import { isParticipantOfActivity, isOnlyTrainingActivity } from '../utils/activityUtils';
 import { 
   Calendar, 
   MapPin, 
@@ -204,6 +204,9 @@ export default function KegiatanPage() {
   const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')];
 
   const filteredActivities = activities.filter(act => {
+    // Exclude training activities from Kegiatan Page
+    if (isOnlyTrainingActivity(act)) return false;
+
     const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (act.lokasi || '').toLowerCase().includes(searchQuery.toLowerCase());
     if (selectedCategory === 'Kegiatan Saya') {
@@ -282,13 +285,13 @@ export default function KegiatanPage() {
     setIsSavingActivity(true);
     try {
       const actId = editingActivity ? editingActivity.id : `keg-${Date.now()}`;
+      const imgClean = newActivityForm.gambarUrl.trim();
       const payload = {
         ...(editingActivity || {}),
         ...newActivityForm,
         id: actId,
         namaKegiatan: newActivityForm.namaKegiatan,
         title: newActivityForm.namaKegiatan,
-        jenisPelatihan: newActivityForm.namaKegiatan,
         tanggal: newActivityForm.tanggal,
         tanggalPelatihan: newActivityForm.tanggal,
         startDate: newActivityForm.tanggal,
@@ -297,6 +300,11 @@ export default function KegiatanPage() {
         location: newActivityForm.lokasi,
         biaya: newActivityForm.biaya,
         biayaPelatihan: newActivityForm.biaya,
+        gambarUrl: imgClean,
+        imageUrl: imgClean,
+        gambar: imgClean,
+        posterUrl: imgClean,
+        coverImage: imgClean,
         proposal: newActivityForm.proposalUrl,
         proposalUrl: newActivityForm.proposalUrl,
         linkProposal: newActivityForm.proposalUrl,
@@ -304,6 +312,7 @@ export default function KegiatanPage() {
         rekeningPembiayaan: newActivityForm.rekeningPembayaran,
         konfirmasiPembayaran: newActivityForm.konfirmasiPembayaran,
         noWhatsappPanitia: newActivityForm.konfirmasiPembayaran,
+        isPelatihan: false,
         createdBy: editingActivity?.createdBy || user?.email || 'muhammaddzikron@gmail.com',
         creatorName: editingActivity?.creatorName || user?.namaLengkap || 'Panitia HW Jateng',
         createdAt: editingActivity?.createdAt || new Date().toISOString(),
@@ -318,7 +327,7 @@ export default function KegiatanPage() {
       if (selectedActivity && selectedActivity.id === actId) {
         setSelectedActivity(saved || payload);
       }
-      alert(editingActivity ? 'Kegiatan berhasil diperbarui dan tersimpan ke Spreadsheet & Firebase!' : 'Kegiatan baru berhasil ditambahkan dan tersimpan ke Spreadsheet & Firebase!');
+      alert(editingActivity ? 'Kegiatan berhasil diperbarui dan tersimpan ke Cloud Firestore!' : 'Kegiatan baru berhasil ditambahkan dan tersimpan ke Cloud Firestore!');
       setIsAddActivityModalOpen(false);
       setEditingActivity(null);
       setNewActivityForm({
@@ -359,7 +368,7 @@ export default function KegiatanPage() {
       biaya: act.biaya || act.biayaPelatihan || 'Gratis',
       kuota: act.kuota || 'Terbuka',
       penyelenggara: act.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
-      gambarUrl: act.gambarUrl || act.imageUrl || '',
+      gambarUrl: act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || '',
       deskripsi: act.deskripsi || act.description || '',
       status: act.status || 'Buka',
       themeSongUrl: act.themeSongUrl || act.themeSong || '',
@@ -1380,16 +1389,55 @@ export default function KegiatanPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
-                    URL Foto Poster / Cover (Opsional)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
+                      URL Foto Poster / Cover (Opsional)
+                    </label>
+                    <label className="text-[10px] font-bold text-hw-green hover:underline cursor-pointer flex items-center gap-1">
+                      <Upload size={10} />
+                      Unggah Poster
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            handleDocumentFileUpload(
+                              f,
+                              base64 => setNewActivityForm(prev => ({ ...prev, gambarUrl: base64 })),
+                              err => alert(err)
+                            );
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
-                    type="url"
+                    type="text"
                     value={newActivityForm.gambarUrl}
                     onChange={e => setNewActivityForm({ ...newActivityForm, gambarUrl: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://... atau tempel link / upload foto poster"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
+                  {newActivityForm.gambarUrl && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-gray-200 max-h-36 bg-slate-900/10 flex items-center justify-center p-2">
+                      <img 
+                        src={getCorsSafeUrl(newActivityForm.gambarUrl)} 
+                        alt="Preview Poster" 
+                        className="max-h-32 object-contain rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewActivityForm(prev => ({ ...prev, gambarUrl: '' }))}
+                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 shadow-md cursor-pointer"
+                        title="Hapus Poster"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">

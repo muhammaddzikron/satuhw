@@ -1811,7 +1811,6 @@ export default function AdminDashboard() {
         id: actId,
         namaKegiatan: kegiatanFormData.namaKegiatan,
         title: kegiatanFormData.namaKegiatan,
-        jenisPelatihan: kegiatanFormData.namaKegiatan,
         tanggal: kegiatanFormData.tanggal,
         tanggalPelatihan: kegiatanFormData.tanggal,
         startDate: kegiatanFormData.tanggal,
@@ -1820,6 +1819,11 @@ export default function AdminDashboard() {
         location: kegiatanFormData.lokasi,
         biaya: kegiatanFormData.biaya,
         biayaPelatihan: kegiatanFormData.biaya,
+        gambarUrl: kegiatanFormData.gambarUrl,
+        imageUrl: kegiatanFormData.gambarUrl,
+        gambar: kegiatanFormData.gambarUrl,
+        posterUrl: kegiatanFormData.gambarUrl,
+        coverImage: kegiatanFormData.gambarUrl,
         rekeningPembayaran: kegiatanFormData.rekeningPembiayaan,
         rekeningPembiayaan: kegiatanFormData.rekeningPembiayaan,
         noWhatsappPanitia: kegiatanFormData.noWhatsappPanitia,
@@ -1827,6 +1831,7 @@ export default function AdminDashboard() {
         proposalUrl: kegiatanFormData.proposalUrl,
         proposal: kegiatanFormData.proposalUrl,
         linkProposal: kegiatanFormData.proposalUrl,
+        isPelatihan: false,
         updatedAt: new Date().toISOString()
       };
       const saved = await sheetsService.saveActivity(payload);
@@ -7528,7 +7533,7 @@ export default function AdminDashboard() {
                     activitySubTab === 'kegiatan' ? 'border-hw-green text-hw-green' : 'border-transparent text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  Daftar Kegiatan ({activitiesList.length})
+                  Daftar Kegiatan ({activitiesList.filter(a => !isOnlyTrainingActivity(a)).length})
                 </button>
                 <button
                   onClick={() => setActivitySubTab('jenis')}
@@ -7606,7 +7611,7 @@ export default function AdminDashboard() {
               {/* SUB TAB 1: DAFTAR KEGIATAN */}
               {activitySubTab === 'kegiatan' && (
                 <div>
-                  {activitiesList.length === 0 ? (
+                  {activitiesList.filter(a => !isOnlyTrainingActivity(a)).length === 0 ? (
                     <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
                       <Calendar size={40} className="mx-auto text-gray-300" />
                       <p className="text-xs font-bold">Belum ada kegiatan yang diinputkan.</p>
@@ -7619,7 +7624,7 @@ export default function AdminDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {activitiesList.map((act) => (
+                      {activitiesList.filter(a => !isOnlyTrainingActivity(a)).map((act) => (
                         <div key={act.id} className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                           <div>
                             <div className="relative h-40 bg-gray-100 overflow-hidden">
@@ -8004,14 +8009,55 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Gambar URL (Banner)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                          Gambar URL / Poster (Banner)
+                        </label>
+                        <label className="text-[10px] font-bold text-hw-green hover:underline cursor-pointer flex items-center gap-1">
+                          <Upload size={10} />
+                          Unggah Poster
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                handleDocumentFileUpload(
+                                  f,
+                                  base64 => setKegiatanFormData(prev => ({ ...prev, gambarUrl: base64 })),
+                                  err => alert(err)
+                                );
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                       <input 
                         type="text" 
                         value={kegiatanFormData.gambarUrl}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, gambarUrl: e.target.value })}
-                        placeholder="https://..."
+                        placeholder="https://... atau upload foto poster"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                       />
+                      {kegiatanFormData.gambarUrl && (
+                        <div className="mt-2 relative rounded-xl overflow-hidden border border-gray-200 max-h-36 bg-slate-900/10 flex items-center justify-center p-2">
+                          <img 
+                            src={getCorsSafeUrl(kegiatanFormData.gambarUrl)} 
+                            alt="Preview Poster" 
+                            className="max-h-32 object-contain rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setKegiatanFormData(prev => ({ ...prev, gambarUrl: '' }))}
+                            className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 shadow-md cursor-pointer"
+                            title="Hapus Poster"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -12145,6 +12191,7 @@ export default function AdminDashboard() {
                     try {
                       setLoading(true);
                       await sheetsService.saveSettings(updatedSettings);
+                      const imgClean = newAct.gambarUrl || newAct.imageUrl || newAct.gambar || newAct.posterUrl || newAct.coverImage || '';
                       await sheetsService.saveActivity({
                         id: newAct.id,
                         namaKegiatan: newAct.namaKegiatan,
@@ -12161,11 +12208,17 @@ export default function AdminDashboard() {
                         proposalUrl: newAct.proposalUrl || '',
                         proposal: newAct.proposalUrl || '',
                         linkProposal: newAct.proposalUrl || '',
+                        gambarUrl: imgClean,
+                        imageUrl: imgClean,
+                        gambar: imgClean,
+                        posterUrl: imgClean,
+                        coverImage: imgClean,
                         deskripsi: newAct.deskripsi || '',
                         pelatih: Array.isArray(newAct.pelatih) ? newAct.pelatih.join(', ') : (newAct.pelatih || ''),
                         asistenPelatih: Array.isArray(newAct.asistenPelatih) ? newAct.asistenPelatih.join(', ') : (newAct.asistenPelatih || ''),
                         kuota: '100 Peserta',
-                        penyelenggara: 'Kwarwil HW Jateng'
+                        penyelenggara: 'Kwarwil HW Jateng',
+                        isPelatihan: true
                       });
                       alert('Kegiatan berhasil disimpan dan disinkronkan ke Cloud Firestore!');
                       setIsActivityModalOpen(false);

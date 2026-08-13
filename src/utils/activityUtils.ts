@@ -44,32 +44,32 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
 
 export const isOnlyTrainingActivity = (act: any): boolean => {
   if (!act) return false;
-  if (act.jenisPelatihan || act.pelatihanAkanDiikuti) return true;
+
+  if (act.isPelatihan === true) return true;
+  if (act.isPelatihan === false) return false;
 
   const cat = String(act.kategori || act.category || '').toLowerCase().trim();
   const name = String(act.namaKegiatan || act.title || '').toLowerCase().trim();
+  const jenis = String(act.jenisPelatihan || act.pelatihanAkanDiikuti || '').toLowerCase().trim();
 
+  // Explicit training flags
   if (
     cat === 'pelatihan' ||
+    cat === 'diklat' ||
     cat === 'kegiatan pelatihan' ||
+    cat === 'pelatihan hw' ||
     name.includes('pelatihan') ||
     name.includes('jaya melati') ||
-    name.includes('jaya matahari')
+    name.includes('jaya matahari') ||
+    name.includes('taruna melati') ||
+    name.includes('penjenjangan') ||
+    jenis.includes('jati') ||
+    jenis.includes('jari') ||
+    jenis.includes('jaya melati') ||
+    jenis.includes('jaya matahari')
   ) {
     return true;
   }
 
-  if (
-    cat === 'silaturahmi' || 
-    cat === 'rapat' || 
-    cat === 'rapat hw' || 
-    cat === 'perkemahan' || 
-    cat === 'musyawarah' || 
-    cat === 'lomba' || 
-    cat === 'umum'
-  ) {
-    return false;
-  }
-
-  return true;
+  return false;
 };

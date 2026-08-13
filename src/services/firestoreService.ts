@@ -3298,7 +3298,14 @@ export const firestoreService = {
     const descVal = activityData.deskripsi || activityData.description || existingAct.deskripsi || existingAct.description || '';
     const locVal = activityData.lokasi || activityData.lokasiPelatihan || activityData.location || existingAct.lokasi || existingAct.lokasiPelatihan || existingAct.location || '';
     const dateVal = activityData.tanggal || activityData.tanggalPelatihan || activityData.startDate || existingAct.tanggal || existingAct.tanggalPelatihan || existingAct.startDate || '';
-    const imgVal = activityData.gambarUrl || activityData.imageUrl || existingAct.gambarUrl || existingAct.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const rawImg = activityData.gambarUrl !== undefined ? activityData.gambarUrl :
+                   (activityData.imageUrl !== undefined ? activityData.imageUrl :
+                   (activityData.gambar !== undefined ? activityData.gambar :
+                   (activityData.posterUrl !== undefined ? activityData.posterUrl :
+                   (activityData.coverImage !== undefined ? activityData.coverImage : undefined))));
+
+    const imgVal = (rawImg !== undefined && rawImg !== null && String(rawImg).trim() !== '') ? String(rawImg).trim() :
+                   (existingAct.gambarUrl || existingAct.imageUrl || existingAct.gambar || existingAct.posterUrl || existingAct.coverImage || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800');
     const catVal = activityData.kategori || activityData.category || activityData.jenisPelatihan || existingAct.kategori || existingAct.category || 'Silaturahmi';
 
     const songUrlVal = (activityData.themeSongUrl !== undefined && activityData.themeSongUrl !== null) ? activityData.themeSongUrl :
@@ -3329,14 +3336,19 @@ export const firestoreService = {
 
     // Validate size to prevent Firestore 1MB document limit overflow
     if (typeof songUrlVal === 'string' && songUrlVal.length > 800000) {
-      throw new Error('Ukuran file audio/themesong terlalu besar untuk disimpan langsung. Silakan gunakan link URL MP3 online.');
+      throw new Error('Ukuran file audio/themesong terlalu besar. Silakan gunakan link URL MP3 online.');
     }
     if (typeof proposalVal === 'string' && proposalVal.length > 800000) {
-      throw new Error('Ukuran file proposal terlalu besar untuk disimpan langsung. Silakan gunakan URL / Link Google Drive.');
+      throw new Error('Ukuran file proposal terlalu besar. Silakan gunakan URL / Link Google Drive.');
     }
-    if (typeof imgVal === 'string' && imgVal.length > 800000) {
-      throw new Error('Ukuran file gambar banner terlalu besar. Silakan gunakan URL/link gambar online.');
-    }
+
+    // Determine if training activity
+    const isPel = activityData.isPelatihan === true || 
+                  (activityData.isPelatihan !== false && (
+                    String(catVal).toLowerCase().includes('pelatihan') || 
+                    String(titleVal).toLowerCase().includes('pelatihan') ||
+                    Boolean(activityData.jenisPelatihan)
+                  ));
 
     const newAct = cleanData({
       ...existingAct,
@@ -3352,7 +3364,8 @@ export const firestoreService = {
       tanggal: dateVal,
       startDate: dateVal,
       tanggalPelatihan: dateVal,
-      jenisPelatihan: activityData.jenisPelatihan || titleVal || catVal,
+      jenisPelatihan: isPel ? (activityData.jenisPelatihan || titleVal) : (activityData.jenisPelatihan || ''),
+      isPelatihan: isPel,
       endDate: activityData.endDate || existingAct.endDate || '',
       startTime: activityData.startTime || activityData.jamMulai || existingAct.startTime || '',
       endTime: activityData.endTime || activityData.jamSelesai || existingAct.endTime || '',
@@ -3361,6 +3374,9 @@ export const firestoreService = {
       kuota: activityData.kuota || existingAct.kuota || 'Terbuka',
       gambarUrl: imgVal,
       imageUrl: imgVal,
+      gambar: imgVal,
+      posterUrl: imgVal,
+      coverImage: imgVal,
       kategori: catVal,
       category: catVal,
       status: activityData.status || existingAct.status || 'Buka',

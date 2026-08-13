@@ -1019,7 +1019,7 @@ export default function HomePage() {
         </div>
 
         {/* Real-time Agenda & Kegiatan Terbaru Cards on Beranda */}
-        {activitiesList && activitiesList.filter(a => a.isPublished !== false).length > 0 && (
+        {activitiesList && activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a)).length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -1032,7 +1032,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2.5">
-              {activitiesList.filter(a => a.isPublished !== false).slice(0, 3).map((act: any, idx: number) => {
+              {activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a)).slice(0, 3).map((act: any, idx: number) => {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';

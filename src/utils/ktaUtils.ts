@@ -75,6 +75,21 @@ function resolveSingleCode(input?: string): string | null {
   );
   if (directByCode) return directByCode.code;
 
+  // Common regional aliases mapping
+  const aliases: Record<string, string> = {
+    'surakarta': '34',
+    'solo': '34',
+    'kota solo': '34',
+    'purwokerto': '02',
+    'ungaran': '23',
+    'slawi': '26',
+    'kajen': '18',
+    'salatiga': '32',
+    'kota salatiga': '32',
+    'gombong': '12',
+  };
+  if (aliases[clean]) return aliases[clean];
+
   // 2. Exact name match
   const exactName = KWARDA_QABILAH_JATENG.find(
     item => item.name.toLowerCase() === clean
@@ -92,7 +107,27 @@ function resolveSingleCode(input?: string): string | null {
   });
   if (ptmaMatch) return ptmaMatch.code;
 
-  // 4. Kwarda match (codes 01 to 35)
+  // 4. Specific Kota vs Kabupaten checking
+  const isKotaInput = clean.startsWith('kota ') || clean.endsWith(' kota');
+  const isKabInput = clean.startsWith('kabupaten ') || clean.startsWith('kab ') || clean.endsWith(' kab');
+
+  if (isKotaInput) {
+    const kotaItem = KWARDA_QABILAH_JATENG.slice(29, 35).find(item => {
+      const coreName = item.name.toLowerCase().replace('kota ', '').trim();
+      return clean.includes(coreName);
+    });
+    if (kotaItem) return kotaItem.code;
+  }
+
+  if (isKabInput) {
+    const kabItem = KWARDA_QABILAH_JATENG.slice(0, 29).find(item => {
+      const coreName = item.name.toLowerCase().replace('kabupaten ', '').trim();
+      return clean.includes(coreName);
+    });
+    if (kabItem) return kabItem.code;
+  }
+
+  // 5. General Kwarda match (codes 01 to 35)
   const kwardaMatch = KWARDA_QABILAH_JATENG.slice(0, 35).find(item => {
     const itemName = item.name.toLowerCase();
     const coreName = itemName.replace(/^(kabupaten|kota)\s+/i, '').trim();
@@ -131,7 +166,13 @@ export function getKwardaCode(asalKwardaOrQabilah?: string, qabilahParam?: strin
  * Finds the smallest positive integer n >= 1 that is NOT present in usedNumbers (Gap-filling hole algorithm).
  */
 export function findNextAvailableNumber(usedNumbers: Iterable<number>): number {
-  const set = new Set<number>(usedNumbers);
+  const set = new Set<number>();
+  for (const n of usedNumbers) {
+    const num = Number(n);
+    if (!isNaN(num) && num > 0) {
+      set.add(num);
+    }
+  }
   let candidate = 1;
   while (set.has(candidate)) {
     candidate++;
@@ -268,16 +309,18 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
     const targetKwarda = item.asalDaerah || item.asalKwarda || '';
     const targetQabilah = item.qabilah || item.qabilahPtma || '';
     
-    let code = '';
+    let code = getKwardaCode(targetKwarda, targetQabilah);
     const rawKta = (item.ktaNumber || item.nomorKTA || '').toString().trim();
     if (isValidKtaNumberFormat(rawKta)) {
       const parsed = parseKtaNumber(rawKta);
       if (parsed) {
-        code = parsed.kodeKwarda;
+        if (!targetKwarda && !targetQabilah) {
+          code = parsed.kodeKwarda;
+        }
       }
     }
     if (!code) {
-      code = getKwardaCode(targetKwarda, targetQabilah);
+      code = '01';
     }
 
     if (!groups.has(code)) {
@@ -318,13 +361,16 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
 
     let currentSeq = 1;
     for (const item of groupItems as any[]) {
-      const newKta = formatKtaNumber(code, currentSeq);
-      item.ktaNumber = newKta;
-      item.nomorKTA = newKta;
-      item.kodeProvinsi = '11';
-      item.kodeKwarda = code;
-      item.nomorUrut = currentSeq;
-      currentSeq++;
+      const isApprovedOrMember = item.status === 'approved' || item.isVerified === true || Boolean(item.ktaNumber || item.nomorKTA);
+      if (isApprovedOrMember) {
+        const newKta = formatKtaNumber(code, currentSeq);
+        item.ktaNumber = newKta;
+        item.nomorKTA = newKta;
+        item.kodeProvinsi = '11';
+        item.kodeKwarda = code;
+        item.nomorUrut = currentSeq;
+        currentSeq++;
+      }
     }
   });
 
@@ -388,6 +434,17 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       matchId = namePhoneToId.get(namePhoneKey)!;
     } else if (normName && nameOnlyToId.has(normName)) {
       matchId = nameOnlyToId.get(normName)!;
+    }
+
+    if (matchId && map.has(matchId)) {
+      const existing = map.get(matchId)!;
+      const exKwarda = normStr(existing.asalKwarda || existing.asalDaerah);
+      const rawKwarda = normStr(raw.asalKwarda || raw.asalDaerah);
+
+      // If both have explicit different Kwardas, they are different people!
+      if (exKwarda && rawKwarda && exKwarda !== rawKwarda) {
+        matchId = null;
+      }
     }
 
     if (matchId && map.has(matchId)) {
