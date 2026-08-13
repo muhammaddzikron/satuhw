@@ -210,7 +210,7 @@ import { sheetsService } from '../services/sheetsService';
 import { firestoreService, parseRolesField } from '../services/firestoreService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
-import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas } from '../lib/utils';
+import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, safeCanvasToDataURL } from '../lib/utils';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
@@ -1397,7 +1397,7 @@ export default function AdminDashboard() {
       const frontCanvas = await safeHtml2Canvas(frontEl, {
         scale: 4, // 300+ DPI high quality
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: null
       });
 
@@ -1405,12 +1405,12 @@ export default function AdminDashboard() {
       const backCanvas = await safeHtml2Canvas(backEl, {
         scale: 4, // 300+ DPI high quality
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: null
       });
 
-      const frontImgData = frontCanvas.toDataURL('image/png');
-      const backImgData = backCanvas.toDataURL('image/png');
+      const frontImgData = safeCanvasToDataURL(frontCanvas);
+      const backImgData = safeCanvasToDataURL(backCanvas);
 
       const pdf = new jsPDF({
         orientation: 'portrait',

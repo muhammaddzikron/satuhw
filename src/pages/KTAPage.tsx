@@ -29,7 +29,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
 import { User } from '../types';
-import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, formatIndonesianDate } from '../lib/utils';
+import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, safeCanvasToDataURL, formatIndonesianDate } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG, getKwardaCode, parseKtaNumber } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
 import LoadingPage from './LoadingPage';
@@ -742,7 +742,7 @@ export default function KTAPage() {
       const frontCanvas = await safeHtml2Canvas(frontEl, {
         scale: 4, // 300+ DPI high quality
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: null
       });
 
@@ -750,12 +750,12 @@ export default function KTAPage() {
       const backCanvas = await safeHtml2Canvas(backEl, {
         scale: 4, // 300+ DPI high quality
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: null
       });
 
-      const frontImgData = frontCanvas.toDataURL('image/png');
-      const backImgData = backCanvas.toDataURL('image/png');
+      const frontImgData = safeCanvasToDataURL(frontCanvas);
+      const backImgData = safeCanvasToDataURL(backCanvas);
 
       const pdf = new jsPDF({
         orientation: 'portrait',

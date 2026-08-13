@@ -227,20 +227,19 @@ export function getCorsSafeUrl(url: string | null | undefined, version?: string 
     ? String(version) 
     : String(Math.floor(Date.now() / 300000)); // 5-minute rolling timestamp cache buster
 
-  if (resolvedUrl.includes('googleusercontent.com')) {
-    const sep = resolvedUrl.includes('?') ? '&' : '?';
-    return `${resolvedUrl}${sep}_v=${cacheVersion}`;
-  }
-
+  // Local / relative assets
   if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('http://localhost') || resolvedUrl.startsWith('https://localhost')) {
     const sep = resolvedUrl.includes('?') ? '&' : '?';
     return `${resolvedUrl}${sep}_v=${cacheVersion}`;
   }
 
-  // Proxy other external URLs via images.weserv.nl (high speed, CORS enabled)
+  // Proxy ALL external HTTP/HTTPS URLs (including googleusercontent / drive / wikimedia / etc) via images.weserv.nl for CORS headers
   if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
-    let proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&_v=${cacheVersion}`;
-    return proxyUrl;
+    if (resolvedUrl.includes('images.weserv.nl')) {
+      return resolvedUrl;
+    }
+    const cleanUrl = resolvedUrl.replace(/^https?:\/\//, '');
+    return `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&_v=${cacheVersion}`;
   }
 
   return resolvedUrl;
@@ -373,44 +372,90 @@ export async function imageUrlToBase64(url: string): Promise<string> {
   if (!url) return '';
   if (url.startsWith('data:image/')) return url;
 
+  const cacheVersion = String(Math.floor(Date.now() / 300000));
+
+  // 1. Try fetch with getCorsSafeUrl (images.weserv.nl)
   try {
-    const corsUrl = getCorsSafeUrl(url);
+    const corsUrl = getCorsSafeUrl(url, cacheVersion);
     const response = await fetch(corsUrl, { mode: 'cors' });
     if (response.ok) {
       const blob = await response.blob();
-      return new Promise<string>((resolve) => {
+      const b64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string) || url);
-        reader.onerror = () => resolve(url);
+        reader.onloadend = () => {
+          if (reader.result && typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+            resolve(reader.result);
+          } else {
+            resolve('');
+          }
+        };
+        reader.onerror = () => resolve('');
         reader.readAsDataURL(blob);
       });
+      if (b64) return b64;
     }
   } catch (e) {
-    // Ignore fetch error, try canvas fallback
+    // Ignore fetch error
   }
 
-  return new Promise<string>((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 350;
-        canvas.height = img.naturalHeight || img.height || 220;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-          return;
+  // 2. Try corsproxy.io as fallback CORS proxy
+  try {
+    const directUrl = getDriveDirectLink(url);
+    const altCorsUrl = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
+    const response = await fetch(altCorsUrl, { mode: 'cors' });
+    if (response.ok) {
+      const blob = await response.blob();
+      const b64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result && typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+            resolve(reader.result);
+          } else {
+            resolve('');
+          }
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(blob);
+      });
+      if (b64) return b64;
+    }
+  } catch (e) {
+    // Ignore fallback
+  }
+
+  // 3. Try HTMLImageElement with crossOrigin = 'anonymous' onto canvas
+  try {
+    const b64 = await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width || 350;
+          canvas.height = img.naturalHeight || img.height || 220;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            if (dataUrl.startsWith('data:image/')) {
+              resolve(dataUrl);
+              return;
+            }
+          }
+        } catch (err) {
+          // Tainted
         }
-      } catch (err) {
-        // Fallback on tainted
-      }
-      resolve(url);
-    };
-    img.onerror = () => resolve(url);
-    img.src = url;
-  });
+        resolve('');
+      };
+      img.onerror = () => resolve('');
+      img.src = getCorsSafeUrl(url, cacheVersion);
+    });
+    if (b64) return b64;
+  } catch (e) {
+    // Ignore
+  }
+
+  return url;
 }
 
 export async function prepareImagesInElement(element: HTMLElement): Promise<void> {
@@ -421,8 +466,9 @@ export async function prepareImagesInElement(element: HTMLElement): Promise<void
       if (src && !src.startsWith('data:')) {
         try {
           const b64 = await imageUrlToBase64(src);
-          if (b64 && b64.startsWith('data:')) {
+          if (b64 && b64.startsWith('data:image/')) {
             img.src = b64;
+            img.removeAttribute('crossorigin');
           }
         } catch (e) {
           console.warn('Image base64 conversion warning:', e);
@@ -450,7 +496,7 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
     logging: false,
     ...options,
     onclone: (clonedDoc, clonedEl) => {
-      // 1. Force static positioning and reset visibility on cloned target & ancestor chain
+      // 1. Reset positioning and visibility on cloned target & ALL ancestor chain
       if (clonedEl) {
         clonedEl.style.position = 'static';
         clonedEl.style.transform = 'none';
@@ -464,11 +510,25 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
           curr.style.opacity = '1';
           curr.style.visibility = 'visible';
           curr.style.pointerEvents = 'auto';
+          curr.style.position = 'static';
+          curr.style.left = '0';
+          curr.style.top = '0';
+          curr.style.transform = 'none';
           curr = curr.parentElement;
+        }
+
+        // Ensure all images in cloned document are crossOrigin anonymous or clean
+        const clonedImgs = Array.from(clonedEl.querySelectorAll('img'));
+        for (const cImg of clonedImgs) {
+          if (cImg.src && cImg.src.startsWith('data:')) {
+            cImg.removeAttribute('crossorigin');
+          } else {
+            cImg.setAttribute('crossorigin', 'anonymous');
+          }
         }
       }
 
-      // 2. Clean style tags in cloned document
+      // 2. Clean style tags in cloned document for OKLCH
       const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
       for (const style of styleElements) {
         if (style.textContent) {
@@ -501,6 +561,29 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
   });
 
   return canvas;
+}
+
+export function safeCanvasToDataURL(canvas: HTMLCanvasElement): string {
+  try {
+    return canvas.toDataURL('image/png');
+  } catch (err) {
+    console.warn('Tainted canvas detected during export, attempting clean reconstruction:', err);
+    const cleanCanvas = document.createElement('canvas');
+    cleanCanvas.width = canvas.width || 1050;
+    cleanCanvas.height = canvas.height || 660;
+    const ctx = cleanCanvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+      try {
+        ctx.drawImage(canvas, 0, 0);
+        return cleanCanvas.toDataURL('image/png');
+      } catch (e) {
+        // Tainted draw fails
+      }
+    }
+    return cleanCanvas.toDataURL('image/png');
+  }
 }
 
 
