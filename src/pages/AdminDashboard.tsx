@@ -250,8 +250,10 @@ const DetailStatCard = ({ label, value, color, onClick }: { label: string, value
 const ROLE_LABELS: Record<string, string> = {
   superadmin: 'Super Admin',
   admin: 'Admin Petugas',
-  kwarda: 'Admin Kwarda',
-  admin_kwarda: 'Admin Kwarda',
+  diklat: 'Admin Pelatih',
+  admin_diklat: 'Admin Pelatih',
+  kwarda: 'Kwarda HW',
+  admin_kwarda: 'Kwarda HW',
   sugli: 'Dewan Sugli',
   dewan_sugli: 'Dewan Sugli',
   sugli_daerah: 'Dewan Sugli',
@@ -266,6 +268,19 @@ const ROLE_LABELS: Record<string, string> = {
   jaya_matahari_2: 'Jaya Matahari 2',
   umum: 'Umum'
 };
+
+const ROLE_OPTIONS: { key: string; label: string }[] = [
+  { key: 'superadmin', label: 'Super Admin' },
+  { key: 'admin', label: 'Admin Petugas' },
+  { key: 'diklat', label: 'Admin Pelatih' },
+  { key: 'kwarda', label: 'Kwarda HW' },
+  { key: 'umum', label: 'Umum' },
+  { key: 'sugli', label: 'Dewan Sugli' },
+  { key: 'jati1', label: 'Jaya Melati 1' },
+  { key: 'jati2', label: 'Jaya Melati 2' },
+  { key: 'jari1', label: 'Jaya Matahari 1' },
+  { key: 'jari2', label: 'Jaya Matahari 2' }
+];
 
 const truncateText = (text: string, maxLen: number): string => {
   if (!text) return '';
@@ -8811,51 +8826,70 @@ export default function AdminDashboard() {
                       </select>
                     </div>
                   <div className="space-y-2 col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hak Akses (Role)</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {Object.entries(ROLE_LABELS).map(([key, label]) => {
-                        // Skip admin roles for non-superadmins
-                        if ((key === 'admin' || key === 'superadmin') && user?.role !== 'superadmin' && user?.role !== 'admin') return null;
-                        if (key === 'superadmin' && user?.role !== 'superadmin') return null;
+                    {(() => {
+                      const userNormRoles = parseRolesField(user?.roles, user?.role);
+                      const canEditRoles = user?.role === 'superadmin' || user?.role === 'admin' || userNormRoles.includes('superadmin') || userNormRoles.includes('admin');
+                      const isSuperAdmin = user?.role === 'superadmin' || userNormRoles.includes('superadmin');
 
-                        const isSelected = formData.roles.includes(key);
-                        return (
-                          <button
-                            key={`role-opt-${key}`}
-                            type="button"
-                            onClick={() => {
-                              const current = [...formData.roles];
-                              let next;
-                              if (isSelected) {
-                                if (current.length > 1) {
-                                  next = current.filter(k => k !== key);
-                                } else {
-                                  return; // Must have at least one role
-                                }
-                              } else {
-                                next = [...current, key];
-                              }
-                              const primaryRole = next.find(k => k !== 'umum') || next[0] || 'umum';
-                              setFormData({ ...formData, roles: next, role: primaryRole });
-                            }}
-                            className={cn(
-                              "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full",
-                              isSelected
-                                ? "bg-hw-green/10 border-hw-green/20 text-hw-green"
-                                : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hak Akses (Role)</label>
+                            {!canEditRoles && (
+                              <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                Khusus Super Admin & Admin Petugas
+                              </span>
                             )}
-                          >
-                            <div className={cn(
-                              "w-4 h-4 rounded flex items-center justify-center border shrink-0",
-                              isSelected ? "bg-hw-green border-hw-green text-white" : "border-gray-200 bg-white"
-                            )}>
-                              {isSelected && <Check size={10} />}
-                            </div>
-                            <span className="leading-tight break-words">{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {ROLE_OPTIONS.map(({ key, label }) => {
+                              // Skip superadmin role for non-superadmins
+                              if (key === 'superadmin' && !isSuperAdmin) return null;
+
+                              const isSelected = formData.roles.includes(key as any);
+                              return (
+                                <button
+                                  key={`role-opt-${key}`}
+                                  type="button"
+                                  disabled={!canEditRoles}
+                                  onClick={() => {
+                                    if (!canEditRoles) return;
+                                    const current = [...formData.roles];
+                                    let next: string[];
+                                    if (isSelected) {
+                                      if (current.length > 1) {
+                                        next = current.filter(k => k !== key);
+                                      } else {
+                                        return; // Must have at least one role
+                                      }
+                                    } else {
+                                      next = [...current, key];
+                                    }
+                                    const primaryRole = next.find(k => k !== 'umum') || next[0] || 'umum';
+                                    setFormData({ ...formData, roles: next, role: primaryRole });
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full",
+                                    !canEditRoles && "opacity-75 cursor-not-allowed",
+                                    isSelected
+                                      ? "bg-hw-green/10 border-hw-green/20 text-hw-green"
+                                      : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "w-4 h-4 rounded flex items-center justify-center border shrink-0",
+                                    isSelected ? "bg-hw-green border-hw-green text-white" : "border-gray-200 bg-white"
+                                  )}>
+                                    {isSelected && <Check size={10} />}
+                                  </div>
+                                  <span className="leading-tight break-words">{label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 & 2 */}
@@ -8919,20 +8953,62 @@ export default function AdminDashboard() {
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Diikuti</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['Jati 1', 'Jati 2', 'Jari 1', 'Jari 2', 'Jawi'].map(p => (
-                        <button 
-                          key={p} type="button" 
-                          onClick={() => {
-                            const current = formData.pelatihan;
-                            const next = current.includes(p) ? current.filter(i => i !== p) : [...current, p];
-                            setFormData({...formData, pelatihan: next});
-                          }}
-                          className={`p-2.5 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.pelatihan.includes(p) ? 'bg-hw-green/10 border-hw-green text-hw-green' : 'bg-gray-50 border-transparent text-gray-400'}`}
-                        >
-                          {p}
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { key: 'Jati 1', label: 'Jaya Melati 1 (Jati 1)' },
+                        { key: 'Jati 2', label: 'Jaya Melati 2 (Jati 2)' },
+                        { key: 'Jari 1', label: 'Jaya Matahari 1 (Jari 1)' },
+                        { key: 'Jari 2', label: 'Jaya Matahari 2 (Jari 2)' },
+                        { key: 'Jawi', label: 'Jaya Wisata (Jawi)' }
+                      ].map((item) => {
+                        const currentList = Array.isArray(formData.pelatihan) ? formData.pelatihan : [];
+                        const isSelected = currentList.some((p: string) => {
+                          const cleanP = String(p).toLowerCase().trim();
+                          const cleanKey = item.key.toLowerCase().trim();
+                          if (cleanP === cleanKey) return true;
+                          if (cleanKey === 'jati 1' && (cleanP.includes('jati 1') || cleanP.includes('jati1') || cleanP.includes('melati 1') || cleanP.includes('melati1'))) return true;
+                          if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return true;
+                          if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return true;
+                          if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return true;
+                          if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('wisata'))) return true;
+                          return false;
+                        });
+
+                        return (
+                          <button 
+                            key={item.key} 
+                            type="button" 
+                            onClick={() => {
+                              let next: string[];
+                              if (isSelected) {
+                                next = currentList.filter((p: string) => {
+                                  const cleanP = String(p).toLowerCase().trim();
+                                  const cleanKey = item.key.toLowerCase().trim();
+                                  if (cleanP === cleanKey) return false;
+                                  if (cleanKey === 'jati 1' && (cleanP.includes('jati 1') || cleanP.includes('jati1') || cleanP.includes('melati 1') || cleanP.includes('melati1'))) return false;
+                                  if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return false;
+                                  if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return false;
+                                  if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return false;
+                                  if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('wisata'))) return false;
+                                  return true;
+                                });
+                              } else {
+                                next = [...currentList, item.key];
+                              }
+                              setFormData({...formData, pelatihan: next});
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-xl text-[10px] font-bold border transition-all text-center flex items-center justify-center gap-1 cursor-pointer",
+                              isSelected 
+                                ? "bg-hw-green/10 border-hw-green text-hw-green font-black shadow-sm" 
+                                : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"
+                            )}
+                          >
+                            {isSelected && <Check size={12} />}
+                            {item.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -11722,7 +11798,7 @@ export default function AdminDashboard() {
                       <span>👨‍🏫</span> Data Pelatih Kegiatan
                     </label>
                     <span className="text-[9px] font-extrabold bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-300/60">
-                      Syarat: Min. Role Jaya Matahari 1
+                      Syarat: Role Jaya Matahari 1
                     </span>
                   </div>
 
@@ -11743,7 +11819,7 @@ export default function AdminDashboard() {
                       }}
                       className="flex-1 w-full min-w-0 max-w-full bg-white border border-emerald-300/80 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer truncate overflow-hidden"
                     >
-                      <option value="" disabled>-- Pilih Pelatih dari Anggota (Syarat: Min. Role Jaya Matahari 1) --</option>
+                      <option value="" disabled>-- Pilih Pelatih dari Anggota (Syarat: Role Jaya Matahari 1) --</option>
                       {(() => {
                         const eligible = (members || []).filter((m: any) => {
                           if (!m) return false;
@@ -11751,8 +11827,8 @@ export default function AdminDashboard() {
                           const rolesArr = (Array.isArray(m.roles) ? m.roles : []).map((r: any) => String(r).toLowerCase());
                           const emailStr = (m.email || '').toLowerCase();
                           
-                          // Sembunyikan akun Super Admin
-                          if (roleStr === 'superadmin' || rolesArr.includes('superadmin') || emailStr.includes('superadmin')) {
+                          // Sembunyikan akun Super Admin / Admin biasa
+                          if (roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin')) {
                             return false;
                           }
 
@@ -11760,15 +11836,16 @@ export default function AdminDashboard() {
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
                           const normRoles = parseRolesField(m.roles, m.role);
                           
-                          const hasJayaMatahariRole = 
-                            normRoles.includes('jari1') || normRoles.includes('jari2') ||
-                            ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].some(r => roleStr === r || rolesArr.includes(r)) ||
-                            roleStr.includes('jari') || roleStr.includes('matahari') ||
-                            rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
-                            pel.includes('jari') || pel.includes('matahari') || pel.includes('jauari') ||
-                            tingk.includes('matahari') || tingk.includes('jari');
+                          // HANYA yang mempunyai role / kualifikasi Jaya Matahari 1 (jari1)
+                          const isJayaMatahari1 = 
+                            normRoles.includes('jari1') ||
+                            roleStr === 'jari1' || rolesArr.includes('jari1') ||
+                            roleStr.includes('matahari 1') || roleStr.includes('matahari1') ||
+                            rolesArr.some(r => r.includes('matahari 1') || r.includes('matahari1') || r === 'jari1') ||
+                            pel.includes('matahari 1') || pel.includes('matahari1') || pel.includes('jari 1') || pel.includes('jari1') ||
+                            tingk.includes('matahari 1') || tingk.includes('matahari1') || tingk.includes('jari 1') || tingk.includes('jari1');
 
-                          return hasJayaMatahariRole;
+                          return isJayaMatahari1;
                         });
 
                         if (eligible.length === 0) {
@@ -11878,21 +11955,23 @@ export default function AdminDashboard() {
                           const isAdminOrSuper = roleStr.includes('admin') || rolesArr.some(r => r.includes('admin')) || emailStr.includes('admin') || normRoles.includes('admin') || normRoles.includes('superadmin');
                           if (isAdminOrSuper) return false;
 
-                          // 2. Sembunyikan yang mempunyai role akses Jaya Matahari 1 dan 2
-                          const isMatahari = normRoles.includes('jari1') || normRoles.includes('jari2') ||
-                            roleStr.includes('jari') || roleStr.includes('matahari') ||
-                            rolesArr.some(r => r.includes('jari') || r.includes('matahari'));
-                          if (isMatahari) return false;
-
-                          // 3. Hanya tampilkan yang mempunyai kualifikasi/role Jaya Melati 2
+                          // 2. Sembunyikan yang mempunyai role akses/kualifikasi Jaya Matahari 1 atau Jaya Matahari 2
                           const pel = Array.isArray(m.pelatihan) ? m.pelatihan.join(' ').toLowerCase() : String(m.pelatihan || '').toLowerCase();
                           const tingk = (m.tingkatan || m.golongan || m.golonganPelatih || '').toLowerCase();
 
+                          const isMatahari = normRoles.includes('jari1') || normRoles.includes('jari2') ||
+                            roleStr.includes('jari') || roleStr.includes('matahari') ||
+                            rolesArr.some(r => r.includes('jari') || r.includes('matahari')) ||
+                            pel.includes('matahari') || pel.includes('jari') || pel.includes('jauari') ||
+                            tingk.includes('matahari') || tingk.includes('jari');
+                          if (isMatahari) return false;
+
+                          // 3. Hanya tampilkan yang mempunyai kualifikasi/role Jaya Melati 2 (jati2)
                           const hasJM2 = normRoles.includes('jati2') ||
-                            roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('melati2') ||
-                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('melati2')) ||
-                            pel.includes('jati 2') || pel.includes('melati 2') || pel.includes('melati2') ||
-                            tingk.includes('melati 2') || tingk.includes('melati2');
+                            roleStr.includes('jati2') || roleStr.includes('melati 2') || roleStr.includes('melati2') || roleStr.includes('jati 2') ||
+                            rolesArr.some(r => r.includes('jati2') || r.includes('melati 2') || r.includes('melati2') || r.includes('jati 2')) ||
+                            pel.includes('jati 2') || pel.includes('jati2') || pel.includes('melati 2') || pel.includes('melati2') ||
+                            tingk.includes('melati 2') || tingk.includes('melati2') || tingk.includes('jati 2') || tingk.includes('jati2');
 
                           return hasJM2;
                         });
