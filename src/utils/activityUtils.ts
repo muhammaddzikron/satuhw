@@ -45,28 +45,75 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
 export const isOnlyTrainingActivity = (act: any): boolean => {
   if (!act) return false;
 
-  if (act.isPelatihan === true) return true;
+  // 1. Explicit boolean overrides
   if (act.isPelatihan === false) return false;
+  if (act.isPelatihan === true) return true;
 
   const cat = String(act.kategori || act.category || '').toLowerCase().trim();
   const name = String(act.namaKegiatan || act.title || '').toLowerCase().trim();
   const jenis = String(act.jenisPelatihan || act.pelatihanAkanDiikuti || '').toLowerCase().trim();
 
-  // Explicit training flags
+  // 2. Explicit general activity categories
+  if (
+    cat === 'silaturahmi' ||
+    cat === 'rapat' ||
+    cat === 'rapat hw' ||
+    cat === 'perkemahan' ||
+    cat === 'musyawarah' ||
+    cat === 'lomba' ||
+    cat === 'pertemuan' ||
+    cat === 'kegiatan' ||
+    cat === 'umum' ||
+    cat === 'kegiatan umum' ||
+    cat === 'raker' ||
+    cat === 'rakerwil'
+  ) {
+    return false;
+  }
+
+  // 3. Name contains meeting / gathering / conference / reunion keywords
+  if (
+    name.includes('silaturahmi') ||
+    name.includes('pertemuan') ||
+    name.includes('rapat') ||
+    name.includes('musyawarah') ||
+    name.includes('perkemahan') ||
+    name.includes('lomba') ||
+    name.includes('raker') ||
+    name.includes('rakerwil') ||
+    name.includes('muswil') ||
+    name.includes('musda') ||
+    name.includes('alumni')
+  ) {
+    return false;
+  }
+
+  // 4. Explicit training category
   if (
     cat === 'pelatihan' ||
     cat === 'diklat' ||
     cat === 'kegiatan pelatihan' ||
     cat === 'pelatihan hw' ||
-    name.includes('pelatihan') ||
-    name.includes('jaya melati') ||
-    name.includes('jaya matahari') ||
-    name.includes('taruna melati') ||
-    name.includes('penjenjangan') ||
-    jenis.includes('jati') ||
-    jenis.includes('jari') ||
-    jenis.includes('jaya melati') ||
-    jenis.includes('jaya matahari')
+    cat === 'diklat hw'
+  ) {
+    return true;
+  }
+
+  // 5. Training-specific names or tier names
+  if (
+    name.startsWith('pelatihan') ||
+    name.startsWith('diklat') ||
+    name.includes('pelatihan jaya') ||
+    name.includes('pelatihan taruna') ||
+    name.includes('diklat jaya') ||
+    name.includes('diklat taruna') ||
+    (jenis && (
+      jenis.includes('jaya melati') ||
+      jenis.includes('jaya matahari') ||
+      jenis.includes('taruna melati') ||
+      jenis.includes('jati') ||
+      jenis.includes('jari')
+    ) && !name.includes('silaturahmi') && !name.includes('alumni'))
   ) {
     return true;
   }
