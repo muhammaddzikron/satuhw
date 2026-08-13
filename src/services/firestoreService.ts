@@ -4046,6 +4046,36 @@ export const firestoreService = {
         await batch.commit();
       }
 
+      // HW Activity Categories
+      const catsStr = localStorage.getItem('hw_activity_categories') || '[]';
+      const cats: any[] = JSON.parse(catsStr);
+      if (cats.length > 0) {
+        const batch = writeBatch(db);
+        cats.forEach(c => {
+          if (c) {
+            const catName = typeof c === 'string' ? c : (c.name || c.kategori || '');
+            if (catName) {
+              const catId = (typeof c === 'object' && c.id) ? c.id : `cat-${String(catName).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+              batch.set(doc(db, 'hw_activity_categories', catId), cleanData({ id: catId, name: catName }), { merge: true });
+            }
+          }
+        });
+        await batch.commit();
+      }
+
+      // Activity Applications (Peserta Pendaftar Kegiatan)
+      const actAppsStr = localStorage.getItem('activity_applications') || '[]';
+      const actApps: any[] = JSON.parse(actAppsStr);
+      if (actApps.length > 0) {
+        const batch = writeBatch(db);
+        actApps.forEach(app => {
+          if (app.id) {
+            batch.set(doc(db, 'activity_applications', String(app.id)), cleanData(app), { merge: true });
+          }
+        });
+        await batch.commit();
+      }
+
       return {
         success: true,
         message: 'Seluruh data lokal dan cadangan berhasil diunggah & disinkronkan ke Firestore!',

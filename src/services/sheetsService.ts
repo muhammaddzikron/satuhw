@@ -1677,15 +1677,37 @@ export const sheetsService = {
 
   // --- KEGIATAN HW JATENG METHODS ---
   async getActivityCategories(): Promise<string[]> {
+    try {
+      const fsCats = await firestoreService.getActivityCategories();
+      if (fsCats && fsCats.length > 0) return fsCats;
+    } catch (e) {
+      console.warn('getActivityCategories Firestore error:', e);
+    }
+    if (IS_API_VALID) {
+      try {
+        const response = await this.fetch('getActivityCategories');
+        if (Array.isArray(response) && response.length > 0) return response;
+      } catch (e) {
+        console.warn('getActivityCategories Sheets API error:', e);
+      }
+    }
     return await firestoreService.getActivityCategories();
   },
 
   async saveActivityCategory(categoryName: string): Promise<string[]> {
-    return await firestoreService.saveActivityCategory(categoryName);
+    const fsResult = await firestoreService.saveActivityCategory(categoryName);
+    if (IS_API_VALID) {
+      this.post({ action: 'saveActivityCategory', name: categoryName, categoryName }).catch(e => console.warn('saveActivityCategory Sheets API warning:', e));
+    }
+    return fsResult;
   },
 
   async deleteActivityCategory(categoryName: string): Promise<string[]> {
-    return await firestoreService.deleteActivityCategory(categoryName);
+    const fsResult = await firestoreService.deleteActivityCategory(categoryName);
+    if (IS_API_VALID) {
+      this.post({ action: 'deleteActivityCategory', name: categoryName, categoryName }).catch(e => console.warn('deleteActivityCategory Sheets API warning:', e));
+    }
+    return fsResult;
   },
 
   subscribeToActivityCategories(callback: (categories: string[]) => void): () => void {

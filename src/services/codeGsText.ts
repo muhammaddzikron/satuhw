@@ -99,6 +99,10 @@ function doGet(e) {
     return handleGetActivities();
   }
 
+  if (action == 'getActivityCategories') {
+    return handleGetActivityCategories();
+  }
+
   return responseError("Action not found: " + action);
 }
 
@@ -218,6 +222,18 @@ function doPost(e) {
     if (action == 'deleteActivity') {
       return handleDeleteActivity(data.id);
     }
+
+    if (action == 'getActivityCategories') {
+      return handleGetActivityCategories();
+    }
+
+    if (action == 'saveActivityCategory') {
+      return handleSaveActivityCategory(data);
+    }
+
+    if (action == 'deleteActivityCategory') {
+      return handleDeleteActivityCategory(data);
+    }
     
     return responseError("Action not found: " + action);
   } catch (err) {
@@ -256,6 +272,12 @@ function getSheet(name) {
       sheet.appendRow(['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
     } else if (name == 'Activities') {
       sheet.appendRow(['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
+    } else if (name == 'Activity_Categories') {
+      sheet.appendRow(['id', 'name', 'createdAt']);
+      var defaultCats = ['Silaturahmi', 'Baitul Arqam', 'Latihan', 'Rapat', 'Lainnya'];
+      defaultCats.forEach(function(c, i) {
+        sheet.appendRow(['cat-' + (i + 1), c, new Date().toISOString()]);
+      });
     } else if (name == 'Settings') {
       sheet.appendRow(['key', 'value']);
       sheet.appendRow(['appName', 'Aplikasi HW Banyumas']);
@@ -291,6 +313,7 @@ function handleSyncDatabase() {
   ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
   ensureHeaders('Activity_Applications', ['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
   ensureHeaders('Activities', ['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
+  ensureHeaders('Activity_Categories', ['id', 'name', 'createdAt']);
   ensureHeaders('Settings', ['key', 'value']);
   return responseOk({ success: true, message: "Database synchronized successfully" });
 }
@@ -2337,5 +2360,58 @@ function handleDeleteActivity(id) {
     return responseOk({ success: true, message: "Kegiatan/Pelatihan berhasil dihapus dari Spreadsheet" });
   }
   return responseError("Kegiatan/Pelatihan tidak ditemukan");
+}
+
+function handleGetActivityCategories() {
+  var sheet = getSheet('Activity_Categories');
+  var rows = getRowsAsObjects(sheet);
+  var categories = [];
+  rows.forEach(function(r) {
+    var catName = (r.name || r.Name || r.kategori || r.Kategori || '').toString().trim();
+    if (catName && categories.indexOf(catName) === -1) {
+      categories.push(catName);
+    }
+  });
+  if (categories.length === 0) {
+    categories = ['Silaturahmi', 'Baitul Arqam', 'Latihan', 'Rapat', 'Lainnya'];
+  }
+  return responseOk(categories);
+}
+
+function handleSaveActivityCategory(data) {
+  var sheet = getSheet('Activity_Categories');
+  var name = (data.name || data.categoryName || data.kategori || '').toString().trim();
+  if (!name) return responseError("Nama kategori wajib diisi");
+  
+  var rows = getRowsAsObjects(sheet);
+  var existingIndex = rows.findIndex(function(r) {
+    var rName = (r.name || r.Name || r.kategori || '').toString().trim().toLowerCase();
+    return rName === name.toLowerCase();
+  });
+
+  if (existingIndex === -1) {
+    var catId = data.id || 'cat-' + new Date().getTime().toString();
+    sheet.appendRow([catId, name, new Date().toISOString()]);
+  }
+  return responseOk({ success: true, message: "Kategori/Jenis kegiatan berhasil disimpan" });
+}
+
+function handleDeleteActivityCategory(data) {
+  var sheet = getSheet('Activity_Categories');
+  var name = (data.name || data.categoryName || data.kategori || data.id || '').toString().trim().toLowerCase();
+  if (!name) return responseError("Nama kategori wajib diisi");
+
+  var rows = getRowsAsObjects(sheet);
+  var existingIndex = rows.findIndex(function(r) {
+    var rName = (r.name || r.Name || r.kategori || '').toString().trim().toLowerCase();
+    var rId = (r.id || r.Id || '').toString().trim().toLowerCase();
+    return rName === name || rId === name;
+  });
+
+  if (existingIndex > -1) {
+    sheet.deleteRow(existingIndex + 2);
+    return responseOk({ success: true, message: "Kategori/Jenis kegiatan berhasil dihapus" });
+  }
+  return responseError("Kategori/Jenis kegiatan tidak ditemukan");
 }
 `;
