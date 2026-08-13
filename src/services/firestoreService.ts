@@ -676,7 +676,7 @@ export const firestoreService = {
     }
 
     // Strict KTA validation & deduplication pass for returned members
-    ensureUniqueKtaNumbers(members);
+    members = ensureUniqueKtaNumbers(members);
 
     const filteredMembers = members
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')

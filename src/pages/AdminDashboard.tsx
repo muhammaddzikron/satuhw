@@ -215,7 +215,7 @@ import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
 export { KWARDA_QABILAH_JATENG };
 
@@ -405,17 +405,41 @@ export default function AdminDashboard() {
   });
 
   const userRolesList = Array.isArray(user?.roles) ? user.roles : [user?.role || 'umum'];
-  const isJayaMatahariRole = userRolesList.some((r: any) => ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase()));
+  const isJayaMatahariRole = userRolesList.some((r: any) =>
+    ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].includes(String(r).toLowerCase())
+  ) || ['jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional'].some(r => (user?.role || '').toLowerCase().includes(r));
   
   const rawActsList = settings?.trainingActivities || [];
   const userEmailStr = (user?.email || '').toLowerCase().trim();
   const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
-  
+  const userNbmStr = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
+
   const isAssignedTrainerInAnyActivity = (Array.isArray(rawActsList) ? rawActsList : []).some((act: any) => {
-    const pelatihList = Array.isArray(act.pelatih) ? act.pelatih : (typeof act.pelatih === 'string' ? act.pelatih.split(',').map((s: string) => s.trim()) : []);
-    const asistenList = Array.isArray(act.asistenPelatih) ? act.asistenPelatih : (typeof act.asistenPelatih === 'string' ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []);
+    const parseList = (val: any) => {
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
+      return [];
+    };
+    const pelatihList = parseList(act.pelatih);
+    const asistenList = parseList(act.asistenPelatih);
     const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
-    return allTrainers.some((t: string) => t && ((userNameStr && t.includes(userNameStr)) || (userNameStr && userNameStr.includes(t)) || (userEmailStr && t.includes(userEmailStr))));
+
+    return allTrainers.some((t: string) => {
+      if (!t) return false;
+      if (userNameStr && (t.includes(userNameStr) || userNameStr.includes(t))) return true;
+      if (userNbmStr && userNbmStr.length >= 4 && t.includes(userNbmStr)) return true;
+      if (userEmailStr && userEmailStr.length >= 4) {
+        const emailPrefix = userEmailStr.split('@')[0];
+        if (emailPrefix && emailPrefix.length >= 3 && t.includes(emailPrefix)) return true;
+      }
+      const nameWords = userNameStr.split(/\s+/).filter(w => w.length >= 3);
+      if (nameWords.length > 0) {
+        const matchingWords = nameWords.filter(w => t.includes(w));
+        if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
+        if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 5) return true;
+      }
+      return false;
+    });
   });
 
   const isPelatihUser = isJayaMatahariRole || isAssignedTrainerInAnyActivity;
@@ -767,6 +791,12 @@ export default function AdminDashboard() {
   const [isTrainingRejectModalOpen, setIsTrainingRejectModalOpen] = useState(false);
   const [trainingMainTab, setTrainingMainTab] = useState<'manajemen' | 'kelola_jenis'>('manajemen');
   const [trainingSubTab, setTrainingSubTab] = useState<'peserta' | 'presensi' | 'penugasan' | 'penilaian' | 'piagam'>('peserta');
+
+  useEffect(() => {
+    if (isPelatihOnly && trainingMainTab !== 'manajemen') {
+      setTrainingMainTab('manajemen');
+    }
+  }, [isPelatihOnly, trainingMainTab]);
 
   // Training Edit States
   const [editingTrainingApp, setEditingTrainingApp] = useState<any | null>(null);
@@ -3512,8 +3542,12 @@ export default function AdminDashboard() {
     return 999;
   };
 
+  const deduplicatedMemberList = React.useMemo(() => {
+    return deduplicateMembers(members || []);
+  }, [members]);
+
   const filteredMembers = React.useMemo(() => {
-    return members
+    return deduplicatedMemberList
       .filter(m => {
         const matchesSearch = (
           (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -3565,48 +3599,48 @@ export default function AdminDashboard() {
         const nameB = (b.namaLengkap || '').trim();
         return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
       });
-  }, [members, searchQuery, selectedFilters]);
+  }, [deduplicatedMemberList, searchQuery, selectedFilters]);
 
   const stats = React.useMemo(() => {
     return {
-      total: members.filter(m => m.role !== 'superadmin' && m.role !== 'admin').length,
-      laki: members.filter(m => m.jenisKelamin === 'L' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      perempuan: members.filter(m => m.jenisKelamin === 'P' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      verified: members.filter(m => m.isVerified && m.role !== 'superadmin' && m.role !== 'admin').length,
-      athfal: members.filter(m => (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal') && m.role !== 'superadmin' && m.role !== 'admin').length,
-      pengenal: members.filter(m => m.golongan === 'Pengenal' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      penghela: members.filter(m => m.golongan === 'Penghela' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      penuntun: members.filter(m => m.golongan === 'Penuntun' && m.role !== 'superadmin' && m.role !== 'admin').length,
-      sugli: members.filter(m => {
+      total: deduplicatedMemberList.filter(m => m.role !== 'superadmin' && m.role !== 'admin').length,
+      laki: deduplicatedMemberList.filter(m => m.jenisKelamin === 'L' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      perempuan: deduplicatedMemberList.filter(m => m.jenisKelamin === 'P' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      verified: deduplicatedMemberList.filter(m => m.isVerified && m.role !== 'superadmin' && m.role !== 'admin').length,
+      athfal: deduplicatedMemberList.filter(m => (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal') && m.role !== 'superadmin' && m.role !== 'admin').length,
+      pengenal: deduplicatedMemberList.filter(m => m.golongan === 'Pengenal' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      penghela: deduplicatedMemberList.filter(m => m.golongan === 'Penghela' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      penuntun: deduplicatedMemberList.filter(m => m.golongan === 'Penuntun' && m.role !== 'superadmin' && m.role !== 'admin').length,
+      sugli: deduplicatedMemberList.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
         const normRoles = parseRolesField(m.roles, m.role);
         return normRoles.includes('sugli') || normRoles.includes('sugli_daerah') || normRoles.includes('sugli_wilayah') || (m.role || '').includes('sugli');
       }).length,
-      kwarda: members.filter(m => {
+      kwarda: deduplicatedMemberList.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
         const normRoles = parseRolesField(m.roles, m.role);
         return normRoles.includes('kwarda') || normRoles.includes('admin_kwarda') || (m.role || '').includes('kwarda');
       }).length,
-      jm1: members.filter(m => {
+      jm1: deduplicatedMemberList.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
         const normRoles = parseRolesField(m.roles, m.role);
         const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
         return normRoles.includes('jati1') || pList.some(x => x.includes('jati 1') || x.includes('melati 1') || x.includes('jati1'));
       }).length,
-      jm2: members.filter(m => {
+      jm2: deduplicatedMemberList.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
         const normRoles = parseRolesField(m.roles, m.role);
         const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
         return normRoles.includes('jati2') || pList.some(x => x.includes('jati 2') || x.includes('melati 2') || x.includes('jati2'));
       }).length,
-      jm3: members.filter(m => {
+      jm3: deduplicatedMemberList.filter(m => {
         if (m.role === 'superadmin' || m.role === 'admin') return false;
         const normRoles = parseRolesField(m.roles, m.role);
         const pList = Array.isArray(m.pelatihan) ? m.pelatihan.map((x: any) => String(x).toLowerCase()) : [];
         return normRoles.includes('jari1') || pList.some(x => x.includes('jari 1') || x.includes('matahari 1') || x.includes('jari1'));
       }).length
     };
-  }, [members]);
+  }, [deduplicatedMemberList]);
 
   const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0);
   const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
@@ -3649,7 +3683,7 @@ export default function AdminDashboard() {
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[9px] font-black uppercase rounded-lg tracking-wider">
-                {isPelatihOnly ? 'Pelatih / Jaya Matahari' : (isDiklatAdmin ? 'Admin Diklat' : user?.role)}
+                {isPelatihOnly ? 'Tim Pelatih / Asisten Pelatih' : (isDiklatAdmin ? 'Admin Diklat' : user?.role)}
               </span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
@@ -7155,7 +7189,7 @@ export default function AdminDashboard() {
           )}
 
           {/* MAIN TAB 2: KELOLA JENIS PELATIHAN */}
-          {trainingMainTab === 'kelola_jenis' && (
+          {trainingMainTab === 'kelola_jenis' && !isPelatihOnly && (
             <div className="p-6 flex-1 space-y-6">
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="space-y-1">

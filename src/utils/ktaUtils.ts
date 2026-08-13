@@ -332,11 +332,198 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
 }
 
 /**
+ * Deduplicates a list of member records, merging duplicates so no roles, pelatihan, or verified statuses are lost.
+ */
+export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[]): T[] {
+  if (!Array.isArray(rawMembers) || rawMembers.length === 0) return [];
+
+  const map = new Map<string, T>();
+  const emailToId = new Map<string, string>();
+  const ktaToId = new Map<string, string>();
+  const nameKwardaToId = new Map<string, string>();
+  const namePhoneToId = new Map<string, string>();
+  const nameOnlyToId = new Map<string, string>();
+
+  const normStr = (val: any) => (val ? String(val).trim().toLowerCase().replace(/\s+/g, ' ') : '');
+  const cleanDigits = (val: any) => (val ? String(val).replace(/[^0-9]/g, '') : '');
+
+  const isSyntheticEmail = (email: string) => {
+    if (!email) return true;
+    return email.startsWith('member_') || email.startsWith('user_') || (email.includes('@hw.or.id') && email.includes('csv'));
+  };
+
+  for (const raw of rawMembers) {
+    if (!raw) continue;
+    const name = (raw.namaLengkap || raw.nama || '').trim();
+    if (!name || name === 'Tanpa Nama' || name === '-' || name.toLowerCase() === 'null' || name.toLowerCase() === 'undefined') continue;
+
+    const normName = normStr(name);
+    const kwarda = normStr(raw.asalKwarda || raw.asalDaerah);
+    const phoneDigits = cleanDigits(raw.noHp || raw.noWa);
+    const validPhone = phoneDigits.length >= 8 ? phoneDigits : '';
+
+    const email = normStr(raw.email);
+    const validEmail = (email && !isSyntheticEmail(email)) ? email : '';
+
+    const kta = (raw.ktaNumber || raw.nomorKTA || '').trim();
+    const validKta = (kta && kta !== 'KTA-HW.JT.XXXX' && !kta.includes('X')) ? kta : '';
+
+    const rawId = raw.id ? String(raw.id).trim() : '';
+
+    const nameKwardaKey = kwarda ? `${normName}||${kwarda}` : '';
+    const namePhoneKey = validPhone ? `${normName}||${validPhone}` : '';
+
+    // Search for existing duplicate match in order of specificity
+    let matchId: string | null = null;
+
+    if (rawId && map.has(rawId)) {
+      matchId = rawId;
+    } else if (validEmail && emailToId.has(validEmail)) {
+      matchId = emailToId.get(validEmail)!;
+    } else if (validKta && ktaToId.has(validKta)) {
+      matchId = ktaToId.get(validKta)!;
+    } else if (nameKwardaKey && nameKwardaToId.has(nameKwardaKey)) {
+      matchId = nameKwardaToId.get(nameKwardaKey)!;
+    } else if (namePhoneKey && namePhoneToId.has(namePhoneKey)) {
+      matchId = namePhoneToId.get(namePhoneKey)!;
+    } else if (normName && nameOnlyToId.has(normName)) {
+      matchId = nameOnlyToId.get(normName)!;
+    }
+
+    if (matchId && map.has(matchId)) {
+      // Merge raw into existing member record
+      const existing = map.get(matchId)!;
+
+      // Merge roles
+      const exRolesRaw = existing.roles || (existing.role ? [existing.role] : ['umum']);
+      const newRolesRaw = raw.roles || (raw.role ? [raw.role] : ['umum']);
+      const combinedRolesSet = new Set<string>();
+
+      const addRole = (r: any) => {
+        if (!r) return;
+        if (Array.isArray(r)) r.forEach(addRole);
+        else if (typeof r === 'string') {
+          r.split(',').forEach(s => {
+            const clean = s.trim().toLowerCase();
+            if (clean) combinedRolesSet.add(clean);
+          });
+        }
+      };
+
+      addRole(exRolesRaw);
+      addRole(newRolesRaw);
+      const combinedRoles = Array.from(combinedRolesSet);
+
+      const rolePriority = ['superadmin', 'admin', 'diklat', 'admin_diklat', 'kwarda', 'admin_kwarda', 'sugli', 'dewan_sugli', 'jari1', 'jari2', 'jati1', 'jati2'];
+      let primaryRole = 'umum';
+      for (const pr of rolePriority) {
+        if (combinedRoles.some(r => r === pr || r.includes(pr))) {
+          primaryRole = pr;
+          break;
+        }
+      }
+
+      // Merge pelatihan
+      const exPel = Array.isArray(existing.pelatihan) ? existing.pelatihan : [];
+      const newPel = Array.isArray(raw.pelatihan) ? raw.pelatihan : [];
+      const combinedPelMap = new Map<string, any>();
+      exPel.forEach(p => combinedPelMap.set(normStr(p), p));
+      newPel.forEach(p => combinedPelMap.set(normStr(p), p));
+      const combinedPel = Array.from(combinedPelMap.values()).filter(Boolean);
+
+      const merged: T = {
+        ...raw,
+        ...existing,
+        id: existing.id || raw.id,
+        namaLengkap: existing.namaLengkap || raw.namaLengkap || name,
+        email: validEmail || existing.email || raw.email || '',
+        noHp: existing.noHp || raw.noHp || raw.noWa || '',
+        alamat: existing.alamat || raw.alamat || '',
+        qabilah: existing.qabilah || raw.qabilah || '',
+        asalKwarda: existing.asalKwarda || raw.asalKwarda || raw.asalDaerah || '',
+        tempatLahir: existing.tempatLahir || raw.tempatLahir || '',
+        tanggalLahir: existing.tanggalLahir || raw.tanggalLahir || '',
+        golongan: (existing.golongan && existing.golongan !== 'Dewasa') ? existing.golongan : (raw.golongan || existing.golongan || 'Dewasa'),
+        photo: (existing.photo && existing.photo.length > (raw.photo || '').length) ? existing.photo : (raw.photo || existing.photo || ''),
+        isVerified: Boolean(existing.isVerified || raw.isVerified || raw.status === 'approved'),
+        statusAktivasi: (existing.statusAktivasi === 'Aktif' || raw.statusAktivasi === 'Aktif') ? 'Aktif' : (existing.statusAktivasi || raw.statusAktivasi || 'Belum Aktif'),
+        statusPembayaran: (existing.statusPembayaran === 'Lunas' || raw.statusPembayaran === 'Lunas') ? 'Lunas' : (existing.statusPembayaran || raw.statusPembayaran || 'Belum Bayar'),
+        ktaNumber: validKta || existing.ktaNumber || raw.ktaNumber || '',
+        nomorKTA: validKta || existing.nomorKTA || raw.nomorKTA || '',
+        role: primaryRole,
+        roles: combinedRoles,
+        pelatihan: combinedPel,
+        password: existing.password || raw.password || '12345hw'
+      };
+
+      map.set(matchId, merged);
+      if (validEmail) emailToId.set(validEmail, matchId);
+      if (validKta) ktaToId.set(validKta, matchId);
+      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, matchId);
+      if (namePhoneKey) namePhoneToId.set(namePhoneKey, matchId);
+      if (normName) nameOnlyToId.set(normName, matchId);
+    } else {
+      const memberId = rawId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const rawRoles = raw.roles || (raw.role ? [raw.role] : ['umum']);
+      const combinedRolesSet = new Set<string>();
+      const addRole = (r: any) => {
+        if (!r) return;
+        if (Array.isArray(r)) r.forEach(addRole);
+        else if (typeof r === 'string') {
+          r.split(',').forEach(s => {
+            const clean = s.trim().toLowerCase();
+            if (clean) combinedRolesSet.add(clean);
+          });
+        }
+      };
+      addRole(rawRoles);
+      const combinedRoles = Array.from(combinedRolesSet);
+      if (combinedRoles.length === 0) combinedRoles.push('umum');
+
+      const rolePriority = ['superadmin', 'admin', 'diklat', 'admin_diklat', 'kwarda', 'admin_kwarda', 'sugli', 'dewan_sugli', 'jari1', 'jari2', 'jati1', 'jati2'];
+      let primaryRole = 'umum';
+      for (const pr of rolePriority) {
+        if (combinedRoles.some(r => r === pr || r.includes(pr))) {
+          primaryRole = pr;
+          break;
+        }
+      }
+
+      const newObj: T = {
+        ...raw,
+        id: memberId,
+        namaLengkap: name,
+        email: raw.email || '',
+        noHp: raw.noHp || raw.noWa || '',
+        asalKwarda: raw.asalKwarda || raw.asalDaerah || '',
+        jenisKelamin: raw.jenisKelamin === 'Perempuan' || raw.jenisKelamin === 'P' ? 'P' : 'L',
+        golongan: raw.golongan || 'Dewasa',
+        isVerified: Boolean(raw.isVerified || raw.status === 'approved'),
+        role: primaryRole,
+        roles: combinedRoles,
+        pelatihan: Array.isArray(raw.pelatihan) ? raw.pelatihan : [],
+        password: raw.password || '12345hw'
+      };
+
+      map.set(memberId, newObj);
+      if (validEmail) emailToId.set(validEmail, memberId);
+      if (validKta) ktaToId.set(validKta, memberId);
+      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, memberId);
+      if (namePhoneKey) namePhoneToId.set(namePhoneKey, memberId);
+      if (normName) nameOnlyToId.set(normName, memberId);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+/**
  * Ensures all items in an array have unique, valid, and gap-free KTA numbers (11.XX.YYYY).
  * Automatically shifts numbers down if there are gaps in sequence numbers within a Kwarda/Qabilah.
  */
 export function ensureUniqueKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
   if (!Array.isArray(items) || items.length === 0) return items;
-  return resequenceKtaNumbers(items);
+  const deduped = deduplicateMembers(items);
+  return resequenceKtaNumbers(deduped);
 }
 
