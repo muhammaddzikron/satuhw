@@ -4634,16 +4634,45 @@ export default function AdminDashboard() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">backend/code.gs</span>
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText(codeGsText);
-                              setCopiedScript(true);
-                              setTimeout(() => setCopiedScript(false), 2000);
-                            }}
-                            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-500/20"
-                          >
-                            {copiedScript ? <><Check size={14} /> Tersalin!</> : <><Copy size={14} /> Salin Kode</>}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const blob = new Blob([codeGsText], { type: 'text/plain;charset=utf-8' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'Code.gs';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="text-xs font-bold text-gray-700 hover:text-emerald-700 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-sm cursor-pointer"
+                            >
+                              <Download size={14} /> Unduh File Code.gs
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                  navigator.clipboard.writeText(codeGsText);
+                                } else {
+                                  const textarea = document.createElement('textarea');
+                                  textarea.value = codeGsText;
+                                  document.body.appendChild(textarea);
+                                  textarea.select();
+                                  document.execCommand('copy');
+                                  document.body.removeChild(textarea);
+                                }
+                                setCopiedScript(true);
+                                setTimeout(() => setCopiedScript(false), 2000);
+                              }}
+                              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm cursor-pointer"
+                            >
+                              {copiedScript ? <><Check size={14} /> Tersalin!</> : <><Copy size={14} /> Salin Kode</>}
+                            </button>
+                          </div>
                         </div>
                         <div className="relative">
                           <pre className="w-full max-h-60 overflow-y-auto bg-gray-900 text-gray-100 text-[10px] p-5 rounded-2xl font-mono leading-relaxed select-all">

@@ -1,4 +1,4 @@
-export const codeGsText = `// KONFIGURASI DATABASE
+// KONFIGURASI DATABASE
 // Kosongkan jika script ditempel langsung di Google Sheet (Bound Script)
 // Isi dengan ID Spreadsheet jika menggunakan script mandiri (Standalone Script)
 var SPREADSHEET_ID = '1leG_6qJ9T8hF6JKpAiIPq5qg1eyzGI9-jzfl_16eqlM';
@@ -501,12 +501,12 @@ function getRobustValue(obj, keyVariants) {
   var objLowers = {};
   for (var k in obj) {
     if (obj.hasOwnProperty(k)) {
-      var cleanK = k.toString().toLowerCase().replace(/[\s_-]/g, '');
+      var cleanK = k.toString().toLowerCase().replace(/[s_-]/g, '');
       objLowers[cleanK] = obj[k];
     }
   }
   for (var i = 0; i < keyVariants.length; i++) {
-    var cleanVar = keyVariants[i].toLowerCase().replace(/[\s_-]/g, '');
+    var cleanVar = keyVariants[i].toLowerCase().replace(/[s_-]/g, '');
     if (objLowers[cleanVar] !== undefined) {
       return objLowers[cleanVar];
     }
@@ -551,7 +551,7 @@ function handleGetMembers() {
       else if (hLower === 'email') rowData[i] = cleanEmail;
       else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
       else if (hLower === 'namalengkap') rowData[i] = nama || "";
-      else if (hLower === 'role') rowData[i] = '[\"umum\"]';
+      else if (hLower === 'role') rowData[i] = '["umum"]';
       else if (hLower === 'pendidikan') rowData[i] = "";
       else if (hLower === 'pelatihan') rowData[i] = JSON.stringify(tingkatan ? [tingkatan] : []);
       else if (hLower === 'jeniskelamin') rowData[i] = jenisKelamin || "L";
@@ -1091,7 +1091,7 @@ function handleGetKTAApplications() {
   var normalizedApps = apps.map(function(app) {
     var cleanApp = {};
     for (var key in app) {
-      var lowerKey = key.toLowerCase().replace(/[\s_-]/g, '');
+      var lowerKey = key.toLowerCase().replace(/[s_-]/g, '');
       var clientKey = key;
       if (lowerKey === 'id') clientKey = 'id';
       else if (lowerKey === 'userid') clientKey = 'userId';
@@ -1693,7 +1693,7 @@ function handleUpdateTrainingStatus(id, status, remark) {
     var userId = app.userid || app.userId || app.UserId;
     var email = app.email || app.Email;
     var training = app.pelatihanakandiikuti || app.pelatihanAkanDiikuti || app.PelatihanAkanDiikuti || "";
-    var roleName = training ? training.toLowerCase().replace(/\\s+/g, '') : '';
+    var roleName = training ? training.toLowerCase().replace(/\s+/g, '') : '';
     
     if (userId || email) {
       var userSheet = getSheet('Users');
@@ -2003,7 +2003,7 @@ function handleSyncApprovedKtasToMembers() {
         else if (hLower === 'email') rowData[i] = kEmail;
         else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
         else if (hLower === 'namalengkap') rowData[i] = kName;
-        else if (hLower === 'role') rowData[i] = '[\"umum\"]';
+        else if (hLower === 'role') rowData[i] = '["umum"]';
         else if (hLower === 'jeniskelamin') rowData[i] = kGender;
         else if (hLower === 'golongan') rowData[i] = k.tingkatan || "Dewasa";
         else if (hLower === 'asalkwarda') rowData[i] = kKwarda;
@@ -2196,7 +2196,7 @@ function handleDeleteKTAApplication(id) {
 
 function cleanGasPhone(p) {
   if (!p) return "";
-  var str = p.toString().replace(/\D/g, "");
+  var str = p.toString().replace(/D/g, "");
   if (str.indexOf("0") === 0) str = str.substring(1);
   else if (str.indexOf("62") === 0) str = str.substring(2);
   return str;
@@ -2205,9 +2205,9 @@ function cleanGasPhone(p) {
 function cleanGasName(n) {
   if (!n) return "";
   var str = n.toString().toLowerCase();
-  str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, " ");
-  str = str.replace(/[^a-z0-9\s]/gi, " ");
-  return str.replace(/\s+/g, " ").trim();
+  str = str.replace(/,?s*(s.pd|m.pd|s.h.i.|s.ag|m.ag|s.kom|m.kom|s.e.|m.m.|s.st|dr.|dra.|drs.|h.|hj.|ir.|prof.|ph.d|lcm|s.ip|m.ip|s.sos|m.sos|s.p|m.p).?/gi, " ");
+  str = str.replace(/[^a-z0-9s]/gi, " ");
+  return str.replace(/s+/g, " ").trim();
 }
 
 function handleGetActivityApplications() {
@@ -2617,4 +2617,3 @@ function handleDeleteActivityCategory(data) {
   }
   return responseError("Kategori/Jenis kegiatan tidak ditemukan");
 }
-`;
