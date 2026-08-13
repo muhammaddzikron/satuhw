@@ -1422,20 +1422,20 @@ export default function AdminDashboard() {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(15);
       pdf.setTextColor(15, 118, 110); // hw-green color
-      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 20, { align: 'center' });
+      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 22, { align: 'center' });
       
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
       pdf.setTextColor(100, 116, 139);
-      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 26, { align: 'center' });
+      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 28, { align: 'center' });
       pdf.setFontSize(8);
       pdf.setTextColor(148, 163, 184);
-      pdf.text('Standar Kartu Identitas ID-1 (85.60 mm × 53.98 mm) — Skala 1:1 (Actual Size)', 105, 30, { align: 'center' });
+      pdf.text('Standar Kartu Identitas ID-1 (85.60 mm × 53.98 mm) — Skala 1:1 (Actual Size)', 105, 32, { align: 'center' });
 
       // Divider line
       pdf.setDrawColor(226, 232, 240);
       pdf.setLineWidth(0.4);
-      pdf.line(20, 34, 190, 34);
+      pdf.line(20, 36, 190, 36);
 
       // Standard ID-1 card dimensions (85.60 mm x 53.98 mm)
       const cardWidth = 85.60; 
@@ -1446,40 +1446,40 @@ export default function AdminDashboard() {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 41, { align: 'center' });
+      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 43, { align: 'center' });
 
-      pdf.addImage(frontImgData, 'PNG', xPos, 44, cardWidth, cardHeight);
+      pdf.addImage(frontImgData, 'PNG', xPos, 46, cardWidth, cardHeight);
       pdf.setDrawColor(203, 213, 225);
       pdf.setLineWidth(0.2);
-      pdf.rect(xPos, 44, cardWidth, cardHeight); // Cutting border guide
+      pdf.rect(xPos, 46, cardWidth, cardHeight); // Cutting border guide
 
       // BACK CARD (Bottom)
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 112, { align: 'center' });
+      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 111, { align: 'center' });
 
-      pdf.addImage(backImgData, 'PNG', xPos, 115, cardWidth, cardHeight);
-      pdf.rect(xPos, 115, cardWidth, cardHeight); // Cutting border guide
+      pdf.addImage(backImgData, 'PNG', xPos, 114, cardWidth, cardHeight);
+      pdf.rect(xPos, 114, cardWidth, cardHeight); // Cutting border guide
 
       // Footer Print Guidelines
       pdf.setDrawColor(226, 232, 240);
       pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(20, 185, 170, 48, 3, 3, 'FD');
+      pdf.roundedRect(20, 180, 170, 48, 3, 3, 'FD');
       
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8.5);
       pdf.setTextColor(15, 118, 110);
-      pdf.text('PANDUAN CETAK & VERIFIKASI (SKALA 1:1):', 25, 192);
+      pdf.text('PANDUAN CETAK & VERIFIKASI (SKALA 1:1):', 25, 187);
 
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text('1. Cetak dokumen ini pada kertas A4 (Art Paper 230-300 gsm / PVC Card) dengan opsi "100% / Actual Size".', 25, 198);
-      pdf.text('2. Ukuran hasil cetak sesuai standar kartu identitas nasional ID-1 (85.60 mm × 53.98 mm).', 25, 204);
-      pdf.text('3. Potong mengikuti garis tepi tipis kartu depan dan belakang, lalu rekatkan atau lakukan press laminating.', 25, 210);
-      pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 216);
-      pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 222);
+      pdf.text('1. Cetak dokumen ini pada kertas A4 (Art Paper 230-300 gsm / PVC Card) dengan opsi "100% / Actual Size".', 25, 193);
+      pdf.text('2. Ukuran hasil cetak sesuai standar kartu identitas nasional ID-1 (85.60 mm × 53.98 mm).', 25, 199);
+      pdf.text('3. Potong mengikuti garis tepi tipis kartu depan dan belakang, lalu rekatkan atau lakukan press laminating.', 25, 205);
+      pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 211);
+      pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 217);
 
       pdf.save(`KTA_HW_${(viewingKtaApp?.nama || 'Anggota').replace(/\s+/g, '_')}.pdf`);
     } catch (err: any) {

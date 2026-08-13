@@ -86,9 +86,12 @@ export const KTACard: React.FC<KTACardProps> = ({
   const ktaBackBg = settings.ktaTemplateBack;
 
   // Format issue date properly as "Semarang, 07 Agustus 2026"
-  const rawKota = (settings?.ktaKotaPenerbit || 'Semarang').replace(/\.+$|…+$/g, '').trim() || 'Semarang';
-  const rawDate = app.verifiedAt || app.createdAt;
-  const formattedDate = formatIndonesianDate(rawDate);
+  const rawKota = (settings?.ktaKotaPenerbit || 'Semarang').replace(/[\.\s…]+$/g, '').trim() || 'Semarang';
+  const rawDate = app.verifiedAt || app.createdAt || app.tanggalAjuan || new Date();
+  let formattedDate = formatIndonesianDate(rawDate);
+  if (!formattedDate || formattedDate.trim() === '' || formattedDate.includes('...')) {
+    formattedDate = formatIndonesianDate(new Date());
+  }
   const issueDateText = `${rawKota}, ${formattedDate}`;
 
   // Photo resolution
@@ -99,7 +102,7 @@ export const KTACard: React.FC<KTACardProps> = ({
       <div 
         id={id}
         className={cn(
-          "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none",
+          "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border p-4 flex flex-col justify-between relative shadow-lg select-none kta-card-printable",
           ktaFrontBg ? "text-gray-800 bg-white border-emerald-950/10" : "text-white bg-gradient-to-br from-hw-green via-emerald-800 to-emerald-950 border-emerald-800/20",
           className
         )}
@@ -129,7 +132,7 @@ export const KTACard: React.FC<KTACardProps> = ({
               className="text-[5.5px] font-bold text-gray-800 leading-none"
               style={{ color: '#1f2937', position: 'relative', zIndex: 30 }}
             >
-              {'\u00A0\u00A0\u00A0\u00A0'}{issueDateText}
+              {issueDateText}
             </p>
           </div>
         )}
@@ -387,7 +390,7 @@ export const KTACard: React.FC<KTACardProps> = ({
     <div 
       id={id}
       className={cn(
-        "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border relative flex flex-col justify-between shadow-lg select-none",
+        "w-[350px] h-[220.72px] aspect-[856/540] rounded-3xl overflow-hidden border relative flex flex-col justify-between shadow-lg select-none kta-card-printable",
         ktaBackBg ? "bg-white border-emerald-950/10" : "text-white bg-gradient-to-tr from-emerald-950 via-emerald-900 to-slate-900 border-emerald-950/20 p-4",
         className
       )}

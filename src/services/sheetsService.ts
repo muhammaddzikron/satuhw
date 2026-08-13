@@ -1726,6 +1726,11 @@ export const sheetsService = {
   },
 
   subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
+    if (IS_API_VALID) {
+      this.getActivityApplications().then(apps => {
+        if (apps && apps.length > 0) callback(apps);
+      }).catch(() => {});
+    }
     return firestoreService.subscribeToActivityApplications(callback);
   },
 
@@ -1931,40 +1936,57 @@ export const sheetsService = {
   },
 
   async getActivityApplications(): Promise<any[]> {
+    const fsApps = await firestoreService.getActivityApplications();
+    if (!IS_API_VALID) {
+      return fsApps;
+    }
+
     try {
-      const apps = await firestoreService.getActivityApplications();
-      if (apps && apps.length > 0) {
-        if (IS_API_VALID) {
-          // Sync applications to Google Sheets in background
-          apps.forEach(a => {
-            this.post({ action: 'registerActivity', ...a }).catch(() => {});
-          });
-        }
-        return apps;
+      const response = await axios.get(`${API_URL}?action=getActivityApplications&_t=${Date.now()}`);
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const apiApps = response.data.map((item: any, idx: number) => {
+          return {
+            id: item.id || item.Id || `actreg-api-${idx}`,
+            activityId: item.activityId || item.activityid || item.kegiatanId || 'keg-silaturahmi-pelatih',
+            namaKegiatan: item.namaKegiatan || item.namakegiatan || item.title || '',
+            userId: item.userId || item.userid || '',
+            namaLengkap: item.namaLengkap || item.namalengkap || item.nama || '',
+            email: item.email || item.Email || '',
+            unsur: item.unsur || item.Unsur || '',
+            utusan: item.utusan || item.Utusan || '',
+            qabilahPtma: item.qabilahPtma || item.qabilahptma || '',
+            jabatan: item.jabatan || item.Jabatan || '',
+            kategoriUndangan: item.kategoriUndangan || item.kategoriundangan || '',
+            noHp: item.noHp || item.nohp || item.noWa || item.nowa || '',
+            asalKwarda: item.asalKwarda || item.asalkwarda || '',
+            qabilah: item.qabilah || item.Qabilah || '',
+            status: item.status || 'approved',
+            tanggalDaftar: item.tanggalDaftar || item.tanggaldaftar || new Date().toISOString()
+          };
+        }).filter((item: any) => {
+          const name = (item.namaLengkap || item.nama || '').trim();
+          return name && name !== '-' && name.toLowerCase() !== 'tanpa nama' && item.status !== 'deleted';
+        });
+
+        apiApps.forEach(app => firestoreService.registerActivity(app).catch(() => {}));
+
+        return firestoreService.deduplicateActivityApps([...fsApps, ...apiApps]);
       }
+      return fsApps;
     } catch (e) {
-      console.warn('getActivityApplications Firestore error, trying fallback:', e);
+      console.warn('getActivityApplications Sheets API error, falling back to Firestore:', (e as any)?.message || e);
+      return fsApps;
     }
-    if (IS_API_VALID) {
-      try {
-        const apps = await this.fetch('getActivityApplications');
-        if (Array.isArray(apps) && apps.length > 0) {
-          apps.forEach(a => {
-            firestoreService.registerActivity(a).catch(() => {});
-          });
-          return apps;
-        }
-      } catch (e) {
-        console.warn('getActivityApplications Sheets API error:', (e as any)?.message || e);
-      }
-    }
-    return await firestoreService.getActivityApplications();
   },
 
   async registerActivity(appData: any): Promise<any> {
     const saved = await firestoreService.registerActivity(appData);
     if (IS_API_VALID) {
-      this.post({ action: 'registerActivity', ...appData }).catch(() => {});
+      try {
+        await this.post({ action: 'registerActivity', ...saved });
+      } catch (e) {
+        console.warn('registerActivity Sheets API error:', e);
+      }
     }
     return saved;
   },
@@ -1972,7 +1994,11 @@ export const sheetsService = {
   async deleteActivityApplication(id: string): Promise<boolean> {
     const res = await firestoreService.deleteActivityApplication(id);
     if (IS_API_VALID) {
-      this.post({ action: 'deleteActivityApplication', id }).catch(() => {});
+      try {
+        await this.post({ action: 'deleteActivityApplication', id });
+      } catch (e) {
+        console.warn('deleteActivityApplication Sheets API error:', e);
+      }
     }
     return res;
   },
