@@ -509,6 +509,9 @@ export default function KegiatanPage() {
                   src={getCorsSafeUrl(activity.gambarUrl, activity.updatedAt || activity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={activity.namaKegiatan} 
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                  }}
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
                   <div className="bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
@@ -639,6 +642,9 @@ export default function KegiatanPage() {
                   src={getCorsSafeUrl(selectedActivity.gambarUrl, selectedActivity.updatedAt || selectedActivity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={selectedActivity.namaKegiatan} 
                   className="w-full h-full object-cover opacity-80"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                  }}
                 />
                 <button
                   onClick={() => setIsDetailModalOpen(false)}

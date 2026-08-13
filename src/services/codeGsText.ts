@@ -2291,9 +2291,12 @@ function handleGetActivities() {
       } else if (lowerKey === 'themesongtitle' || lowerKey === 'themesongname') {
         cleanApp['themeSongTitle'] = app[key];
         cleanApp['themeSongName'] = app[key];
-      } else if (lowerKey === 'gambarurl' || lowerKey === 'imageurl') {
+      } else if (lowerKey.indexOf('gambar') !== -1 || lowerKey.indexOf('image') !== -1 || lowerKey.indexOf('poster') !== -1 || lowerKey.indexOf('cover') !== -1 || lowerKey.indexOf('banner') !== -1) {
         cleanApp['gambarUrl'] = app[key];
         cleanApp['imageUrl'] = app[key];
+        cleanApp['gambar'] = app[key];
+        cleanApp['posterUrl'] = app[key];
+        cleanApp['coverImage'] = app[key];
       } else if (lowerKey === 'kategori' || lowerKey === 'category') {
         cleanApp['kategori'] = app[key];
         cleanApp['category'] = app[key];
@@ -2414,10 +2417,13 @@ function handleSaveActivity(data) {
             ((data.themeSongName !== undefined && data.themeSongName !== "") ? data.themeSongName :
             (existing ? (existing.themesongtitle || existing.themesongname) : ""));
     }
-    else if (header === 'gambarurl' || header === 'imageurl') {
+    else if (header.indexOf('gambar') !== -1 || header.indexOf('image') !== -1 || header.indexOf('poster') !== -1 || header.indexOf('cover') !== -1 || header.indexOf('banner') !== -1) {
       val = (data.gambarUrl !== undefined && data.gambarUrl !== "") ? data.gambarUrl :
             ((data.imageUrl !== undefined && data.imageUrl !== "") ? data.imageUrl :
-            (existing ? (existing.gambarurl || existing.imageurl) : ""));
+            ((data.gambar !== undefined && data.gambar !== "") ? data.gambar :
+            ((data.posterUrl !== undefined && data.posterUrl !== "") ? data.posterUrl :
+            ((data.coverImage !== undefined && data.coverImage !== "") ? data.coverImage :
+            (existing ? (existing.gambarurl || existing.imageurl || existing.gambar || existing.posterurl || existing.coverimage) : "")))));
     }
     else if (header === 'penyelenggara') {
       val = data.penyelenggara !== undefined ? data.penyelenggara : (existing ? existing.penyelenggara : "");

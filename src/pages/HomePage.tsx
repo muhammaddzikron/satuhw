@@ -54,7 +54,7 @@ import { prayerService } from '../services/prayerService';
 import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
-import { cn, formatDate, formatTime } from '../lib/utils';
+import { cn, formatDate, formatTime, getCorsSafeUrl } from '../lib/utils';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
@@ -1036,7 +1036,8 @@ export default function HomePage() {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';
-                const img = act.gambarUrl || act.imageUrl;
+                const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage;
+                const img = getCorsSafeUrl(rawImg, act.updatedAt || act.id);
                 const cat = act.kategori || act.category || 'Silaturahmi';
 
                 const pCount = (activityApps || []).filter((app: any) => isParticipantOfActivity(app, act)).length;
@@ -1045,7 +1046,14 @@ export default function HomePage() {
                   <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">
                     {img && (
                       <div className="h-32 w-full rounded-xl overflow-hidden bg-gray-100 relative">
-                        <img src={img} alt={title} className="w-full h-full object-cover" />
+                        <img 
+                          src={img} 
+                          alt={title} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                          }}
+                        />
                         <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
                           {cat}
                         </div>

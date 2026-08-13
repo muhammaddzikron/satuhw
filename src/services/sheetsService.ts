@@ -4,6 +4,7 @@ import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { firestoreService, parseRolesField } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
+import { pickValidImageUrl } from '../lib/utils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -1751,7 +1752,7 @@ export const sheetsService = {
           const sheetBiaya = sheetAct.biayapelatihan || sheetAct.biayaPelatihan || sheetAct.biaya || '';
           const sheetDesc = sheetAct.deskripsi || sheetAct.description || '';
           const sheetCat = sheetAct.kategori || sheetAct.category || '';
-          const sheetImg = sheetAct.gambarurl || sheetAct.gambarUrl || sheetAct.imageurl || sheetAct.imageUrl || '';
+          const sheetImg = sheetAct.gambarurl || sheetAct.gambarUrl || sheetAct.imageurl || sheetAct.imageUrl || sheetAct.gambar || sheetAct.posterurl || sheetAct.posterUrl || sheetAct.coverimage || sheetAct.coverImage || sheetAct.banner || '';
           const sheetSongUrl = sheetAct.themesongurl || sheetAct.themeSongUrl || sheetAct.themesong || sheetAct.themeSong || '';
           const sheetSongTitle = sheetAct.themesongtitle || sheetAct.themeSongTitle || sheetAct.themesongname || sheetAct.themeSongName || '';
           const sheetProposal = sheetAct.proposalurl || sheetAct.proposalUrl || sheetAct.proposal || sheetAct.linkproposal || sheetAct.linkProposal || '';
@@ -1780,7 +1781,7 @@ export const sheetsService = {
                 description: fsAct.deskripsi || fsAct.description || sheetDesc,
                 kategori: fsAct.kategori || fsAct.category || sheetCat,
                 category: fsAct.kategori || fsAct.category || sheetCat,
-                gambarUrl: fsAct.gambarUrl || fsAct.imageUrl || sheetImg,
+                gambarUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
                 themeSongUrl: fsAct.themeSongUrl || fsAct.themeSong || sheetSongUrl,
                 themeSongTitle: fsAct.themeSongTitle || fsAct.themeSongName || sheetSongTitle,
                 proposalUrl: fsAct.proposalUrl || fsAct.proposal || sheetProposal,
@@ -1808,7 +1809,7 @@ export const sheetsService = {
                 description: sheetDesc || fsAct.deskripsi || fsAct.description,
                 kategori: sheetCat || fsAct.kategori || fsAct.category,
                 category: sheetCat || fsAct.kategori || fsAct.category,
-                gambarUrl: sheetImg || fsAct.gambarUrl || fsAct.imageUrl,
+                gambarUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
                 themeSongUrl: sheetSongUrl || fsAct.themeSongUrl || fsAct.themeSong,
                 themeSongTitle: sheetSongTitle || fsAct.themeSongTitle || fsAct.themeSongName,
                 proposalUrl: sheetProposal || fsAct.proposalUrl || fsAct.proposal,
@@ -1838,7 +1839,8 @@ export const sheetsService = {
               description: sheetDesc,
               kategori: sheetCat || 'Silaturahmi',
               category: sheetCat || 'Silaturahmi',
-              gambarUrl: sheetImg || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+              gambarUrl: pickValidImageUrl(sheetImg),
+              imageUrl: pickValidImageUrl(sheetImg),
               themeSongUrl: sheetSongUrl,
               themeSongTitle: sheetSongTitle,
               proposalUrl: sheetProposal,

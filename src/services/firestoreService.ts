@@ -3344,11 +3344,13 @@ export const firestoreService = {
 
     // Determine if training activity
     const isPel = activityData.isPelatihan === true || 
-                  (activityData.isPelatihan !== false && (
-                    String(catVal).toLowerCase().includes('pelatihan') || 
-                    String(titleVal).toLowerCase().includes('pelatihan') ||
-                    Boolean(activityData.jenisPelatihan)
-                  ));
+                  (activityData.isPelatihan !== false && isOnlyTrainingActivity({
+                    kategori: catVal,
+                    category: catVal,
+                    namaKegiatan: titleVal,
+                    title: titleVal,
+                    jenisPelatihan: activityData.jenisPelatihan
+                  }));
 
     const newAct = cleanData({
       ...existingAct,

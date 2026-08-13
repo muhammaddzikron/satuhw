@@ -168,16 +168,48 @@ export function getDriveDirectLink(url: string | null | undefined): string {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   if (!trimmed) return '';
+
+  // Do not treat Google Sheets / Docs / Slides URLs as image URLs
+  if (trimmed.includes('spreadsheets/d/') || trimmed.includes('document/d/') || trimmed.includes('presentation/d/')) {
+    return '';
+  }
+
   if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
-    const match = trimmed.match(/\/d\/(.+?)(\/|$|\?|#)/) || 
-                  trimmed.match(/[?&]id=(.+?)(&|$|#)/) ||
-                  trimmed.match(/\/file\/d\/(.+?)(\/|$|\?|#)/);
+    const match = trimmed.match(/\/file\/d\/(.+?)(\/|$|\?|#)/) ||
+                  trimmed.match(/\/d\/(.+?)(\/|$|\?|#)/) || 
+                  trimmed.match(/[?&]id=(.+?)(&|$|#)/);
     if (match && match[1]) {
       // Use lh3.googleusercontent.com format for native Google CORS support and direct image loading
       return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
   return trimmed;
+}
+
+export function isUnsplashDefaultImage(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return true;
+  const trimmed = url.trim();
+  if (!trimmed) return true;
+  if (
+    trimmed.includes('unsplash.com/photo-1510312305653') ||
+    trimmed.includes('unsplash.com/photo-1562774053') ||
+    trimmed.includes('unsplash.com/photo-1511578314322')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function pickValidImageUrl(
+  urlA?: string | null,
+  urlB?: string | null,
+  fallback = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
+): string {
+  if (!isUnsplashDefaultImage(urlA)) return urlA!.trim();
+  if (!isUnsplashDefaultImage(urlB)) return urlB!.trim();
+  if (urlA && urlA.trim()) return urlA.trim();
+  if (urlB && urlB.trim()) return urlB.trim();
+  return fallback;
 }
 
 export function getCorsSafeUrl(url: string | null | undefined, version?: string | number): string {
