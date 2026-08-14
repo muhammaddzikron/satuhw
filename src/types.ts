@@ -8,6 +8,7 @@ export interface User {
   nama?: string;
   jenisKelamin: 'L' | 'P';
   golongan: string;
+  golonganPelatih?: string;
   pelatihan: string[];
   pendidikan: string;
   asalKwarda: string;

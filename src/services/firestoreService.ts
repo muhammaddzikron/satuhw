@@ -2594,6 +2594,7 @@ export const firestoreService = {
         }
         callback(list);
       }, (err) => {
+        this.checkQuotaError(err);
         console.warn('subscribeToActivities warning:', err);
         this.getActivities().then(acts => callback(acts)).catch(() => callback(defaults));
       });

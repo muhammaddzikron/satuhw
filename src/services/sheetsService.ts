@@ -361,56 +361,91 @@ export const sheetsService = {
   },
 
   mapUser(data: any): User {
+    if (!data) return {} as User;
+
+    // Helper to safely extract field values from varied Google Sheet column headers
+    const getVal = (keys: string[]): string => {
+      for (const k of keys) {
+        if (data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== '') {
+          return String(data[k]).trim();
+        }
+      }
+      // Case-insensitive & clean search fallback
+      const rawKeys = Object.keys(data);
+      for (const target of keys) {
+        const cleanTarget = target.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchedKey = rawKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
+        if (matchedKey && data[matchedKey] !== undefined && data[matchedKey] !== null && String(data[matchedKey]).trim() !== '') {
+          return String(data[matchedKey]).trim();
+        }
+      }
+      return '';
+    };
+
     // Helper to safely parse array-like fields from backend (might be JSON string, comma-separated string, or already an array)
     const parseArrayField = (val: any): any[] => {
       if (!val) return [];
       if (Array.isArray(val)) return val;
-      if (typeof val !== 'string') return [val]; // If it's a number or something, wrap in array
+      if (typeof val !== 'string') return [val];
       
       const trimmed = val.trim();
       if (!trimmed) return [];
       
-      // Try JSON first if it looks like an array
       if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
         try {
           return JSON.parse(trimmed);
         } catch (e) {
-          console.warn('Failed to parse JSON array field:', trimmed);
+          // ignore error
         }
       }
-      
-      // Fallback to comma separation
       return trimmed.split(',').map(s => s.trim()).filter(Boolean);
     };
 
-    // Map lowercase keys from backend to camelCase keys for frontend
-    const idValue = data.id || data.Id;
-    const emailValue = data.email || data.Email || '';
-    const stableId = idValue ? String(idValue) : (emailValue ? `user-${emailValue.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`);
+    const idValue = getVal(['id', 'Id', 'userId', 'userid']);
+    const emailValue = getVal(['email', 'Email', 'EMAIL', 'alamatEmail', 'alamat_email', 'Alamat Email', 'E-mail']);
+    const namaValue = getVal(['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Nama Lengkap', 'NAMA LENGKAP', 'FullName', 'Full Name', 'Nama Peserta']);
+    const ktaValue = getVal(['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA', 'No. KTA', 'NBM', 'No Kta', 'KTA', 'No_KTA']);
+    const phoneValue = getVal(['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'Phone', 'telepon', 'whatsapp', 'No HP', 'No. HP', 'No WA', 'No WhatsApp', 'Nomor WhatsApp', 'No Handphone', 'Kontak']);
+    const kwardaValue = getVal(['asalKwarda', 'asalkwarda', 'kwarda', 'Kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah', 'Asal Kwarda', 'Kwarcab', 'Cabang', 'Kwarda / Kwarcab']);
+    const qabilahValue = getVal(['qabilah', 'Qabilah', 'pangkalan', 'Pangkalan', 'gudep', 'Gudep', 'Gugus Depan', 'Qabilah / Pangkalan']);
+    const alamatValue = getVal(['alamat', 'Alamat', 'domisili', 'Domisili', 'Alamat Lengkap', 'Alamat Domisili']);
+    const tempatLahirValue = getVal(['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir', 'Tempat_Lahir', 'Kota Kelahiran']);
+    const tanggalLahirValue = getVal(['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir', 'Tanggal_Lahir', 'Tgl Lahir']);
+    const genderValue = getVal(['jenisKelamin', 'jeniskelamin', 'gender', 'Gender', 'jk', 'JK', 'Jenis Kelamin']);
+    const golonganValue = getVal(['golongan', 'Golongan', 'tingkatan', 'Tingkatan', 'jenjang', 'Jenjang']);
+    const golonganPelatihValue = getVal(['golonganPelatih', 'golonganpelatih', 'Golongan Pelatih', 'Pelatih Golongan']);
+    const pendidikanValue = getVal(['pendidikan', 'Pendidikan', 'Pendidikan Terakhir', 'Tingkat Pendidikan']);
+    const sosmedValue = getVal(['sosmed', 'Sosmed', 'instagram', 'Instagram', 'Media Sosial', 'Akun Sosmed']);
+    const photoValue = getVal(['photo', 'foto', 'Photo', 'Foto', 'photoUrl', 'image', 'Image', 'Foto Profil', 'Photo URL']);
 
-    const user = {
+    const stableId = idValue ? String(idValue) : (emailValue ? `user-${emailValue.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : (phoneValue ? `user-${phoneValue.replace(/[^0-9]/g, '')}` : `user-${Date.now()}`));
+
+    const rawVerified = data.isVerified !== undefined ? data.isVerified : data.isverified;
+    const isVerified = rawVerified === true || rawVerified === 'true' || rawVerified === 1 || rawVerified === '1';
+
+    const user: User = {
       id: stableId,
       email: emailValue,
-      namaLengkap: data.namaLengkap || data.namalengkap || data.nama || '',
-      jenisKelamin: data.jenisKelamin || data.jeniskelamin || 'L',
-      golongan: data.golongan || '',
-      golonganPelatih: data.golonganPelatih || data.golonganpelatih || '',
-      pelatihan: parseArrayField(data.pelatihan),
-      pendidikan: data.pendidikan || '',
-      asalKwarda: data.asalKwarda || data.asalkwarda || data.kwarda || data.asalDaerah || '',
-      qabilah: data.qabilah || '',
-      alamat: data.alamat || '',
-      tempatLahir: data.tempatLahir || data.tempatlahir || data.tempat_lahir || '',
-      tanggalLahir: data.tanggalLahir || data.tanggallahir || data.tanggal_lahir || '',
-      noHp: data.noHp || data.nohp || data.noWa || data.phone || '',
-      sosmed: data.sosmed || '',
+      namaLengkap: namaValue || 'Anggota HW',
+      jenisKelamin: (genderValue.toUpperCase().startsWith('P') || genderValue.toLowerCase() === 'perempuan') ? 'P' : 'L',
+      golongan: golonganValue || 'Dewasa',
+      golonganPelatih: golonganPelatihValue,
+      pelatihan: parseArrayField(getVal(['pelatihan', 'Pelatihan', 'pelatihanAkanDiikuti', 'pelatihanakandiikuti', 'tingkatPelatihan'])),
+      pendidikan: pendidikanValue,
+      asalKwarda: kwardaValue,
+      qabilah: qabilahValue,
+      alamat: alamatValue,
+      tempatLahir: tempatLahirValue,
+      tanggalLahir: tanggalLahirValue,
+      noHp: phoneValue,
+      sosmed: sosmedValue,
       role: 'umum' as UserRole,
       roles: [] as UserRole[],
       activeRole: 'umum' as UserRole,
-      isVerified: data.isVerified !== undefined ? data.isVerified : (data.isverified !== undefined ? data.isverified : false),
-      ktaNumber: data.ktaNumber || data.ktanumber || data.noKta || '',
-      upgradeRequests: parseArrayField(data.upgradeRequests || data.upgraderequests),
-      photo: data.photo || data.foto || data.Photo || data.Foto || '',
+      isVerified: isVerified,
+      ktaNumber: ktaValue,
+      upgradeRequests: parseArrayField(getVal(['upgradeRequests', 'upgraderequests'])),
+      photo: photoValue,
       password: data.password || ''
     };
 
@@ -421,12 +456,7 @@ export const sheetsService = {
     user.role = primaryRole;
     user.activeRole = data.activeRole || primaryRole;
     
-    // Handle truthy values from Sheets for isVerified
-    if (typeof user.isVerified !== 'boolean') {
-      user.isVerified = user.isVerified === true || user.isVerified === 1 || user.isVerified === "true" || user.isVerified === "1";
-    }
-    
-    return user as User;
+    return user;
   },
 
   mockLogin(emailOrId: string, password: string): { user: User; token: string } {
@@ -763,7 +793,7 @@ export const sheetsService = {
           .filter((m: any) => !role || role === 'semua' || m.kategori === role);
       }
       try {
-        const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`, { timeout: 15000 });
         let listData: any[] = [];
         if (Array.isArray(response.data)) {
           listData = response.data;
@@ -836,97 +866,109 @@ export const sheetsService = {
         return members.map((m: any) => this.mapUser(m));
       }
       try {
-        const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 15000 });
+        let rawMembers: any[] = [];
         if (Array.isArray(response.data)) {
-          const sheetMembers = response.data.map((m: any) => this.mapUser(m));
-          // Merge Firestore & Local Storage member updates
-          try {
-            const fsMembers = await firestoreService.getMembers();
-            const fsKtas = await firestoreService.getKTAApplications();
-            let localMocks: any[] = [];
-            try {
-              localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
-            } catch(e) {}
-
-            const cachedMembers = [...fsMembers, ...localMocks];
-
-            sheetMembers.forEach(sm => {
-              const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
-              const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
-              const smId = sm.id ? String(sm.id) : '';
-
-              const match = cachedMembers.find(fm => 
-                (fm && fm.id && smId && String(fm.id) === smId) ||
-                (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
-                (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
-              );
-
-              if (match) {
-                if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
-                if (match.photo) sm.photo = match.photo;
-                if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
-                if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
-                if (match.noHp) sm.noHp = match.noHp;
-                if (match.alamat) sm.alamat = match.alamat;
-                if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
-                if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
-                if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
-                if (match.qabilah) sm.qabilah = match.qabilah;
-                if (match.sosmed) sm.sosmed = match.sosmed;
-                if (match.pendidikan) sm.pendidikan = match.pendidikan;
-                if (match.golongan) sm.golongan = match.golongan;
-                if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
-                if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
-                  sm.roles = match.roles;
-                  sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
-                  if (match.activeRole) sm.activeRole = match.activeRole;
-                } else if (match.role) {
-                  sm.roles = parseRolesField(null, match.role);
-                  sm.role = match.role as UserRole;
-                }
-                if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
-                if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
-                if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
-              } else {
-                const ktaMatch = fsKtas.find(fk =>
-                  (fk.userId && smId && String(fk.userId) === smId) ||
-                  (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
-                  (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
-                );
-                if (ktaMatch) {
-                  if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
-                  if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
-                  if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
-                  if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
-                  if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
-                  if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
-                  if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
-                }
-              }
-            });
-
-            // Add any cached member missing from sheetMembers
-            cachedMembers.forEach(fm => {
-              if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
-              const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
-              const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
-              const fmId = fm.id ? String(fm.id) : '';
-
-              const existsInSheet = sheetMembers.some(sm => 
-                (sm.id && fmId && String(sm.id) === fmId) ||
-                (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
-                (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
-              );
-              if (!existsInSheet) {
-                sheetMembers.push(this.mapUser(fm));
-              }
-            });
-          } catch (e) {
-            console.warn('Error merging Firestore photos and member data into getMembers:', e);
-          }
-          return ensureUniqueKtaNumbers(sheetMembers);
+          rawMembers = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          rawMembers = response.data.data;
+        } else if (response.data && Array.isArray(response.data.members)) {
+          rawMembers = response.data.members;
         }
-        return [];
+
+        const sheetMembers = rawMembers.map((m: any) => this.mapUser(m));
+
+        // Merge Firestore & Local Storage member updates
+        try {
+          const fsMembers = await firestoreService.getMembers();
+          const fsKtas = await firestoreService.getKTAApplications();
+          let localMocks: any[] = [];
+          try {
+            localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
+          } catch(e) {}
+
+          const cachedMembers = [...fsMembers, ...localMocks];
+
+          sheetMembers.forEach(sm => {
+            const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
+            const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
+            const smId = sm.id ? String(sm.id) : '';
+
+            const match = cachedMembers.find(fm => 
+              (fm && fm.id && smId && String(fm.id) === smId) ||
+              (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
+              (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
+            );
+
+            if (match) {
+              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
+              if (match.photo) sm.photo = match.photo;
+              if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
+              if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
+              if (match.noHp) sm.noHp = match.noHp;
+              if (match.alamat) sm.alamat = match.alamat;
+              if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
+              if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
+              if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
+              if (match.qabilah) sm.qabilah = match.qabilah;
+              if (match.sosmed) sm.sosmed = match.sosmed;
+              if (match.pendidikan) sm.pendidikan = match.pendidikan;
+              if (match.golongan) sm.golongan = match.golongan;
+              if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
+              if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
+                sm.roles = match.roles;
+                sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
+                if (match.activeRole) sm.activeRole = match.activeRole;
+              } else if (match.role) {
+                sm.roles = parseRolesField(null, match.role);
+                sm.role = match.role as UserRole;
+              }
+              if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
+              if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
+              if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
+            } else {
+              const ktaMatch = fsKtas.find(fk =>
+                (fk.userId && smId && String(fk.userId) === smId) ||
+                (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
+                (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
+              );
+              if (ktaMatch) {
+                if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
+                if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
+                if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
+                if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
+                if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
+                if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
+                if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
+              }
+            }
+          });
+
+          // Add any cached member missing from sheetMembers
+          cachedMembers.forEach(fm => {
+            if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
+            const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
+            const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
+            const fmId = fm.id ? String(fm.id) : '';
+
+            const existsInSheet = sheetMembers.some(sm => 
+              (sm.id && fmId && String(sm.id) === fmId) ||
+              (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
+              (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
+            );
+            if (!existsInSheet) {
+              sheetMembers.push(this.mapUser(fm));
+            }
+          });
+        } catch (e) {
+          console.warn('Error merging Firestore photos and member data into getMembers:', e);
+        }
+
+        const finalResult = ensureUniqueKtaNumbers(sheetMembers);
+        try {
+          localStorage.setItem('mock_members', JSON.stringify(finalResult.slice(0, 500)));
+        } catch(e) {}
+        return finalResult;
       } catch (error) {
         console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
         const members = await firestoreService.getMembers();
@@ -1062,7 +1104,7 @@ export const sheetsService = {
         return await firestoreService.getKTAApplications();
       }
       try {
-        const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 15000 });
         if (Array.isArray(response.data)) {
           const apps = response.data;
           // Merge photos from Firestore if empty in Google Sheets response
@@ -1251,13 +1293,29 @@ export const sheetsService = {
         return fsTrainings;
       }
       try {
-        const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`, { timeout: 15000 });
         if (Array.isArray(response.data) && response.data.length > 0) {
           const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-          const apiTrainings = response.data.map((t: any, idx: number) => ({
-            ...t,
-            id: t.id || `train-api-${idx}`
-          })).filter((t: any) => {
+          const apiTrainings = response.data.map((t: any, idx: number) => {
+            const rawNama = t.nama || t.namaLengkap || t.namalengkap || '';
+            const rawEmail = t.email || '';
+            const rawWa = t.noWa || t.nowa || t.noHp || t.nohp || '';
+            const rawPelatihan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.tingkatan || '';
+            return {
+              ...t,
+              id: t.id || t.Id || `train-api-${idx}`,
+              nama: rawNama,
+              namaLengkap: rawNama,
+              email: rawEmail,
+              noWa: rawWa,
+              noHp: rawWa,
+              tingkatan: t.tingkatan || rawPelatihan,
+              pelatihanAkanDiikuti: rawPelatihan,
+              asalDaerah: t.asalDaerah || t.asaldaerah || t.asalKwarda || '',
+              status: t.status || 'approved',
+              tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString()
+            };
+          }).filter((t: any) => {
             const name = (t.nama || t.namaLengkap || '').trim();
             const email = (t.email || '').toLowerCase().trim();
             return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
@@ -1579,7 +1637,7 @@ export const sheetsService = {
       return result;
     }
     try {
-      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`, { timeout: 4000 });
+      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`, { timeout: 15000 });
       const apiSettings = response.data || {};
       const merged = {
         ...fsSettings,
@@ -1797,27 +1855,30 @@ export const sheetsService = {
       const fsActs = await firestoreService.getActivities();
       if (!IS_API_VALID) return fsActs;
       try {
-        const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`, { timeout: 15000 });
         if (Array.isArray(response.data) && response.data.length > 0) {
           const map = new Map<string, any>();
           fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
 
-        response.data.forEach((sheetAct: any) => {
-          if (!sheetAct || !sheetAct.id) return;
-          const fsAct = map.get(sheetAct.id);
-
-          const sheetTitle = sheetAct.namakegiatan || sheetAct.namaKegiatan || sheetAct.title || sheetAct.jenispelatihan || sheetAct.jenisPelatihan || '';
+        response.data.forEach((sheetAct: any, idx: number) => {
+          if (!sheetAct) return;
+          const sheetTitle = sheetAct.namakegiatan || sheetAct.namaKegiatan || sheetAct.title || sheetAct.jenispelatihan || sheetAct.jenisPelatihan || sheetAct.judul || '';
           const sheetLoc = sheetAct.lokasipelatihan || sheetAct.lokasiPelatihan || sheetAct.lokasi || sheetAct.location || '';
           const sheetDate = sheetAct.tanggalpelatihan || sheetAct.tanggalPelatihan || sheetAct.tanggal || sheetAct.startDate || '';
-          const sheetBiaya = sheetAct.biayapelatihan || sheetAct.biayaPelatihan || sheetAct.biaya || '';
+          const sheetBiaya = sheetAct.biayapelatihan || sheetAct.biayaPelatihan || sheetAct.biaya || 'Gratis';
           const sheetDesc = sheetAct.deskripsi || sheetAct.description || '';
-          const sheetCat = sheetAct.kategori || sheetAct.category || '';
+          const sheetCat = sheetAct.kategori || sheetAct.category || 'Silaturahmi';
           const sheetImg = sheetAct.gambarurl || sheetAct.gambarUrl || sheetAct.imageurl || sheetAct.imageUrl || sheetAct.gambar || sheetAct.posterurl || sheetAct.posterUrl || sheetAct.coverimage || sheetAct.coverImage || sheetAct.banner || '';
           const sheetSongUrl = sheetAct.themesongurl || sheetAct.themeSongUrl || sheetAct.themesong || sheetAct.themeSong || '';
           const sheetSongTitle = sheetAct.themesongtitle || sheetAct.themeSongTitle || sheetAct.themesongname || sheetAct.themeSongName || '';
           const sheetProposal = sheetAct.proposalurl || sheetAct.proposalUrl || sheetAct.proposal || sheetAct.linkproposal || sheetAct.linkProposal || '';
           const sheetRekening = sheetAct.rekeningpembayaran || sheetAct.rekeningPembayaran || sheetAct.rekeningpembiayaan || sheetAct.rekeningPembiayaan || '';
           const sheetKonfirmasi = sheetAct.nowhatsapppanitia || sheetAct.noWhatsappPanitia || sheetAct.konfirmasipembayaran || sheetAct.konfirmasiPembayaran || '';
+
+          if (!sheetTitle && !sheetLoc && !sheetDate) return;
+
+          const actId = (sheetAct.id || sheetAct.Id || sheetAct.activityId || (`keg-sheet-${idx}-${Date.now().toString().slice(-4)}`)).toString().trim();
+          const fsAct = map.get(actId);
 
           if (fsAct) {
             const fsTime = new Date(fsAct.updatedAt || fsAct.createdAt || 0).getTime();
@@ -1827,6 +1888,7 @@ export const sheetsService = {
               const merged = {
                 ...sheetAct,
                 ...fsAct,
+                id: actId,
                 namaKegiatan: fsAct.namaKegiatan || fsAct.title || sheetTitle,
                 title: fsAct.namaKegiatan || fsAct.title || sheetTitle,
                 lokasi: fsAct.lokasi || fsAct.lokasiPelatihan || sheetLoc,
@@ -1850,11 +1912,12 @@ export const sheetsService = {
                 noWhatsappPanitia: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi,
                 konfirmasiPembayaran: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi
               };
-              map.set(sheetAct.id, merged);
+              map.set(actId, merged);
             } else {
               const merged = {
                 ...fsAct,
                 ...sheetAct,
+                id: actId,
                 namaKegiatan: sheetTitle || fsAct.namaKegiatan || fsAct.title,
                 title: sheetTitle || fsAct.namaKegiatan || fsAct.title,
                 lokasi: sheetLoc || fsAct.lokasi || fsAct.lokasiPelatihan,
@@ -1878,13 +1941,13 @@ export const sheetsService = {
                 noWhatsappPanitia: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran,
                 konfirmasiPembayaran: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran
               };
-              map.set(sheetAct.id, merged);
+              map.set(actId, merged);
               firestoreService.saveActivity(merged).catch(() => {});
             }
           } else {
             const normalizedSheetAct = {
               ...sheetAct,
-              id: sheetAct.id,
+              id: actId,
               namaKegiatan: sheetTitle,
               title: sheetTitle,
               lokasi: sheetLoc,
@@ -1910,7 +1973,7 @@ export const sheetsService = {
               konfirmasiPembayaran: sheetKonfirmasi || '089688754000',
               status: sheetAct.status || 'Buka'
             };
-            map.set(sheetAct.id, normalizedSheetAct);
+            map.set(actId, normalizedSheetAct);
             firestoreService.saveActivity(normalizedSheetAct).catch(() => {});
           }
         });
@@ -2002,7 +2065,7 @@ export const sheetsService = {
       }
 
       try {
-        const response = await axios.get(`${API_URL}?action=getActivityApplications&_t=${Date.now()}`, { timeout: 3500 });
+        const response = await axios.get(`${API_URL}?action=getActivityApplications&_t=${Date.now()}`, { timeout: 15000 });
         let apiApps: any[] = [];
         if (Array.isArray(response.data) && response.data.length > 0) {
           apiApps = response.data.map((item: any, idx: number) => {

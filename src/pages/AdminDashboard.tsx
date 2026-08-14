@@ -2096,8 +2096,16 @@ export default function AdminDashboard() {
       return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined';
     };
 
+    const isValidMember = (m: any) => {
+      if (!m) return false;
+      const name = m.namaLengkap || m.nama || '';
+      const email = m.email || '';
+      const phone = m.noHp || m.nowa || '';
+      const kta = m.ktaNumber || '';
+      return isValidName(name) || email !== '' || phone !== '' || kta !== '';
+    };
+
     // 1. Instant cache pre-fill to render UI immediately without blank/spinner delay
-    let hasLocalCache = false;
     try {
       const cachedMembers = localStorage.getItem('mock_members');
       const cachedKtas = localStorage.getItem('kta_applications');
@@ -2107,9 +2115,9 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      if (cachedMembers) { setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter((m: any) => isValidName(m?.namaLengkap || m?.nama)))); hasLocalCache = true; }
-      if (cachedKtas) { setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)))); hasLocalCache = true; }
-      if (cachedTrainings) { setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t))); hasLocalCache = true; }
+      if (cachedMembers) { setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter(isValidMember))); }
+      if (cachedKtas) { setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)))); }
+      if (cachedTrainings) { setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t))); }
       if (cachedMateri) { setMateriList(safeJsonParse(cachedMateri, [])); }
       if (cachedContents) { setContents(safeJsonParse(cachedContents, [])); }
       if (cachedActivities) { setActivitiesList(safeJsonParse(cachedActivities, [])); }
@@ -2118,73 +2126,54 @@ export default function AdminDashboard() {
       console.warn('Cache prefill warning:', e);
     }
 
-    if (hasLocalCache) {
-      setLoading(false);
-    }
+    // Set loading false right away so dashboard is always clickable and responsive
+    setLoading(false);
 
-    try {
-      // Non-blocking background sync tasks
-      setTimeout(() => {
-        sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
-        firestoreService.purgeEmptyData().catch(() => {});
-      }, 500);
+    // Non-blocking background sync tasks
+    setTimeout(() => {
+      sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
+      firestoreService.purgeEmptyData().catch(() => {});
+    }, 100);
 
-      // Progressive data loading using Promise.allSettled to eliminate UI bottlenecks
-      const [
-        materiRes,
-        membersRes,
-        contentsRes,
-        settingsRes,
-        ktaRes,
-        trainingRes,
-        activitiesRes,
-        actRegRes
-      ] = await Promise.allSettled([
-        sheetsService.getMateri('admin'),
-        sheetsService.getMembers(),
-        sheetsService.getContents(),
-        sheetsService.getSettings(),
-        sheetsService.getKTAApplications(),
-        sheetsService.getTrainingApplications(),
-        sheetsService.getActivities(),
-        sheetsService.getActivityApplications()
-      ]);
+    // Progressive background fetch so slow endpoints never block others
+    sheetsService.getMembers().then(members => {
+      if (Array.isArray(members) && members.length > 0) {
+        setMembers(ensureUniqueKtaNumbers(members.filter(isValidMember)));
+      }
+    }).catch(e => console.warn('getMembers error:', e));
 
-      if (materiRes.status === 'fulfilled' && materiRes.value) {
-        setMateriList(materiRes.value);
-      }
-      if (membersRes.status === 'fulfilled' && membersRes.value) {
-        setMembers(ensureUniqueKtaNumbers((membersRes.value || []).filter(m => isValidName(m?.namaLengkap || (m as any)?.nama))));
-      }
-      if (contentsRes.status === 'fulfilled' && contentsRes.value) {
-        setContents(contentsRes.value || []);
-      }
-      if (ktaRes.status === 'fulfilled' && ktaRes.value) {
-        setKtaApps(ensureUniqueKtaNumbers((ktaRes.value || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
-      }
-      if (trainingRes.status === 'fulfilled' && trainingRes.value) {
-        setTrainingApps((trainingRes.value || []).filter(t => isValidTrainingApp(t)));
-      }
-      if (activitiesRes.status === 'fulfilled' && activitiesRes.value) {
-        setActivitiesList(activitiesRes.value || []);
-      }
-      if (actRegRes.status === 'fulfilled' && actRegRes.value) {
-        setActivityApplicationsList(sortActivityAppsByDate(actRegRes.value || [], true));
-      }
+    sheetsService.getMateri('admin').then(materi => {
+      if (materi) setMateriList(materi);
+    }).catch(e => console.warn('getMateri error:', e));
 
-      if (settingsRes.status === 'fulfilled' && settingsRes.value) {
-        const settingsData = settingsRes.value;
-        const activitiesData = activitiesRes.status === 'fulfilled' ? activitiesRes.value : [];
+    sheetsService.getContents().then(contents => {
+      if (contents) setContents(contents);
+    }).catch(e => console.warn('getContents error:', e));
+
+    sheetsService.getKTAApplications().then(ktas => {
+      if (ktas) setKtaApps(ensureUniqueKtaNumbers((ktas || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
+    }).catch(e => console.warn('getKTAApplications error:', e));
+
+    sheetsService.getTrainingApplications().then(trainings => {
+      if (trainings) setTrainingApps((trainings || []).filter(t => isValidTrainingApp(t)));
+    }).catch(e => console.warn('getTrainingApplications error:', e));
+
+    sheetsService.getActivities().then(activities => {
+      if (activities) setActivitiesList(activities || []);
+    }).catch(e => console.warn('getActivities error:', e));
+
+    sheetsService.getActivityApplications().then(actRegs => {
+      if (actRegs) setActivityApplicationsList(sortActivityAppsByDate(actRegs || [], true));
+    }).catch(e => console.warn('getActivityApplications error:', e));
+
+    sheetsService.getSettings().then(settingsData => {
+      if (settingsData) {
         setSettings(prev => ({
           ...prev,
           ...settingsData,
           gSheetApiUrl: prev.gSheetApiUrl,
           trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
-          trainingActivities: (() => {
-            const fromSettings = (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity);
-            if (fromSettings.length > 0) return fromSettings;
-            return (Array.isArray(activitiesData) ? activitiesData : []).filter(isOnlyTrainingActivity);
-          })(),
+          trainingActivities: (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity),
           trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
           trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
           assignedTasks: Array.isArray(settingsData.assignedTasks) 
@@ -2192,9 +2181,7 @@ export default function AdminDashboard() {
             : safeJsonParse<any[]>(settingsData.assignedTasks, [])
         }));
       }
-    } finally {
-      setLoading(false);
-    }
+    }).catch(e => console.warn('getSettings error:', e));
   };
 
   useEffect(() => {

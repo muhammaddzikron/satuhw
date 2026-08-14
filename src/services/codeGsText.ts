@@ -251,39 +251,64 @@ function getSheet(name) {
   }
   
   var sheet = ss.getSheetByName(name);
+  if (sheet) return sheet;
+
+  // Search case-insensitively and through common aliases in the workbook
+  var allSheets = ss.getSheets();
+  var nameClean = (name || "").toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  var aliases = {
+    'users': ['users', 'user', 'anggota', 'dataanggota', 'member', 'members', 'datamember', 'masteranggota'],
+    'activities': ['activities', 'kegiatan', 'datakegiatan', 'daftarkegiatan', 'agenda', 'program', 'events', 'event'],
+    'activityapplications': ['activityapplications', 'activity_applications', 'pendaftarkegiatan', 'pendaftarankegiatan', 'pesertakegiatan', 'peserta', 'pendaftar', 'formresponses1', 'responformulir1', 'pendaftarkegiatan1'],
+    'trainingapplications': ['trainingapplications', 'training_applications', 'pendaftarpelatihan', 'pendaftaranpelatihan', 'pesertapelatihan', 'daftarpelatihan', 'pelatihanpeserta'],
+    'ktaapplications': ['ktaapplications', 'kta_applications', 'pengajuankta', 'permohonankta', 'kta', 'datakta'],
+    'materi': ['materi', 'materials', 'datamateri', 'modul'],
+    'contents': ['contents', 'konten', 'datakonten'],
+    'activitycategories': ['activitycategories', 'activity_categories', 'kategorikegiatan', 'kategori'],
+    'settings': ['settings', 'pengaturan', 'konfigurasi']
+  };
+
+  var targetAliases = aliases[nameClean] || [nameClean];
+
+  for (var i = 0; i < allSheets.length; i++) {
+    var sName = allSheets[i].getName();
+    var sClean = sName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (sClean === nameClean || targetAliases.indexOf(sClean) !== -1) {
+      return allSheets[i];
+    }
+  }
   
   // Jika belum ada, buat baru dengan header default
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    if (name == 'Users') {
-      sheet.appendRow(['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests', 'photo', 'tempatLahir', 'tanggalLahir']);
-      // Tambahkan admin default agar bisa login pertama kali
-      // Password: admin123
-      sheet.appendRow(['admin-1', 'admin@admin.com', 'admin123', 'Super Admin', 'superadmin', 'S1', '[]', 'L', 'Dewasa', 'Nasional', 'Pusat', 'Jakarta', true, '@admin', '08123456789', '', '[]', '', '', '']);
-    } else if (name == 'Materi') {
-      sheet.appendRow(['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
-    } else if (name == 'Contents') {
-      sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
-    } else if (name == 'KTA_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
-    } else if (name == 'Training_Applications') {
-      sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
-    } else if (name == 'Activity_Applications') {
-      sheet.appendRow(['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
-    } else if (name == 'Activities') {
-      sheet.appendRow(['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
-    } else if (name == 'Activity_Categories') {
-      sheet.appendRow(['id', 'name', 'createdAt']);
-      var defaultCats = ['Silaturahmi', 'Baitul Arqam', 'Latihan', 'Rapat', 'Lainnya'];
-      defaultCats.forEach(function(c, i) {
-        sheet.appendRow(['cat-' + (i + 1), c, new Date().toISOString()]);
-      });
-    } else if (name == 'Settings') {
-      sheet.appendRow(['key', 'value']);
-      sheet.appendRow(['appName', 'Aplikasi HW Banyumas']);
-      sheet.appendRow(['orgName', 'Kwarda Hizbul Wathan Banyumas']);
-      sheet.appendRow(['lastBackup', '-']);
-    }
+  sheet = ss.insertSheet(name);
+  if (name == 'Users') {
+    sheet.appendRow(['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests', 'photo', 'tempatLahir', 'tanggalLahir']);
+    // Tambahkan admin default agar bisa login pertama kali
+    // Password: admin123
+    sheet.appendRow(['admin-1', 'admin@admin.com', 'admin123', 'Super Admin', 'superadmin', 'S1', '[]', 'L', 'Dewasa', 'Nasional', 'Pusat', 'Jakarta', true, '@admin', '08123456789', '', '[]', '', '', '']);
+  } else if (name == 'Materi') {
+    sheet.appendRow(['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
+  } else if (name == 'Contents') {
+    sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
+  } else if (name == 'KTA_Applications') {
+    sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
+  } else if (name == 'Training_Applications') {
+    sheet.appendRow(['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
+  } else if (name == 'Activity_Applications') {
+    sheet.appendRow(['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
+  } else if (name == 'Activities') {
+    sheet.appendRow(['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
+  } else if (name == 'Activity_Categories') {
+    sheet.appendRow(['id', 'name', 'createdAt']);
+    var defaultCats = ['Silaturahmi', 'Baitul Arqam', 'Latihan', 'Rapat', 'Lainnya'];
+    defaultCats.forEach(function(c, i) {
+      sheet.appendRow(['cat-' + (i + 1), c, new Date().toISOString()]);
+    });
+  } else if (name == 'Settings') {
+    sheet.appendRow(['key', 'value']);
+    sheet.appendRow(['appName', 'Aplikasi HW Banyumas']);
+    sheet.appendRow(['orgName', 'Kwarda Hizbul Wathan Banyumas']);
+    sheet.appendRow(['lastBackup', '-']);
   }
   return sheet;
 }
@@ -515,110 +540,155 @@ function getRobustValue(obj, keyVariants) {
 }
 
 function handleGetMembers() {
+  var ss;
+  if (SPREADSHEET_ID) {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
   var userSheet = getSheet('Users');
   var users = getRowsAsObjects(userSheet);
   
-  // Auto-sync missing members from Training_Applications and KTA_Applications
-  var trainSheet = getSheet('Training_Applications');
-  var trains = getRowsAsObjects(trainSheet);
-  
-  var ktaSheet = getSheet('KTA_Applications');
-  var ktas = getRowsAsObjects(ktaSheet);
-  var ktaHeaders = ktaSheet.getRange(1, 1, 1, ktaSheet.getLastColumn()).getValues()[0].map(function(h) {
-    return h ? h.toString().trim().toLowerCase() : "";
-  });
-  var ktaStatusColIdx = ktaHeaders.indexOf('status');
-  
-  var existingEmails = {};
+  // Track existing members by ID, Email, KTA, and Name to prevent duplicate entries
+  var existingMap = {};
+  var memberList = [];
+
+  function cleanKey(str) {
+    return (str || "").toString().trim().toLowerCase();
+  }
+
+  function formatDateVal(val) {
+    if (!val) return "";
+    if (val instanceof Date) {
+      var y = val.getFullYear();
+      var m = ('0' + (val.getMonth() + 1)).slice(-2);
+      var d = ('0' + val.getDate()).slice(-2);
+      return y + '-' + m + '-' + d;
+    }
+    return val.toString().trim();
+  }
+
   users.forEach(function(u) {
-    var email = (u.email || u.Email || "").toString().trim().toLowerCase();
-    if (email) existingEmails[email] = true;
+    var email = cleanKey(getRobustValue(u, ['email', 'Email', 'alamatEmail', 'alamat_email']));
+    var nama = (getRobustValue(u, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap']) || '').toString().trim();
+    var id = (getRobustValue(u, ['id', 'Id', 'userId', 'userid']) || '').toString().trim();
+    var kta = (getRobustValue(u, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm']) || '').toString().trim();
+
+    if (id) existingMap['id:' + id] = true;
+    if (email) existingMap['email:' + email] = true;
+    if (kta) existingMap['kta:' + kta] = true;
+    if (nama) existingMap['name:' + cleanKey(nama)] = true;
+
+    var cleanUser = {
+      id: id || (email ? 'user-' + email.replace(/[^a-zA-Z0-9]/g, '_') : 'user-' + new Date().getTime()),
+      email: email,
+      namaLengkap: nama || 'Anggota HW',
+      jenisKelamin: getRobustValue(u, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk']) || 'L',
+      golongan: getRobustValue(u, ['golongan', 'tingkatan', 'jenjang']) || 'Dewasa',
+      golonganPelatih: getRobustValue(u, ['golonganPelatih', 'golonganpelatih']) || '',
+      pelatihan: getRobustValue(u, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan']) || '[]',
+      pendidikan: getRobustValue(u, ['pendidikan']) || '',
+      asalKwarda: getRobustValue(u, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah']) || '',
+      qabilah: getRobustValue(u, ['qabilah', 'pangkalan', 'gudep']) || '',
+      alamat: getRobustValue(u, ['alamat', 'domisili']) || '',
+      tempatLahir: getRobustValue(u, ['tempatLahir', 'tempatlahir', 'tempat_lahir']) || '',
+      tanggalLahir: formatDateVal(getRobustValue(u, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir'])),
+      noHp: getRobustValue(u, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'whatsapp']) || '',
+      sosmed: getRobustValue(u, ['sosmed', 'instagram']) || '',
+      role: getRobustValue(u, ['role', 'roles']) || 'umum',
+      roles: getRobustValue(u, ['roles', 'role']) || '["umum"]',
+      activeRole: getRobustValue(u, ['activeRole', 'activerole', 'role']) || 'umum',
+      isVerified: getRobustValue(u, ['isVerified', 'isverified']) === true || getRobustValue(u, ['isVerified', 'isverified']) === 'true' || getRobustValue(u, ['isVerified', 'isverified']) === 1,
+      ktaNumber: kta,
+      photo: getRobustValue(u, ['photo', 'foto', 'photoUrl', 'image']) || ''
+    };
+    memberList.push(cleanUser);
   });
-  
-  var addedAny = false;
-  
-  function addMissing(email, nama, noWa, sosmed, golongan, tingkatan, asalDaerah, qabilah, jenisKelamin) {
-    var cleanEmail = (email || "").toString().trim().toLowerCase();
-    if (!cleanEmail || existingEmails[cleanEmail]) return;
+
+  // Auto-scan all other sheets in workbook for additional registered members
+  var allSheets = ss.getSheets();
+  allSheets.forEach(function(sh) {
+    var shName = sh.getName();
+    var shLower = shName.toLowerCase();
     
-    var id = 'user-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
-    var headers = userSheet.getRange(1, 1, 1, userSheet.getLastColumn()).getValues()[0];
-    var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
-    
-    var rowData = new Array(headers.length).fill("");
-    headerLowers.forEach(function(hLower, i) {
-      if (hLower === 'id') rowData[i] = id;
-      else if (hLower === 'email') rowData[i] = cleanEmail;
-      else if (hLower === 'password') rowData[i] = '12345hw'; // Default password
-      else if (hLower === 'namalengkap') rowData[i] = nama || "";
-      else if (hLower === 'role') rowData[i] = '[\"umum\"]';
-      else if (hLower === 'pendidikan') rowData[i] = "";
-      else if (hLower === 'pelatihan') rowData[i] = JSON.stringify(tingkatan ? [tingkatan] : []);
-      else if (hLower === 'jeniskelamin') rowData[i] = jenisKelamin || "L";
-      else if (hLower === 'golongan') rowData[i] = golongan || "Dewasa";
-      else if (hLower === 'asalkwarda') rowData[i] = asalDaerah || "Banyumas";
-      else if (hLower === 'qabilah') rowData[i] = qabilah || "";
-      else if (hLower === 'alamat') rowData[i] = "";
-      else if (hLower === 'isverified') rowData[i] = true; // Auto-verified
-      else if (hLower === 'sosmed') rowData[i] = sosmed || "";
-      else if (hLower === 'nohp') rowData[i] = noWa || "";
-      else if (hLower === 'token') rowData[i] = "";
-      else if (hLower === 'upgraderequests') rowData[i] = "[]";
-    });
-    
-    userSheet.appendRow(rowData);
-    existingEmails[cleanEmail] = true;
-    addedAny = true;
-  }
-  
-  trains.forEach(function(t) {
-    var email = t.email || t.Email || t.emailAddress || t.EmailAddress;
-    var nama = t.namaLengkap || t.nama || t.NamaLengkap || t.Nama || t.nama_lengkap;
-    var noWa = t.noHp || t.nohp || t.noWa || t.nowa || t.NoWa || t.noWhatsApp || t.NoWhatsApp;
-    var sosmed = t.sosmed || t.Sosmed || t.instagram || t.Instagram;
-    var tingkatan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.pelatihan || t.tingkatan;
-    var asalDaerah = t.asalKwarda || t.asalkwarda || t.asalDaerah || t.asaldaerah || t.AsalDaerah || t.asalCabang || t.AsalCabang;
-    var qabilah = t.qabilah || t.Qabilah;
-    var jenisKelamin = t.jenisKelamin || t.jeniskelamin || t.JenisKelamin || t.gender || t.Gender || "L";
-    
-    if (email && nama) {
-      addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
+    // Check if sheet contains member/user/registration records
+    var isMemberSheet = (
+      shLower.indexOf('user') !== -1 ||
+      shLower.indexOf('anggota') !== -1 ||
+      shLower.indexOf('member') !== -1 ||
+      shLower.indexOf('master') !== -1 ||
+      shLower.indexOf('sheet1') !== -1 ||
+      shLower.indexOf('form response') !== -1 ||
+      shLower.indexOf('peserta') !== -1 ||
+      shLower === 'kta_applications' ||
+      shLower === 'training_applications'
+    );
+
+    if (!isMemberSheet || shName === 'Users' || shName === 'Materi' || shName === 'Contents' || shName === 'Settings' || shName === 'Activity_Categories') {
+      return;
+    }
+
+    try {
+      var rows = getRowsAsObjects(sh);
+      rows.forEach(function(row, rIdx) {
+        var rNama = (getRobustValue(row, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Full Name', 'Nama Peserta']) || '').toString().trim();
+        if (!rNama || rNama === '-' || rNama.toLowerCase() === 'tanpa nama' || rNama.toLowerCase() === 'nama lengkap' || rNama.indexOf('@') !== -1) return;
+
+        var rEmail = cleanKey(getRobustValue(row, ['email', 'Email', 'alamatEmail', 'alamat_email', 'E-mail']));
+        var rKta = (getRobustValue(row, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA']) || '').toString().trim();
+        var rPhone = (getRobustValue(row, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'whatsapp', 'No HP', 'No WA']) || '').toString().trim();
+        var rId = (getRobustValue(row, ['id', 'Id', 'userId', 'userid']) || '').toString().trim();
+
+        var isAlreadyPresent = (
+          (rId && existingMap['id:' + rId]) ||
+          (rEmail && existingMap['email:' + rEmail]) ||
+          (rKta && existingMap['kta:' + rKta]) ||
+          (rNama && existingMap['name:' + cleanKey(rNama)])
+        );
+
+        if (!isAlreadyPresent) {
+          var fallbackEmail = rEmail || (rPhone ? 'user_' + rPhone.replace(/[^0-9]/g, '') + '@hwjateng.com' : 'user_' + cleanKey(rNama).replace(/[^a-z0-9]/g, '_') + '@hwjateng.com');
+          var fallbackId = rId || ('member-' + shLower.replace(/[^a-z0-9]/g, '_') + '-' + (rIdx + 1));
+
+          var newMember = {
+            id: fallbackId,
+            email: fallbackEmail,
+            namaLengkap: rNama,
+            jenisKelamin: getRobustValue(row, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk', 'Jenis Kelamin']) || 'L',
+            golongan: getRobustValue(row, ['golongan', 'tingkatan', 'jenjang', 'Golongan']) || 'Dewasa',
+            golonganPelatih: getRobustValue(row, ['golonganPelatih', 'golonganpelatih']) || '',
+            pelatihan: getRobustValue(row, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan', 'Pelatihan']) || '[]',
+            pendidikan: getRobustValue(row, ['pendidikan', 'Pendidikan']) || '',
+            asalKwarda: getRobustValue(row, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah', 'Kwarcab']) || '',
+            qabilah: getRobustValue(row, ['qabilah', 'pangkalan', 'gudep', 'Qabilah']) || '',
+            alamat: getRobustValue(row, ['alamat', 'domisili', 'Alamat']) || '',
+            tempatLahir: getRobustValue(row, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || '',
+            tanggalLahir: formatDateVal(getRobustValue(row, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir'])),
+            noHp: rPhone,
+            sosmed: getRobustValue(row, ['sosmed', 'instagram', 'Sosmed']) || '',
+            role: 'umum',
+            roles: '["umum"]',
+            activeRole: 'umum',
+            isVerified: true,
+            ktaNumber: rKta,
+            photo: getRobustValue(row, ['photo', 'foto', 'photoUrl', 'image', 'Foto']) || ''
+          };
+
+          if (fallbackId) existingMap['id:' + fallbackId] = true;
+          if (fallbackEmail) existingMap['email:' + fallbackEmail] = true;
+          if (rKta) existingMap['kta:' + rKta] = true;
+          if (rNama) existingMap['name:' + cleanKey(rNama)] = true;
+
+          memberList.push(newMember);
+        }
+      });
+    } catch (e) {
+      // Continue safely if a specific sheet fails
     }
   });
-  
-  ktas.forEach(function(k, idx) {
-    var kStatus = (k.status || k.Status || "").toString().trim().toLowerCase();
-    var ktaNum = (k.ktaNumber || k.KtaNumber || k.Ktanumber || k.ktanumber || "").toString().trim();
-    
-    // Auto-approve if they have a KTA number but status is not approved
-    if (ktaNum !== "" && kStatus !== "approved" && ktaStatusColIdx > -1) {
-      ktaSheet.getRange(idx + 2, ktaStatusColIdx + 1).setValue('approved');
-      k.status = 'approved';
-      kStatus = 'approved';
-    }
-    
-    // Only auto-sync if they have a KTA (either approved status or has KTA number)
-    if (kStatus === 'approved' || ktaNum !== "") {
-      var email = k.email || k.Email || k.emailAddress || k.EmailAddress;
-      var nama = k.namaLengkap || k.nama || k.NamaLengkap || k.Nama || k.nama_lengkap;
-      var noWa = k.noHp || k.nohp || k.noWa || k.nowa || k.NoWa;
-      var sosmed = k.sosmed || k.Sosmed;
-      var tingkatan = k.pelatihan || k.tingkatan;
-      var asalDaerah = k.asalKwarda || k.asalkwarda || k.asalDaerah || k.asaldaerah || k.AsalDaerah;
-      var qabilah = k.qabilah || k.Qabilah;
-      var jenisKelamin = k.jenisKelamin || k.jeniskelamin || k.JenisKelamin || "L";
-      
-      if (email && nama) {
-        addMissing(email, nama, noWa, sosmed, "Dewasa", tingkatan, asalDaerah, qabilah, jenisKelamin);
-      }
-    }
-  });
-  
-  if (addedAny) {
-    users = getRowsAsObjects(userSheet);
-  }
-  
-  return responseOk(users.map(function(m) { 
+
+  return responseOk(memberList.map(function(m) { 
     delete m.password; 
     return m; 
   }));
@@ -1540,30 +1610,106 @@ function handleSaveKTAApplication(data) {
 
 // TRAINING HANDLERS
 function handleGetTrainingApplications() {
-  var apps = getRowsAsObjects(getSheet('Training_Applications'));
-  
-  var normalizedApps = apps.map(function(app) {
-    var cleanApp = {};
-    for (var key in app) {
-      var lowerKey = key.toLowerCase();
-      var clientKey = key;
-      if (lowerKey === 'userid') clientKey = 'userId';
-      else if (lowerKey === 'nowa') clientKey = 'noWa';
-      else if (lowerKey === 'asaldaerah') clientKey = 'asalDaerah';
-      else if (lowerKey === 'tanggalajuan') clientKey = 'tanggalAjuan';
-      else if (lowerKey === 'pelatihanakandiikuti') clientKey = 'pelatihanAkanDiikuti';
-      else if (lowerKey === 'tempatlahir') clientKey = 'tempatLahir';
-      else if (lowerKey === 'tanggallahir') clientKey = 'tanggalLahir';
-      else if (lowerKey === 'jeniskelamin') clientKey = 'jenisKelamin';
-      else if (lowerKey === 'lokasipelatihan') clientKey = 'lokasiPelatihan';
-      else if (lowerKey === 'tanggalpelatihan') clientKey = 'tanggalPelatihan';
-      
-      cleanApp[clientKey] = app[key];
+  var ss;
+  if (SPREADSHEET_ID) {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
+  var existingMap = {};
+  var allTrainApps = [];
+
+  function cleanKey(str) {
+    return (str || "").toString().trim().toLowerCase();
+  }
+
+  function formatDateVal(val) {
+    if (!val) return "";
+    if (val instanceof Date) {
+      var y = val.getFullYear();
+      var m = ('0' + (val.getMonth() + 1)).slice(-2);
+      var d = ('0' + val.getDate()).slice(-2);
+      return y + '-' + m + '-' + d;
     }
-    return cleanApp;
+    return val.toString().trim();
+  }
+
+  var allSheets = ss.getSheets();
+  allSheets.forEach(function(sh) {
+    var shName = sh.getName();
+    var shLower = shName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    var isTrainingSheet = (
+      shLower.indexOf('training') !== -1 ||
+      shLower.indexOf('pelatihan') !== -1 ||
+      shLower.indexOf('diklat') !== -1 ||
+      shLower === 'trainingapplications' ||
+      shLower === 'training_applications' ||
+      shLower === 'pendaftarpelatihan' ||
+      shLower === 'pesertapelatihan'
+    );
+
+    // Skip non-training sheets
+    if (!isTrainingSheet || shName === 'Users' || shName === 'Materi' || shName === 'Contents' || shName === 'Settings' || shName === 'Activity_Categories') {
+      return;
+    }
+
+    try {
+      var rows = getRowsAsObjects(sh);
+      rows.forEach(function(row, rIdx) {
+        var rNama = (getRobustValue(row, ['nama', 'namaLengkap', 'namalengkap', 'Nama', 'nama_lengkap', 'Nama Peserta', 'Full Name']) || '').toString().trim();
+        if (!rNama || rNama === '-' || rNama.toLowerCase() === 'tanpa nama' || rNama.indexOf('@') !== -1) return;
+
+        var rId = (getRobustValue(row, ['id', 'Id', 'trainId', 'trainid']) || '').toString().trim();
+        var rEmail = cleanKey(getRobustValue(row, ['email', 'Email', 'alamatEmail', 'alamat_email']));
+        var rPhone = (getRobustValue(row, ['noWa', 'nowa', 'noHp', 'nohp', 'phone', 'whatsapp', 'No WA', 'No HP']) || '').toString().trim();
+        var rPelatihan = (getRobustValue(row, ['pelatihanAkanDiikuti', 'pelatihanakandiikuti', 'tingkatan', 'pelatihan', 'namaPelatihan', 'Pelatihan']) || '').toString().trim();
+
+        var dedupeKey = rId ? ('id_' + rId) : (rPhone && rPelatihan ? ('p_' + rPhone.replace(/\D/g, '') + '_' + cleanKey(rPelatihan)) : ('ne_' + cleanKey(rNama) + '_' + cleanKey(rPelatihan)));
+
+        if (!existingMap[dedupeKey]) {
+          existingMap[dedupeKey] = true;
+
+          var cleanApp = {
+            id: rId || ('train-' + (rIdx + 1) + '-' + new Date().getTime().toString().slice(-4)),
+            userId: getRobustValue(row, ['userId', 'userid', 'idUser', 'id_user']) || '',
+            nama: rNama,
+            namaLengkap: rNama,
+            noWa: rPhone,
+            noHp: rPhone,
+            email: rEmail,
+            sosmed: getRobustValue(row, ['sosmed', 'Sosmed', 'instagram', 'Instagram']) || '',
+            photo: getRobustValue(row, ['photo', 'foto', 'photoUrl', 'Foto']) || '',
+            tingkatan: getRobustValue(row, ['tingkatan', 'jenjang', 'Tingkatan']) || rPelatihan,
+            pelatihanAkanDiikuti: rPelatihan,
+            asalDaerah: getRobustValue(row, ['asalDaerah', 'asaldaerah', 'asalKwarda', 'asalkwarda', 'kwarda', 'kwarcab', 'Asal Daerah', 'Asal Kwarda']) || '',
+            status: getRobustValue(row, ['status', 'Status']) || 'approved',
+            tanggalAjuan: formatDateVal(getRobustValue(row, ['tanggalAjuan', 'tanggalajuan', 'tanggalDaftar', 'tanggaldaftar', 'Tanggal'])) || new Date().toISOString(),
+            tempatLahir: getRobustValue(row, ['tempatLahir', 'tempatlahir', 'Tempat Lahir']) || '',
+            tanggalLahir: formatDateVal(getRobustValue(row, ['tanggalLahir', 'tanggallahir', 'Tanggal Lahir'])),
+            jenisKelamin: getRobustValue(row, ['jenisKelamin', 'jeniskelamin', 'gender', 'Jenis Kelamin']) || 'L',
+            qabilah: getRobustValue(row, ['qabilah', 'Qabilah', 'pangkalan', 'gudep']) || '',
+            kehadiran: getRobustValue(row, ['kehadiran', 'Kehadiran', 'presensi']) || '',
+            tugas: getRobustValue(row, ['tugas', 'Tugas']) || '',
+            nilai: getRobustValue(row, ['nilai', 'Nilai', 'score']) || '',
+            remark: getRobustValue(row, ['remark', 'catatan', 'keterangan']) || '',
+            statusKelulusan: getRobustValue(row, ['statusKelulusan', 'statuskelulusan', 'kelulusan', 'Status Kelulusan']) || '',
+            lokasiPelatihan: getRobustValue(row, ['lokasiPelatihan', 'lokasipelatihan', 'lokasi', 'tempat', 'Lokasi']) || '',
+            tanggalPelatihan: formatDateVal(getRobustValue(row, ['tanggalPelatihan', 'tanggalpelatihan', 'tglPelatihan', 'Tanggal Pelatihan'])),
+            pelatihGolongan: getRobustValue(row, ['pelatihGolongan', 'pelatihgolongan']) || '',
+            golonganAnggota: getRobustValue(row, ['golonganAnggota', 'golongananggota', 'golongan']) || ''
+          };
+
+          allTrainApps.push(cleanApp);
+        }
+      });
+    } catch (e) {
+      // Continue safely if a sheet format is different
+    }
   });
 
-  return responseOk(normalizedApps);
+  return responseOk(allTrainApps);
 }
 
 function handleApplyTraining(data) {
@@ -2211,16 +2357,98 @@ function cleanGasName(n) {
 }
 
 function handleGetActivityApplications() {
-  var sheet = getSheet('Activity_Applications');
-  var requiredHeaders = ['id', 'activityid', 'namakegiatan', 'userid', 'namalengkap', 'email', 'unsur', 'utusan', 'qabilahptma', 'jabatan', 'kategoriundangan', 'nohp', 'asalkwarda', 'qabilah', 'status', 'tanggaldaftar'];
-  ensureHeaders('Activity_Applications', requiredHeaders);
+  var ss;
+  if (SPREADSHEET_ID) {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
 
-  try {
-    deduplicateSheetActivityApplications(sheet);
-  } catch (e) {}
+  var existingMap = {};
+  var allActApps = [];
 
-  var apps = getRowsAsObjects(sheet);
-  return responseOk(apps);
+  function cleanKey(str) {
+    return (str || "").toString().trim().toLowerCase();
+  }
+
+  function formatDateVal(val) {
+    if (!val) return "";
+    if (val instanceof Date) {
+      var y = val.getFullYear();
+      var m = ('0' + (val.getMonth() + 1)).slice(-2);
+      var d = ('0' + val.getDate()).slice(-2);
+      return y + '-' + m + '-' + d;
+    }
+    return val.toString().trim();
+  }
+
+  var allSheets = ss.getSheets();
+  allSheets.forEach(function(sh) {
+    var shName = sh.getName();
+    var shLower = shName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    var isActAppSheet = (
+      shLower.indexOf('activity_application') !== -1 ||
+      shLower.indexOf('activityapplication') !== -1 ||
+      shLower.indexOf('pendaftarkegiatan') !== -1 ||
+      shLower.indexOf('pendaftarankegiatan') !== -1 ||
+      shLower.indexOf('pesertakegiatan') !== -1 ||
+      shLower.indexOf('pendaftar') !== -1 ||
+      shLower.indexOf('peserta') !== -1 ||
+      shLower.indexOf('formresponses') !== -1 ||
+      shLower.indexOf('responformulir') !== -1
+    );
+
+    // Skip sheets that are training specific or other master tables
+    if (!isActAppSheet || shName === 'Users' || shName === 'Materi' || shName === 'Contents' || shName === 'Settings' || shName === 'Activity_Categories' || shName === 'Activities' || shName === 'Kegiatan' || shLower.indexOf('training') !== -1 || shLower.indexOf('pelatihan') !== -1) {
+      return;
+    }
+
+    try {
+      var rows = getRowsAsObjects(sh);
+      rows.forEach(function(row, rIdx) {
+        var rNama = (getRobustValue(row, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Nama Lengkap', 'Full Name']) || '').toString().trim();
+        if (!rNama || rNama === '-' || rNama.toLowerCase() === 'tanpa nama') return;
+
+        var rId = (getRobustValue(row, ['id', 'Id', 'actRegId', 'actregid', 'ID Registrasi']) || '').toString().trim();
+        var rEmail = cleanKey(getRobustValue(row, ['email', 'Email', 'alamatEmail', 'alamat_email']));
+        var rPhone = (getRobustValue(row, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'whatsapp', 'No HP', 'No WA', 'Nomor HP']) || '').toString().trim();
+        var rActName = (getRobustValue(row, ['namaKegiatan', 'namakegiatan', 'kegiatan', 'nama_kegiatan', 'Kegiatan', 'Acara', 'title']) || '').toString().trim();
+        var rActId = (getRobustValue(row, ['activityId', 'activityid', 'kegiatanId', 'kegiatanid', 'idKegiatan', 'id_kegiatan']) || '').toString().trim();
+
+        var dedupeKey = rId ? ('id_' + rId) : (rPhone && rNama ? ('pn_' + cleanGasPhone(rPhone) + '_' + cleanGasName(rNama) + '_' + cleanKey(rActName || rActId)) : ('ne_' + cleanGasName(rNama) + '_' + cleanKey(rEmail) + '_' + cleanKey(rActName)));
+
+        if (!existingMap[dedupeKey]) {
+          existingMap[dedupeKey] = true;
+
+          var cleanApp = {
+            id: rId || ('actreg-' + (rIdx + 1) + '-' + new Date().getTime().toString().slice(-4)),
+            activityId: rActId || (rActName ? ('keg-' + cleanKey(rActName).slice(0, 20)) : 'keg-silaturahmi-pelatih'),
+            namaKegiatan: rActName || 'Kegiatan Hizbul Wathan',
+            userId: getRobustValue(row, ['userId', 'userid', 'idUser', 'id_user']) || '',
+            namaLengkap: rNama,
+            email: rEmail,
+            unsur: getRobustValue(row, ['unsur', 'Unsur']) || '',
+            utusan: getRobustValue(row, ['utusan', 'Utusan', 'delegasi']) || '',
+            qabilahPtma: getRobustValue(row, ['qabilahPtma', 'qabilahptma', 'ptma', 'qabilah_ptma']) || '',
+            jabatan: getRobustValue(row, ['jabatan', 'Jabatan', 'posisi']) || '',
+            kategoriUndangan: getRobustValue(row, ['kategoriUndangan', 'kategoriundangan', 'kategori_undangan']) || '',
+            noHp: rPhone,
+            asalKwarda: getRobustValue(row, ['asalKwarda', 'asalkwarda', 'asalDaerah', 'asaldaerah', 'kwarda', 'kwarcab', 'Asal Kwarda']) || '',
+            qabilah: getRobustValue(row, ['qabilah', 'Qabilah', 'pangkalan']) || '',
+            status: getRobustValue(row, ['status', 'Status']) || 'approved',
+            tanggalDaftar: formatDateVal(getRobustValue(row, ['tanggalDaftar', 'tanggaldaftar', 'tanggal', 'Tanggal', 'Timestamp'])) || new Date().toISOString()
+          };
+
+          allActApps.push(cleanApp);
+        }
+      });
+    } catch (e) {
+      // Ignore row parsing errors safely
+    }
+  });
+
+  return responseOk(allActApps);
 }
 
 function deduplicateSheetActivityApplications(sheet) {
@@ -2346,73 +2574,126 @@ function handleDeleteActivityApplication(id) {
 }
 
 function handleGetActivities() {
-  var sheet = getSheet('Activities');
-  var apps = getRowsAsObjects(sheet);
-  
-  var normalizedApps = apps.map(function(app) {
-    var cleanApp = {};
-    for (var key in app) {
-      var lowerKey = key.toLowerCase();
-      cleanApp[key] = app[key];
-      if (lowerKey === 'namakegiatan' || lowerKey === 'title') {
-        cleanApp['namaKegiatan'] = app[key];
-        cleanApp['title'] = app[key];
-      } else if (lowerKey === 'jenispelatihan') {
-        cleanApp['jenisPelatihan'] = app[key];
-        if (!cleanApp['namaKegiatan']) cleanApp['namaKegiatan'] = app[key];
-      } else if (lowerKey === 'lokasipelatihan' || lowerKey === 'lokasi' || lowerKey === 'location') {
-        cleanApp['lokasiPelatihan'] = app[key];
-        cleanApp['lokasi'] = app[key];
-        cleanApp['location'] = app[key];
-      } else if (lowerKey === 'tanggalpelatihan' || lowerKey === 'tanggal' || lowerKey === 'startdate') {
-        cleanApp['tanggalPelatihan'] = app[key];
-        cleanApp['tanggal'] = app[key];
-        cleanApp['startDate'] = app[key];
-      } else if (lowerKey === 'biayapelatihan' || lowerKey === 'biaya' || lowerKey === 'infaq') {
-        cleanApp['biayaPelatihan'] = app[key];
-        cleanApp['biaya'] = app[key];
-      } else if (lowerKey === 'proposalurl' || lowerKey === 'proposal' || lowerKey === 'linkproposal') {
-        cleanApp['proposalUrl'] = app[key];
-        cleanApp['proposal'] = app[key];
-        cleanApp['linkProposal'] = app[key];
-      } else if (lowerKey === 'rekeningpembayaran' || lowerKey === 'rekeningpembiayaan') {
-        cleanApp['rekeningPembayaran'] = app[key];
-        cleanApp['rekeningPembiayaan'] = app[key];
-      } else if (lowerKey === 'nowhatsapppanitia' || lowerKey === 'konfirmasipembayaran' || lowerKey === 'nokonfirmasi') {
-        cleanApp['noWhatsappPanitia'] = app[key];
-        cleanApp['konfirmasiPembayaran'] = app[key];
-      } else if (lowerKey === 'themesongurl' || lowerKey === 'themesong') {
-        cleanApp['themeSongUrl'] = app[key];
-        cleanApp['themeSong'] = app[key];
-      } else if (lowerKey === 'themesongtitle' || lowerKey === 'themesongname') {
-        cleanApp['themeSongTitle'] = app[key];
-        cleanApp['themeSongName'] = app[key];
-      } else if (lowerKey.indexOf('gambar') !== -1 || lowerKey.indexOf('image') !== -1 || lowerKey.indexOf('poster') !== -1 || lowerKey.indexOf('cover') !== -1 || lowerKey.indexOf('banner') !== -1) {
-        cleanApp['gambarUrl'] = app[key];
-        cleanApp['imageUrl'] = app[key];
-        cleanApp['gambar'] = app[key];
-        cleanApp['posterUrl'] = app[key];
-        cleanApp['coverImage'] = app[key];
-      } else if (lowerKey === 'kategori' || lowerKey === 'category') {
-        cleanApp['kategori'] = app[key];
-        cleanApp['category'] = app[key];
-      } else if (lowerKey === 'createdat') {
-        cleanApp['createdAt'] = app[key];
-      } else if (lowerKey === 'updatedat') {
-        cleanApp['updatedAt'] = app[key];
-      }
+  var ss;
+  if (SPREADSHEET_ID) {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
+  var existingMap = {};
+  var allActivities = [];
+
+  function cleanKey(str) {
+    return (str || "").toString().trim().toLowerCase();
+  }
+
+  function formatDateVal(val) {
+    if (!val) return "";
+    if (val instanceof Date) {
+      var y = val.getFullYear();
+      var m = ('0' + (val.getMonth() + 1)).slice(-2);
+      var d = ('0' + val.getDate()).slice(-2);
+      return y + '-' + m + '-' + d;
     }
-    
-    if (typeof cleanApp.pelatih === 'string' && cleanApp.pelatih.indexOf('[') === 0) {
-      try { cleanApp.pelatih = JSON.parse(cleanApp.pelatih); } catch(e) {}
+    return val.toString().trim();
+  }
+
+  var allSheets = ss.getSheets();
+  allSheets.forEach(function(sh) {
+    var shName = sh.getName();
+    var shLower = shName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    var isActivitySheet = (
+      shLower === 'activities' ||
+      shLower === 'kegiatan' ||
+      shLower === 'datakegiatan' ||
+      shLower === 'daftarkegiatan' ||
+      shLower === 'agenda' ||
+      shLower === 'events' ||
+      shLower === 'event'
+    );
+
+    // Skip non-activity master tables
+    if (!isActivitySheet && shLower.indexOf('kegiatan') === -1 && shLower.indexOf('agenda') === -1) {
+      return;
     }
-    if (typeof cleanApp.asistenPelatih === 'string' && cleanApp.asistenPelatih.indexOf('[') === 0) {
-      try { cleanApp.asistenPelatih = JSON.parse(cleanApp.asistenPelatih); } catch(e) {}
+
+    // Skip participant registration sheets
+    if (shLower.indexOf('pendaftar') !== -1 || shLower.indexOf('peserta') !== -1 || shLower.indexOf('application') !== -1) {
+      return;
     }
-    return cleanApp;
+
+    try {
+      var rows = getRowsAsObjects(sh);
+      rows.forEach(function(row, rIdx) {
+        var rNama = (getRobustValue(row, ['namaKegiatan', 'namakegiatan', 'title', 'judul', 'Nama Kegiatan', 'nama_kegiatan', 'Judul', 'jenispelatihan', 'jenisPelatihan']) || '').toString().trim();
+        if (!rNama || rNama === '-' || rNama.toLowerCase() === 'tanpa nama') return;
+
+        var rId = (getRobustValue(row, ['id', 'Id', 'ID', 'activityId', 'activityid']) || '').toString().trim();
+        var dedupeKey = rId ? ('id_' + rId) : ('title_' + cleanKey(rNama));
+
+        if (!existingMap[dedupeKey]) {
+          existingMap[dedupeKey] = true;
+
+          var rawImg = getRobustValue(row, ['gambarUrl', 'gambarurl', 'imageUrl', 'imageurl', 'gambar', 'Gambar', 'posterUrl', 'posterurl', 'coverImage', 'coverimage', 'banner', 'foto']) || '';
+          var rawPelatih = getRobustValue(row, ['pelatih', 'Pelatih', 'instruktur']) || '[]';
+          var rawAsisten = getRobustValue(row, ['asistenPelatih', 'asistenpelatih', 'Asisten Pelatih']) || '[]';
+
+          if (typeof rawPelatih === 'string' && rawPelatih.indexOf('[') === 0) {
+            try { rawPelatih = JSON.parse(rawPelatih); } catch(e) {}
+          }
+          if (typeof rawAsisten === 'string' && rawAsisten.indexOf('[') === 0) {
+            try { rawAsisten = JSON.parse(rawAsisten); } catch(e) {}
+          }
+
+          var cleanAct = {
+            id: rId || ('keg-' + (rIdx + 1) + '-' + new Date().getTime().toString().slice(-4)),
+            namaKegiatan: rNama,
+            title: rNama,
+            jenisPelatihan: getRobustValue(row, ['jenisPelatihan', 'jenispelatihan', 'jenis', 'Jenis']) || rNama,
+            lokasiPelatihan: getRobustValue(row, ['lokasiPelatihan', 'lokasipelatihan', 'lokasi', 'tempat', 'Lokasi', 'Tempat']) || '',
+            lokasi: getRobustValue(row, ['lokasiPelatihan', 'lokasipelatihan', 'lokasi', 'tempat', 'Lokasi', 'Tempat']) || '',
+            location: getRobustValue(row, ['lokasiPelatihan', 'lokasipelatihan', 'lokasi', 'tempat', 'Lokasi', 'Tempat']) || '',
+            tanggalPelatihan: formatDateVal(getRobustValue(row, ['tanggalPelatihan', 'tanggalpelatihan', 'tanggal', 'startDate', 'startdate', 'Tanggal', 'Waktu'])),
+            tanggal: formatDateVal(getRobustValue(row, ['tanggalPelatihan', 'tanggalpelatihan', 'tanggal', 'startDate', 'startdate', 'Tanggal', 'Waktu'])),
+            startDate: formatDateVal(getRobustValue(row, ['tanggalPelatihan', 'tanggalpelatihan', 'tanggal', 'startDate', 'startdate', 'Tanggal', 'Waktu'])),
+            biayaPelatihan: getRobustValue(row, ['biayaPelatihan', 'biayapelatihan', 'biaya', 'infaq', 'Biaya', 'Infaq']) || 'Gratis',
+            biaya: getRobustValue(row, ['biayaPelatihan', 'biayapelatihan', 'biaya', 'infaq', 'Biaya', 'Infaq']) || 'Gratis',
+            deskripsi: getRobustValue(row, ['deskripsi', 'description', 'keterangan', 'Deskripsi', 'Keterangan']) || '',
+            description: getRobustValue(row, ['deskripsi', 'description', 'keterangan', 'Deskripsi', 'Keterangan']) || '',
+            kategori: getRobustValue(row, ['kategori', 'category', 'Kategori', 'Category']) || 'Silaturahmi',
+            category: getRobustValue(row, ['kategori', 'category', 'Kategori', 'Category']) || 'Silaturahmi',
+            gambarUrl: rawImg,
+            imageUrl: rawImg,
+            gambar: rawImg,
+            posterUrl: rawImg,
+            coverImage: rawImg,
+            pelatih: rawPelatih,
+            asistenPelatih: rawAsisten,
+            pelatihGolongan: getRobustValue(row, ['pelatihGolongan', 'pelatihgolongan']) || '',
+            golonganAnggota: getRobustValue(row, ['golonganAnggota', 'golongananggota']) || '',
+            penyelenggara: getRobustValue(row, ['penyelenggara', 'panitia', 'Penyelenggara', 'Panitia']) || 'Kwarda Hizbul Wathan Banyumas',
+            kuota: getRobustValue(row, ['kuota', 'quota', 'Kuota', 'Kapasitas']) || '',
+            proposalUrl: getRobustValue(row, ['proposalUrl', 'proposalurl', 'proposal', 'linkProposal', 'linkproposal', 'Proposal']) || '',
+            rekeningPembayaran: getRobustValue(row, ['rekeningPembayaran', 'rekeningpembayaran', 'rekeningPembiayaan', 'rekeningpembiayaan', 'Rekening']) || '',
+            noWhatsappPanitia: getRobustValue(row, ['noWhatsappPanitia', 'nowhatsapppanitia', 'konfirmasiPembayaran', 'konfirmasipembayaran', 'noKonfirmasi', 'kontakPanitia']) || '',
+            themeSongUrl: getRobustValue(row, ['themeSongUrl', 'themesongurl', 'themeSong', 'themesong']) || '',
+            themeSongTitle: getRobustValue(row, ['themeSongTitle', 'themesongtitle', 'themeSongName', 'themesongname']) || '',
+            status: getRobustValue(row, ['status', 'Status']) || 'Buka',
+            createdAt: formatDateVal(getRobustValue(row, ['createdAt', 'createdat', 'created_at'])) || new Date().toISOString(),
+            updatedAt: formatDateVal(getRobustValue(row, ['updatedAt', 'updatedat', 'updated_at'])) || new Date().toISOString()
+          };
+
+          allActivities.push(cleanAct);
+        }
+      });
+    } catch (e) {
+      // Ignore sheet parsing errors safely
+    }
   });
 
-  return responseOk(normalizedApps);
+  return responseOk(allActivities);
 }
 
 function handleSaveActivity(data) {
