@@ -54,7 +54,7 @@ import { prayerService } from '../services/prayerService';
 import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
-import { cn, formatDate, formatTime, getCorsSafeUrl } from '../lib/utils';
+import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
@@ -224,6 +224,20 @@ export default function HomePage() {
       unsubSettings();
     };
   }, []);
+
+  const homeActivityParticipantCountMap = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!activityApps?.length) return map;
+    for (const app of activityApps) {
+      const actId = String(app.activityId || app.activity_id || app.kegiatanId || app.idKegiatan || '').trim().toLowerCase();
+      if (actId) {
+        map[actId] = (map[actId] || 0) + 1;
+        if (actId === 'keg-1') map['keg-silaturahmi-pelatih'] = (map['keg-silaturahmi-pelatih'] || 0) + 1;
+        if (actId === 'keg-silaturahmi-pelatih') map['keg-1'] = (map['keg-1'] || 0) + 1;
+      }
+    }
+    return map;
+  }, [activityApps]);
 
   const activeTrainings = React.useMemo(() => {
     const map = new Map<string, any>();
@@ -1037,10 +1051,10 @@ export default function HomePage() {
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';
                 const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage;
-                const img = getCorsSafeUrl(rawImg, act.updatedAt || act.id);
+                const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
                 const cat = act.kategori || act.category || 'Silaturahmi';
 
-                const pCount = (activityApps || []).filter((app: any) => isParticipantOfActivity(app, act)).length;
+                const pCount = homeActivityParticipantCountMap[act.id] || 0;
 
                 return (
                   <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">
@@ -1049,6 +1063,9 @@ export default function HomePage() {
                         <img 
                           src={img} 
                           alt={title} 
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
                           className="w-full h-full object-cover" 
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';

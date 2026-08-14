@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
-import { getCorsSafeUrl } from '../lib/utils';
+import { getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -51,9 +51,18 @@ export default function KegiatanPage() {
 
   const isAdmin = Boolean(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
 
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('hw_activities');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [activityApps, setActivityApps] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => activities.length === 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
 
@@ -122,7 +131,7 @@ export default function KegiatanPage() {
     utusan: 'Kabupaten Banyumas',
     qabilahPtma: 'Universitas Muhammadiyah Surakarta (UMS)',
     jabatan: 'Anggota',
-    kategoriUndangan: 'Tidak Ada / Umum',
+    kategoriUndangan: 'Peserta',
     noHp: ''
   });
 
@@ -132,26 +141,7 @@ export default function KegiatanPage() {
   const [activityCategoriesList, setActivityCategoriesList] = useState<string[]>(['Rapat HW', 'Silaturahmi', 'Perkemahan', 'Musyawarah']);
 
   useEffect(() => {
-    setIsLoading(true);
-
-    // Initial immediate fetch to show saved data right away without waiting
-    sheetsService.getActivities().then(acts => {
-      if (acts && Array.isArray(acts) && acts.length > 0) {
-        setActivities(acts);
-        setIsLoading(false);
-      }
-    }).catch(err => {
-      console.warn('Initial activities load warning:', err);
-    });
-
-    sheetsService.getActivityApplications().then(apps => {
-      if (apps && Array.isArray(apps) && apps.length > 0) {
-        setActivityApps(apps);
-      }
-    }).catch(err => {
-      console.warn('Initial activity applications load warning:', err);
-    });
-
+    // 1. Subscribe to real-time updates from Firestore (instant & cached)
     const unsubCategories = sheetsService.subscribeToActivityCategories((cats: string[]) => {
       if (cats && Array.isArray(cats)) setActivityCategoriesList(cats);
     });
@@ -167,13 +157,23 @@ export default function KegiatanPage() {
       if (apps && Array.isArray(apps)) setActivityApps(apps);
     });
 
-    // Safety timeout ensuring spinner clears quickly
-    const safetyTimer = setTimeout(() => {
+    // 2. Background fresh fetch from Sheets without blocking UI
+    sheetsService.getActivities().then(acts => {
+      if (acts && Array.isArray(acts) && acts.length > 0) {
+        setActivities(acts);
+      }
       setIsLoading(false);
-    }, 1000);
+    }).catch(() => {
+      setIsLoading(false);
+    });
+
+    sheetsService.getActivityApplications().then(apps => {
+      if (apps && Array.isArray(apps) && apps.length > 0) {
+        setActivityApps(apps);
+      }
+    }).catch(() => {});
 
     return () => {
-      clearTimeout(safetyTimer);
       unsubCategories();
       unsubActivities();
       unsubApps();
@@ -207,16 +207,20 @@ export default function KegiatanPage() {
     ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')
   ], [activityCategoriesList]);
 
+  // High-performance O(N) participant counting
   const participantCountMap = useMemo(() => {
     const map: Record<string, number> = {};
-    if (!activities?.length || !activityApps?.length) return map;
-    for (const act of activities) {
-      if (act?.id) {
-        map[act.id] = activityApps.filter(a => isParticipantOfActivity(a, act)).length;
+    if (!activityApps?.length) return map;
+    for (const app of activityApps) {
+      const actId = String(app.activityId || app.activity_id || app.kegiatanId || app.idKegiatan || '').trim().toLowerCase();
+      if (actId) {
+        map[actId] = (map[actId] || 0) + 1;
+        if (actId === 'keg-1') map['keg-silaturahmi-pelatih'] = (map['keg-silaturahmi-pelatih'] || 0) + 1;
+        if (actId === 'keg-silaturahmi-pelatih') map['keg-1'] = (map['keg-1'] || 0) + 1;
       }
     }
     return map;
-  }, [activities, activityApps]);
+  }, [activityApps]);
 
   const activeParticipantsList = useMemo(() => {
     if (!selectedActivityForParticipants || !activityApps?.length) return [];
@@ -245,6 +249,13 @@ export default function KegiatanPage() {
       return selectedCategory === 'Semua' || act.kategori === selectedCategory;
     });
   }, [activities, searchQuery, selectedCategory, user]);
+
+  const resolveImageUrl = useCallback((url?: string | null) => {
+    if (!url || typeof url !== 'string') return 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const driveDirect = getDriveDirectLink(url);
+    if (driveDirect) return driveDirect;
+    return url.trim();
+  }, []);
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,15 +560,17 @@ export default function KegiatanPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {filteredActivities.map((activity) => (
-            <motion.div
+            <div
               key={activity.id}
-              whileHover={{ y: -2 }}
-              className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col"
+              className="bg-white rounded-3xl border border-gray-150 shadow-xs overflow-hidden hover:shadow-md transition-shadow flex flex-col"
             >
               <div className="w-full h-48 sm:h-56 relative bg-gray-100 shrink-0 overflow-hidden">
                 <img 
-                  src={getCorsSafeUrl(activity.gambarUrl, activity.updatedAt || activity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
+                  src={resolveImageUrl(activity.gambarUrl)} 
                   alt={activity.namaKegiatan} 
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
@@ -654,7 +667,7 @@ export default function KegiatanPage() {
                   )}
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}

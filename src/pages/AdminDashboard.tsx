@@ -576,14 +576,17 @@ export default function AdminDashboard() {
 
   const activityParticipantCountMap = useMemo(() => {
     const map: Record<string, number> = {};
-    if (!activitiesList?.length || !activityApplicationsList?.length) return map;
-    for (const act of activitiesList) {
-      if (act?.id) {
-        map[act.id] = activityApplicationsList.filter(app => isParticipantOfActivity(app, act)).length;
+    if (!activityApplicationsList?.length) return map;
+    for (const app of activityApplicationsList) {
+      const actId = String(app.activityId || app.activity_id || app.kegiatanId || app.idKegiatan || '').trim().toLowerCase();
+      if (actId) {
+        map[actId] = (map[actId] || 0) + 1;
+        if (actId === 'keg-1') map['keg-silaturahmi-pelatih'] = (map['keg-silaturahmi-pelatih'] || 0) + 1;
+        if (actId === 'keg-silaturahmi-pelatih') map['keg-1'] = (map['keg-1'] || 0) + 1;
       }
     }
     return map;
-  }, [activitiesList, activityApplicationsList]);
+  }, [activityApplicationsList]);
 
   const displayedActivityApplications = useMemo(() => {
     if (!activityApplicationsList?.length) return [];

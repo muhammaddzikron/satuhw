@@ -2628,7 +2628,26 @@ export const firestoreService = {
       return true;
     });
 
+    const normPhone = (p: any) => {
+      if (!p) return '';
+      let str = String(p).replace(/\D/g, '');
+      if (str.startsWith('0')) str = str.substring(1);
+      else if (str.startsWith('62')) str = str.substring(2);
+      return str;
+    };
+
+    const normName = (n: any) => {
+      if (!n) return '';
+      let str = String(n).toLowerCase();
+      str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, ' ');
+      str = str.replace(/[^a-z0-9\s]/gi, ' ');
+      return str.replace(/\s+/g, ' ').trim();
+    };
+
     const deduped: any[] = [];
+    const byId = new Map<string, number>();
+    const byActPhone = new Map<string, number>();
+    const byActName = new Map<string, number>();
 
     for (const rawItem of validApps) {
       let actId = rawItem.activityId || rawItem.activity_id || rawItem.kegiatanId || rawItem.idKegiatan || '';
@@ -2668,41 +2687,17 @@ export const firestoreService = {
         tanggalDaftar: rawItem.tanggalDaftar || new Date().toISOString()
       };
 
-      const normPhone = (p: any) => {
-        if (!p) return '';
-        let str = String(p).replace(/\D/g, '');
-        if (str.startsWith('0')) str = str.substring(1);
-        else if (str.startsWith('62')) str = str.substring(2);
-        return str;
-      };
-
-      const normName = (n: any) => {
-        if (!n) return '';
-        let str = String(n).toLowerCase();
-        str = str.replace(/,?\s*(s\.pd|m\.pd|s\.h\.i\.|s\.ag|m\.ag|s\.kom|m\.kom|s\.e\.|m\.m\.|s\.st|dr\.|dra\.|drs\.|h\.|hj\.|ir\.|prof\.|ph\.d|lcm|s\.ip|m\.ip|s\.sos|m\.sos|s\.p|m\.p)\.?/gi, ' ');
-        str = str.replace(/[^a-z0-9\s]/gi, ' ');
-        return str.replace(/\s+/g, ' ').trim();
-      };
-
       const itemPhone = normPhone(normalizedItem.noHp || normalizedItem.noWa);
       const itemNameClean = normName(normalizedItem.namaLengkap);
 
-      const existingIdx = deduped.findIndex(ex => {
-        if (String(ex.id) === String(normalizedItem.id)) return true;
-
-        const exPhone = normPhone(ex.noHp || ex.noWa);
-        const exNameClean = normName(ex.namaLengkap);
-        const sameAct = ex.activityId && normalizedItem.activityId && ex.activityId === normalizedItem.activityId;
-
-        const samePhoneAndName = itemPhone && exPhone && itemPhone === exPhone && itemPhone.length >= 7 &&
-          (itemNameClean === exNameClean || (itemNameClean && exNameClean && (itemNameClean.includes(exNameClean) || exNameClean.includes(itemNameClean))));
-
-        const samePhoneAndAct = itemPhone && exPhone && itemPhone === exPhone && itemPhone.length >= 7 && sameAct;
-
-        const sameNameAndAct = itemNameClean && exNameClean && itemNameClean === exNameClean && itemNameClean.length >= 3 && sameAct;
-
-        return samePhoneAndName || samePhoneAndAct || sameNameAndAct;
-      });
+      let existingIdx = -1;
+      if (byId.has(normalizedItem.id)) {
+        existingIdx = byId.get(normalizedItem.id)!;
+      } else if (itemPhone && itemPhone.length >= 7 && byActPhone.has(`${actId}:${itemPhone}`)) {
+        existingIdx = byActPhone.get(`${actId}:${itemPhone}`)!;
+      } else if (itemNameClean && itemNameClean.length >= 3 && byActName.has(`${actId}:${itemNameClean}`)) {
+        existingIdx = byActName.get(`${actId}:${itemNameClean}`)!;
+      }
 
       if (existingIdx >= 0) {
         const existing = deduped[existingIdx];
@@ -2726,7 +2721,15 @@ export const firestoreService = {
           tanggalDaftar: normalizedItem.tanggalDaftar || existing.tanggalDaftar || new Date().toISOString()
         };
       } else {
+        const newIdx = deduped.length;
         deduped.push(normalizedItem);
+        byId.set(normalizedItem.id, newIdx);
+        if (itemPhone && itemPhone.length >= 7) {
+          byActPhone.set(`${actId}:${itemPhone}`, newIdx);
+        }
+        if (itemNameClean && itemNameClean.length >= 3) {
+          byActName.set(`${actId}:${itemNameClean}`, newIdx);
+        }
       }
     }
 
