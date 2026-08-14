@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { copyToClipboard } from '../lib/utils';
 
 interface CopyAccountButtonProps {
   accountNumber?: string;
@@ -16,20 +17,11 @@ export const CopyAccountButton: React.FC<CopyAccountButtonProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const cleanNum = String(accountNumber || '7307427448').replace(/[^0-9]/g, '') || '7307427448';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(cleanNum);
-    } else {
-      const textArea = document.createElement('textarea');
-      textArea.value = cleanNum;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-    }
+    await copyToClipboard(cleanNum);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

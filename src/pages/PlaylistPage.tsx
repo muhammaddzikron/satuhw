@@ -31,6 +31,7 @@ import { sheetsService } from '../services/sheetsService';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatAudioUrl } from '../utils/audioUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
+import { copyToClipboard } from '../lib/utils';
 
 export const PlaylistPage: React.FC = () => {
   const navigate = useNavigate();
@@ -199,7 +200,9 @@ export const PlaylistPage: React.FC = () => {
     if (loopMode === 'one') {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play();
+        audioRef.current.play().catch(err => {
+          console.warn('Loop playback warning:', err);
+        });
       }
     } else if (loopMode === 'all' || autoPlayEnabled) {
       handleNextTrack();
@@ -260,15 +263,15 @@ export const PlaylistPage: React.FC = () => {
   };
 
   // Copy song link / lyrics
-  const handleCopyLink = (track: any) => {
+  const handleCopyLink = async (track: any) => {
     const url = track.audioUrl || window.location.href;
-    navigator.clipboard.writeText(url);
+    await copyToClipboard(url);
     setCopiedId(track.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleCopyLyrics = (lyricsText: string) => {
-    navigator.clipboard.writeText(lyricsText);
+  const handleCopyLyrics = async (lyricsText: string) => {
+    await copyToClipboard(lyricsText);
     setCopiedLyrics(true);
     setTimeout(() => setCopiedLyrics(false), 2000);
   };

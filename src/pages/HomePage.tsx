@@ -372,7 +372,9 @@ export default function HomePage() {
         audioRef.current?.pause();
         setIsPlaying(false);
       } else {
-        audioRef.current?.play();
+        audioRef.current?.play().catch(err => {
+          console.warn('Playback resume warning:', err);
+        });
         setIsPlaying(true);
       }
     } else {

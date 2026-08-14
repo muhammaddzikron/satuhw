@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Zap, Share2, Compass, RefreshCw, Copy, Check, ArrowLeft, ChevronLeft, ChevronRight, Languages, ArrowLeftRight } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, copyToClipboard } from '../lib/utils';
 import { GoogleGenAI } from "@google/genai";
 
 let ai: GoogleGenAI | null = null;
@@ -120,8 +120,8 @@ export default function ToolsPage() {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(output);
+  const handleCopy = async () => {
+    await copyToClipboard(output);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

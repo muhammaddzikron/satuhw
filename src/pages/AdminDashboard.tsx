@@ -4708,16 +4708,24 @@ export default function AdminDashboard() {
                             </button>
                             <button 
                               type="button"
-                              onClick={() => {
-                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                  navigator.clipboard.writeText(codeGsText);
-                                } else {
-                                  const textarea = document.createElement('textarea');
-                                  textarea.value = codeGsText;
-                                  document.body.appendChild(textarea);
-                                  textarea.select();
-                                  document.execCommand('copy');
-                                  document.body.removeChild(textarea);
+                              onClick={async () => {
+                                try {
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(codeGsText);
+                                  } else {
+                                    throw new Error('Fallback');
+                                  }
+                                } catch {
+                                  try {
+                                    const textarea = document.createElement('textarea');
+                                    textarea.value = codeGsText;
+                                    document.body.appendChild(textarea);
+                                    textarea.select();
+                                    document.execCommand('copy');
+                                    document.body.removeChild(textarea);
+                                  } catch (e) {
+                                    console.warn('Copy script error:', e);
+                                  }
                                 }
                                 setCopiedScript(true);
                                 setTimeout(() => setCopiedScript(false), 2000);
