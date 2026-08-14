@@ -333,7 +333,7 @@ function ensureHeaders(sheetName, requiredHeaders) {
 function handleSyncDatabase() {
   ensureHeaders('Users', ['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests', 'photo', 'tempatLahir', 'tanggalLahir']);
   ensureHeaders('Materi', ['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
-  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4']);
+  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6']);
   ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
   ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
   ensureHeaders('Activity_Applications', ['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
@@ -1046,6 +1046,8 @@ function handleSaveContent(data) {
     else if (header === 'field2') rowData[i] = data.field2 || "";
     else if (header === 'field3') rowData[i] = data.field3 || "";
     else if (header === 'field4') rowData[i] = data.field4 || "";
+    else if (header === 'field5') rowData[i] = data.field5 || data.lyrics || data.lirik || "";
+    else if (header === 'field6') rowData[i] = data.field6 || "";
   });
   
   if (rowIndex > -1) {

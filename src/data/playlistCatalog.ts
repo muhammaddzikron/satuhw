@@ -62,31 +62,6 @@ Mengabdi tulus untuk sesama!`,
       bgBadge: 'bg-emerald-50 text-emerald-800 border-emerald-200'
     }
   },
-  'sang surya': {
-    title: 'Sang Surya (Mars Muhammadiyah)',
-    creator: 'Djarnawi Hadikusuma',
-    category: 'Mars & Lagu Wajib',
-    lyrics: `Sang Surya tetap bersinar
-Syahadat dua melingkar
-Warna yang hijau berseri
-Membuat rela hati
-
-Ya Allah Tuhan Rabbiku
-Muhammad petunjukku
-Al-Islam agamaku
-Muhammadiyah gerakanku
-
-Di timur fajar merekah
-Mengajak bangun berbakti
-Mengabdi pada Ilahi
-Dengan ikhlas tulus hati`,
-    theme: {
-      gradient: 'from-amber-500 via-orange-600 to-yellow-800',
-      textAccent: 'text-amber-700',
-      borderAccent: 'border-amber-200',
-      bgBadge: 'bg-amber-50 text-amber-900 border-amber-200'
-    }
-  },
   'hymne hizbul wathan': {
     title: 'Hymne HW Panduku',
     creator: 'H.M. Affandi',
@@ -148,8 +123,8 @@ Jayalah Hizbul Wathan selamanya!`,
     }
   },
   'sahabat hw': {
-    title: 'Sahabat HW (Official)',
-    creator: 'Muhammad Dzikron',
+    title: 'Sahabat HW',
+    creator: 'Kwarnas HW',
     category: 'Lagu Pandu & Motivasi',
     lyrics: `Bersama kita melangkah
 Menembus cakrawala asa
@@ -169,7 +144,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`,
   },
   'hw untuk indonesia': {
     title: 'HW Untuk Indonesia',
-    creator: 'Muhammad Dzikron',
+    creator: 'Kwarwil HW Jateng',
     category: 'Lagu Pandu & Semangat',
     lyrics: `Dari ujung timur hingga ke barat
 Pandu Hizbul Wathan berhimpun erat
@@ -187,9 +162,54 @@ Maju bersama, jaya selamanya!`,
       bgBadge: 'bg-rose-50 text-rose-800 border-rose-200'
     }
   },
+  'mahrojan penghela': {
+    title: 'Mahrojan Penghela',
+    creator: 'Pandu Penghela HW',
+    category: 'Lagu Pandu & Semangat',
+    lyrics: `Derap langkah penghela berderap maju
+Menatap masa depan cerah berseri
+Di arena Mahrojan kita berpadu
+Membina karya dan bakti negeri
+
+Jiwa pandu yang tangguh dan satria
+Fas-tabiqul khairat penuntun jiwa
+Hizbul Wathan pandu perwira
+Jaya sentosa sepanjang masa!`,
+    theme: {
+      gradient: 'from-purple-600 via-indigo-700 to-slate-900',
+      textAccent: 'text-purple-700',
+      borderAccent: 'border-purple-200',
+      bgBadge: 'bg-purple-50 text-purple-800 border-purple-200'
+    }
+  },
+  'sang surya': {
+    title: 'Sang Surya (Mars Muhammadiyah)',
+    creator: 'Djarnawi Hadikusuma',
+    category: 'Mars & Lagu Wajib',
+    lyrics: `Sang Surya tetap bersinar
+Syahadat dua melingkar
+Warna yang hijau berseri
+Membuat rela hati
+
+Ya Allah Tuhan Rabbiku
+Muhammad petunjukku
+Al-Islam agamaku
+Muhammadiyah gerakanku
+
+Di timur fajar merekah
+Mengajak bangun berbakti
+Mengabdi pada Ilahi
+Dengan ikhlas tulus hati`,
+    theme: {
+      gradient: 'from-amber-500 via-orange-600 to-yellow-800',
+      textAccent: 'text-amber-700',
+      borderAccent: 'border-amber-200',
+      bgBadge: 'bg-amber-50 text-amber-900 border-amber-200'
+    }
+  },
   'mars aisyiyah': {
     title: 'Mars Aisyiyah',
-    creator: 'Muhammad Dzikron',
+    creator: 'Ny. Hj. Siti Badilah Zuber',
     category: 'Mars & Lagu Wajib',
     lyrics: `Wahai warga Aisyiyah sejati
 Sadarlah akan panggilan suci
@@ -215,15 +235,15 @@ export const resolveTrackMetadata = (track: any) => {
 
   // Try matching known HW song dictionary
   let matchedKey = Object.keys(KNOWN_HW_SONGS).find(key => 
-    lowerTitle.includes(key) || key.includes(lowerTitle)
+    lowerTitle === key || lowerTitle.includes(key) || key.includes(lowerTitle)
   );
 
   const matched = matchedKey ? KNOWN_HW_SONGS[matchedKey] : null;
 
-  // Custom metadata from Admin input takes precedence, followed by matched catalog, then fallback to Muhammad Dzikron.
-  const creator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || 'Muhammad Dzikron').trim();
-  const category = (track?.field4 || track?.kategori || track?.category || matched?.category || 'Lagu Pandu HW').trim();
-  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan merdu audio ini melalui player.').trim();
+  // Custom metadata from Admin/Spreadsheet input takes precedence, followed by matched catalog, then fallback
+  const creator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || '').trim() || 'Pandu Hizbul Wathan';
+  const category = (track?.field4 || track?.kategori || track?.category || matched?.category || '').trim() || 'Lagu Pandu HW';
+  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
 
   // Color theme
   const themes = [

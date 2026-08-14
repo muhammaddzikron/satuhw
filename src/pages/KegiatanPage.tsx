@@ -59,10 +59,35 @@ export default function KegiatanPage() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) {}
-    return [];
+    return [
+      {
+        id: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        kategori: 'Silaturahmi',
+        category: 'Silaturahmi',
+        tanggal: '29-30 Agustus 2026',
+        startDate: '2026-08-29',
+        endDate: '2026-08-30',
+        lokasi: 'Unimugo Kebumen',
+        location: 'Unimugo Kebumen',
+        biaya: 'Infaq: Rp 100.000 / Kwarda/Qabilah PTMA',
+        status: 'Buka',
+        kuota: '200 Orang',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        gambarUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        rekeningPembayaran: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        konfirmasiPembayaran: '089688754000',
+        noWhatsappPanitia: '089688754000',
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
+        isPublished: true
+      }
+    ];
   });
   const [activityApps, setActivityApps] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(() => activities.length === 0);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
 

@@ -1641,14 +1641,32 @@ export const sheetsService = {
     ];
   },
 
+  subscribeToContents(callback: (contents: Content[]) => void): () => void {
+    return firestoreService.subscribeToContents(callback);
+  },
+
   async getContents(section?: string): Promise<Content[]> {
     if (IS_API_VALID) {
       try {
         const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
+        let apiData: Content[] = [];
         if (Array.isArray(response.data) && response.data.length > 0) {
-          return response.data;
+          apiData = response.data;
         } else if (response.data && Array.isArray(response.data.contents) && response.data.contents.length > 0) {
-          return response.data.contents;
+          apiData = response.data.contents;
+        }
+        if (apiData.length > 0) {
+          const sanitized = apiData.map(c => {
+            if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+              return {
+                ...c,
+                field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+                field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+              };
+            }
+            return c;
+          });
+          return section ? sanitized.filter((c: any) => c.section === section) : sanitized;
         }
       } catch (error) {
         console.warn('getContents API error, falling back to Firestore:', (error as any)?.message || error);
@@ -2275,14 +2293,14 @@ export const sheetsService = {
       {
         id: 'galeri-1',
         section: 'galeri',
-        field1: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        field2: 'Lagu Mars Hizbul Wathan'
+        field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+        field2: 'Mars Gerakan Kepanduan Hizbul Wathan'
       },
       {
         id: 'galeri-2',
         section: 'galeri',
         field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
-        field2: 'Profil Kwarda Banyumas'
+        field2: 'Profil Kwartir Wilayah HW Jawa Tengah'
       },
       {
         id: 'sosmed-1',
@@ -2302,42 +2320,50 @@ export const sheetsService = {
       {
         id: 'playlist-1',
         section: 'playlist',
-        field1: 'https://drive.google.com/file/d/1v7WraV30e1Bk8zQpLeghz5fHbKCsyHtG/view?usp=drive_link',
-        field2: 'Sahabat HW (Official)',
-        field3: 'Kwarnas Gerakan Kepanduan HW',
+        field1: 'https://hwjateng.org/musik/sahabathw.mp3',
+        field2: 'Sahabat HW',
+        field3: 'Kwarnas HW',
         field4: 'Lagu Pandu & Motivasi'
       },
       {
         id: 'playlist-2',
         section: 'playlist',
-        field1: 'https://drive.google.com/file/d/1Zq0rDBB3QUeYv_Ya4fbN5wJTjlzg3btH/view',
+        field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3',
         field2: 'HW Untuk Indonesia',
-        field3: 'Kwarda HW & Tim Musik Pandu',
+        field3: 'Kwarwil HW Jateng',
         field4: 'Lagu Pandu & Semangat'
       },
       {
         id: 'playlist-3',
         section: 'playlist',
-        field1: 'https://hwjateng.com/audio/mars_hizbul_wathan.mp3',
-        field2: 'Mars Hizbul Wathan',
+        field1: 'https://hwjateng.org/musik/marshw.mp3',
+        field2: 'Mars HW',
         field3: 'H. Siradj Dahlan',
         field4: 'Mars & Lagu Wajib'
       },
       {
         id: 'playlist-4',
         section: 'playlist',
-        field1: 'https://hwjateng.com/audio/sang_surya.mp3',
-        field2: 'Sang Surya (Mars Muhammadiyah)',
-        field3: 'Djarnawi Hadikusuma',
-        field4: 'Mars & Lagu Wajib'
+        field1: 'https://hwjateng.org/musik/hymnehw.mp3',
+        field2: 'Hymne HW Panduku',
+        field3: 'H.M. Affandi',
+        field4: 'Hymne'
       },
       {
         id: 'playlist-5',
         section: 'playlist',
-        field1: 'https://hwjateng.com/audio/hymne_hw.mp3',
-        field2: 'Hymne HW Panduku',
-        field3: 'H.M. Affandi',
-        field4: 'Hymne'
+        field1: 'https://hwjateng.org/musik/mahrojanpenghela.mp3',
+        field2: 'Mahrojan Penghela',
+        field3: 'Pandu HW',
+        field4: 'Lagu Pandu & Semangat'
+      },
+      {
+        id: 'playlist-6',
+        section: 'playlist',
+        field1: 'https://hwjateng.com/audio/sang_surya.mp3',
+        field2: 'Sang Surya (Mars Muhammadiyah)',
+        field3: 'Djarnawi Hadikusuma',
+        field4: 'Mars & Lagu Wajib'
       }
     ];
   },

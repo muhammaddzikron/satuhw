@@ -321,15 +321,47 @@ const Navigation = () => {
 
 const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fullWidth?: boolean }) => (
   <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    transition={{ duration: 0.3 }}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.2 }}
     className={cn("pb-32 sm:pb-36 pt-4 px-4 mx-auto", fullWidth ? "max-w-7xl" : "max-w-md")}
   >
     {children}
   </motion.div>
 );
+
+const AnimatedRoutes = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location}>
+        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+        <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+        <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
+        <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
+        <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+        <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
+        <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
+        <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
+        <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
+        <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
+        <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
+        <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
+        <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
+        <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+        <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
 
 export default function App() {
   const { isAuthenticated, user, updateUser } = useAuthStore();
@@ -398,31 +430,7 @@ export default function App() {
         <Header />
         <main className="flex-1 overflow-x-hidden">
           <ErrorBoundary>
-            <AnimatePresence mode="wait">
-              <Routes>
-                <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-                <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-                <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-                <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
-                <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
-                <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
-                <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
-                <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
-                <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-                <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
-                <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
-                <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
-                <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
-                <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
-                <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
-                <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
-                <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
-                <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
-                <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
-                <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </AnimatePresence>
+            <AnimatedRoutes />
           </ErrorBoundary>
         </main>
         <Navigation />

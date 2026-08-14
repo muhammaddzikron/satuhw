@@ -2201,14 +2201,65 @@ export const firestoreService = {
   },
 
   // --- CONTENTS ---
+  subscribeToContents(callback: (contents: Content[]) => void): () => void {
+    try {
+      const unsub = onSnapshot(collection(db, 'contents'), (snap) => {
+        let contents: Content[] = [];
+        if (!snap.empty) {
+          contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
+        }
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          try {
+            if (contents.length > 0) {
+              // Sanitize any outdated dummy videos from cache
+              const sanitized = contents.map(c => {
+                if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+                  return {
+                    ...c,
+                    field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+                    field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+                  };
+                }
+                return c;
+              });
+              localStorage.setItem('contents', JSON.stringify(sanitized));
+              callback(sanitized);
+              return;
+            }
+          } catch (e) {}
+        }
+        callback(contents);
+      }, (err) => {
+        this.checkQuotaError(err);
+        console.warn('subscribeToContents warning:', err);
+        this.getContents().then(c => callback(c)).catch(() => callback([]));
+      });
+      return unsub;
+    } catch (e) {
+      console.error('subscribeToContents error:', e);
+      this.getContents().then(c => callback(c)).catch(() => callback([]));
+      return () => {};
+    }
+  },
+
   async getContents(): Promise<Content[]> {
     if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
         if (!snap.empty) {
           const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-          localStorage.setItem('contents', JSON.stringify(contents));
-          return contents;
+          const sanitized = contents.map(c => {
+            if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+              return {
+                ...c,
+                field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+                field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+              };
+            }
+            return c;
+          });
+          localStorage.setItem('contents', JSON.stringify(sanitized));
+          return sanitized;
         }
       } catch (err) {
         this.checkQuotaError(err);
@@ -2216,7 +2267,21 @@ export const firestoreService = {
       }
     }
     const stored = localStorage.getItem('contents') || '[]';
-    return JSON.parse(stored);
+    try {
+      const parsed = JSON.parse(stored);
+      return (parsed || []).map((c: any) => {
+        if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+          return {
+            ...c,
+            field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+            field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+          };
+        }
+        return c;
+      });
+    } catch {
+      return [];
+    }
   },
 
   async saveContent(item: Content): Promise<Content> {

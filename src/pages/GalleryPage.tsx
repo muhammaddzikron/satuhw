@@ -8,21 +8,33 @@ import LoadingPage from './LoadingPage';
 
 export default function GalleryPage() {
   const navigate = useNavigate();
-  const [galleryItems, setGalleryItems] = useState<Content[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [galleryItems, setGalleryItems] = useState<Content[]>(() => {
+    try {
+      const stored = localStorage.getItem('contents');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const gal = parsed.filter((c: any) => c.section === 'galeri');
+          if (gal.length > 0) return gal;
+        }
+      }
+    } catch (e) {}
+    return sheetsService.getMockContents().filter(c => c.section === 'galeri');
+  });
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchGallery = async () => {
-      try {
-        const data = await sheetsService.getContents('galeri');
-        setGalleryItems(data);
-      } finally {
-        setLoading(false);
+    const unsub = sheetsService.subscribeToContents((contents) => {
+      if (contents && contents.length > 0) {
+        const gal = contents.filter(c => c.section === 'galeri');
+        if (gal.length > 0) setGalleryItems(gal);
       }
+    });
+    return () => {
+      unsub();
     };
-    fetchGallery();
   }, []);
 
   if (loading) return <LoadingPage />;

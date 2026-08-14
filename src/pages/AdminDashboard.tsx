@@ -607,7 +607,8 @@ export default function AdminDashboard() {
     field1: '',
     field2: '',
     field3: '',
-    field4: ''
+    field4: '',
+    field5: ''
   });
 
   const [passwordFormData, setPasswordFormData] = useState({
@@ -2263,7 +2264,8 @@ export default function AdminDashboard() {
         field1: content.field1 || '',
         field2: content.field2 || '',
         field3: content.field3 || '',
-        field4: content.field4 || ''
+        field4: content.field4 || '',
+        field5: content.field5 || content.lyrics || (content as any).lirik || ''
       });
     } else {
       setEditingContent(null);
@@ -2271,7 +2273,8 @@ export default function AdminDashboard() {
         field1: '',
         field2: '',
         field3: '',
-        field4: ''
+        field4: '',
+        field5: ''
       });
     }
     setIsContentModalOpen(true);
@@ -2306,7 +2309,8 @@ export default function AdminDashboard() {
         field1: contentFormData.field1,
         field2: contentFormData.field2,
         field3: contentFormData.field3,
-        field4: contentFormData.field4
+        field4: contentFormData.field4,
+        field5: contentFormData.field5 || ''
       };
 
       if (editingContent) {
@@ -2334,7 +2338,8 @@ export default function AdminDashboard() {
         field1: '',
         field2: '',
         field3: '',
-        field4: ''
+        field4: '',
+        field5: ''
       });
     } catch (error: any) {
       alert('Gagal menyimpan konten: ' + (error.message || 'Error tidak diketahui'));
@@ -9644,6 +9649,17 @@ export default function AdminDashboard() {
                             className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
                           />
                           <p className="px-2 text-[9px] text-gray-400 font-bold italic">*Pastikan link Google Drive sudah diatur "Siapa saja yang memiliki link dapat melihat"</p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teks Lirik Lagu Lengkap (Opsional)</label>
+                          <textarea 
+                            rows={5}
+                            value={contentFormData.field5}
+                            onChange={(e) => setContentFormData({...contentFormData, field5: e.target.value})}
+                            placeholder="Tuliskan lirik lagu atau mars di sini per baris..."
+                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-medium text-xs outline-none focus:ring-2 focus:ring-hw-green/20 font-mono" 
+                          />
+                          <p className="px-2 text-[9px] text-gray-400">Lirik ini akan langsung tampil saat pengguna mengklik tombol Lirik di pemutar musik.</p>
                         </div>
                       </div>
                     )}

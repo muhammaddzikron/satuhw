@@ -48,7 +48,8 @@ import {
   Download,
   Share,
   Disc,
-  Radio
+  Radio,
+  Square
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -57,7 +58,7 @@ import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
-import { isOnlyTrainingActivity } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
@@ -95,8 +96,6 @@ const FeatureCard = ({ to, icon: Icon, label }: { to: string, icon: any, label: 
   </Link>
 );
 
-import { isParticipantOfActivity } from '../utils/activityUtils';
-
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
@@ -116,16 +115,70 @@ export default function HomePage() {
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
-  // Pre-initialize contents from mock defaults to eliminate layout shift / skeleton flicker
-  const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-  const [galleryItems, setGalleryItems] = useState<Content[]>(() => initialContents.filter((c: any) => c.section === 'galeri'));
-  const [playlistItems, setPlaylistItems] = useState<Content[]>(() => initialContents.filter((c: any) => c.section === 'playlist'));
-  const [sosmed, setSosmed] = useState<Content | null>(() => initialContents.find((c: any) => c.section === 'sosmed') || null);
-  const [kontak, setKontak] = useState<Content | null>(() => initialContents.find((c: any) => c.section === 'kontak') || null);
+  // Pre-initialize contents from cached contents or fresh defaults
+  const [galleryItems, setGalleryItems] = useState<Content[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('contents') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        const gal = stored.filter((c: any) => c.section === 'galeri');
+        if (gal.length > 0) {
+          return gal.map((c: any) => c.field1?.includes('dQw4w9WgXcQ') ? { ...c, field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8', field2: 'Mars Gerakan Kepanduan Hizbul Wathan' } : c);
+        }
+      }
+    } catch {}
+    const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
+    return initialContents.filter((c: any) => c.section === 'galeri');
+  });
+
+  const [playlistItems, setPlaylistItems] = useState<Content[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('contents') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        const pl = stored.filter((c: any) => c.section === 'playlist');
+        if (pl.length > 0) return pl;
+      }
+    } catch {}
+    const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
+    return initialContents.filter((c: any) => c.section === 'playlist');
+  });
+
+  const [sosmed, setSosmed] = useState<Content | null>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('contents') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        const sm = stored.find((c: any) => c.section === 'sosmed');
+        if (sm) return sm;
+      }
+    } catch {}
+    const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
+    return initialContents.find((c: any) => c.section === 'sosmed') || null;
+  });
+
+  const [kontak, setKontak] = useState<Content | null>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('contents') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        const kt = stored.find((c: any) => c.section === 'kontak');
+        if (kt) return kt;
+      }
+    } catch {}
+    const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
+    return initialContents.find((c: any) => c.section === 'kontak') || null;
+  });
+
   const [showSosmedModal, setShowSosmedModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
-  const [runningText, setRunningText] = useState<string>('Selamat Datang di Portal Resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah - Satu HW Jateng | Fastabiqul Khairat');
+  const [runningText, setRunningText] = useState<string>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('contents') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        const rt = stored.find((c: any) => c.section === 'running-text');
+        if (rt?.field1) return rt.field1;
+      }
+    } catch {}
+    return 'Selamat Datang di Portal Resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah - Satu HW Jateng | Fastabiqul Khairat';
+  });
   const [myKtaApp, setMyKtaApp] = useState<any | null>(null);
 
   useEffect(() => {
@@ -207,13 +260,27 @@ export default function HomePage() {
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
   const [activityApps, setActivityApps] = useState<any[]>([]);
 
-  // Subscribe to real-time activities, activity applications, and settings so edited activities in Admin immediately update on HomePage
+  // Subscribe to real-time activities, activity applications, contents, and settings so edited activities/contents in Admin immediately update on HomePage
   useEffect(() => {
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       setActivitiesList(acts || []);
     });
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
       setActivityApps(apps || []);
+    });
+    const unsubContents = sheetsService.subscribeToContents((contents: Content[]) => {
+      if (contents && contents.length > 0) {
+        const gal = contents.filter(c => c.section === 'galeri');
+        if (gal.length > 0) setGalleryItems(gal);
+        const pl = contents.filter(c => c.section === 'playlist');
+        if (pl.length > 0) setPlaylistItems(pl);
+        const sm = contents.find(c => c.section === 'sosmed');
+        if (sm) setSosmed(sm);
+        const kt = contents.find(c => c.section === 'kontak');
+        if (kt) setKontak(kt);
+        const rt = contents.find(c => c.section === 'running-text');
+        if (rt?.field1) setRunningText(rt.field1);
+      }
     });
     const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
       if (sData && sData.trainingActivities) {
@@ -228,6 +295,7 @@ export default function HomePage() {
     return () => {
       unsubActivities();
       unsubApps();
+      unsubContents();
       unsubSettings();
     };
   }, []);
@@ -381,6 +449,22 @@ export default function HomePage() {
       setCurrentTrackIndex(index);
       setIsPlaying(true);
     }
+  };
+
+  const handleClosePlayer = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+    setCurrentTrackIndex(null);
+  };
+
+  const handleStopTrack = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
   };
 
   const handleNextTrack = () => {
@@ -1189,17 +1273,18 @@ export default function HomePage() {
       {/* Centered Floating Audio Player Modal */}
       <AnimatePresence>
         {currentTrackIndex !== null && playlistItems[currentTrackIndex] && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="home-audio-player-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
             {/* Background dismiss click listener */}
             <div 
               className="absolute inset-0"
-              onClick={() => {
-                if (audioRef.current) {
-                  audioRef.current.pause();
-                  setIsPlaying(false);
-                }
-                setCurrentTrackIndex(null);
-              }}
+              onClick={handleClosePlayer}
             />
 
             <motion.div 
@@ -1227,13 +1312,7 @@ export default function HomePage() {
                       {/* Close 'X' button to dismiss */}
                       <button 
                         type="button"
-                        onClick={() => {
-                          if (audioRef.current) {
-                            audioRef.current.pause();
-                            setIsPlaying(false);
-                          }
-                          setCurrentTrackIndex(null);
-                        }}
+                        onClick={handleClosePlayer}
                         className="w-8 h-8 rounded-full bg-white/10 hover:bg-rose-500 text-gray-300 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10 shadow-md active:scale-90"
                         title="Tutup Pemutar Musik"
                       >
@@ -1290,7 +1369,7 @@ export default function HomePage() {
                     )}
 
                     {/* Playback Controls */}
-                    <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-white/10 relative z-10">
+                    <div className="flex items-center justify-center gap-2.5 sm:gap-3 mt-4 pt-4 border-t border-white/10 relative z-10">
                       {/* Auto play toggle */}
                       <button 
                         type="button"
@@ -1307,23 +1386,33 @@ export default function HomePage() {
                       <button 
                         type="button"
                         onClick={handlePrevTrack}
-                        className="p-2.5 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                        className="p-2 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
                         title="Lagu Sebelumnya"
                       >
-                        <SkipBack size={22} fill="currentColor" />
+                        <SkipBack size={20} fill="currentColor" />
+                      </button>
+
+                      {/* Stop Button */}
+                      <button 
+                        type="button"
+                        onClick={handleStopTrack}
+                        className="w-10 h-10 bg-white/10 hover:bg-rose-500/80 active:scale-95 text-gray-300 hover:text-white rounded-full flex items-center justify-center border border-white/10 shadow-md transition-all cursor-pointer"
+                        title="Hentikan Lagu (Stop)"
+                      >
+                        <Square size={16} fill="currentColor" />
                       </button>
 
                       {/* Main Play/Pause */}
                       <button 
                         type="button"
                         onClick={() => handlePlayTrack(currentTrackIndex)}
-                        className="w-14 h-14 bg-hw-green hover:bg-emerald-400 active:scale-95 text-slate-950 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30 transition-all cursor-pointer"
+                        className="w-13 h-13 bg-hw-green hover:bg-emerald-400 active:scale-95 text-slate-950 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30 transition-all cursor-pointer"
                         title={isPlaying ? "Jeda" : "Putar"}
                       >
                         {isPlaying ? (
-                          <Pause size={24} fill="currentColor" />
+                          <Pause size={22} fill="currentColor" />
                         ) : (
-                          <Play size={24} fill="currentColor" className="ml-1" />
+                          <Play size={22} fill="currentColor" className="ml-0.5" />
                         )}
                       </button>
 
@@ -1331,10 +1420,10 @@ export default function HomePage() {
                       <button 
                         type="button"
                         onClick={handleNextTrack}
-                        className="p-2.5 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                        className="p-2 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
                         title="Lagu Selanjutnya"
                       >
-                        <SkipForward size={22} fill="currentColor" />
+                        <SkipForward size={20} fill="currentColor" />
                       </button>
 
                       {/* Link to Full Playlist */}
@@ -1351,7 +1440,7 @@ export default function HomePage() {
                 );
               })()}
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1403,17 +1492,25 @@ export default function HomePage() {
       {/* Install App / Add to Home Screen Interactive Guide Modal */}
       <AnimatePresence>
         {showInstallModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <motion.div 
+            key="home-install-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          >
+            <div className="absolute inset-0" onClick={() => setShowInstallModal(false)} />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.25rem] border border-gray-100 max-w-sm w-full p-6 shadow-2xl relative space-y-4"
+              className="bg-white rounded-[2.25rem] border border-gray-100 max-w-sm w-full p-6 shadow-2xl relative space-y-4 z-10"
             >
               {/* Close Button */}
               <button 
                 onClick={() => setShowInstallModal(false)}
-                className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -1467,7 +1564,7 @@ export default function HomePage() {
                     <div className="flex gap-3 items-start">
                       <div className="w-5 h-5 bg-hw-green/10 text-hw-green rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
                       <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
-                        Pilih menu <strong className="text-gray-800">"Tambahkan ke Layar Utama"</strong> atau <strong className="text-gray-800">"Instal Aplikasi"</strong>.
+                        Pilih menu <strong className="text-gray-800">&quot;Tambahkan ke Layar Utama&quot;</strong> atau <strong className="text-gray-800">&quot;Instal Aplikasi&quot;</strong>.
                       </p>
                     </div>
                   </div>
@@ -1490,7 +1587,7 @@ export default function HomePage() {
                     <div className="flex gap-3 items-start">
                       <div className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
                       <p className="text-[11px] text-gray-600 leading-normal font-medium text-left">
-                        Gulir ke bawah, lalu pilih menu <strong className="text-gray-800">"Tambahkan ke Layar Utama"</strong>.
+                        Gulir ke bawah, lalu pilih menu <strong className="text-gray-800">&quot;Tambahkan ke Layar Utama&quot;</strong>.
                       </p>
                     </div>
                   </div>
@@ -1500,24 +1597,32 @@ export default function HomePage() {
               {/* Confirm / Action button */}
               <button 
                 onClick={() => setShowInstallModal(false)}
-                className="w-full bg-hw-green hover:bg-hw-green/95 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                className="w-full bg-hw-green hover:bg-hw-green/95 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98] cursor-pointer"
               >
                 Mengerti & Selesai
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal Jenis Pelatihan HW Jateng */}
       <AnimatePresence>
         {showTrainingModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="home-training-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="absolute inset-0" onClick={() => setShowTrainingModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] relative z-10"
             >
               {/* Header */}
               <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 text-white flex items-center justify-between relative">
@@ -1604,19 +1709,27 @@ export default function HomePage() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal Syarat KTA Otomatis */}
       <AnimatePresence>
         {showRequirementModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="home-req-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="absolute inset-0" onClick={() => setShowRequirementModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 p-6 space-y-5 text-center relative"
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 p-6 space-y-5 text-center relative z-10"
             >
               <button
                 onClick={() => setShowRequirementModal(false)}
@@ -1660,19 +1773,27 @@ export default function HomePage() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal Social Media HW */}
       <AnimatePresence>
         {showSosmedModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="home-sosmed-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="absolute inset-0" onClick={() => setShowSosmedModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] relative z-10"
             >
               {/* Header */}
               <div className="p-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between relative">
@@ -1756,19 +1877,27 @@ export default function HomePage() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal Kontak & Hubungi Kami */}
       <AnimatePresence>
         {showContactModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="home-contact-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="absolute inset-0" onClick={() => setShowContactModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] relative z-10"
             >
               {/* Header */}
               <div className="p-5 bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 text-white flex items-center justify-between relative">
@@ -1864,7 +1993,7 @@ export default function HomePage() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

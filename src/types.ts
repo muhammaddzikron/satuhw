@@ -80,6 +80,9 @@ export interface Content {
   field2?: string;
   field3?: string;
   field4?: string;
+  field5?: string;
+  field6?: string;
+  lyrics?: string;
   title?: string;
   body?: string;
   image?: string;
