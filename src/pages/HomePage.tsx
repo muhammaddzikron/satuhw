@@ -56,6 +56,7 @@ import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
+import { resolveTrackMetadata } from '../data/playlistCatalog';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
   if (onClick) {
@@ -451,44 +452,62 @@ export default function HomePage() {
   );
 
   const PlaylistPreview = () => (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {playlistItems.length === 0 ? (
         <div className="p-4 bg-white rounded-3xl border border-gray-100 flex items-center justify-center">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Belum ada playlist</p>
         </div>
       ) : (
-        playlistItems.slice(0, 5).map((track, idx) => {
+        playlistItems.slice(0, 5).map((rawTrack, idx) => {
           const isCurrent = currentTrackIndex === idx;
+          const track = resolveTrackMetadata(rawTrack);
           return (
             <div 
               key={track.id || idx}
               className={cn(
-                "p-3 rounded-2xl border transition-all flex items-center gap-3",
-                isCurrent ? "bg-hw-green/5 border-hw-green/10" : "bg-white border-gray-100"
+                "p-3 rounded-2xl border transition-all flex items-center gap-3 group",
+                isCurrent 
+                  ? "bg-emerald-50/80 border-emerald-300 shadow-xs ring-1 ring-hw-green/20" 
+                  : "bg-white hover:bg-gray-50/80 border-gray-150 shadow-2xs hover:border-gray-300"
               )}
             >
               <button 
+                type="button"
                 onClick={() => handlePlayTrack(idx)}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm",
-                  isCurrent && isPlaying ? "bg-hw-green text-white" : "bg-gray-50 text-hw-green hover:bg-hw-green hover:text-white"
+                  "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all shadow-xs cursor-pointer active:scale-95",
+                  isCurrent && isPlaying 
+                    ? "bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30" 
+                    : "bg-emerald-50 text-emerald-800 hover:bg-hw-green hover:text-white border border-emerald-200/60"
                 )}
+                title={isCurrent && isPlaying ? "Jeda" : "Putar"}
               >
                 {isCurrent && isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
               </button>
+
               <div className="flex-1 min-w-0">
-                <h4 className={cn("text-xs font-bold truncate", isCurrent ? "text-hw-green" : "text-gray-800")}>
-                  {track.field2 || 'Untitled Audio'}
+                <h4 className={cn("text-xs font-bold truncate", isCurrent ? "text-emerald-950 font-black" : "text-gray-900")}>
+                  {track.title}
                 </h4>
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Audio HW</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100/60 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate max-w-[200px]">
+                    Cipt: {track.creator}
+                  </span>
+                  {track.category && (
+                    <span className="hidden sm:inline-block text-[9px] font-extrabold text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded truncate">
+                      {track.category}
+                    </span>
+                  )}
+                </div>
               </div>
+
               {isCurrent && isPlaying && (
-                <div className="flex gap-0.5 items-end h-3 pr-2">
+                <div className="flex gap-0.5 items-end h-3.5 pr-1 shrink-0">
                   {[0.6, 0.4, 0.8, 0.5, 0.7].map((h, i) => (
                     <motion.div 
                       key={i}
-                      animate={{ height: ['40%', '100%', '40%'] }}
-                      transition={{ repeat: Infinity, duration: h + 0.5, delay: i * 0.1 }}
+                      animate={{ height: ['30%', '100%', '30%'] }}
+                      transition={{ repeat: Infinity, duration: h + 0.4, delay: i * 0.1 }}
                       className="w-0.5 bg-hw-green rounded-full"
                     />
                   ))}
@@ -499,8 +518,8 @@ export default function HomePage() {
         })
       )}
       {playlistItems.length > 5 && (
-        <Link to="/playlist" className="block text-center py-2 text-[9px] font-black text-hw-green uppercase tracking-widest bg-hw-green/5 rounded-xl border border-dashed border-hw-green/20">
-          Lihat Semua {playlistItems.length} Audio
+        <Link to="/playlist" className="block text-center py-2 text-[9px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 hover:bg-emerald-100/80 rounded-xl border border-dashed border-emerald-300 transition-all">
+          Lihat Semua {playlistItems.length} Audio & Mars
         </Link>
       )}
     </div>
@@ -1190,7 +1209,12 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                      <p className="text-[7px] font-black text-hw-green uppercase tracking-[0.2em] mb-0.5">Sedang Diputar</p>
-                     <h3 className="text-[11px] font-bold truncate pr-16">{playlistItems[currentTrackIndex]?.field2}</h3>
+                     <h3 className="text-[11px] font-bold truncate pr-16">
+                       {playlistItems[currentTrackIndex]?.field2 || 'Untitled Audio'}
+                     </h3>
+                     <p className="text-[9px] text-emerald-400 font-bold truncate">
+                       Cipt: {resolveTrackMetadata(playlistItems[currentTrackIndex])?.creator}
+                     </p>
                   </div>
                   <button 
                     onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}

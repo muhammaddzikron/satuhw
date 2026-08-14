@@ -4365,7 +4365,13 @@ export default function AdminDashboard() {
                                   <h4 className="text-xs font-bold text-gray-800 truncate uppercase">
                                     {selectedContentSection === 'running-text' ? 'Teks Berjalan' : (selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section))}
                                   </h4>
-                                  <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
+                                  {selectedContentSection === 'playlist' ? (
+                                    <p className="text-[10px] text-emerald-700 truncate font-bold">
+                                      Cipt: {item.field3 || 'Muhammad Dzikron'} {item.field4 ? `• ${item.field4}` : ''}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
+                                  )}
                                 </div>
                   <div className="flex gap-1">
                     <button 
@@ -9580,25 +9586,56 @@ export default function AdminDashboard() {
                     {selectedContentSection === 'playlist' && (
                       <div className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Judul Audio/Mars</label>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Judul Audio / Lagu / Mars *</label>
                           <input 
                             type="text" 
                             value={contentFormData.field2}
                             onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
-                            placeholder="Judul Audio..."
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            placeholder="Contoh: Mars Hizbul Wathan"
+                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
                           />
                         </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Pencipta / Penggubah</label>
+                            <input 
+                              type="text" 
+                              value={contentFormData.field3}
+                              onChange={(e) => setContentFormData({...contentFormData, field3: e.target.value})}
+                              placeholder="Contoh: Muhammad Dzikron / K.H. Siradj Dahlan"
+                              className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori / Genre</label>
+                            <input 
+                              type="text" 
+                              value={contentFormData.field4}
+                              onChange={(e) => setContentFormData({...contentFormData, field4: e.target.value})}
+                              placeholder="Contoh: Mars & Lagu Wajib / Hymne / Lagu Pandu"
+                              list="kategori-playlist-options"
+                              className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            />
+                            <datalist id="kategori-playlist-options">
+                              <option value="Mars & Lagu Wajib" />
+                              <option value="Hymne" />
+                              <option value="Lagu Pandu & Motivasi" />
+                              <option value="Lagu Pandu & Semangat" />
+                              <option value="Pop Islami" />
+                              <option value="Riang Pandu Athfal & Pengenal" />
+                            </datalist>
+                          </div>
+                        </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Link File (Google Drive/Audio URL)</label>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Link File Audio (Google Drive / Direct URL / MP3) *</label>
                           <input 
                             type="text" 
                             value={contentFormData.field1}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             placeholder="https://drive.google.com/file/d/..."
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
                           />
-                          <p className="px-2 text-[9px] text-gray-400 font-bold italic">*Pastikan link Drive sudah diatur "Siaoa saja yang memiliki link dapat melihat"</p>
+                          <p className="px-2 text-[9px] text-gray-400 font-bold italic">*Pastikan link Google Drive sudah diatur "Siapa saja yang memiliki link dapat melihat"</p>
                         </div>
                       </div>
                     )}

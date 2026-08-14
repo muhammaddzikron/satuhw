@@ -2303,13 +2303,41 @@ export const sheetsService = {
         id: 'playlist-1',
         section: 'playlist',
         field1: 'https://drive.google.com/file/d/1v7WraV30e1Bk8zQpLeghz5fHbKCsyHtG/view?usp=drive_link',
-        field2: 'Sahabat HW (Official)'
+        field2: 'Sahabat HW (Official)',
+        field3: 'Kwarnas Gerakan Kepanduan HW',
+        field4: 'Lagu Pandu & Motivasi'
       },
       {
         id: 'playlist-2',
         section: 'playlist',
         field1: 'https://drive.google.com/file/d/1Zq0rDBB3QUeYv_Ya4fbN5wJTjlzg3btH/view',
-        field2: 'HW Untuk Indonesia'
+        field2: 'HW Untuk Indonesia',
+        field3: 'Kwarda HW & Tim Musik Pandu',
+        field4: 'Lagu Pandu & Semangat'
+      },
+      {
+        id: 'playlist-3',
+        section: 'playlist',
+        field1: 'https://hwjateng.com/audio/mars_hizbul_wathan.mp3',
+        field2: 'Mars Hizbul Wathan',
+        field3: 'K.H. Siradj Dahlan & M. Irsyad',
+        field4: 'Mars & Lagu Wajib'
+      },
+      {
+        id: 'playlist-4',
+        section: 'playlist',
+        field1: 'https://hwjateng.com/audio/sang_surya.mp3',
+        field2: 'Sang Surya (Mars Muhammadiyah)',
+        field3: 'Djarnawi Hadikusuma',
+        field4: 'Mars & Lagu Wajib'
+      },
+      {
+        id: 'playlist-5',
+        section: 'playlist',
+        field1: 'https://hwjateng.com/audio/hymne_hw.mp3',
+        field2: 'Hymne Hizbul Wathan',
+        field3: 'M. Irsyad',
+        field4: 'Hymne'
       }
     ];
   },
