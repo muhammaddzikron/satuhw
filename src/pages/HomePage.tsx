@@ -525,7 +525,7 @@ export default function HomePage() {
       )}
       {playlistItems.length > 5 && (
         <Link to="/playlist" className="block text-center py-2 text-[9px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 hover:bg-emerald-100/80 rounded-xl border border-dashed border-emerald-300 transition-all">
-          Lihat Semua {playlistItems.length} Audio & Mars
+          Lihat Semua {playlistItems.length} Playlist Lagu HW
         </Link>
       )}
     </div>
@@ -946,7 +946,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Music size={18} className="text-hw-green" />
-            <h3 className="font-display font-bold text-hw-dark">Playlist HW</h3>
+            <h3 className="font-display font-bold text-hw-dark">Playlist Lagu HW</h3>
           </div>
           <Link to="/playlist" className="text-[10px] font-black text-hw-green uppercase tracking-widest flex items-center gap-1 group">
             Layar Penuh <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />

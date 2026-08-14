@@ -303,15 +303,15 @@ export const PlaylistPage: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg sm:text-xl font-display font-black text-gray-900 tracking-tight">
-                    Playlist & Mars HW
+                    Playlist Lagu HW
                   </h1>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">
-                    {tracks.length} Audio
+                    {tracks.length} Lagu
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
                   <Music size={12} className="text-hw-green" />
-                  Mars, Hymne & Lagu Kepanduan Hizbul Wathan
+                  Koleksi Mars, Hymne & Lagu Kepanduan Hizbul Wathan
                 </p>
               </div>
             </div>
@@ -515,8 +515,8 @@ export const PlaylistPage: React.FC = () => {
               </div>
             )}
 
-            {/* Song Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Song Cards List (1 Lagu 1 Kolom, Responsive & Cantik) */}
+            <div className="max-w-4xl mx-auto space-y-3">
               {filteredTracks.map((track) => {
                 const isCurrent = currentTrackIndex === track.index;
                 const isThisPlaying = isCurrent && isPlaying;
@@ -524,117 +524,131 @@ export const PlaylistPage: React.FC = () => {
                 return (
                   <div
                     key={track.id || track.index}
-                    className={`rounded-3xl border p-4 sm:p-5 transition-all duration-200 flex flex-col justify-between gap-4 group ${
+                    className={`rounded-2xl sm:rounded-3xl border transition-all duration-200 p-3.5 sm:p-4.5 group ${
                       isCurrent
-                        ? 'bg-linear-to-br from-emerald-50/90 via-white to-teal-50/60 border-hw-green shadow-md shadow-hw-green/10 ring-2 ring-hw-green/20'
-                        : 'bg-white hover:bg-gray-50/80 border-gray-150 hover:border-gray-300 shadow-2xs hover:shadow-md'
+                        ? 'bg-linear-to-r from-emerald-50/95 via-white to-teal-50/70 border-emerald-400 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-500/20'
+                        : 'bg-white hover:bg-emerald-50/20 border-gray-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-md'
                     }`}
                   >
-                    {/* Top Row: Disc cover + Title + Category */}
-                    <div className="flex items-start gap-3.5">
-                      {/* Vinyl / Cover badge */}
-                      <div className="relative shrink-0">
-                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-md border border-white/20 transition-transform group-hover:scale-105 overflow-hidden`}>
-                          <Disc size={28} className={isThisPlaying ? 'animate-spin-slow' : ''} />
-                        </div>
-                        {isThisPlaying && (
-                          <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center gap-0.5">
-                            {[0.5, 0.8, 0.4, 0.9].map((h, i) => (
-                              <motion.div
-                                key={i}
-                                animate={{ height: ['25%', '85%', '30%'] }}
-                                transition={{ repeat: Infinity, duration: h, delay: i * 0.15 }}
-                                className="w-1 bg-hw-yellow rounded-full"
-                              />
-                            ))}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
+                      
+                      {/* Left: Disc cover + Track Number + Details + Creator */}
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                        {/* Number Index */}
+                        <span className="hidden sm:inline-block w-6 text-center text-xs font-mono font-bold text-gray-400 shrink-0">
+                          #{track.index + 1}
+                        </span>
+
+                        {/* Vinyl / Cover badge */}
+                        <div className="relative shrink-0">
+                          <div className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-md border border-white/20 transition-transform group-hover:scale-105 overflow-hidden`}>
+                            <Disc size={26} className={isThisPlaying ? 'animate-spin-slow' : ''} />
                           </div>
-                        )}
-                      </div>
-
-                      {/* Info & Creator */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border tracking-wider truncate ${track.theme.bgBadge}`}>
-                            {track.category}
-                          </span>
-                          <span className="text-[10px] font-mono font-bold text-gray-400 shrink-0">
-                            #{track.index + 1}
-                          </span>
+                          {isThisPlaying && (
+                            <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center gap-0.5">
+                              {[0.5, 0.8, 0.4, 0.9].map((h, i) => (
+                                <motion.div
+                                  key={i}
+                                  animate={{ height: ['25%', '85%', '30%'] }}
+                                  transition={{ repeat: Infinity, duration: h, delay: i * 0.15 }}
+                                  className="w-1 bg-hw-yellow rounded-full"
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        <h3 className={`text-sm sm:text-base font-display font-black leading-snug line-clamp-2 ${isCurrent ? 'text-emerald-950' : 'text-gray-900'}`}>
-                          {track.title}
-                        </h3>
-
-                        {/* PROMINENT CREATOR DISPLAY (Nama Pencipta Lagu) */}
-                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-900 text-[11px] font-bold border border-emerald-200/80 shadow-2xs">
-                            <Sparkles size={12} className="text-amber-500 shrink-0" />
-                            <span className="text-emerald-700 font-extrabold text-[10px] uppercase tracking-wider">Cipt:</span>
-                            <span className="font-black text-gray-900 truncate max-w-[180px]" title={track.creator}>
-                              {track.creator}
+                        {/* Info & Creator */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className={`text-[9px] sm:text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border tracking-wider truncate ${track.theme.bgBadge}`}>
+                              {track.category}
                             </span>
+                            <span className="sm:hidden text-[9px] font-mono font-bold text-gray-400">
+                              #{track.index + 1}
+                            </span>
+                            {isThisPlaying && (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md animate-pulse">
+                                Memutar
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className={`text-sm sm:text-base font-display font-black leading-snug truncate sm:line-clamp-1 ${isCurrent ? 'text-emerald-950' : 'text-gray-900'}`} title={track.title}>
+                            {track.title}
+                          </h3>
+
+                          {/* PROMINENT CREATOR DISPLAY (Nama Pencipta Lagu) */}
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-900 text-[11px] font-bold border border-emerald-200/80 shadow-2xs">
+                              <Sparkles size={11} className="text-amber-500 shrink-0" />
+                              <span className="text-emerald-700 font-extrabold text-[10px] uppercase tracking-wider">Cipt:</span>
+                              <span className="font-black text-gray-900 truncate max-w-[220px]" title={track.creator}>
+                                {track.creator}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Bottom Action Bar for Card */}
-                    <div className="pt-3 border-t border-gray-150 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTrackForLyrics(track)}
-                          className="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-emerald-100/70 hover:text-emerald-800 text-gray-600 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                          title="Lihat Lirik Lagu Lengkap"
-                        >
-                          <FileText size={13} />
-                          <span>Lirik</span>
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(track)}
-                          className="p-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-all cursor-pointer"
-                          title="Salin Link Lagu"
-                        >
-                          {copiedId === track.id ? <Check size={13} className="text-emerald-600" /> : <Share2 size={13} />}
-                        </button>
+                      {/* Right / Bottom: Action Bar for Card */}
+                      <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t border-gray-100 sm:border-t-0">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTrackForLyrics(track)}
+                            className="px-2.5 py-2 rounded-xl bg-gray-100/90 hover:bg-emerald-100 hover:text-emerald-800 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                            title="Lihat Lirik Lagu Lengkap"
+                          >
+                            <FileText size={13} />
+                            <span>Lirik</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(track)}
+                            className="p-2 rounded-xl bg-gray-100/90 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-all cursor-pointer"
+                            title="Salin Link Lagu"
+                          >
+                            {copiedId === track.id ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
+                          </button>
 
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(track)}
+                            className="p-2 rounded-xl bg-gray-100/90 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-all cursor-pointer"
+                            title="Unduh File Audio"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
+
+                        {/* Play Button */}
                         <button
                           type="button"
-                          onClick={() => handleDownload(track)}
-                          className="p-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-all cursor-pointer"
-                          title="Unduh File Audio"
+                          onClick={() => handlePlayTrack(track.index)}
+                          className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-xs ${
+                            isThisPlaying
+                              ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
+                              : isCurrent
+                              ? 'bg-hw-dark text-white hover:bg-black'
+                              : 'bg-emerald-50 hover:bg-hw-green text-emerald-900 hover:text-white border border-emerald-200/60'
+                          }`}
                         >
-                          <Download size={13} />
+                          {isThisPlaying ? (
+                            <>
+                              <Pause size={14} fill="currentColor" />
+                              <span>Jeda</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play size={14} fill="currentColor" className="ml-0.5" />
+                              <span>Putar</span>
+                            </>
+                          )}
                         </button>
                       </div>
 
-                      {/* Play Button */}
-                      <button
-                        type="button"
-                        onClick={() => handlePlayTrack(track.index)}
-                        className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
-                          isThisPlaying
-                            ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
-                            : isCurrent
-                            ? 'bg-hw-dark text-white hover:bg-black'
-                            : 'bg-emerald-50 hover:bg-hw-green text-emerald-900 hover:text-white border border-emerald-200/60'
-                        }`}
-                      >
-                        {isThisPlaying ? (
-                          <>
-                            <Pause size={14} fill="currentColor" />
-                            <span>Jeda</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play size={14} fill="currentColor" className="ml-0.5" />
-                            <span>Putar</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                 );
