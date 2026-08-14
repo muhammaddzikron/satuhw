@@ -85,20 +85,14 @@ const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }:
   );
 };
 
-const FeatureCard = ({ to, icon: Icon, label, delay = 0 }: { to: string, icon: any, label: string, delay?: number }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ delay }}
-  >
-    <Link to={to} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-      <div className="p-2 bg-gray-50 rounded-lg text-hw-green">
-        <Icon size={18} />
-      </div>
-      <span className="text-xs font-semibold text-gray-700 flex-1">{label}</span>
-      <ChevronRight size={14} className="text-gray-300" />
-    </Link>
-  </motion.div>
+const FeatureCard = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
+  <Link to={to} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs hover:shadow-md hover:border-emerald-200 transition-all">
+    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+      <Icon size={18} />
+    </div>
+    <span className="text-xs font-bold text-gray-800 flex-1">{label}</span>
+    <ChevronRight size={14} className="text-gray-300" />
+  </Link>
 );
 
 import { isParticipantOfActivity } from '../utils/activityUtils';
@@ -106,7 +100,14 @@ import { isParticipantOfActivity } from '../utils/activityUtils';
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>({
+    shubuh: '04:32',
+    dzuhur: '11:51',
+    ashar: '15:10',
+    maghrib: '17:50',
+    isya: '19:01',
+    hijri: { day: '25', month: "Sya'ban", year: '1447' }
+  });
   const [location, setLocation] = useState('Purwokerto');
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -114,14 +115,17 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [galleryItems, setGalleryItems] = useState<Content[]>([]);
-  const [playlistItems, setPlaylistItems] = useState<Content[]>([]);
-  const [sosmed, setSosmed] = useState<Content | null>(null);
-  const [kontak, setKontak] = useState<Content | null>(null);
+  
+  // Pre-initialize contents from mock defaults to eliminate layout shift / skeleton flicker
+  const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
+  const [galleryItems, setGalleryItems] = useState<Content[]>(() => initialContents.filter((c: any) => c.section === 'galeri'));
+  const [playlistItems, setPlaylistItems] = useState<Content[]>(() => initialContents.filter((c: any) => c.section === 'playlist'));
+  const [sosmed, setSosmed] = useState<Content | null>(() => initialContents.find((c: any) => c.section === 'sosmed') || null);
+  const [kontak, setKontak] = useState<Content | null>(() => initialContents.find((c: any) => c.section === 'kontak') || null);
   const [showSosmedModal, setShowSosmedModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
-  const [runningText, setRunningText] = useState<string>('');
+  const [runningText, setRunningText] = useState<string>('Selamat Datang di Portal Resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah - Satu HW Jateng | Fastabiqul Khairat');
   const [myKtaApp, setMyKtaApp] = useState<any | null>(null);
 
   useEffect(() => {
@@ -572,7 +576,7 @@ export default function HomePage() {
   return (
     <div className="space-y-6 pb-20">
       {/* Greeting Section */}
-      <section className="pt-4">
+      <section className="pt-1">
         <div className="flex flex-col">
           <h2 className="text-base font-display font-bold text-hw-dark">
             {isAuthenticated ? (
@@ -1173,10 +1177,10 @@ export default function HomePage() {
           <h3 className="font-display font-bold text-gray-800">Fitur Tambahan</h3>
         </div>
         <div className="grid grid-cols-1 gap-2">
-          <FeatureCard to="/quran" icon={Book} label="Al-Qur'an (Api Kemenag)" delay={0.1} />
-          <FeatureCard to="/tools?type=morse" icon={Zap} label="Translate Morse" delay={0.2} />
-          <FeatureCard to="/tools?type=semafor" icon={Share2} label="Translate Semafor" delay={0.3} />
-          <FeatureCard to="/tools?type=translate" icon={Languages} label="Translate Bahasa" delay={0.4} />
+          <FeatureCard to="/quran" icon={Book} label="Al-Qur'an (Api Kemenag)" />
+          <FeatureCard to="/tools?type=morse" icon={Zap} label="Translate Morse" />
+          <FeatureCard to="/tools?type=semafor" icon={Share2} label="Translate Semafor" />
+          <FeatureCard to="/tools?type=translate" icon={Languages} label="Translate Bahasa" />
         </div>
       </section>
 
