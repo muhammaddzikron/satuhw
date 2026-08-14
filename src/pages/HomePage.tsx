@@ -46,7 +46,9 @@ import {
   Smartphone,
   Plus,
   Download,
-  Share
+  Share,
+  Disc,
+  Radio
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -1178,78 +1180,174 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Floating Audio Player */}
+      {/* Centered Floating Audio Player Modal */}
       <AnimatePresence>
-        {currentTrackIndex !== null && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-0 right-0 z-40 px-4"
-          >
-            <div className="max-w-[340px] mx-auto">
-              <div className="bg-hw-dark/95 text-white p-4 rounded-[2rem] shadow-2xl shadow-hw-dark/40 border border-white/10 backdrop-blur-xl pointer-events-auto relative">
-                {/* Close Button */}
-                <button 
-                  onClick={() => {
-                    if (audioRef.current) {
-                      audioRef.current.pause();
-                      setIsPlaying(false);
-                    }
-                    setCurrentTrackIndex(null);
-                  }}
-                  className="absolute -top-2 -right-2 w-8 h-8 bg-hw-dark/80 text-white rounded-full flex items-center justify-center border border-white/10 shadow-lg hover:bg-red-500 transition-colors z-50 focus:outline-none"
-                >
-                  <X size={14} />
-                </button>
+        {currentTrackIndex !== null && playlistItems[currentTrackIndex] && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            {/* Background dismiss click listener */}
+            <div 
+              className="absolute inset-0"
+              onClick={() => {
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                  setIsPlaying(false);
+                }
+                setCurrentTrackIndex(null);
+              }}
+            />
 
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-hw-green shrink-0">
-                    <Music size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                     <p className="text-[7px] font-black text-hw-green uppercase tracking-[0.2em] mb-0.5">Sedang Diputar</p>
-                     <h3 className="text-[11px] font-bold truncate pr-16">
-                       {playlistItems[currentTrackIndex]?.field2 || 'Untitled Audio'}
-                     </h3>
-                     <p className="text-[9px] text-emerald-400 font-bold truncate">
-                       Cipt: {resolveTrackMetadata(playlistItems[currentTrackIndex])?.creator}
-                     </p>
-                  </div>
-                  <button 
-                    onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}
-                    className={`p-1.5 rounded-lg transition-all ${autoPlayEnabled ? 'bg-hw-green text-hw-dark' : 'bg-white/10 text-gray-400'}`}
-                    title={autoPlayEnabled ? "Putar Otomatis: On" : "Putar Otomatis: Off"}
-                  >
-                    <RefreshCw size={12} className={autoPlayEnabled ? 'animate-spin-slow' : ''} />
-                  </button>
-                </div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-sm pointer-events-auto"
+            >
+              {(() => {
+                const currentMeta = resolveTrackMetadata(playlistItems[currentTrackIndex]);
+                return (
+                  <div className="bg-linear-to-b from-slate-900 via-slate-950 to-emerald-950 text-white p-6 rounded-3xl shadow-2xl shadow-black/80 border border-emerald-500/30 relative overflow-hidden">
+                    
+                    {/* Background glow & disc watermarks */}
+                    <div className="absolute -right-8 -top-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                    
+                    {/* Top Header: Badge & Close Button */}
+                    <div className="flex items-center justify-between gap-2 mb-4 relative z-10">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+                        <Radio size={11} className={isPlaying ? 'animate-pulse text-emerald-400' : ''} />
+                        <span>{isPlaying ? 'Sedang Diputar' : 'Musik HW'}</span>
+                      </div>
 
-                <div className="flex items-center justify-center gap-4">
-                  <button 
-                    onClick={handlePrevTrack}
-                    className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <SkipBack size={20} fill="currentColor" />
-                  </button>
-                  <button 
-                    onClick={() => handlePlayTrack(currentTrackIndex)}
-                    className="w-11 h-11 bg-hw-green text-hw-dark rounded-full flex items-center justify-center shadow-lg shadow-hw-green/20 hover:scale-105 active:scale-95 transition-all"
-                  >
-                    {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-                  </button>
-                  <button 
-                    onClick={handleNextTrack}
-                    className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <SkipForward size={20} fill="currentColor" />
-                  </button>
-                </div>
-              </div>
-            </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+                      {/* Close 'X' button to dismiss */}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (audioRef.current) {
+                            audioRef.current.pause();
+                            setIsPlaying(false);
+                          }
+                          setCurrentTrackIndex(null);
+                        }}
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-rose-500 text-gray-300 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10 shadow-md active:scale-90"
+                        title="Tutup Pemutar Musik"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    {/* Disc Vinyl Cover & Visualizer */}
+                    <div className="flex flex-col items-center text-center my-3 relative z-10">
+                      <div className="relative my-2">
+                        <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-linear-to-br ${currentMeta.theme.gradient} flex items-center justify-center text-white shadow-2xl border-4 border-slate-800 ring-2 ring-emerald-500/30 relative overflow-hidden`}>
+                          <Disc size={54} className={isPlaying ? 'animate-spin-slow' : ''} />
+                          {/* Center hole of vinyl */}
+                          <div className="absolute w-6 h-6 rounded-full bg-slate-950 border-2 border-white/40 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-hw-yellow" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Title & Category */}
+                      <h3 className="text-base sm:text-lg font-display font-black text-white px-2 mt-2 line-clamp-2 leading-tight">
+                        {currentMeta.title}
+                      </h3>
+
+                      {/* Prominent Creator Display */}
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-950/90 text-emerald-300 text-xs font-bold border border-emerald-500/40 shadow-xs">
+                        <Sparkles size={12} className="text-amber-400 shrink-0" />
+                        <span className="text-emerald-400 font-extrabold uppercase tracking-wider text-[10px]">Cipt:</span>
+                        <span className="text-white font-black truncate max-w-[200px]">
+                          {currentMeta.creator}
+                        </span>
+                      </div>
+
+                      {/* Category badge */}
+                      {currentMeta.category && (
+                        <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1.5">
+                          {currentMeta.category}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Equalizer animation when playing */}
+                    {isPlaying && (
+                      <div className="flex justify-center items-end gap-1 h-4 my-2">
+                        {[0.4, 0.7, 0.3, 0.9, 0.5, 0.8, 0.6].map((h, i) => (
+                          <motion.div
+                            key={i}
+                            animate={{ height: ['25%', '100%', '30%'] }}
+                            transition={{ repeat: Infinity, duration: h + 0.3, delay: i * 0.1 }}
+                            className="w-1 bg-hw-yellow rounded-full"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Playback Controls */}
+                    <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-white/10 relative z-10">
+                      {/* Auto play toggle */}
+                      <button 
+                        type="button"
+                        onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}
+                        className={`p-2 rounded-xl transition-all cursor-pointer ${
+                          autoPlayEnabled ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:text-white bg-white/5'
+                        }`}
+                        title={autoPlayEnabled ? "Putar Otomatis: Aktif" : "Putar Otomatis: Nonaktif"}
+                      >
+                        <RefreshCw size={14} className={autoPlayEnabled ? 'animate-spin-slow' : ''} />
+                      </button>
+
+                      {/* Prev */}
+                      <button 
+                        type="button"
+                        onClick={handlePrevTrack}
+                        className="p-2.5 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                        title="Lagu Sebelumnya"
+                      >
+                        <SkipBack size={22} fill="currentColor" />
+                      </button>
+
+                      {/* Main Play/Pause */}
+                      <button 
+                        type="button"
+                        onClick={() => handlePlayTrack(currentTrackIndex)}
+                        className="w-14 h-14 bg-hw-green hover:bg-emerald-400 active:scale-95 text-slate-950 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30 transition-all cursor-pointer"
+                        title={isPlaying ? "Jeda" : "Putar"}
+                      >
+                        {isPlaying ? (
+                          <Pause size={24} fill="currentColor" />
+                        ) : (
+                          <Play size={24} fill="currentColor" className="ml-1" />
+                        )}
+                      </button>
+
+                      {/* Next */}
+                      <button 
+                        type="button"
+                        onClick={handleNextTrack}
+                        className="p-2.5 text-gray-300 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                        title="Lagu Selanjutnya"
+                      >
+                        <SkipForward size={22} fill="currentColor" />
+                      </button>
+
+                      {/* Link to Full Playlist */}
+                      <Link 
+                        to="/playlist"
+                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-all cursor-pointer"
+                        title="Buka Playlist Lengkap"
+                      >
+                        <Music size={14} />
+                      </Link>
+                    </div>
+
+                  </div>
+                );
+              })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Video Modal Overlay */}
       {activeVideoId && (

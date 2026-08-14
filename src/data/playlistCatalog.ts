@@ -14,7 +14,32 @@ export interface SongMetadata {
 export const KNOWN_HW_SONGS: Record<string, SongMetadata> = {
   'mars hizbul wathan': {
     title: 'Mars Hizbul Wathan',
-    creator: 'Muhammad Dzikron',
+    creator: 'H. Siradj Dahlan',
+    category: 'Mars & Lagu Wajib',
+    lyrics: `Hizbul Wathan yang bersemangat
+Menjunjung tinggi agama Islam
+Membina watak, mendidik budi
+Rela berkorban untuk negeri
+
+Teguh hati pantang menyerah
+Di bawah panji Muhammadiyah
+Fas-tabiqul khairat jadi semboyan
+Berlomba-lomba dalam kebaikan
+
+Maju terus Pandu HW
+Tegakkan tauhid sejati
+Hizbul Wathan pandu perwira
+Mengabdi tulus untuk sesama!`,
+    theme: {
+      gradient: 'from-emerald-600 via-teal-700 to-emerald-900',
+      textAccent: 'text-emerald-700',
+      borderAccent: 'border-emerald-200',
+      bgBadge: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    }
+  },
+  'mars hw': {
+    title: 'Mars HW',
+    creator: 'H. Siradj Dahlan',
     category: 'Mars & Lagu Wajib',
     lyrics: `Hizbul Wathan yang bersemangat
 Menjunjung tinggi agama Islam
@@ -39,7 +64,7 @@ Mengabdi tulus untuk sesama!`,
   },
   'sang surya': {
     title: 'Sang Surya (Mars Muhammadiyah)',
-    creator: 'Muhammad Dzikron',
+    creator: 'Djarnawi Hadikusuma',
     category: 'Mars & Lagu Wajib',
     lyrics: `Sang Surya tetap bersinar
 Syahadat dua melingkar
@@ -63,8 +88,48 @@ Dengan ikhlas tulus hati`,
     }
   },
   'hymne hizbul wathan': {
-    title: 'Hymne Hizbul Wathan',
-    creator: 'Muhammad Dzikron',
+    title: 'Hymne HW Panduku',
+    creator: 'H.M. Affandi',
+    category: 'Hymne',
+    lyrics: `Di bawah panji suci mulia
+Hizbul Wathan melangkah pasti
+Mengabdi pada nusa dan bangsa
+Ikhlas berbakti tulus mengabdi
+
+Pancasila dasar negara
+Al-Qur'an dan Sunnah pegangan kita
+Maju terus pandu mulia
+Jayalah Hizbul Wathan selamanya!`,
+    theme: {
+      gradient: 'from-blue-600 via-indigo-700 to-slate-900',
+      textAccent: 'text-indigo-700',
+      borderAccent: 'border-indigo-200',
+      bgBadge: 'bg-indigo-50 text-indigo-800 border-indigo-200'
+    }
+  },
+  'hymne hw panduku': {
+    title: 'Hymne HW Panduku',
+    creator: 'H.M. Affandi',
+    category: 'Hymne',
+    lyrics: `Di bawah panji suci mulia
+Hizbul Wathan melangkah pasti
+Mengabdi pada nusa dan bangsa
+Ikhlas berbakti tulus mengabdi
+
+Pancasila dasar negara
+Al-Qur'an dan Sunnah pegangan kita
+Maju terus pandu mulia
+Jayalah Hizbul Wathan selamanya!`,
+    theme: {
+      gradient: 'from-blue-600 via-indigo-700 to-slate-900',
+      textAccent: 'text-indigo-700',
+      borderAccent: 'border-indigo-200',
+      bgBadge: 'bg-indigo-50 text-indigo-800 border-indigo-200'
+    }
+  },
+  'hymne hw': {
+    title: 'Hymne HW Panduku',
+    creator: 'H.M. Affandi',
     category: 'Hymne',
     lyrics: `Di bawah panji suci mulia
 Hizbul Wathan melangkah pasti
@@ -155,8 +220,8 @@ export const resolveTrackMetadata = (track: any) => {
 
   const matched = matchedKey ? KNOWN_HW_SONGS[matchedKey] : null;
 
-  // Custom metadata from Admin input takes precedence. Default is always Muhammad Dzikron.
-  const creator = (track?.field3 || track?.pencipta || track?.artist || 'Muhammad Dzikron').trim();
+  // Custom metadata from Admin input takes precedence, followed by matched catalog, then fallback to Muhammad Dzikron.
+  const creator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || 'Muhammad Dzikron').trim();
   const category = (track?.field4 || track?.kategori || track?.category || matched?.category || 'Lagu Pandu HW').trim();
   const lyrics = (track?.field5 || track?.lirik || track?.lyrics || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan merdu audio ini melalui player.').trim();
 

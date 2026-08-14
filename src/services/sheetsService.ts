@@ -2320,7 +2320,7 @@ export const sheetsService = {
         section: 'playlist',
         field1: 'https://hwjateng.com/audio/mars_hizbul_wathan.mp3',
         field2: 'Mars Hizbul Wathan',
-        field3: 'K.H. Siradj Dahlan & M. Irsyad',
+        field3: 'H. Siradj Dahlan',
         field4: 'Mars & Lagu Wajib'
       },
       {
@@ -2335,8 +2335,8 @@ export const sheetsService = {
         id: 'playlist-5',
         section: 'playlist',
         field1: 'https://hwjateng.com/audio/hymne_hw.mp3',
-        field2: 'Hymne Hizbul Wathan',
-        field3: 'M. Irsyad',
+        field2: 'Hymne HW Panduku',
+        field3: 'H.M. Affandi',
         field4: 'Hymne'
       }
     ];
