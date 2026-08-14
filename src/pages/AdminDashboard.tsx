@@ -10556,6 +10556,9 @@ export default function AdminDashboard() {
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
                       >
                         <option value="Tidak Ada / Umum">Tidak Ada / Umum</option>
+                        <option value="Panitia">Panitia</option>
+                        <option value="Pendamping">Pendamping</option>
+                        <option value="Peserta">Peserta</option>
                         <option value="Pelatih Nasional HW Jateng">Pelatih Nasional HW Jateng</option>
                         <option value="Pandu Senior">Pandu Senior</option>
                         <option value="Alumni Jati 2 HW Jateng di Klaten">Alumni Jati 2 HW Jateng di Klaten</option>

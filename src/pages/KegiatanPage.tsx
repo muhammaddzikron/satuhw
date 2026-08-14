@@ -1086,6 +1086,9 @@ export default function KegiatanPage() {
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                         >
                           <option value="Tidak Ada / Umum">Tidak Ada / Umum</option>
+                          <option value="Panitia">Panitia</option>
+                          <option value="Pendamping">Pendamping</option>
+                          <option value="Peserta">Peserta</option>
                           <option value="Pelatih Nasional HW Jateng">Pelatih Nasional HW Jateng</option>
                           <option value="Pandu Senior">Pandu Senior</option>
                           <option value="Alumni Jati 2 HW Jateng di Klaten">Alumni Jati 2 HW Jateng di Klaten</option>
