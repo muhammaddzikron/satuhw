@@ -696,97 +696,140 @@ function handleGetMembers() {
 
 function handleSaveMember(data) {
   var sheet = getSheet('Users');
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var headerLowers = headers.map(function(h) { return h ? h.toString().trim().toLowerCase() : ""; });
-  
+  var headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
   var users = getRowsAsObjects(sheet);
-  var dataId = (getRobustValue(data, ['id', 'Id']) || '').toString().trim();
-  var dataEmail = (getRobustValue(data, ['email', 'Email']) || '').toString().trim().toLowerCase();
-  var dataName = (getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'nama_lengkap', 'nama lengkap']) || '').toString().trim().toLowerCase();
+  
+  var dataId = (getRobustValue(data, ['id', 'Id', 'userId', 'userid']) || '').toString().trim();
+  var dataEmail = (getRobustValue(data, ['email', 'Email', 'alamatEmail', 'alamat_email']) || '').toString().trim().toLowerCase();
+  var dataName = (getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Nama Lengkap']) || '').toString().trim().toLowerCase();
+  var dataPhone = (getRobustValue(data, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'No HP', 'No WA']) || '').toString().replace(/[^0-9]/g, '');
+  var dataKta = (getRobustValue(data, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA']) || '').toString().trim().toLowerCase();
   var finalProfilePhoto = "";
   
   var rowIndex = -1;
+  // 1. Match by ID or stable user ID
   if (dataId !== '') {
     rowIndex = users.findIndex(function(u) { 
-      var uId = (u.id || u.Id || '').toString().trim();
-      var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
+      var uId = (u.id || u.Id || u.userId || u.userid || '').toString().trim();
+      var uEmail = (u.email || u.Email || u.alamatEmail || '').toString().trim().toLowerCase();
       
-      if (uId === dataId) return true;
+      if (uId !== '' && uId === dataId) return true;
       if (uEmail !== '') {
         var stableId = 'user-' + uEmail.replace(/[^a-zA-Z0-9]/g, '_');
         if (stableId === dataId) return true;
       }
       return false;
     });
-  } else if (dataEmail !== '') {
-    // Match by both email and name to allow multiple members under the same email
+  }
+  // 2. Match by Email
+  if (rowIndex === -1 && dataEmail !== '') {
     rowIndex = users.findIndex(function(u) {
-      var uEmail = (u.email || u.Email || '').toString().trim().toLowerCase();
-      var uName = (u.namaLengkap || u.namalengkap || u.nama || u.nama_lengkap || '').toString().trim().toLowerCase();
-      return uEmail === dataEmail && uName === dataName;
+      var uEmail = (u.email || u.Email || u.alamatEmail || '').toString().trim().toLowerCase();
+      return uEmail !== '' && uEmail === dataEmail;
+    });
+  }
+  // 3. Match by KTA
+  if (rowIndex === -1 && dataKta !== '') {
+    rowIndex = users.findIndex(function(u) {
+      var uKta = (u.ktaNumber || u.ktanumber || u.noKta || u.nokta || u.nomorKTA || u.nbm || '').toString().trim().toLowerCase();
+      return uKta !== '' && uKta === dataKta;
+    });
+  }
+  // 4. Match by Phone
+  if (rowIndex === -1 && dataPhone && dataPhone.length > 6) {
+    rowIndex = users.findIndex(function(u) {
+      var uPhone = (u.noHp || u.nohp || u.noWa || u.nowa || u.phone || u.telepon || '').toString().replace(/[^0-9]/g, '');
+      return uPhone !== '' && uPhone === dataPhone;
+    });
+  }
+  // 5. Match by Name
+  if (rowIndex === -1 && dataName && dataName.length > 3 && dataName !== 'anggota hw' && dataName !== 'tanpa nama') {
+    rowIndex = users.findIndex(function(u) {
+      var uName = (u.namaLengkap || u.namalengkap || u.nama || u.Nama || u.nama_lengkap || '').toString().trim().toLowerCase();
+      return uName !== '' && uName === dataName;
     });
   }
   
   var existing = rowIndex > -1 ? users[rowIndex] : null;
   
   var rowData = new Array(headers.length).fill("");
-  headerLowers.forEach(function(hLower, i) {
-    if (hLower === 'id') {
-      rowData[i] = getRobustValue(data, ['id', 'Id']) || (existing ? (existing.id || existing.Id) : (dataEmail ? 'user-' + dataEmail.replace(/[^a-zA-Z0-9]/g, '_') : new Date().getTime().toString()));
+  headers.forEach(function(h, i) {
+    var hClean = (h || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    if (hClean === 'id' || hClean === 'userid') {
+      rowData[i] = dataId || (existing ? (existing.id || existing.Id || existing.userId) : (dataEmail ? 'user-' + dataEmail.replace(/[^a-zA-Z0-9]/g, '_') : new Date().getTime().toString()));
     }
-    else if (hLower === 'email') {
-      rowData[i] = getRobustValue(data, ['email', 'Email']) || (existing ? (existing.email || existing.Email) : "");
+    else if (hClean === 'email' || hClean === 'alamatemail') {
+      rowData[i] = (getRobustValue(data, ['email', 'Email', 'alamatEmail', 'alamat_email']) || (existing ? (existing.email || existing.Email || existing.alamatEmail) : "")).toString().trim();
     }
-    else if (hLower === 'password') {
-      rowData[i] = getRobustValue(data, ['password', 'Password']) || (existing ? (existing.password || existing.Password) : '123456');
+    else if (hClean === 'password') {
+      rowData[i] = (getRobustValue(data, ['password', 'Password']) || (existing ? (existing.password || existing.Password) : '12345hw')).toString().trim();
     }
-    else if (hLower === 'namalengkap') {
-      rowData[i] = getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'nama_lengkap', 'nama lengkap']) || (existing ? (existing.namaLengkap || existing.namalengkap || existing.nama || existing.nama_lengkap) : "");
+    else if (hClean === 'namalengkap' || hClean === 'nama' || hClean === 'fullname') {
+      rowData[i] = (getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Nama Lengkap']) || (existing ? (existing.namaLengkap || existing.namalengkap || existing.nama || existing.Nama) : "")).toString().trim();
     }
-    else if (hLower === 'role') {
-      rowData[i] = getRobustValue(data, ['role', 'Role', 'roles', 'Roles']) || (existing ? (existing.role || existing.Role || existing.roles) : '["umum"]');
+    else if (hClean === 'role' || hClean === 'roles' || hClean === 'hakakses') {
+      var r = getRobustValue(data, ['roles', 'Roles', 'role', 'Role']);
+      if (!r && existing) r = existing.roles || existing.role || existing.Role;
+      rowData[i] = typeof r === 'object' ? JSON.stringify(r) : (r || '["umum"]');
     }
-    else if (hLower === 'pendidikan') {
+    else if (hClean === 'pendidikan') {
       rowData[i] = getRobustValue(data, ['pendidikan', 'Pendidikan']) || (existing ? (existing.pendidikan || existing.Pendidikan) : "");
     }
-    else if (hLower === 'pelatihan') {
-      var p = getRobustValue(data, ['pelatihan', 'Pelatihan']) || (existing ? (existing.pelatihan || existing.Pelatihan) : []);
+    else if (hClean === 'pelatihan') {
+      var p = getRobustValue(data, ['pelatihan', 'Pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan']) || (existing ? (existing.pelatihan || existing.Pelatihan) : []);
       rowData[i] = typeof p === 'string' ? p : JSON.stringify(p);
     }
-    else if (hLower === 'jeniskelamin') {
-      rowData[i] = getRobustValue(data, ['jenisKelamin', 'jeniskelamin', 'jk', 'sex', 'gender']) || (existing ? (existing.jenisKelamin || existing.jeniskelamin || existing.jk) : "L");
+    else if (hClean === 'jeniskelamin' || hClean === 'gender' || hClean === 'jk' || hClean === 'sex') {
+      rowData[i] = getRobustValue(data, ['jenisKelamin', 'jeniskelamin', 'jk', 'sex', 'gender', 'Jenis Kelamin']) || (existing ? (existing.jenisKelamin || existing.jeniskelamin || existing.jk) : "L");
     }
-    else if (hLower === 'golongan') {
-      rowData[i] = getRobustValue(data, ['golongan', 'Golongan']) || (existing ? (existing.golongan || existing.Golongan) : "");
+    else if (hClean === 'golongan' || hClean === 'tingkatan' || hClean === 'jenjang') {
+      rowData[i] = getRobustValue(data, ['golongan', 'Golongan', 'tingkatan', 'Jenjang']) || (existing ? (existing.golongan || existing.Golongan) : "Dewasa");
     }
-    else if (hLower === 'asalkwarda') {
-      rowData[i] = getRobustValue(data, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah']) || (existing ? (existing.asalKwarda || existing.asalkwarda || existing.kwarda) : "");
+    else if (hClean === 'golonganpelatih' || hClean === 'pelatihgolongan') {
+      rowData[i] = getRobustValue(data, ['golonganPelatih', 'golonganpelatih', 'pelatihGolongan', 'Golongan Pelatih']) || (existing ? (existing.golonganPelatih || existing.golonganpelatih) : "");
     }
-    else if (hLower === 'qabilah') {
-      rowData[i] = getRobustValue(data, ['qabilah', 'Qabilah']) || (existing ? (existing.qabilah || existing.Qabilah) : "");
+    else if (hClean === 'asalkwarda' || hClean === 'kwarda' || hClean === 'asaldaerah' || hClean === 'daerah' || hClean === 'kwarcab') {
+      rowData[i] = getRobustValue(data, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah']) || (existing ? (existing.asalKwarda || existing.asalkwarda || existing.asalDaerah) : "");
     }
-    else if (hLower === 'alamat') {
-      rowData[i] = getRobustValue(data, ['alamat', 'Alamat']) || (existing ? (existing.alamat || existing.Alamat) : "");
+    else if (hClean === 'qabilah' || hClean === 'pangkalan' || hClean === 'gudep') {
+      rowData[i] = getRobustValue(data, ['qabilah', 'Qabilah', 'pangkalan', 'gudep']) || (existing ? (existing.qabilah || existing.Qabilah) : "");
     }
-    else if (hLower === 'isverified') {
-      var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified']) !== "" ? getRobustValue(data, ['isVerified', 'isverified', 'verified']) : (existing ? (existing.isVerified !== undefined ? existing.isVerified : existing.isverified) : false);
+    else if (hClean === 'alamat' || hClean === 'domisili') {
+      rowData[i] = getRobustValue(data, ['alamat', 'Alamat', 'domisili', 'Alamat Lengkap']) || (existing ? (existing.alamat || existing.Alamat) : "");
+    }
+    else if (hClean === 'tempatlahir' || hClean === 'kotakelahiran') {
+      rowData[i] = getRobustValue(data, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || (existing ? (existing.tempatLahir || existing.tempatlahir) : "");
+    }
+    else if (hClean === 'tanggallahir' || hClean === 'tgllahir') {
+      rowData[i] = getRobustValue(data, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir']) || (existing ? (existing.tanggalLahir || existing.tanggallahir) : "");
+    }
+    else if (hClean === 'isverified' || hClean === 'verified' || hClean === 'statusaktivasi') {
+      var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified', 'statusAktivasi']);
+      if (iv === "" && existing) iv = existing.isVerified !== undefined ? existing.isVerified : existing.isverified;
       rowData[i] = isTruthy(iv);
     }
-    else if (hLower === 'sosmed') {
+    else if (hClean === 'sosmed' || hClean === 'instagram') {
       rowData[i] = getRobustValue(data, ['sosmed', 'Sosmed', 'socialmedia', 'sosialmedia', 'instagram']) || (existing ? (existing.sosmed || existing.Sosmed) : "");
     }
-    else if (hLower === 'nohp') {
-      rowData[i] = getRobustValue(data, ['noHp', 'nohp', 'phone', 'telepon', 'no_hp', 'nohp', 'nowa', 'noWa']) || (existing ? (existing.noHp || existing.nohp || existing.phone || existing.no_hp) : "");
+    else if (hClean === 'nohp' || hClean === 'nowa' || hClean === 'phone' || hClean === 'telepon' || hClean === 'whatsapp') {
+      rowData[i] = getRobustValue(data, ['noHp', 'nohp', 'phone', 'telepon', 'nowa', 'noWa', 'No HP', 'No WA']) || (existing ? (existing.noHp || existing.nohp || existing.phone || existing.nowa) : "");
     }
-    else if (hLower === 'token') {
-      rowData[i] = existing ? (existing.token || existing.Token) : "";
+    else if (hClean === 'token') {
+      rowData[i] = existing ? (existing.token || existing.Token || "") : "";
     }
-    else if (hLower === 'upgraderequests') {
+    else if (hClean === 'upgraderequests') {
       var ur = getRobustValue(data, ['upgradeRequests', 'upgraderequests']) || (existing ? (existing.upgradeRequests || existing.upgraderequests) : []);
       rowData[i] = typeof ur === 'string' ? ur : JSON.stringify(ur);
     }
-    else if (hLower === 'photo' || hLower === 'foto') {
-      var profilePhoto = getRobustValue(data, ['photo', 'Photo', 'foto', 'Foto']) || (existing ? (existing.photo || existing.Photo || existing.foto || existing.Foto) : "");
+    else if (hClean === 'ktanumber' || hClean === 'nomorkta' || hClean === 'nokta' || hClean === 'nbm' || hClean === 'kta') {
+      rowData[i] = getRobustValue(data, ['ktaNumber', 'ktanumber', 'nomorKTA', 'noKta', 'nbm', 'Nomor KTA', 'No KTA']) || (existing ? (existing.ktaNumber || existing.nomorKTA || existing.noKta || existing.nbm) : "");
+    }
+    else if (hClean === 'statuskta') {
+      rowData[i] = getRobustValue(data, ['statusKta', 'statuskta']) || (existing ? existing.statusKta : "");
+    }
+    else if (hClean === 'photo' || hClean === 'foto' || hClean === 'image' || hClean === 'photourl') {
+      var profilePhoto = getRobustValue(data, ['photo', 'Photo', 'foto', 'Foto', 'photoUrl']) || (existing ? (existing.photo || existing.Photo || existing.foto || existing.Foto) : "");
       if (typeof profilePhoto === 'string' && profilePhoto.indexOf('data:') === 0 && profilePhoto.indexOf(';base64,') > -1) {
         try {
           var mimeType = profilePhoto.split(';base64,')[0].split(':')[1];
@@ -811,38 +854,58 @@ function handleSaveMember(data) {
     sheet.appendRow(rowData);
   }
   
-  // Automatically update photo in KTA_Applications if set
-  if (finalProfilePhoto) {
-    try {
-      var ktaSheet = getSheet('KTA_Applications');
-      if (ktaSheet) {
-        var ktaHeaders = ktaSheet.getRange(1, 1, 1, ktaSheet.getLastColumn()).getValues()[0].map(function(h) { 
-          return h ? h.toString().trim().toLowerCase() : ""; 
-        });
-        var photoColIndex = ktaHeaders.indexOf('photo');
-        if (photoColIndex > -1) {
-          var ktaApps = getRowsAsObjects(ktaSheet);
-          ktaApps.forEach(function(app, idx) {
-            var appUserId = (app.userid || app.userId || app.UserId || '').toString().trim();
-            var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
-            
-            var match = false;
-            if (dataId !== '' && appUserId !== '' && appUserId === dataId) {
-              match = true;
-            }
-            if (!match && dataEmail !== '' && appEmail === dataEmail) {
-              match = true;
-            }
-            
-            if (match) {
-              ktaSheet.getRange(idx + 2, photoColIndex + 1).setValue(finalProfilePhoto);
-            }
-          });
+  // Automatically update photo & details in KTA_Applications if exists
+  try {
+    var ktaSheet = getSheet('KTA_Applications');
+    if (ktaSheet) {
+      var ktaHeaders = ktaSheet.getRange(1, 1, 1, Math.max(1, ktaSheet.getLastColumn())).getValues()[0].map(function(h) { 
+        return h ? h.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '') : ""; 
+      });
+      var photoColIndex = ktaHeaders.indexOf('photo') > -1 ? ktaHeaders.indexOf('photo') : ktaHeaders.indexOf('foto');
+      var namaColIndex = ktaHeaders.indexOf('nama') > -1 ? ktaHeaders.indexOf('nama') : ktaHeaders.indexOf('namalengkap');
+      var waColIndex = ktaHeaders.indexOf('nowa') > -1 ? ktaHeaders.indexOf('nowa') : ktaHeaders.indexOf('nohp');
+      var daerahColIndex = ktaHeaders.indexOf('asaldaerah') > -1 ? ktaHeaders.indexOf('asaldaerah') : ktaHeaders.indexOf('asalkwarda');
+      var qabilahColIndex = ktaHeaders.indexOf('qabilah');
+      var alamatColIndex = ktaHeaders.indexOf('alamat');
+      var ktaApps = getRowsAsObjects(ktaSheet);
+      
+      ktaApps.forEach(function(app, idx) {
+        var appUserId = (app.userid || app.userId || app.UserId || '').toString().trim();
+        var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
+        
+        var match = false;
+        if (dataId !== '' && appUserId !== '' && appUserId === dataId) match = true;
+        if (!match && dataEmail !== '' && appEmail === dataEmail) match = true;
+        
+        if (match) {
+          if (finalProfilePhoto && photoColIndex > -1) {
+            ktaSheet.getRange(idx + 2, photoColIndex + 1).setValue(finalProfilePhoto);
+          }
+          if (dataName && namaColIndex > -1) {
+            var rawNama = getRobustValue(data, ['namaLengkap', 'namalengkap', 'nama', 'Nama']);
+            if (rawNama) ktaSheet.getRange(idx + 2, namaColIndex + 1).setValue(rawNama);
+          }
+          if (dataPhone && waColIndex > -1) {
+            var rawWa = getRobustValue(data, ['noHp', 'nohp', 'noWa', 'nowa', 'phone']);
+            if (rawWa) ktaSheet.getRange(idx + 2, waColIndex + 1).setValue(rawWa);
+          }
+          if (daerahColIndex > -1) {
+            var rawDaerah = getRobustValue(data, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah']);
+            if (rawDaerah) ktaSheet.getRange(idx + 2, daerahColIndex + 1).setValue(rawDaerah);
+          }
+          if (qabilahColIndex > -1) {
+            var rawQab = getRobustValue(data, ['qabilah', 'Qabilah']);
+            if (rawQab) ktaSheet.getRange(idx + 2, qabilahColIndex + 1).setValue(rawQab);
+          }
+          if (alamatColIndex > -1) {
+            var rawAlamat = getRobustValue(data, ['alamat', 'Alamat']);
+            if (rawAlamat) ktaSheet.getRange(idx + 2, alamatColIndex + 1).setValue(rawAlamat);
+          }
         }
-      }
-    } catch (e) {
-      // ignore
+      });
     }
+  } catch (e) {
+    // ignore
   }
   
   return responseOk({ success: true, message: "Member saved successfully" });

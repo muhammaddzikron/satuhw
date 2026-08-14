@@ -100,30 +100,39 @@ export const initMockData = () => {
       } catch (e) {}
     }
 
-    const map = new Map<string, any>();
-    masterMembers.forEach(m => {
-      const kta = (m.ktaNumber || m.nomorKTA || '').trim().toLowerCase();
-      const email = (m.email || '').trim().toLowerCase();
-      const key = kta ? `kta:${kta}` : (email && !email.startsWith('member_') ? `email:${email}` : `id:${m.id}`);
-      map.set(key, m);
-    });
-
     if (Array.isArray(currentList) && currentList.length > 0) {
-      currentList.forEach(m => {
-        if (!m || !m.namaLengkap || m.namaLengkap === 'Tanpa Nama' || m.namaLengkap === '-') return;
-        const kta = (m.ktaNumber || m.nomorKTA || '').trim().toLowerCase();
-        const email = (m.email || '').trim().toLowerCase();
-        const key = kta ? `kta:${kta}` : (email && !email.startsWith('member_') ? `email:${email}` : `id:${m.id}`);
-        if (map.has(key)) {
-          map.set(key, { ...map.get(key), ...m });
-        } else {
-          map.set(key, m);
+      // currentList has existing members with user changes.
+      // Append any master member not yet present in currentList
+      masterMembers.forEach(mm => {
+        if (!mm) return;
+        const mmId = mm.id ? String(mm.id) : '';
+        const mmEmail = mm.email ? mm.email.toLowerCase().trim() : '';
+        const mmKta = (mm.ktaNumber || mm.nomorKTA || '').trim().toLowerCase();
+        const mmPhone = mm.noHp ? String(mm.noHp).replace(/[^0-9]/g, '') : '';
+
+        const exists = currentList.some(cm => {
+          if (!cm) return false;
+          const cmId = cm.id ? String(cm.id) : '';
+          const cmEmail = cm.email ? cm.email.toLowerCase().trim() : '';
+          const cmKta = (cm.ktaNumber || cm.nomorKTA || '').trim().toLowerCase();
+          const cmPhone = cm.noHp ? String(cm.noHp).replace(/[^0-9]/g, '') : '';
+
+          return (
+            (mmId && cmId && mmId === cmId) ||
+            (mmEmail && cmEmail && mmEmail === cmEmail) ||
+            (mmKta && cmKta && mmKta === cmKta) ||
+            (mmPhone && cmPhone && mmPhone.length > 6 && mmPhone === cmPhone)
+          );
+        });
+
+        if (!exists) {
+          currentList.push(mm);
         }
       });
+      localStorage.setItem('mock_members', JSON.stringify(currentList));
+    } else {
+      localStorage.setItem('mock_members', JSON.stringify(masterMembers));
     }
-
-    const mergedMock = Array.from(map.values());
-    localStorage.setItem('mock_members', JSON.stringify(mergedMock));
     localStorage.setItem('mock_members_initialized', 'true');
   } catch (e) {
     console.error('initMockData error:', e);
@@ -294,47 +303,7 @@ export const sheetsService = {
       };
     }
 
-    // Step 1: Fast local cache login (instant < 20ms)
-    try {
-      const localResult = this.mockLogin(cleanEmail, cleanPass);
-      if (localResult && localResult.user) {
-        // Sync in background if online API is active
-        if (IS_API_VALID) {
-          this.post({
-            action: 'login',
-            email: cleanEmail,
-            password: cleanPass
-          }).then(res => {
-            if (res && res.user) {
-              const mappedUser = this.mapUser(res.user);
-              firestoreService.saveMember(mappedUser).catch(() => {});
-            }
-          }).catch(() => {});
-        }
-        return localResult;
-      }
-    } catch (e: any) {
-      if (e.message?.includes('salah')) {
-        throw e;
-      }
-    }
-
-    // Step 2: Fast Firestore cache login with 1.2s timeout limit
-    try {
-      const fsPromise = firestoreService.login(cleanEmail, cleanPass);
-      const fsTimeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error('FS Timeout')), 1200));
-      const fsResult: any = await Promise.race([fsPromise, fsTimeout]).catch(() => null);
-      if (fsResult && fsResult.user) {
-        if (IS_API_VALID) {
-          this.post({ action: 'login', email: cleanEmail, password: cleanPass }).catch(() => {});
-        }
-        return fsResult;
-      }
-    } catch (e) {
-      console.warn('Firestore login check skipped or timed out:', e);
-    }
-
-    // Step 3: Try Google Sheets API with 1.5s timeout if user wasn't in local cache
+    // 1. If online Google Sheets API is configured, query spreadsheet first with 3.5s timeout for latest data
     if (IS_API_VALID) {
       try {
         const apiPromise = this.post({
@@ -342,10 +311,27 @@ export const sheetsService = {
           email: cleanEmail,
           password: cleanPass
         });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), 1500));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), 3500));
         const res: any = await Promise.race([apiPromise, timeoutPromise]);
         if (res && res.user) {
           const mappedUser = this.mapUser(res.user);
+          // Sync into localStorage & Firestore
+          try {
+            const stored = localStorage.getItem('mock_members');
+            let parsed = stored ? JSON.parse(stored) : [];
+            if (Array.isArray(parsed)) {
+              const idx = parsed.findIndex((m: any) => 
+                (mappedUser.id && m.id === mappedUser.id) ||
+                (mappedUser.email && m.email?.toLowerCase() === mappedUser.email.toLowerCase())
+              );
+              if (idx >= 0) {
+                parsed[idx] = { ...parsed[idx], ...mappedUser };
+              } else {
+                parsed.push(mappedUser);
+              }
+              localStorage.setItem('mock_members', JSON.stringify(parsed));
+            }
+          } catch (e) {}
           firestoreService.saveMember(mappedUser).catch(() => {});
           return {
             token: res.token || `token-${mappedUser.id}`,
@@ -353,7 +339,48 @@ export const sheetsService = {
           };
         }
       } catch (error: any) {
-        console.warn('Google Sheets login API call error or timeout, falling back:', error);
+        console.warn('Google Sheets login API call error or timeout, proceeding to Firestore/local cache:', error?.message || error);
+      }
+    }
+
+    // 2. Try Firestore with 1.8s timeout limit
+    try {
+      const fsPromise = firestoreService.login(cleanEmail, cleanPass);
+      const fsTimeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error('FS Timeout')), 1800));
+      const fsResult: any = await Promise.race([fsPromise, fsTimeout]).catch(() => null);
+      if (fsResult && fsResult.user) {
+        // Sync into localStorage
+        try {
+          const stored = localStorage.getItem('mock_members');
+          let parsed = stored ? JSON.parse(stored) : [];
+          if (Array.isArray(parsed)) {
+            const idx = parsed.findIndex((m: any) => 
+              (fsResult.user.id && m.id === fsResult.user.id) ||
+              (fsResult.user.email && m.email?.toLowerCase() === fsResult.user.email.toLowerCase())
+            );
+            if (idx >= 0) {
+              parsed[idx] = { ...parsed[idx], ...fsResult.user };
+            } else {
+              parsed.push(fsResult.user);
+            }
+            localStorage.setItem('mock_members', JSON.stringify(parsed));
+          }
+        } catch (e) {}
+        return fsResult;
+      }
+    } catch (e) {
+      console.warn('Firestore login check skipped or timed out:', e);
+    }
+
+    // 3. Fallback to Local Cache Login
+    try {
+      const localResult = this.mockLogin(cleanEmail, cleanPass);
+      if (localResult && localResult.user) {
+        return localResult;
+      }
+    } catch (e: any) {
+      if (e.message?.includes('salah')) {
+        throw e;
       }
     }
 
@@ -981,33 +1008,80 @@ export const sheetsService = {
     clearSheetsCache('members');
     const normRoles = parseRolesField(userData.roles, userData.role);
     const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
-    const cleanUserData = {
+    const cleanUserData: User = {
       ...userData,
+      id: userData.id || (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`),
       role: primaryRole,
-      roles: normRoles
+      roles: normRoles,
+      activeRole: userData.activeRole || primaryRole
     };
 
-    if (!IS_API_VALID) {
-      const saved = await firestoreService.saveMember(cleanUserData as User);
-      return { success: true, message: 'Saved to Firestore', member: saved };
-    }
-    const payload = {
-      ...cleanUserData,
-      email: cleanUserData.email,
-      namaLengkap: cleanUserData.namaLengkap,
-      role: JSON.stringify(normRoles),
-      roles: JSON.stringify(normRoles),
-      pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
-      upgradeRequests: Array.isArray(cleanUserData.upgradeRequests) ? JSON.stringify(cleanUserData.upgradeRequests) : cleanUserData.upgradeRequests
-    };
+    // 1. Immediately update local mock_members cache
     try {
-      const res = await this.post({ action: 'saveMember', ...payload });
-      await firestoreService.saveMember(cleanUserData as User);
-      return res;
-    } catch (err) {
-      const saved = await firestoreService.saveMember(cleanUserData as User);
-      return { success: true, member: saved };
+      const stored = localStorage.getItem('mock_members');
+      let members: any[] = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(members)) members = [];
+      const cleanId = String(cleanUserData.id || '');
+      const cleanEmail = cleanUserData.email ? cleanUserData.email.toLowerCase().trim() : '';
+      const cleanKta = cleanUserData.ktaNumber ? cleanUserData.ktaNumber.trim() : '';
+      const cleanPhone = cleanUserData.noHp ? cleanUserData.noHp.replace(/[^0-9]/g, '') : '';
+
+      const idx = members.findIndex((m: any) => {
+        if (!m) return false;
+        const mId = m.id ? String(m.id) : '';
+        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+        const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+        const mPhone = m.noHp ? String(m.noHp).replace(/[^0-9]/g, '') : '';
+
+        return (
+          (cleanId && mId && cleanId === mId) ||
+          (cleanEmail && mEmail && cleanEmail === mEmail) ||
+          (cleanKta && mKta && cleanKta === mKta) ||
+          (cleanPhone && cleanPhone.length > 6 && mPhone && cleanPhone === mPhone)
+        );
+      });
+
+      if (idx >= 0) {
+        members[idx] = { ...members[idx], ...cleanUserData };
+      } else {
+        members.push(cleanUserData);
+      }
+      localStorage.setItem('mock_members', JSON.stringify(members));
+    } catch (e) {
+      console.warn('Error updating local mock_members in saveMember:', e);
     }
+
+    // 2. Persist to Firestore
+    try {
+      await firestoreService.saveMember(cleanUserData as User);
+      if (cleanUserData.id) {
+        await firestoreService.updateMember(cleanUserData.id, cleanUserData as User);
+      }
+    } catch (e) {
+      console.warn('Firestore update in saveMember warning:', e);
+    }
+
+    // 3. Post to Google Sheets if API is active
+    if (IS_API_VALID) {
+      const payload = {
+        ...cleanUserData,
+        email: cleanUserData.email,
+        namaLengkap: cleanUserData.namaLengkap,
+        role: JSON.stringify(normRoles),
+        roles: JSON.stringify(normRoles),
+        pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
+        upgradeRequests: Array.isArray(cleanUserData.upgradeRequests) ? JSON.stringify(cleanUserData.upgradeRequests) : cleanUserData.upgradeRequests
+      };
+      try {
+        const res = await this.post({ action: 'saveMember', ...payload });
+        return { success: true, message: 'Member saved successfully', member: cleanUserData, ...res };
+      } catch (err: any) {
+        console.warn('Google Sheets saveMember API call warning:', err);
+        return { success: true, message: 'Member saved locally and in database', member: cleanUserData };
+      }
+    }
+
+    return { success: true, message: 'Saved to database and local cache', member: cleanUserData };
   },
 
   async deleteMember(id: string): Promise<any> {
