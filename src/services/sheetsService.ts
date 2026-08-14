@@ -315,6 +315,7 @@ export const sheetsService = {
         const res: any = await Promise.race([apiPromise, timeoutPromise]);
         if (res && res.user) {
           const mappedUser = this.mapUser(res.user);
+          let finalUser = { ...mappedUser };
           // Sync into localStorage & Firestore
           try {
             const stored = localStorage.getItem('mock_members');
@@ -325,17 +326,36 @@ export const sheetsService = {
                 (mappedUser.email && m.email?.toLowerCase() === mappedUser.email.toLowerCase())
               );
               if (idx >= 0) {
-                parsed[idx] = { ...parsed[idx], ...mappedUser };
+                const ex = parsed[idx];
+                finalUser = {
+                  ...mappedUser,
+                  ...ex,
+                  namaLengkap: (ex.namaLengkap && ex.namaLengkap !== 'Tanpa Nama' && ex.namaLengkap !== '-') ? ex.namaLengkap : (mappedUser.namaLengkap || ex.namaLengkap || 'Anggota HW'),
+                  photo: ex.photo || mappedUser.photo || '',
+                  noHp: ex.noHp || mappedUser.noHp || '',
+                  alamat: ex.alamat || mappedUser.alamat || '',
+                  qabilah: ex.qabilah || mappedUser.qabilah || '',
+                  asalKwarda: ex.asalKwarda || mappedUser.asalKwarda || '',
+                  tempatLahir: ex.tempatLahir || mappedUser.tempatLahir || '',
+                  tanggalLahir: ex.tanggalLahir || mappedUser.tanggalLahir || '',
+                  golongan: ex.golongan || mappedUser.golongan || 'Dewasa',
+                  golonganPelatih: ex.golonganPelatih || mappedUser.golonganPelatih || '',
+                  pelatihan: (Array.isArray(ex.pelatihan) && ex.pelatihan.length > 0) ? ex.pelatihan : mappedUser.pelatihan,
+                  roles: (Array.isArray(ex.roles) && ex.roles.length > 0) ? ex.roles : mappedUser.roles,
+                  role: ex.role || mappedUser.role || 'umum',
+                  ktaNumber: ex.ktaNumber || mappedUser.ktaNumber || ex.nomorKTA || mappedUser.nomorKTA || '',
+                };
+                parsed[idx] = finalUser;
               } else {
-                parsed.push(mappedUser);
+                parsed.push(finalUser);
               }
               localStorage.setItem('mock_members', JSON.stringify(parsed));
             }
           } catch (e) {}
-          firestoreService.saveMember(mappedUser).catch(() => {});
+          firestoreService.saveMember(finalUser).catch(() => {});
           return {
-            token: res.token || `token-${mappedUser.id}`,
-            user: mappedUser
+            token: res.token || `token-${finalUser.id}`,
+            user: finalUser
           };
         }
       } catch (error: any) {
@@ -1047,6 +1067,30 @@ export const sheetsService = {
         members.push(cleanUserData);
       }
       localStorage.setItem('mock_members', JSON.stringify(members));
+
+      // Also sync KTA application in localStorage if exists
+      const ktaStored = localStorage.getItem('kta_applications');
+      if (ktaStored) {
+        let ktas: any[] = JSON.parse(ktaStored);
+        if (Array.isArray(ktas)) {
+          ktas.forEach((k: any) => {
+            if ((cleanId && k.userId && String(k.userId) === cleanId) ||
+                (cleanEmail && k.email && String(k.email).toLowerCase().trim() === cleanEmail)) {
+              if (cleanUserData.namaLengkap) k.nama = cleanUserData.namaLengkap;
+              if (cleanUserData.photo) k.photo = cleanUserData.photo;
+              if (cleanUserData.noHp) k.noWa = cleanUserData.noHp;
+              if (cleanUserData.asalKwarda) k.asalDaerah = cleanUserData.asalKwarda;
+              if (cleanUserData.qabilah) k.qabilah = cleanUserData.qabilah;
+              if (cleanUserData.alamat) k.alamat = cleanUserData.alamat;
+              if (cleanUserData.tempatLahir) k.tempatLahir = cleanUserData.tempatLahir;
+              if (cleanUserData.tanggalLahir) k.tanggalLahir = cleanUserData.tanggalLahir;
+              if (cleanUserData.jenisKelamin) k.jenisKelamin = cleanUserData.jenisKelamin;
+              if (cleanUserData.ktaNumber) k.ktaNumber = cleanUserData.ktaNumber;
+            }
+          });
+          localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        }
+      }
     } catch (e) {
       console.warn('Error updating local mock_members in saveMember:', e);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -573,6 +573,27 @@ export default function AdminDashboard() {
     proposalUrl: ''
   });
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
+
+  const activityParticipantCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!activitiesList?.length || !activityApplicationsList?.length) return map;
+    for (const act of activitiesList) {
+      if (act?.id) {
+        map[act.id] = activityApplicationsList.filter(app => isParticipantOfActivity(app, act)).length;
+      }
+    }
+    return map;
+  }, [activitiesList, activityApplicationsList]);
+
+  const displayedActivityApplications = useMemo(() => {
+    if (!activityApplicationsList?.length) return [];
+    if (selectedActivityForParticipants === 'semua') {
+      return sortActivityAppsByDate(activityApplicationsList, true);
+    }
+    const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
+    const filtered = activityApplicationsList.filter(app => isParticipantOfActivity(app, targetAct));
+    return sortActivityAppsByDate(filtered, true);
+  }, [activityApplicationsList, selectedActivityForParticipants, activitiesList]);
 
   const [selectedContentSection, setSelectedContentSection] = useState<string | null>(null);
   const [contents, setContents] = useState<Content[]>([]);
@@ -2557,6 +2578,11 @@ export default function AdminDashboard() {
       await sheetsService.saveKTAApplication(ktaPayload).catch(err => console.error("Sync KTA error:", err));
       await firestoreService.createKTAApplication(ktaPayload).catch(err => console.error("Firestore sync KTA error:", err));
       
+      // If current logged-in user is being updated, sync authStore
+      if (user && (user.id === payload.id || (user.email && payload.email && user.email.toLowerCase() === payload.email.toLowerCase()))) {
+        useAuthStore.getState().updateUser(payload as Partial<User>);
+      }
+
       // Refresh lists
       const [data, ktaData] = await Promise.all([
         sheetsService.getMembers(),
@@ -7747,7 +7773,7 @@ export default function AdminDashboard() {
                               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                               title="Lihat pendaftar kegiatan ini"
                             >
-                              <Users size={14} /> Cek Peserta ({activityApplicationsList.filter(app => isParticipantOfActivity(app, act)).length})
+                              <Users size={14} /> Cek Peserta ({activityParticipantCountMap[act.id] || 0})
                             </button>
                             <div className="flex items-center gap-1.5">
                               <button
@@ -7823,14 +7849,7 @@ export default function AdminDashboard() {
                   <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
                     {/* 1. Mobile Card View (Visible on small screens) */}
                     <div className="block md:hidden divide-y divide-gray-100">
-                      {sortActivityAppsByDate(
-                        activityApplicationsList.filter(app => {
-                          if (selectedActivityForParticipants === 'semua') return true;
-                          const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
-                          return isParticipantOfActivity(app, targetAct);
-                        }),
-                        true
-                      ).map((app, index) => (
+                      {displayedActivityApplications.map((app, index) => (
                           <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div className="space-y-0.5">
@@ -7882,11 +7901,7 @@ export default function AdminDashboard() {
                           </div>
                         ))}
 
-                      {activityApplicationsList.filter(app => {
-                        if (selectedActivityForParticipants === 'semua') return true;
-                        const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
-                        return isParticipantOfActivity(app, targetAct);
-                      }).length === 0 && (
+                      {displayedActivityApplications.length === 0 && (
                         <div className="p-8 text-center text-gray-400 font-bold text-xs">
                           Belum ada pendaftar kegiatan.
                         </div>
@@ -7909,14 +7924,7 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {sortActivityAppsByDate(
-                            activityApplicationsList.filter(app => {
-                              if (selectedActivityForParticipants === 'semua') return true;
-                              const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
-                              return isParticipantOfActivity(app, targetAct);
-                            }),
-                            true
-                          ).map((app, index) => (
+                          {displayedActivityApplications.map((app, index) => (
                               <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
                                 <td className="p-4 font-bold text-gray-400 text-center text-[11px]">
                                   {index + 1}
@@ -7967,11 +7975,7 @@ export default function AdminDashboard() {
                                 </td>
                               </tr>
                             ))}
-                          {activityApplicationsList.filter(app => {
-                            if (selectedActivityForParticipants === 'semua') return true;
-                            const targetAct = activitiesList.find(a => a.id === selectedActivityForParticipants) || { id: selectedActivityForParticipants };
-                            return isParticipantOfActivity(app, targetAct);
-                          }).length === 0 && (
+                          {displayedActivityApplications.length === 0 && (
                             <tr>
                               <td colSpan={8} className="p-8 text-center text-gray-400 font-bold">
                                 Belum ada pendaftar kegiatan.

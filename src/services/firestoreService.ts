@@ -563,17 +563,17 @@ export const firestoreService = {
 
             members[matchedIdx] = {
               ...m,
-              namaLengkap: (kName && kName !== 'Tanpa Nama' && kName !== '-') ? kName : (m.namaLengkap || 'Anggota HW'),
-              noHp: k.noWa || k.noHp || m.noHp || '',
-              alamat: k.alamat || m.alamat || '',
-              qabilah: k.qabilah || m.qabilah || '',
-              asalKwarda: k.asalDaerah || m.asalKwarda || '',
-              tempatLahir: k.tempatLahir || k.tempatlahir || m.tempatLahir || '',
-              tanggalLahir: k.tanggalLahir || k.tanggallahir || m.tanggalLahir || '',
-              golongan: k.tingkatan || m.golongan || 'Dewasa',
-              photo: k.photo || m.photo || '',
+              namaLengkap: (m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-') ? m.namaLengkap : (kName && kName !== 'Tanpa Nama' && kName !== '-' ? kName : (m.namaLengkap || 'Anggota HW')),
+              noHp: m.noHp || (m as any).noWa || k.noWa || k.noHp || '',
+              alamat: m.alamat || k.alamat || '',
+              qabilah: m.qabilah || k.qabilah || '',
+              asalKwarda: m.asalKwarda || k.asalDaerah || '',
+              tempatLahir: m.tempatLahir || k.tempatLahir || k.tempatlahir || '',
+              tanggalLahir: m.tanggalLahir || k.tanggalLahir || k.tanggallahir || '',
+              golongan: m.golongan || k.tingkatan || 'Dewasa',
+              photo: m.photo || k.photo || '',
               isVerified: m.isVerified !== undefined ? m.isVerified : (k.status === 'approved'),
-              ktaNumber: k.ktaNumber || m.ktaNumber || '',
+              ktaNumber: m.ktaNumber || m.nomorKTA || k.ktaNumber || '',
               password: assignedPass
             };
           } else if (kEmail && kName && kName !== 'Tanpa Nama') {

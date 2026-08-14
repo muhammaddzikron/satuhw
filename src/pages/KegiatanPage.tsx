@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
@@ -201,24 +201,50 @@ export default function KegiatanPage() {
     }
   }, [activities]);
 
-  const categories = ['Semua', 'Kegiatan Saya', ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')];
+  const categories = useMemo(() => [
+    'Semua', 
+    'Kegiatan Saya', 
+    ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')
+  ], [activityCategoriesList]);
 
-  const filteredActivities = activities.filter(act => {
-    // Exclude training activities from Kegiatan Page
-    if (isOnlyTrainingActivity(act)) return false;
-
-    const matchesSearch = (act.namaKegiatan || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (act.lokasi || '').toLowerCase().includes(searchQuery.toLowerCase());
-    if (selectedCategory === 'Kegiatan Saya') {
-      const isMine = act.createdBy === user?.email || 
-                     act.creatorName === user?.namaLengkap || 
-                     act.createdBy === 'muhammaddzikron@gmail.com' ||
-                     !act.createdBy; // Include default activities as created by user
-      return matchesSearch && isMine;
+  const participantCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!activities?.length || !activityApps?.length) return map;
+    for (const act of activities) {
+      if (act?.id) {
+        map[act.id] = activityApps.filter(a => isParticipantOfActivity(a, act)).length;
+      }
     }
-    const matchesCategory = selectedCategory === 'Semua' || act.kategori === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+    return map;
+  }, [activities, activityApps]);
+
+  const activeParticipantsList = useMemo(() => {
+    if (!selectedActivityForParticipants || !activityApps?.length) return [];
+    const filtered = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
+    return sortActivityAppsByDate(filtered, true);
+  }, [selectedActivityForParticipants, activityApps]);
+
+  const filteredActivities = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    return activities.filter(act => {
+      // Exclude training activities from Kegiatan Page
+      if (isOnlyTrainingActivity(act)) return false;
+
+      const matchesSearch = !q ||
+                            (act.namaKegiatan || '').toLowerCase().includes(q) ||
+                            (act.lokasi || '').toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+
+      if (selectedCategory === 'Kegiatan Saya') {
+        const isMine = act.createdBy === user?.email || 
+                       act.creatorName === user?.namaLengkap || 
+                       act.createdBy === 'muhammaddzikron@gmail.com' ||
+                       !act.createdBy; // Include default activities as created by user
+        return isMine;
+      }
+      return selectedCategory === 'Semua' || act.kategori === selectedCategory;
+    });
+  }, [activities, searchQuery, selectedCategory, user]);
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -606,7 +632,7 @@ export default function KegiatanPage() {
                     className="py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                   >
                     <Users size={14} className="text-emerald-600" />
-                    <span>Pendaftar ({activityApps.filter(a => isParticipantOfActivity(a, activity)).length})</span>
+                    <span>Pendaftar ({participantCountMap[activity.id] || 0})</span>
                   </button>
                   {isAdmin && (
                     <div className="flex items-center gap-1">
@@ -654,17 +680,20 @@ export default function KegiatanPage() {
       {/* DETAIL MODAL */}
       <AnimatePresence>
         {isDetailModalOpen && selectedActivity && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="relative h-48 bg-gray-900 shrink-0">
                 <img 
                   src={getCorsSafeUrl(selectedActivity.gambarUrl, selectedActivity.updatedAt || selectedActivity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={selectedActivity.namaKegiatan} 
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover opacity-80"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
@@ -839,11 +868,12 @@ export default function KegiatanPage() {
       {/* REGISTRATION MODAL */}
       <AnimatePresence>
         {isRegisterModalOpen && selectedActivity && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
@@ -1137,11 +1167,12 @@ export default function KegiatanPage() {
       {/* PARTICIPANTS LIST MODAL */}
       <AnimatePresence>
         {isParticipantsModalOpen && selectedActivityForParticipants && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-xl w-full overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
@@ -1158,104 +1189,96 @@ export default function KegiatanPage() {
               </div>
 
               <div className="p-5 overflow-y-auto space-y-4 flex-1">
-                {(() => {
-                  const filteredList = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
-                  const pendaftarList = sortActivityAppsByDate(filteredList, true);
-                  if (pendaftarList.length === 0) {
-                    return (
-                      <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
-                        <Users size={36} className="mx-auto text-gray-300" />
-                        <p className="text-xs font-bold text-gray-600">Belum ada pendaftar untuk kegiatan ini.</p>
-                        <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
-                          Jadilah peserta pertama yang mendaftar pada kegiatan {selectedActivityForParticipants.namaKegiatan}!
-                        </p>
+                {activeParticipantsList.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
+                    <Users size={36} className="mx-auto text-gray-300" />
+                    <p className="text-xs font-bold text-gray-600">Belum ada pendaftar untuk kegiatan ini.</p>
+                    <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                      Jadilah peserta pertama yang mendaftar pada kegiatan {selectedActivityForParticipants.namaKegiatan}!
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSelectedActivity(selectedActivityForParticipants);
+                        setIsParticipantsModalOpen(false);
+                        setIsRegisterModalOpen(true);
+                      }}
+                      className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 cursor-pointer active:scale-95"
+                    >
+                      <UserPlus size={16} />
+                      <span>Mendaftar Kegiatan Ini</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-emerald-50 p-3.5 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-bold">
+                      <div className="flex items-center gap-2">
+                        <span>Total Pendaftar Terkonfirmasi:</span>
+                        <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-black">
+                          {activeParticipantsList.length} Peserta
+                        </span>
+                      </div>
+                      {selectedActivityForParticipants.status !== 'Tutup' && (
                         <button
                           onClick={() => {
                             setSelectedActivity(selectedActivityForParticipants);
                             setIsParticipantsModalOpen(false);
                             setIsRegisterModalOpen(true);
                           }}
-                          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 cursor-pointer active:scale-95"
+                          className="px-3.5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
                         >
-                          <UserPlus size={16} />
-                          <span>Mendaftar Kegiatan Ini</span>
+                          <UserPlus size={14} />
+                          <span>+ Mendaftar Kegiatan</span>
                         </button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-3">
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-emerald-50 p-3.5 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-bold">
-                        <div className="flex items-center gap-2">
-                          <span>Total Pendaftar Terkonfirmasi:</span>
-                          <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-black">
-                            {pendaftarList.length} Peserta
-                          </span>
-                        </div>
-                        {selectedActivityForParticipants.status !== 'Tutup' && (
-                          <button
-                            onClick={() => {
-                              setSelectedActivity(selectedActivityForParticipants);
-                              setIsParticipantsModalOpen(false);
-                              setIsRegisterModalOpen(true);
-                            }}
-                            className="px-3.5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                          >
-                            <UserPlus size={14} />
-                            <span>+ Mendaftar Kegiatan</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        {pendaftarList.map((app, idx) => {
-                          const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
-                          const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
-
-                          return (
-                            <div key={app.id || idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex items-start justify-between gap-3 hover:bg-gray-100/80 transition-colors">
-                              <div className="space-y-1 flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                    #{idx + 1}
-                                  </span>
-                                  <h4 className="text-xs font-black text-gray-900 truncate">{app.namaLengkap}</h4>
-                                </div>
-                                <div className="text-[11px] text-gray-600 font-medium space-y-0.5">
-                                  <p><strong>Unsur/Utusan:</strong> {app.utusan || app.qabilahPtma || app.unsur || '-'}</p>
-                                  <p><strong>Jabatan:</strong> {app.jabatan || 'Peserta'}</p>
-                                  <p className="flex items-center gap-1.5 pt-0.5">
-                                    <strong>Kategori Undangan:</strong>
-                                    <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">
-                                      {app.kategoriUndangan || app.kategori || 'Tidak Ada / Umum'}
-                                    </span>
-                                  </p>
-                                  {app.tanggalDaftar && (
-                                    <p className="text-[10px] text-gray-400">
-                                      Tgl Ajuan: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {user && formattedWa && (
-                                <a
-                                  href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
-                                >
-                                  <Send size={12} /> WA
-                                </a>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      )}
                     </div>
-                  );
-                })()}
+
+                    <div className="space-y-2.5">
+                      {activeParticipantsList.map((app, idx) => {
+                        const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
+                        const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
+
+                        return (
+                          <div key={app.id || idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex items-start justify-between gap-3 hover:bg-gray-100/80 transition-colors">
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  #{idx + 1}
+                                </span>
+                                <h4 className="text-xs font-black text-gray-900 truncate">{app.namaLengkap}</h4>
+                              </div>
+                              <div className="text-[11px] text-gray-600 font-medium space-y-0.5">
+                                <p><strong>Unsur/Utusan:</strong> {app.utusan || app.qabilahPtma || app.unsur || '-'}</p>
+                                <p><strong>Jabatan:</strong> {app.jabatan || 'Peserta'}</p>
+                                <p className="flex items-center gap-1.5 pt-0.5">
+                                  <strong>Kategori Undangan:</strong>
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">
+                                    {app.kategoriUndangan || app.kategori || 'Tidak Ada / Umum'}
+                                  </span>
+                                </p>
+                                {app.tanggalDaftar && (
+                                  <p className="text-[10px] text-gray-400">
+                                    Tgl Ajuan: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {user && formattedWa && (
+                              <a
+                                href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                              >
+                                <Send size={12} /> WA
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
@@ -1288,11 +1311,12 @@ export default function KegiatanPage() {
       {/* MODAL TAMBAH / EDIT KEGIATAN */}
       <AnimatePresence>
         {isAddActivityModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-5 bg-hw-dark text-white flex items-center justify-between">

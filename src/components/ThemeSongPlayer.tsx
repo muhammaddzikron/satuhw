@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Play, Pause, Music, Download, ExternalLink, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 import { formatAudioUrl } from '../utils/audioUtils';
 
@@ -22,7 +22,7 @@ export const ThemeSongPlayer: React.FC<ThemeSongPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const formattedUrl = formatAudioUrl(audioUrl);
+  const formattedUrl = useMemo(() => formatAudioUrl(audioUrl), [audioUrl]);
 
   useEffect(() => {
     setIsPlaying(false);
@@ -103,6 +103,7 @@ export const ThemeSongPlayer: React.FC<ThemeSongPlayerProps> = ({
         <audio
           ref={audioRef}
           src={formattedUrl}
+          preload="none"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
           onPlay={() => setIsPlaying(true)}
@@ -144,6 +145,7 @@ export const ThemeSongPlayer: React.FC<ThemeSongPlayerProps> = ({
       <audio
         ref={audioRef}
         src={formattedUrl}
+        preload="none"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
         onPlay={() => setIsPlaying(true)}
