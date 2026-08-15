@@ -441,7 +441,8 @@ export default function HomePage() {
   }, [trainingActivities, activitiesList]);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    // Minute-based timer for date display, saves battery and prevents frame drops on scroll
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     
     const initializeLocationAndPrayers = async () => {
       try {
@@ -613,7 +614,7 @@ export default function HomePage() {
     }
   }, [currentTrackIndex]);
 
-  const VideoPreview = () => (
+  const renderVideoPreview = () => (
     <>
       {galleryItems.length === 0 ? (
         [1, 2, 3].map(i => (
@@ -639,7 +640,13 @@ export default function HomePage() {
               className="min-w-[160px] sm:min-w-[180px] bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm snap-start group text-left cursor-pointer"
             >
               <div className="relative h-24">
-                <img src={thumb} alt={videoTitle} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img 
+                  src={thumb} 
+                  alt={videoTitle} 
+                  loading="lazy" 
+                  decoding="async" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                />
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                   <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/30">
                     <Play fill="white" size={14} />
@@ -656,7 +663,7 @@ export default function HomePage() {
     </>
   );
 
-  const PlaylistPreview = () => (
+  const renderPlaylistPreview = () => (
     <div className="space-y-2.5">
       {playlistItems.length === 0 ? (
         <div className="p-4 bg-white rounded-3xl border border-gray-100 flex items-center justify-center">
@@ -1131,7 +1138,7 @@ export default function HomePage() {
         </div>
         
         <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x">
-          <VideoPreview />
+          {renderVideoPreview()}
         </div>
       </section>
 
@@ -1146,7 +1153,7 @@ export default function HomePage() {
             Layar Penuh <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
-        <PlaylistPreview />
+        {renderPlaylistPreview()}
       </section>
 
       {/* Banner Section - Semarak HW Jateng */}

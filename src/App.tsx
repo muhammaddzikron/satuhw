@@ -320,15 +320,9 @@ const Navigation = () => {
 };
 
 const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fullWidth?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.2 }}
-    className={cn("pb-32 sm:pb-36 pt-4 px-4 mx-auto", fullWidth ? "max-w-7xl" : "max-w-md")}
-  >
+  <div className={cn("pb-32 sm:pb-36 pt-4 px-4 mx-auto w-full", fullWidth ? "max-w-7xl" : "max-w-md")}>
     {children}
-  </motion.div>
+  </div>
 );
 
 const AnimatedRoutes = () => {
