@@ -138,6 +138,18 @@ const isValidName = (n?: string): boolean => {
   return lower !== '' && lower !== 'tanpa nama' && lower !== '-' && lower !== 'null' && lower !== 'undefined';
 };
 
+function safeUnsub(unsub: any): () => void {
+  return () => {
+    try {
+      if (typeof unsub === 'function') {
+        unsub();
+      }
+    } catch (e) {
+      console.warn('[Firestore] Handled snapshot unsubscribe cleanup:', e);
+    }
+  };
+}
+
 export const firestoreService = {
   // Sync state flag
   isInitialized: false,
@@ -1491,7 +1503,7 @@ export const firestoreService = {
           this.checkQuotaError(err);
           console.warn('[FIRESTORE] subscribeToMembers snapshot error:', err?.message || err);
         });
-        return unsub;
+        return safeUnsub(unsub);
       } catch (e) {
         console.warn('[FIRESTORE] subscribeToMembers error:', e);
       }
@@ -1516,7 +1528,7 @@ export const firestoreService = {
           this.checkQuotaError(err);
           console.warn('[FIRESTORE] subscribeToMember snapshot error:', err?.message || err);
         });
-        return unsub;
+        return safeUnsub(unsub);
       } catch (e) {
         console.warn('[FIRESTORE] subscribeToMember error:', e);
       }
@@ -2123,7 +2135,7 @@ export const firestoreService = {
     window.addEventListener('training_applications_updated', handleStorage);
 
     return () => {
-      if (unsub) unsub();
+      if (unsub) safeUnsub(unsub)();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('training_applications_updated', handleStorage);
     };
@@ -2229,7 +2241,7 @@ export const firestoreService = {
         console.warn('subscribeToContents warning:', err);
         this.getContents().then(c => callback(c)).catch(() => callback([]));
       });
-      return unsub;
+      return safeUnsub(unsub);
     } catch (e) {
       console.error('subscribeToContents error:', e);
       this.getContents().then(c => callback(c)).catch(() => callback([]));
@@ -2394,7 +2406,7 @@ export const firestoreService = {
         }, (err) => {
           this.checkQuotaError(err);
         });
-        return unsub;
+        return safeUnsub(unsub);
       } catch (e) {
         console.warn('subscribeToSettings error:', e);
       }
@@ -2479,7 +2491,7 @@ export const firestoreService = {
         this.checkQuotaError(err);
         console.warn('subscribeToActivityCategories warning:', err);
       });
-      return unsub;
+      return safeUnsub(unsub);
     } catch (e) {
       return () => {};
     }
@@ -2660,7 +2672,7 @@ export const firestoreService = {
         console.warn('subscribeToActivities warning:', err);
         this.getActivities().then(acts => callback(sortActivitiesNewestFirst(acts))).catch(() => callback(sortActivitiesNewestFirst(defaults)));
       });
-      return unsub;
+      return safeUnsub(unsub);
     } catch (e) {
       console.error('subscribeToActivities error:', e);
       this.getActivities().then(acts => callback(acts)).catch(() => callback(defaults));
@@ -3115,7 +3127,7 @@ export const firestoreService = {
         console.warn('subscribeToActivityApplications warning:', err);
         callback(initialMerged);
       });
-      return unsub;
+      return safeUnsub(unsub);
     } catch (e) {
       return () => {};
     }
