@@ -1,3 +1,4 @@
+import { safeStorageSet } from '../utils/safeStorage';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -1408,8 +1409,8 @@ export default function AdminDashboard() {
       setKtaApps(resequencedKtas);
       setMembers(resequencedMembers);
 
-      localStorage.setItem('kta_applications', JSON.stringify(resequencedKtas));
-      localStorage.setItem('mock_members', JSON.stringify(resequencedMembers));
+      safeStorageSet('kta_applications', resequencedKtas);
+      safeStorageSet('mock_members', resequencedMembers);
 
       // 2. Sync to Firestore in background
       await firestoreService.resequenceAndSaveAllKTAs();
@@ -2596,8 +2597,11 @@ export default function AdminDashboard() {
         verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
       };
 
-      await sheetsService.saveKTAApplication(ktaPayload).catch(err => console.error("Sync KTA error:", err));
-      await firestoreService.createKTAApplication(ktaPayload).catch(err => console.error("Firestore sync KTA error:", err));
+      try {
+        await sheetsService.saveKTAApplication(ktaPayload);
+      } catch (syncErr) {
+        console.warn("KTA sync notice:", syncErr);
+      }
       
       // If current logged-in user is being updated, sync authStore
       if (user && (user.id === payload.id || (user.email && payload.email && user.email.toLowerCase() === payload.email.toLowerCase()))) {
@@ -2761,7 +2765,7 @@ export default function AdminDashboard() {
           }
         }
         setSettings(updatedSettings);
-        localStorage.setItem('hw_settings', JSON.stringify(updatedSettings));
+        safeStorageSet('hw_settings', updatedSettings);
       } else {
         setSettings(prev => ({ ...prev, ...payload }));
       }
@@ -4981,7 +4985,7 @@ export default function AdminDashboard() {
                             try {
                               setLoading(true);
                               const validKtas = ktaApps.filter(k => k && (k.nama || k.namaLengkap) && k.tingkatan);
-                              localStorage.setItem('kta_applications', JSON.stringify(validKtas));
+                              safeStorageSet('kta_applications', validKtas);
                               setKtaApps(validKtas);
                               alert('Berhasil membersihkan data kosong dari antrean!');
                               await fetchData();

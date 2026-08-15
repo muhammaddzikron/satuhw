@@ -1,3 +1,4 @@
+import { safeStorageSet } from '../utils/safeStorage';
 import React from 'react';
 import { motion } from 'motion/react';
 import { 
@@ -354,7 +355,7 @@ export default function ProfilePage() {
           } else {
             mockList.push(updatedMem);
           }
-          localStorage.setItem('mock_members', JSON.stringify(mockList));
+          safeStorageSet('mock_members', mockList);
         }
       } catch (e) {}
 

@@ -1,3 +1,4 @@
+import { safeStorageSet, safeStorageGet, safeStorageRemove } from '../utils/safeStorage';
 import {
   collection,
   doc,
@@ -140,31 +141,25 @@ const isValidName = (n?: string): boolean => {
 export const firestoreService = {
   // Sync state flag
   isInitialized: false,
-  isQuotaExceeded: typeof window !== 'undefined' && localStorage.getItem('firestore_quota_exceeded') === 'true',
+  isQuotaExceeded: false,
 
   getIsQuotaExceeded(): boolean {
-    if (this.isQuotaExceeded) return true;
-    if (typeof window !== 'undefined' && localStorage.getItem('firestore_quota_exceeded') === 'true') {
-      this.isQuotaExceeded = true;
-      return true;
-    }
-    return false;
+    return this.isQuotaExceeded;
   },
 
   checkQuotaError(err: any): boolean {
     if (!err) return false;
+    if (err?.name === 'QuotaExceededError' || (typeof DOMException !== 'undefined' && err instanceof DOMException)) {
+      return false;
+    }
     const errMsg = String(err?.message || err?.code || err || '');
     if (
-      errMsg.includes('Quota limit exceeded') ||
-      errMsg.includes('quota') ||
+      err?.code === 'resource-exhausted' ||
       errMsg.includes('resource-exhausted') ||
-      errMsg.includes('429') ||
-      err?.code === 'resource-exhausted'
+      errMsg.includes('Quota exceeded for quota metric') ||
+      (errMsg.toLowerCase().includes('quota exceeded') && (errMsg.includes('Firebase') || errMsg.includes('firestore') || errMsg.includes('projects/')))
     ) {
       this.isQuotaExceeded = true;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('firestore_quota_exceeded', 'true');
-      }
       return true;
     }
     return false;
@@ -207,8 +202,8 @@ export const firestoreService = {
           uploadedCount++;
         }
         await batch.commit();
-        localStorage.setItem('mock_members', JSON.stringify(initialMembers));
-        localStorage.setItem('mock_members_initialized', 'true');
+        safeStorageSet('mock_members', initialMembers);
+        safeStorageSet('mock_members_initialized', 'true');
       }
 
       // 2. Materi
@@ -242,8 +237,8 @@ export const firestoreService = {
           uploadedCount++;
         }
         await batch.commit();
-        localStorage.setItem('materi', JSON.stringify(initialMateri));
-        localStorage.setItem('materi_initialized', 'true');
+        safeStorageSet('materi', initialMateri);
+        safeStorageSet('materi_initialized', 'true');
       }
 
       // 3. KTA Applications
@@ -271,15 +266,15 @@ export const firestoreService = {
           uploadedCount++;
         }
         await batch.commit();
-        localStorage.setItem('kta_applications', JSON.stringify(initialKta));
-        localStorage.setItem('kta_applications_initialized', 'true');
+        safeStorageSet('kta_applications', initialKta);
+        safeStorageSet('kta_applications_initialized', 'true');
       }
 
       // 4. Training Applications
       const trainingSnap = await getDocs(collection(db, 'training_applications'));
       if (trainingSnap.empty) {
-        localStorage.setItem('training_applications', JSON.stringify([]));
-        localStorage.setItem('training_applications_initialized', 'true');
+        safeStorageSet('training_applications', []);
+        safeStorageSet('training_applications_initialized', 'true');
       }
 
       // 5. Contents
@@ -311,8 +306,8 @@ export const firestoreService = {
           uploadedCount++;
         }
         await batch.commit();
-        localStorage.setItem('contents', JSON.stringify(initialContents));
-        localStorage.setItem('contents_initialized', 'true');
+        safeStorageSet('contents', initialContents);
+        safeStorageSet('contents_initialized', 'true');
       }
 
       // 6. Settings
@@ -337,7 +332,7 @@ export const firestoreService = {
             };
 
         await setDoc(doc(db, 'settings', 'app_settings'), cleanData(defaultSettings));
-        localStorage.setItem('hw_settings', JSON.stringify(defaultSettings));
+        safeStorageSet('hw_settings', defaultSettings);
       }
 
       await this.purgeEmptyData();
@@ -372,19 +367,19 @@ export const firestoreService = {
       if (localMembers) {
         const parsed = JSON.parse(localMembers);
         const cleaned = parsed.filter((m: any) => isValidName(m?.namaLengkap || m?.nama));
-        localStorage.setItem('mock_members', JSON.stringify(cleaned));
+        safeStorageSet('mock_members', cleaned);
       }
       const localKta = localStorage.getItem('kta_applications');
       if (localKta) {
         const parsed = JSON.parse(localKta);
         const cleaned = parsed.filter((k: any) => isValidName(k?.nama || k?.namaLengkap));
-        localStorage.setItem('kta_applications', JSON.stringify(cleaned));
+        safeStorageSet('kta_applications', cleaned);
       }
       const localTrain = localStorage.getItem('training_applications');
       if (localTrain) {
         const parsed = JSON.parse(localTrain);
         const cleaned = parsed.filter((t: any) => isValidName(t?.nama || t?.namaLengkap));
-        localStorage.setItem('training_applications', JSON.stringify(cleaned));
+        safeStorageSet('training_applications', cleaned);
       }
     } catch (e) {}
 
@@ -693,7 +688,7 @@ export const firestoreService = {
       });
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem('mock_members', JSON.stringify(filteredMembers));
+        safeStorageSet('mock_members', filteredMembers);
       } catch (e) {}
     }
     return filteredMembers;
@@ -1244,7 +1239,7 @@ export const firestoreService = {
       } else {
         members.push(userPayload);
       }
-      localStorage.setItem('mock_members', JSON.stringify(members));
+      safeStorageSet('mock_members', members);
 
       const ktasStr = localStorage.getItem('kta_applications') || '[]';
       let ktas: any[] = [];
@@ -1255,7 +1250,7 @@ export const firestoreService = {
       } else {
         ktas.push(ktaPayload);
       }
-      localStorage.setItem('kta_applications', JSON.stringify(ktas));
+      safeStorageSet('kta_applications', ktas);
     } catch (e) {}
 
     return { user: userPayload as User, ktaApp: ktaPayload };
@@ -1322,7 +1317,7 @@ export const firestoreService = {
     } else {
       current.push(dataToSave as User);
     }
-    localStorage.setItem('mock_members', JSON.stringify(current));
+    safeStorageSet('mock_members', current);
 
     // Sync photo and profile updates to KTA Applications collection in both Firestore and localStorage
     try {
@@ -1345,7 +1340,7 @@ export const firestoreService = {
           if (member.jenisKelamin) k.jenisKelamin = member.jenisKelamin;
         }
       });
-      localStorage.setItem('kta_applications', JSON.stringify(localKtas));
+      safeStorageSet('kta_applications', localKtas);
 
       if (!this.getIsQuotaExceeded()) {
         const ktas = await this.getKTAApplications();
@@ -1398,7 +1393,7 @@ export const firestoreService = {
     if (idx >= 0) {
       updatedMember = { ...current[idx], ...normUpdates };
       current[idx] = updatedMember;
-      localStorage.setItem('mock_members', JSON.stringify(current));
+      safeStorageSet('mock_members', current);
     }
 
     // Sync photo and profile updates to KTA Applications collection
@@ -1441,7 +1436,7 @@ export const firestoreService = {
     }
     const current = await this.getMembers();
     const filtered = current.filter(m => m.id !== id);
-    localStorage.setItem('mock_members', JSON.stringify(filtered));
+    safeStorageSet('mock_members', filtered);
     return true;
   },
 
@@ -1454,11 +1449,11 @@ export const firestoreService = {
         batch.set(ref, cleanData(m), { merge: true });
       }
       await batch.commit();
-      localStorage.setItem('mock_members', JSON.stringify(members));
+      safeStorageSet('mock_members', members);
       return true;
     } catch (err) {
       console.error('Firestore saveAllMembers error:', err);
-      localStorage.setItem('mock_members', JSON.stringify(members));
+      safeStorageSet('mock_members', members);
       return false;
     }
   },
@@ -1489,7 +1484,7 @@ export const firestoreService = {
                 validMembers.push(m);
               }
             }
-            localStorage.setItem('mock_members', JSON.stringify(validMembers));
+            safeStorageSet('mock_members', validMembers);
             callback(validMembers);
           }
         }, (err) => {
@@ -1536,7 +1531,7 @@ export const firestoreService = {
         const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
         if (!snap.empty) {
           const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
-          localStorage.setItem('materi', JSON.stringify(materi));
+          safeStorageSet('materi', materi);
           return materi;
         }
       } catch (err) {
@@ -1571,7 +1566,7 @@ export const firestoreService = {
     } else {
       list.unshift(itemData as Materi);
     }
-    localStorage.setItem('materi', JSON.stringify(list));
+    safeStorageSet('materi', list);
     return itemData as Materi;
   },
 
@@ -1587,7 +1582,7 @@ export const firestoreService = {
     }
     const list = await this.getMateri();
     const filtered = list.filter(m => String(m.id) !== strId);
-    localStorage.setItem('materi', JSON.stringify(filtered));
+    safeStorageSet('materi', filtered);
     return true;
   },
 
@@ -1641,7 +1636,7 @@ export const firestoreService = {
           } catch (e) {}
         }
         ensureUniqueKtaNumbers(ktas);
-        localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        safeStorageSet('kta_applications', ktas);
         return ktas;
       } catch (err) {
         this.checkQuotaError(err);
@@ -1668,7 +1663,7 @@ export const firestoreService = {
     try {
       const ktas = await this.getKTAApplications();
       const resequenced = resequenceKtaNumbers(ktas);
-      localStorage.setItem('kta_applications', JSON.stringify(resequenced));
+      safeStorageSet('kta_applications', resequenced);
 
       if (resequenced.length > 0) {
         try {
@@ -1702,7 +1697,7 @@ export const firestoreService = {
             }
           });
           if (memberUpdated) {
-            localStorage.setItem('mock_members', JSON.stringify(members));
+            safeStorageSet('mock_members', members);
           }
         }
       } catch (e) {}
@@ -1758,7 +1753,7 @@ export const firestoreService = {
     } else {
       list.unshift(newApp);
     }
-    localStorage.setItem('kta_applications', JSON.stringify(list));
+    safeStorageSet('kta_applications', list);
 
     // Sync photo and profile to member profile if match found
     try {
@@ -1851,7 +1846,7 @@ export const firestoreService = {
       list.unshift(updatedObj);
     }
 
-    localStorage.setItem('kta_applications', JSON.stringify(list));
+    safeStorageSet('kta_applications', list);
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -1950,7 +1945,7 @@ export const firestoreService = {
       return true;
     });
 
-    localStorage.setItem('kta_applications', JSON.stringify(filtered));
+    safeStorageSet('kta_applications', filtered);
     return true;
   },
 
@@ -2032,7 +2027,7 @@ export const firestoreService = {
 
     const cleanTrainings = Array.from(map.values());
     try {
-      localStorage.setItem('training_applications', JSON.stringify(cleanTrainings));
+      safeStorageSet('training_applications', cleanTrainings);
     } catch (e) {}
     return cleanTrainings;
   },
@@ -2051,7 +2046,7 @@ export const firestoreService = {
       const existing: any[] = JSON.parse(stored);
       const filtered = Array.isArray(existing) ? existing.filter(x => x && x.id !== newApp.id) : [];
       filtered.unshift(newApp);
-      localStorage.setItem('training_applications', JSON.stringify(filtered));
+      safeStorageSet('training_applications', filtered);
     } catch (e) {}
 
     if (!this.getIsQuotaExceeded()) {
@@ -2081,7 +2076,7 @@ export const firestoreService = {
     const idx = list.findIndex(t => t.id === id);
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
-      localStorage.setItem('training_applications', JSON.stringify(list));
+      safeStorageSet('training_applications', list);
     }
     window.dispatchEvent(new Event('training_applications_updated'));
     return list[idx];
@@ -2100,7 +2095,7 @@ export const firestoreService = {
     const idx = list.findIndex(t => t.id === id);
     if (idx >= 0) {
       list[idx].kehadiran = kehadiranStr;
-      localStorage.setItem('training_applications', JSON.stringify(list));
+      safeStorageSet('training_applications', list);
     }
     // Dispatch custom event for real-time local sync across tabs & components
     window.dispatchEvent(new Event('training_applications_updated'));
@@ -2155,7 +2150,7 @@ export const firestoreService = {
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
       updatedApp = list[idx];
-      localStorage.setItem('training_applications', JSON.stringify(list));
+      safeStorageSet('training_applications', list);
 
       if (updatedApp && (nilaiStr !== undefined || statusKelulusanStr !== undefined || remarkStr !== undefined)) {
         try {
@@ -2196,7 +2191,7 @@ export const firestoreService = {
     }
     const list = await this.getTrainingApplications();
     const filtered = list.filter(t => t.id !== id);
-    localStorage.setItem('training_applications', JSON.stringify(filtered));
+    safeStorageSet('training_applications', filtered);
     return true;
   },
 
@@ -2222,7 +2217,7 @@ export const firestoreService = {
                 }
                 return c;
               });
-              localStorage.setItem('contents', JSON.stringify(sanitized));
+              safeStorageSet('contents', sanitized);
               callback(sanitized);
               return;
             }
@@ -2258,7 +2253,7 @@ export const firestoreService = {
             }
             return c;
           });
-          localStorage.setItem('contents', JSON.stringify(sanitized));
+          safeStorageSet('contents', sanitized);
           return sanitized;
         }
       } catch (err) {
@@ -2304,7 +2299,7 @@ export const firestoreService = {
     } else {
       list.push(itemData as Content);
     }
-    localStorage.setItem('contents', JSON.stringify(list));
+    safeStorageSet('contents', list);
     return itemData as Content;
   },
 
@@ -2319,7 +2314,7 @@ export const firestoreService = {
     }
     const list = await this.getContents();
     const filtered = list.filter(c => c.id !== id);
-    localStorage.setItem('contents', JSON.stringify(filtered));
+    safeStorageSet('contents', filtered);
     return true;
   },
 
@@ -2335,7 +2330,7 @@ export const firestoreService = {
           if (Array.isArray(settings.trainingActivities)) {
             settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
           }
-          localStorage.setItem('hw_settings', JSON.stringify(settings));
+          safeStorageSet('hw_settings', settings);
           return settings;
         }
       } catch (err) {
@@ -2378,7 +2373,7 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore saveSettings error:', err);
       }
     }
-    localStorage.setItem('hw_settings', JSON.stringify(dataToSave));
+    safeStorageSet('hw_settings', dataToSave);
     return dataToSave;
   },
 
@@ -2393,7 +2388,7 @@ export const firestoreService = {
             if (Array.isArray(settings.trainingActivities)) {
               settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles) && isOnlyTrainingActivity(a));
             }
-            localStorage.setItem('hw_settings', JSON.stringify(settings));
+            safeStorageSet('hw_settings', settings);
             callback(settings);
           }
         }, (err) => {
@@ -2656,7 +2651,7 @@ export const firestoreService = {
 
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
-            localStorage.setItem('hw_activities', JSON.stringify(sortedList));
+            safeStorageSet('hw_activities', sortedList);
           } catch (e) {}
         }
         callback(sortedList);
@@ -3111,7 +3106,7 @@ export const firestoreService = {
         const list = this.deduplicateActivityApps(mergedRaw, deletedAppIds);
 
         try {
-          localStorage.setItem('activity_applications', JSON.stringify(list));
+          safeStorageSet('activity_applications', list);
         } catch (e) {}
 
         callback(list);
@@ -3151,8 +3146,8 @@ export const firestoreService = {
           });
         }
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
-          localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
+          safeStorageSet('hw_deleted_activities', deletedIds);
+          safeStorageSet('hw_deleted_activity_titles', deletedTitles);
         }
       }
     } catch (e) {}
@@ -3329,7 +3324,7 @@ export const firestoreService = {
 
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem('hw_activities', JSON.stringify(result));
+        safeStorageSet('hw_activities', result);
       } catch (e) {}
     }
     return result;
@@ -3345,12 +3340,12 @@ export const firestoreService = {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('hw_deleted_activities') || '[]';
         const deletedIds = JSON.parse(stored).filter((dId: string) => dId !== actId);
-        localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
+        safeStorageSet('hw_deleted_activities', deletedIds);
 
         if (actTitle) {
           const storedTitles = localStorage.getItem('hw_deleted_activity_titles') || '[]';
           const deletedTitles = JSON.parse(storedTitles).filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase());
-          localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
+          safeStorageSet('hw_deleted_activity_titles', deletedTitles);
         }
       }
     } catch (e) {}
@@ -3514,7 +3509,7 @@ export const firestoreService = {
         let localActs = JSON.parse(stored);
         localActs = localActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
         localActs.unshift(newAct);
-        localStorage.setItem('hw_activities', JSON.stringify(localActs));
+        safeStorageSet('hw_activities', localActs);
       }
     } catch (e) {}
 
@@ -3641,13 +3636,13 @@ export const firestoreService = {
     // Clear local cache
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        localStorage.setItem('hw_deleted_activities', JSON.stringify(deletedIds));
-        localStorage.setItem('hw_deleted_activity_titles', JSON.stringify(deletedTitles));
+        safeStorageSet('hw_deleted_activities', deletedIds);
+        safeStorageSet('hw_deleted_activity_titles', deletedTitles);
 
         const stored = localStorage.getItem('hw_activities') || '[]';
         const parsed = JSON.parse(stored);
         const filtered = parsed.filter((a: any) => !isActivityDeleted(a, deletedIds, deletedTitles));
-        localStorage.setItem('hw_activities', JSON.stringify(filtered));
+        safeStorageSet('hw_activities', filtered);
       }
     } catch (e) {}
 
@@ -3702,7 +3697,7 @@ export const firestoreService = {
     const list = this.deduplicateActivityApps(mergedRaw, deletedAppIds);
 
     try {
-      localStorage.setItem('activity_applications', JSON.stringify(list));
+      safeStorageSet('activity_applications', list);
     } catch (e) {}
 
     return list;
@@ -3774,7 +3769,7 @@ export const firestoreService = {
         localApps.unshift(cleanReg);
       }
       const dedupedLocal = this.deduplicateActivityApps(localApps);
-      localStorage.setItem('activity_applications', JSON.stringify(dedupedLocal));
+      safeStorageSet('activity_applications', dedupedLocal);
     } catch (e) {}
 
     if (!this.getIsQuotaExceeded()) {
@@ -3817,7 +3812,7 @@ export const firestoreService = {
       const deletedIds: string[] = JSON.parse(delStr);
       if (!deletedIds.includes(String(id))) {
         deletedIds.push(String(id));
-        localStorage.setItem('deleted_activity_app_ids', JSON.stringify(deletedIds));
+        safeStorageSet('deleted_activity_app_ids', deletedIds);
       }
     } catch (e) {}
 
@@ -3825,7 +3820,7 @@ export const firestoreService = {
       const stored = localStorage.getItem('activity_applications') || '[]';
       const localApps = JSON.parse(stored);
       const filtered = localApps.filter((a: any) => a && String(a.id) !== String(id));
-      localStorage.setItem('activity_applications', JSON.stringify(filtered));
+      safeStorageSet('activity_applications', filtered);
     } catch (e) {}
 
     try {
@@ -3905,7 +3900,7 @@ export const firestoreService = {
         });
       }
 
-      localStorage.setItem('kta_applications', JSON.stringify(remainingKtas));
+      safeStorageSet('kta_applications', remainingKtas);
       return { success: true, deletedCount };
     } catch (err: any) {
       this.checkQuotaError(err);
@@ -4198,8 +4193,8 @@ export const firestoreService = {
       }
 
       const cleanMembers = newMembers.filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-');
-      localStorage.setItem('mock_members', JSON.stringify(cleanMembers));
-      localStorage.setItem('kta_applications', JSON.stringify(ktas));
+      safeStorageSet('mock_members', cleanMembers);
+      safeStorageSet('kta_applications', ktas);
 
       return {
         success: true,

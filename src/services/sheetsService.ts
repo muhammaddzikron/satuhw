@@ -1,3 +1,4 @@
+import { safeStorageSet, safeStorageGet } from '../utils/safeStorage';
 import axios from 'axios';
 import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
@@ -130,11 +131,11 @@ export const initMockData = () => {
           currentList.push(mm);
         }
       });
-      localStorage.setItem('mock_members', JSON.stringify(currentList));
+      safeStorageSet('mock_members', currentList);
     } else {
-      localStorage.setItem('mock_members', JSON.stringify(masterMembers));
+      safeStorageSet('mock_members', masterMembers);
     }
-    localStorage.setItem('mock_members_initialized', 'true');
+    safeStorageSet('mock_members_initialized', 'true');
   } catch (e) {
     console.error('initMockData error:', e);
   }
@@ -152,18 +153,18 @@ export const initMockData = () => {
         linkExternal: m.linkExternal || m.linkexternal || ''
       };
     });
-    localStorage.setItem('materi', JSON.stringify(parsedMateri));
-    localStorage.setItem('materi_initialized', 'true');
+    safeStorageSet('materi', parsedMateri);
+    safeStorageSet('materi_initialized', 'true');
   }
 
   if (!localStorage.getItem('contents_initialized') || !localStorage.getItem('contents')) {
-    localStorage.setItem('contents', JSON.stringify(INITIAL_SPREADSHEET_DATA.contents || []));
-    localStorage.setItem('contents_initialized', 'true');
+    safeStorageSet('contents', INITIAL_SPREADSHEET_DATA.contents || []);
+    safeStorageSet('contents_initialized', 'true');
   }
 
   if (!localStorage.getItem('kta_applications_initialized') || !localStorage.getItem('kta_applications')) {
-    localStorage.setItem('kta_applications', '[]');
-    localStorage.setItem('kta_applications_initialized', 'true');
+    safeStorageSet('kta_applications', []);
+    safeStorageSet('kta_applications_initialized', 'true');
   } else {
     try {
       const stored = localStorage.getItem('kta_applications');
@@ -172,7 +173,7 @@ export const initMockData = () => {
         // Clean out invalid old dummy records (e.g. items missing 'nama' or 'status')
         const valid = parsed.filter((k: any) => k && (k.nama || k.namaLengkap) && (k.status === 'pending' || k.status === 'approved' || k.status === 'rejected') && k.tingkatan);
         if (valid.length !== parsed.length) {
-          localStorage.setItem('kta_applications', JSON.stringify(valid));
+          safeStorageSet('kta_applications', valid);
         }
       }
     } catch (e) {
@@ -181,8 +182,8 @@ export const initMockData = () => {
   }
 
   if (!localStorage.getItem('training_applications_initialized') || !localStorage.getItem('training_applications')) {
-    localStorage.setItem('training_applications', JSON.stringify([]));
-    localStorage.setItem('training_applications_initialized', 'true');
+    safeStorageSet('training_applications', []);
+    safeStorageSet('training_applications_initialized', 'true');
   } else {
     try {
       const stored = localStorage.getItem('training_applications');
@@ -197,7 +198,7 @@ export const initMockData = () => {
           return t;
         });
         if (changed) {
-          localStorage.setItem('training_applications', JSON.stringify(repaired));
+          safeStorageSet('training_applications', repaired);
         }
       }
     } catch (e) {
@@ -350,7 +351,7 @@ export const sheetsService = {
               } else {
                 parsed.push(finalUser);
               }
-              localStorage.setItem('mock_members', JSON.stringify(parsed));
+              safeStorageSet('mock_members', parsed);
             }
           } catch (e) {}
           firestoreService.saveMember(finalUser).catch(() => {});
@@ -384,7 +385,7 @@ export const sheetsService = {
             } else {
               parsed.push(fsResult.user);
             }
-            localStorage.setItem('mock_members', JSON.stringify(parsed));
+            safeStorageSet('mock_members', parsed);
           }
         } catch (e) {}
         return fsResult;
@@ -1013,9 +1014,7 @@ export const sheetsService = {
         }
 
         const finalResult = ensureUniqueKtaNumbers(sheetMembers);
-        try {
-          localStorage.setItem('mock_members', JSON.stringify(finalResult.slice(0, 500)));
-        } catch(e) {}
+        safeStorageSet('mock_members', finalResult.slice(0, 500));
         return finalResult;
       } catch (error) {
         console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
@@ -1067,7 +1066,7 @@ export const sheetsService = {
       } else {
         members.push(cleanUserData);
       }
-      localStorage.setItem('mock_members', JSON.stringify(members));
+      safeStorageSet('mock_members', members);
 
       // Also sync KTA application in localStorage if exists
       const ktaStored = localStorage.getItem('kta_applications');
@@ -1089,7 +1088,7 @@ export const sheetsService = {
               if (cleanUserData.ktaNumber) k.ktaNumber = cleanUserData.ktaNumber;
             }
           });
-          localStorage.setItem('kta_applications', JSON.stringify(ktas));
+          safeStorageSet('kta_applications', ktas);
         }
       }
     } catch (e) {
@@ -1801,7 +1800,7 @@ export const sheetsService = {
             updated = true;
           }
           if (updated) {
-            localStorage.setItem('hw_settings', JSON.stringify(localParsed));
+            safeStorageSet('hw_settings', localParsed);
           }
         }
       } catch (e) {
@@ -1857,7 +1856,7 @@ export const sheetsService = {
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
         upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES)
       };
-      localStorage.setItem('hw_settings', JSON.stringify(result));
+      safeStorageSet('hw_settings', result);
       return result;
     }
     try {
@@ -1886,7 +1885,7 @@ export const sheetsService = {
         trainingDates: safeParse(apiSettings.trainingDates || fsSettings?.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
         upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, DEFAULT_UPGRADE_FEES)
       };
-      localStorage.setItem('hw_settings', JSON.stringify(merged));
+      safeStorageSet('hw_settings', merged);
       return merged;
     } catch (error) {
       console.warn('getSettings API error, falling back to local settings:', (error as any)?.message || error);
@@ -1936,7 +1935,7 @@ export const sheetsService = {
   },
 
   async saveSettings(settings: any): Promise<any> {
-    localStorage.setItem('hw_settings', JSON.stringify(settings));
+    safeStorageSet('hw_settings', settings);
     try {
       await firestoreService.saveSettings(settings);
     } catch (e) {

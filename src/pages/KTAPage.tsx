@@ -1,3 +1,4 @@
+import { safeStorageSet } from '../utils/safeStorage';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -638,7 +639,7 @@ export default function KTAPage() {
             } else {
               localApps.unshift(createdApp);
             }
-            localStorage.setItem('kta_applications', JSON.stringify(localApps));
+            safeStorageSet('kta_applications', localApps);
           }
         } catch (e) {}
         
@@ -681,7 +682,7 @@ export default function KTAPage() {
               } else {
                 mockList.push(updatedUserObj);
               }
-              localStorage.setItem('mock_members', JSON.stringify(mockList));
+              safeStorageSet('mock_members', mockList);
             }
           } catch (e) {}
 
