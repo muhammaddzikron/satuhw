@@ -922,153 +922,24 @@ export const sheetsService = {
         }
       } catch (e) {}
 
-      if (!IS_API_VALID) {
-        const fsMembers = await firestoreService.getMembers();
-        const mapped = fsMembers.map((m: any) => this.mapUser(m));
-        
-        // Apply custom overrides
-        mapped.forEach((m, idx) => {
-          const mId = m.id ? String(m.id) : '';
-          const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-          const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
-          if (ov) {
-            mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
-          }
-        });
-
-        return sanitizeMemberList(mapped);
-      }
-
-      try {
-        const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 15000 });
-        let rawMembers: any[] = [];
-        if (Array.isArray(response.data)) {
-          rawMembers = response.data;
-        } else if (response.data && Array.isArray(response.data.data)) {
-          rawMembers = response.data.data;
-        } else if (response.data && Array.isArray(response.data.members)) {
-          rawMembers = response.data.members;
+      // Always retrieve from unified firestoreService repository which holds the complete, deduped master dataset + Firestore database + KTA apps
+      const fsMembers = await firestoreService.getMembers();
+      const mapped = fsMembers.map((m: any) => this.mapUser(m));
+      
+      // Apply custom persistent overrides
+      mapped.forEach((m, idx) => {
+        const mId = m.id ? String(m.id) : '';
+        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+        const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+        if (ov) {
+          mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
         }
+      });
 
-        const sheetMembers = rawMembers.map((m: any) => this.mapUser(m));
-
-        // Merge Firestore & Local Storage member updates
-        try {
-          const fsMembers = await firestoreService.getMembers();
-          const fsKtas = await firestoreService.getKTAApplications();
-          let localMocks: any[] = [];
-          try {
-            localMocks = JSON.parse(localStorage.getItem('mock_members') || '[]');
-          } catch(e) {}
-
-          const cachedMembers = [...fsMembers, ...localMocks];
-
-          sheetMembers.forEach(sm => {
-            const smEmail = sm.email ? sm.email.toLowerCase().trim() : '';
-            const smName = sm.namaLengkap ? sm.namaLengkap.toLowerCase().trim() : '';
-            const smId = sm.id ? String(sm.id) : '';
-
-            const match = cachedMembers.find(fm => 
-              (fm && fm.id && smId && String(fm.id) === smId) ||
-              (smEmail && fm && fm.email && fm.email.toLowerCase().trim() === smEmail) ||
-              (smName && fm && fm.namaLengkap && fm.namaLengkap.toLowerCase().trim() === smName)
-            );
-
-            if (match) {
-              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = toProperName(match.namaLengkap);
-              if (match.photo) sm.photo = match.photo;
-              if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
-              if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
-              if (match.noHp) sm.noHp = match.noHp;
-              if (match.alamat) sm.alamat = match.alamat;
-              if (match.tempatLahir) sm.tempatLahir = match.tempatLahir;
-              if (match.tanggalLahir) sm.tanggalLahir = match.tanggalLahir;
-              if (match.asalKwarda) sm.asalKwarda = match.asalKwarda;
-              if (match.qabilah) sm.qabilah = match.qabilah;
-              if (match.sosmed) sm.sosmed = match.sosmed;
-              if (match.pendidikan) sm.pendidikan = match.pendidikan;
-              if (match.golongan) sm.golongan = match.golongan;
-              if (match.pelatihan && Array.isArray(match.pelatihan) && match.pelatihan.length > 0) sm.pelatihan = match.pelatihan;
-              if (match.roles && Array.isArray(match.roles) && match.roles.length > 0) {
-                sm.roles = match.roles;
-                sm.role = match.role || match.roles.find(r => r !== 'umum') || match.roles[0] || 'umum';
-                if (match.activeRole) sm.activeRole = match.activeRole;
-              } else if (match.role) {
-                sm.roles = parseRolesField(null, match.role);
-                sm.role = match.role as UserRole;
-              }
-              if (match.statusAktivasi) sm.statusAktivasi = match.statusAktivasi;
-              if (match.statusPembayaran) sm.statusPembayaran = match.statusPembayaran;
-              if (match.isVerified !== undefined) sm.isVerified = match.isVerified;
-            } else {
-              const ktaMatch = fsKtas.find(fk =>
-                (fk.userId && smId && String(fk.userId) === smId) ||
-                (smEmail && fk.email && fk.email.toLowerCase().trim() === smEmail) ||
-                (smName && (fk.nama || fk.namaLengkap) && (fk.nama || fk.namaLengkap).toLowerCase().trim() === smName)
-              );
-              if (ktaMatch) {
-                if (!sm.photo && ktaMatch.photo) sm.photo = ktaMatch.photo;
-                if (!sm.noHp && ktaMatch.noWa) sm.noHp = ktaMatch.noWa;
-                if (!sm.asalKwarda && ktaMatch.asalDaerah) sm.asalKwarda = ktaMatch.asalDaerah;
-                if (!sm.qabilah && ktaMatch.qabilah) sm.qabilah = ktaMatch.qabilah;
-                if (!sm.alamat && ktaMatch.alamat) sm.alamat = ktaMatch.alamat;
-                if (!sm.tempatLahir && ktaMatch.tempatLahir) sm.tempatLahir = ktaMatch.tempatLahir;
-                if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
-              }
-            }
-
-            // High-priority custom overrides
-            const ov = customOverrides[smId] || (smEmail ? customOverrides[smEmail] : null);
-            if (ov) {
-              Object.assign(sm, ov);
-              sm.namaLengkap = toProperName(ov.namaLengkap || sm.namaLengkap);
-            }
-          });
-
-          // Add any cached member missing from sheetMembers
-          cachedMembers.forEach(fm => {
-            if (!fm || !fm.namaLengkap || fm.namaLengkap === 'Tanpa Nama' || fm.namaLengkap === '-') return;
-            const fmEmail = fm.email ? fm.email.toLowerCase().trim() : '';
-            const fmName = fm.namaLengkap ? fm.namaLengkap.toLowerCase().trim() : '';
-            const fmId = fm.id ? String(fm.id) : '';
-
-            const existsInSheet = sheetMembers.some(sm => 
-              (sm.id && fmId && String(sm.id) === fmId) ||
-              (fmEmail && sm.email && sm.email.toLowerCase().trim() === fmEmail) ||
-              (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
-            );
-            if (!existsInSheet) {
-              const mapped = this.mapUser(fm);
-              const ov = customOverrides[fmId] || (fmEmail ? customOverrides[fmEmail] : null);
-              if (ov) {
-                Object.assign(mapped, ov);
-                mapped.namaLengkap = toProperName(ov.namaLengkap || mapped.namaLengkap);
-              }
-              sheetMembers.push(mapped);
-            }
-          });
-        } catch (e) {
-          console.warn('Error merging Firestore photos and member data into getMembers:', e);
-        }
-
-        const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(sheetMembers));
-        safeStorageSet('mock_members', finalResult);
-        return finalResult;
-      } catch (error) {
-        console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
-        const members = await firestoreService.getMembers();
-        const mapped = members.map((m: any) => this.mapUser(m));
-        mapped.forEach((m, idx) => {
-          const mId = m.id ? String(m.id) : '';
-          const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-          const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
-          if (ov) {
-            mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
-          }
-        });
-        return sanitizeMemberList(mapped);
-      }
-    }, 25000);
+      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(mapped));
+      safeStorageSet('mock_members', finalResult);
+      return finalResult;
+    }, 30000);
   },
 
   async saveMember(userData: any): Promise<any> {

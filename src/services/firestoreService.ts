@@ -2325,21 +2325,46 @@ export const firestoreService = {
   },
 
   async getContents(): Promise<Content[]> {
+    const mapContentItem = (c: any): Content => {
+      if (!c) return c;
+      if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+        return {
+          ...c,
+          field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+          field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+        };
+      }
+      if (c.section === 'playlist') {
+        const audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
+        const judul = c.field2 || c.judul || c.title || '';
+        const pencipta = c.field3 || c.pencipta || c.creator || '';
+        const lirik = c.field5 || c.lirik || c.lyrics || '';
+        return {
+          ...c,
+          field1: audioUrl,
+          field2: judul,
+          field3: pencipta,
+          field4: c.field4 || '',
+          field5: lirik,
+          audioUrl,
+          audiourl: audioUrl,
+          judul,
+          title: judul,
+          pencipta,
+          creator: pencipta,
+          lirik,
+          lyrics: lirik
+        };
+      }
+      return c;
+    };
+
     if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
         if (!snap.empty) {
           const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-          const sanitized = contents.map(c => {
-            if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
-              return {
-                ...c,
-                field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-                field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
-              };
-            }
-            return c;
-          });
+          const sanitized = contents.map(mapContentItem);
           safeStorageSet('contents', sanitized);
           return sanitized;
         }
@@ -2351,25 +2376,37 @@ export const firestoreService = {
     const stored = localStorage.getItem('contents') || '[]';
     try {
       const parsed = JSON.parse(stored);
-      return (parsed || []).map((c: any) => {
-        if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
-          return {
-            ...c,
-            field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-            field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
-          };
-        }
-        return c;
-      });
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(mapContentItem);
+      }
+      return [];
     } catch {
       return [];
     }
   },
 
   async saveContent(item: Content): Promise<Content> {
+    const rawAudio = item.field1 || (item as any).audioUrl || (item as any).audiourl || '';
+    const rawJudul = item.field2 || (item as any).judul || (item as any).title || '';
+    const rawPencipta = item.field3 || (item as any).pencipta || (item as any).creator || '';
+    const rawLirik = item.field5 || (item as any).lirik || (item as any).lyrics || '';
+
     const itemData = cleanData({
       ...item,
-      id: item.id || `content-${Date.now()}`
+      id: item.id || `content-${Date.now()}`,
+      field1: rawAudio,
+      field2: rawJudul,
+      field3: rawPencipta,
+      field4: item.field4 || '',
+      field5: rawLirik,
+      audioUrl: rawAudio,
+      audiourl: rawAudio,
+      judul: rawJudul,
+      title: rawJudul,
+      pencipta: rawPencipta,
+      creator: rawPencipta,
+      lirik: rawLirik,
+      lyrics: rawLirik
     });
     if (!this.getIsQuotaExceeded()) {
       try {

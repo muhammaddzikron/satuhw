@@ -302,7 +302,7 @@ function getSheet(name) {
   } else if (name == 'Materi') {
     sheet.appendRow(['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
   } else if (name == 'Contents') {
-    sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6']);
+    sheet.appendRow(['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'judul', 'pencipta', 'lirik', 'audioUrl']);
   } else if (name == 'Playlist') {
     sheet.appendRow(['id', 'judul', 'pencipta', 'audioUrl', 'lirik', 'createdAt']);
   } else if (name == 'KTA_Applications') {
@@ -348,7 +348,7 @@ function ensureHeaders(sheetName, requiredHeaders) {
 function handleSyncDatabase() {
   ensureHeaders('Users', ['id', 'email', 'password', 'namaLengkap', 'role', 'pendidikan', 'pelatihan', 'jenisKelamin', 'golongan', 'asalKwarda', 'qabilah', 'alamat', 'isVerified', 'sosmed', 'noHp', 'token', 'upgradeRequests', 'photo', 'tempatLahir', 'tanggalLahir']);
   ensureHeaders('Materi', ['id', 'judul', 'konten', 'kategori', 'tanggal', 'coverImage', 'driveUrl']);
-  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6']);
+  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'judul', 'pencipta', 'lirik', 'audioUrl']);
   ensureHeaders('Playlist', ['id', 'judul', 'pencipta', 'audioUrl', 'lirik', 'createdAt']);
   ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
   ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
@@ -1206,7 +1206,7 @@ function handleDeletePlaylistItem(id) {
 
 function handleSaveContent(data) {
   var sheet = getSheet('Contents');
-  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6']);
+  ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'judul', 'pencipta', 'lirik', 'audioUrl']);
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
     return h ? h.toString().trim().toLowerCase() : ""; 
   });
@@ -1237,6 +1237,10 @@ function handleSaveContent(data) {
     else if (header === 'field4') rowData[i] = data.field4 || "";
     else if (header === 'field5') rowData[i] = data.field5 || data.lyrics || data.lirik || "";
     else if (header === 'field6') rowData[i] = data.field6 || "";
+    else if (header === 'judul' || header === 'title') rowData[i] = data.field2 || data.judul || data.title || "";
+    else if (header === 'pencipta' || header === 'creator') rowData[i] = data.field3 || data.pencipta || data.creator || "";
+    else if (header === 'lirik' || header === 'lyrics') rowData[i] = data.field5 || data.lyrics || data.lirik || "";
+    else if (header === 'audiourl' || header === 'audio_url') rowData[i] = data.field1 || data.audioUrl || data.audiourl || "";
   });
   
   if (rowIndex > -1) {
