@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
+import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { 
   Calendar, 
   MapPin, 
@@ -47,6 +47,7 @@ import { CopyAccountButton } from '../components/CopyAccountButton';
 
 export default function KegiatanPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
 
   const isAdmin = Boolean(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
@@ -218,6 +219,22 @@ export default function KegiatanPage() {
   }, [user]);
 
   useEffect(() => {
+    if (location.state?.selectedActivityId || location.state?.activity) {
+      const actId = location.state.selectedActivityId || location.state.activity?.id;
+      const found = activities.find(a => a.id === actId);
+      const target = found || location.state.activity;
+      if (target) {
+        setSelectedActivity(target);
+        if (location.state.openRegister) {
+          setIsRegisterModalOpen(true);
+        } else {
+          setIsDetailModalOpen(true);
+        }
+      }
+    }
+  }, [location.state, activities]);
+
+  useEffect(() => {
     if (selectedActivity && activities.length > 0) {
       const updated = activities.find(a => a.id === selectedActivity.id);
       if (updated) {
@@ -255,7 +272,7 @@ export default function KegiatanPage() {
 
   const filteredActivities = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    return activities.filter(act => {
+    const result = activities.filter(act => {
       // Exclude training activities from Kegiatan Page
       if (isOnlyTrainingActivity(act)) return false;
 
@@ -273,6 +290,8 @@ export default function KegiatanPage() {
       }
       return selectedCategory === 'Semua' || act.kategori === selectedCategory;
     });
+
+    return sortActivitiesNewestFirst(result);
   }, [activities, searchQuery, selectedCategory, user]);
 
   const resolveImageUrl = useCallback((url?: string | null) => {

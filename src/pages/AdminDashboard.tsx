@@ -2289,7 +2289,7 @@ export default function AdminDashboard() {
       if (!selectedContentSection) return;
       
       // Simple validation for list types
-      if (['galeri', 'doa', 'playlist'].includes(selectedContentSection)) {
+      if (['galeri', 'playlist'].includes(selectedContentSection)) {
         if (selectedContentSection === 'galeri' && !contentFormData.field1) {
           alert('URL Video Youtube harus diisi');
           return;
@@ -2298,7 +2298,7 @@ export default function AdminDashboard() {
           alert('Link File Audio (Drive/URL) harus diisi');
           return;
         }
-        if ((selectedContentSection === 'doa' || selectedContentSection === 'playlist') && !contentFormData.field2) {
+        if (selectedContentSection === 'playlist' && !contentFormData.field2) {
           alert('Judul harus diisi');
           return;
         }
@@ -2306,7 +2306,7 @@ export default function AdminDashboard() {
       
       try {
         setLoading(true);
-        const isList = ['galeri', 'doa', 'playlist'].includes(selectedContentSection);
+        const isList = ['galeri', 'playlist'].includes(selectedContentSection);
       
       const payload: any = {
         section: selectedContentSection,
@@ -4275,7 +4275,6 @@ export default function AdminDashboard() {
                       { id: 'galeri', label: 'Galeri Video', icon: Youtube, desc: 'Kelola video Youtube' },
                       { id: 'playlist', label: 'Playlist Audio', icon: Music, desc: 'Kelola file mp3/audio' },
                       { id: 'sosmed', label: 'Media Sosial', icon: Share2, desc: 'Update link sosmed' },
-                      { id: 'doa', label: 'Daftar Doa', icon: Heart, desc: 'Kelola kumpulan doa' },
                       { id: 'kontak', label: 'Info Kontak', icon: Phone, desc: 'Update info qabilah' },
                       { id: 'running-text', label: 'Teks Berjalan', icon: FileText, desc: 'Update teks pengumuman berjalan' }
                     ].map((item) => (
@@ -4310,7 +4309,7 @@ export default function AdminDashboard() {
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Pengaturan Konten Aplikasi</p>
                       </div>
                     </div>
-    {['galeri', 'doa', 'playlist'].includes(selectedContentSection) && (
+    {['galeri', 'playlist'].includes(selectedContentSection) && (
       <button 
         onClick={() => handleOpenContentModal()}
         className="px-5 py-3 bg-hw-dark text-white rounded-2xl shadow-lg shadow-hw-dark/20 flex items-center gap-2 text-xs font-bold"
@@ -4327,7 +4326,7 @@ export default function AdminDashboard() {
                           <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">
                             {contentList.length === 0 ? 'Belum ada data' : `Daftar Item (${contentList.length})`}
                           </h4>
-          {['galeri', 'doa', 'playlist'].includes(selectedContentSection) && (
+          {['galeri', 'playlist'].includes(selectedContentSection) && (
             <button 
               onClick={() => handleOpenContentModal()}
               className="px-4 py-2 bg-hw-green text-white rounded-xl text-[10px] font-bold flex items-center gap-1.5 hover:scale-105 transition-all"
@@ -4405,7 +4404,7 @@ export default function AdminDashboard() {
                       onClick={() => handleOpenContentModal(item)}
                       className="p-2 text-gray-400 hover:text-hw-green transition-colors"
                     ><Edit2 size={16} /></button>
-                    {['galeri', 'doa', 'playlist'].includes(selectedContentSection) && (
+                    {['galeri', 'playlist'].includes(selectedContentSection) && (
                       <button 
                         onClick={() => handleDeleteContent(item.id)}
                         className="p-2 text-gray-400 hover:text-red-500 transition-colors"
@@ -9676,45 +9675,6 @@ export default function AdminDashboard() {
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 font-medium text-xs sm:text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white font-mono leading-relaxed transition-all" 
                           />
                           <p className="px-2 text-[9px] text-emerald-700 font-medium">Lirik ini otomatis disinkronkan ke Spreadsheet dan langsung tampil pada tombol &quot;Lirik&quot; di pemutar musik.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedContentSection === 'doa' && (
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Doa / Judul</label>
-                          <input 
-                            type="text" 
-                            value={contentFormData.field2}
-                            onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tulisan Arab</label>
-                          <textarea 
-                            value={contentFormData.field1}
-                            onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-lg text-right h-24 outline-none font-arabic focus:ring-2 focus:ring-hw-green/20" 
-                            dir="rtl"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teks Latin</label>
-                          <textarea 
-                            value={contentFormData.field3}
-                            onChange={(e) => setContentFormData({...contentFormData, field3: e.target.value})}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-xs h-20 outline-none italic focus:ring-2 focus:ring-hw-green/20" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Terjemahan</label>
-                          <textarea 
-                            value={contentFormData.field4}
-                            onChange={(e) => setContentFormData({...contentFormData, field4: e.target.value})}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-xs h-20 outline-none focus:ring-2 focus:ring-hw-green/20" 
-                          />
                         </div>
                       </div>
                     )}

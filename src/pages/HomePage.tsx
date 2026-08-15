@@ -58,7 +58,7 @@ import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { PrayerTimes, Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 
 const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
@@ -112,10 +112,16 @@ export default function HomePage() {
   
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [materiList, setMateriList] = useState<Materi[]>([]);
+  const [materiList, setMateriList] = useState<Materi[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_materi_cache_umum') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return [];
+  });
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
-  // Pre-initialize contents from cached contents or fresh defaults
+  // Pre-initialize contents from cached contents or fresh defaults for 100% instant render
   const [galleryItems, setGalleryItems] = useState<Content[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('contents') || '[]');
@@ -127,7 +133,12 @@ export default function HomePage() {
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    return initialContents.filter((c: any) => c.section === 'galeri');
+    const gal = initialContents.filter((c: any) => c.section === 'galeri');
+    if (gal.length > 0) return gal;
+    return [
+      { id: 'gal-1', section: 'galeri', field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8', field2: 'Mars Gerakan Kepanduan Hizbul Wathan' },
+      { id: 'gal-2', section: 'galeri', field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8', field2: 'Profil Kwartir Wilayah HW Jawa Tengah' }
+    ];
   });
 
   const [playlistItems, setPlaylistItems] = useState<Content[]>(() => {
@@ -139,7 +150,12 @@ export default function HomePage() {
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    return initialContents.filter((c: any) => c.section === 'playlist');
+    const pl = initialContents.filter((c: any) => c.section === 'playlist');
+    if (pl.length > 0) return pl;
+    return [
+      { id: 'pl-1', section: 'playlist', field1: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', field2: 'Mars Hizbul Wathan', field3: 'Haiban Hadjid', pencipta: 'Haiban Hadjid' },
+      { id: 'pl-2', section: 'playlist', field1: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', field2: 'Mars Athfal', field3: 'Kwarpus HW', pencipta: 'Kwarpus HW' }
+    ];
   });
 
   const [sosmed, setSosmed] = useState<Content | null>(() => {
@@ -151,7 +167,14 @@ export default function HomePage() {
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    return initialContents.find((c: any) => c.section === 'sosmed') || null;
+    return initialContents.find((c: any) => c.section === 'sosmed') || {
+      id: 'sosmed-1',
+      section: 'sosmed',
+      field1: '@hw_pusat',
+      field2: '@hw_pusat',
+      field3: 'UCHW-TV',
+      field4: 'https://chat.whatsapp.com/L7r0U0u0U0u0U0u0U0u0'
+    };
   });
 
   const [kontak, setKontak] = useState<Content | null>(() => {
@@ -163,7 +186,14 @@ export default function HomePage() {
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    return initialContents.find((c: any) => c.section === 'kontak') || null;
+    return initialContents.find((c: any) => c.section === 'kontak') || {
+      id: 'kontak-1',
+      section: 'kontak',
+      field1: 'Kwartir Wilayah HW Jawa Tengah',
+      field2: 'Semarang, Jawa Tengah',
+      field3: '089688754000',
+      field4: 'kwarwiljateng@gmail.com'
+    };
   });
 
   const [showSosmedModal, setShowSosmedModal] = useState(false);
@@ -179,7 +209,15 @@ export default function HomePage() {
     } catch {}
     return 'Selamat Datang di Portal Resmi Gerakan Kepanduan Hizbul Wathan Jawa Tengah - Satu HW Jateng | Fastabiqul Khairat';
   });
-  const [myKtaApp, setMyKtaApp] = useState<any | null>(null);
+  const [myKtaApp, setMyKtaApp] = useState<any | null>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_kta_applications') || '[]');
+      if (Array.isArray(stored) && user?.email) {
+        return stored.find((a: any) => a.email && a.email.toLowerCase().trim() === user.email.toLowerCase().trim()) || null;
+      }
+    } catch {}
+    return null;
+  });
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -252,21 +290,78 @@ export default function HomePage() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   // Training Banner & Modal States
-  const [trainingActivities, setTrainingActivities] = useState<any[]>([]);
-  const [trainingLocations, setTrainingLocations] = useState<string[]>([]);
+  const [trainingActivities, setTrainingActivities] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_training_activities') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return [
+      { id: 'train-1', namaKegiatan: 'Pelatihan Jaya Melati 1 (JML 1)', title: 'Pelatihan Jaya Melati 1 (JML 1)', kategori: 'Pelatihan', status: 'Buka' },
+      { id: 'train-2', namaKegiatan: 'Pelatihan Jaya Melati 2 (JML 2)', title: 'Pelatihan Jaya Melati 2 (JML 2)', kategori: 'Pelatihan', status: 'Buka' },
+      { id: 'train-3', namaKegiatan: 'Pelatihan Jaya Matahari 1 (JMT 1)', title: 'Pelatihan Jaya Matahari 1 (JMT 1)', kategori: 'Pelatihan', status: 'Buka' },
+      { id: 'train-4', namaKegiatan: 'Pelatihan Jaya Pertiwi', title: 'Pelatihan Jaya Pertiwi', kategori: 'Pelatihan', status: 'Buka' }
+    ];
+  });
+  const [trainingLocations, setTrainingLocations] = useState<string[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_training_locations') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return ['Semarang', 'Surakarta', 'Banyumas', 'Pekalongan', 'Kebumen', 'Kudus', 'Magelang'];
+  });
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [selectedTrainingForReg, setSelectedTrainingForReg] = useState<any | null>(null);
   const [showRequirementModal, setShowRequirementModal] = useState(false);
-  const [activitiesList, setActivitiesList] = useState<any[]>([]);
-  const [activityApps, setActivityApps] = useState<any[]>([]);
+  const [activitiesList, setActivitiesList] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_activities') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return [
+      {
+        id: 'keg-silaturahmi-pelatih',
+        namaKegiatan: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        title: 'Pertemuan Silaturahmi Pelatih Nasional, Pandu Senior HW Jateng dan Alumni Jaya Melati 2',
+        kategori: 'Silaturahmi',
+        category: 'Silaturahmi',
+        tanggal: '29-30 Agustus 2026',
+        startDate: '2026-08-29',
+        endDate: '2026-08-30',
+        lokasi: 'Unimugo Kebumen',
+        location: 'Unimugo Kebumen',
+        biaya: 'Infaq: Rp 100.000 / Kwarda/Qabilah PTMA',
+        status: 'Buka',
+        kuota: '200 Orang',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
+        gambarUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
+        isPublished: true,
+        penyelenggara: 'Kwartir Wilayah HW Jawa Tengah'
+      }
+    ];
+  });
+  const [activityApps, setActivityApps] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hw_activity_applications') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return [];
+  });
 
   // Subscribe to real-time activities, activity applications, contents, and settings so edited activities/contents in Admin immediately update on HomePage
   useEffect(() => {
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
-      setActivitiesList(acts || []);
+      if (acts && acts.length > 0) {
+        setActivitiesList(acts);
+        try { localStorage.setItem('hw_activities', JSON.stringify(acts)); } catch (e) {}
+      }
     });
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
-      setActivityApps(apps || []);
+      if (apps) {
+        setActivityApps(apps);
+        try { localStorage.setItem('hw_activity_applications', JSON.stringify(apps)); } catch (e) {}
+      }
     });
     const unsubContents = sheetsService.subscribeToContents((contents: Content[]) => {
       if (contents && contents.length > 0) {
@@ -289,7 +384,10 @@ export default function HomePage() {
           : typeof sData.trainingActivities === 'string'
             ? JSON.parse(sData.trainingActivities || '[]')
             : [];
-        setTrainingActivities(acts);
+        if (acts.length > 0) {
+          setTrainingActivities(acts);
+          try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
+        }
       }
     });
     return () => {
@@ -365,55 +463,70 @@ export default function HomePage() {
       }
     };
     
-    const fetchAllData = async () => {
-      try {
-        const [contents, playlist] = await Promise.all([
-          sheetsService.getContents(),
-          sheetsService.getContents('playlist')
-        ]);
-        setGalleryItems(contents.filter(c => c.section === 'galeri'));
-        setPlaylistItems(playlist || []);
-        setSosmed(contents.find(c => c.section === 'sosmed') || null);
-        setKontak(contents.find(c => c.section === 'kontak') || null);
+    // Non-blocking parallel background fetches that update immediately without blocking UI
+    const fetchAllData = () => {
+      // 1. Contents & playlist
+      sheetsService.getContents().then((contents) => {
+        if (contents && contents.length > 0) {
+          const gal = contents.filter(c => c.section === 'galeri');
+          if (gal.length > 0) setGalleryItems(gal);
+          const pl = contents.filter(c => c.section === 'playlist');
+          if (pl.length > 0) setPlaylistItems(pl);
+          const sm = contents.find(c => c.section === 'sosmed');
+          if (sm) setSosmed(sm);
+          const kt = contents.find(c => c.section === 'kontak');
+          if (kt) setKontak(kt);
+          const rt = contents.find(c => c.section === 'running-text');
+          if (rt?.field1) setRunningText(rt.field1);
+        }
+      }).catch(e => console.warn('Background contents fetch warning:', e));
 
-        const rtContent = contents.find(c => c.section === 'running-text');
-        setRunningText(rtContent?.field1 || 'Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW JATENG, mohon dukungan dan supportnya, Salam HW!');
+      // 2. Fresh activities
+      sheetsService.getActivities().then((acts) => {
+        if (acts && acts.length > 0) {
+          setActivitiesList(acts);
+          try { localStorage.setItem('hw_activities', JSON.stringify(acts)); } catch (e) {}
+        }
+      }).catch(e => console.warn('Background activities fetch warning:', e));
 
-        // Fetch materi for search: Only show 'umum' and 'umum_pandu' materi on home page
-        const rolesToFetch = ['umum', 'umum_pandu'];
-        const mResults = await Promise.all(rolesToFetch.map(r => sheetsService.getMateri(r)));
+      // 3. Materi for search
+      Promise.all(['umum', 'umum_pandu'].map(r => sheetsService.getMateri(r))).then((mResults) => {
         const flatMateri = (mResults || []).flat().filter(Boolean);
         const uniqueMateri = Array.from(new Map(flatMateri.map(item => [item.id, item])).values());
-        // Extra safety filter to ensure only 'umum' or 'umum_pandu' materi is shown on home search
-        setMateriList(uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu')));
+        const filtered = uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
+        if (filtered.length > 0) {
+          setMateriList(filtered);
+          try { localStorage.setItem('hw_materi_cache_umum', JSON.stringify(filtered)); } catch (e) {}
+        }
+      }).catch(e => console.warn('Background materi fetch warning:', e));
 
-        // Fetch Training Settings
-        try {
-          const sData = await sheetsService.getSettings().catch(() => ({} as any));
-          if (sData) {
-            if (sData.trainingActivities) {
-              const acts = Array.isArray(sData.trainingActivities)
-                ? sData.trainingActivities
-                : typeof sData.trainingActivities === 'string'
-                  ? JSON.parse(sData.trainingActivities || '[]')
-                  : [];
+      // 4. Training Settings
+      sheetsService.getSettings().then((sData) => {
+        if (sData) {
+          if (sData.trainingActivities) {
+            const acts = Array.isArray(sData.trainingActivities)
+              ? sData.trainingActivities
+              : typeof sData.trainingActivities === 'string'
+                ? JSON.parse(sData.trainingActivities || '[]')
+                : [];
+            if (acts.length > 0) {
               setTrainingActivities(acts);
-            }
-            if (sData.trainingLocations) {
-              const locs = Array.isArray(sData.trainingLocations)
-                ? sData.trainingLocations
-                : typeof sData.trainingLocations === 'string'
-                  ? JSON.parse(sData.trainingLocations || '[]')
-                  : [];
-              setTrainingLocations(locs);
+              try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
             }
           }
-        } catch (e) {
-          console.error('Failed to fetch training settings:', e);
+          if (sData.trainingLocations) {
+            const locs = Array.isArray(sData.trainingLocations)
+              ? sData.trainingLocations
+              : typeof sData.trainingLocations === 'string'
+                ? JSON.parse(sData.trainingLocations || '[]')
+                : [];
+            if (locs.length > 0) {
+              setTrainingLocations(locs);
+              try { localStorage.setItem('hw_training_locations', JSON.stringify(locs)); } catch (e) {}
+            }
+          }
         }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
+      }).catch(e => console.warn('Background training settings fetch warning:', e));
     };
 
     initializeLocationAndPrayers();
@@ -973,7 +1086,7 @@ export default function HomePage() {
         <div className="grid grid-cols-3 gap-3">
           <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-amber-500" />
           <MenuCard to="/gallery" icon={ImageIcon} label="Galeri" color="bg-pink-500" />
-          <MenuCard to="/doa" icon={Heart} label="Doa" color="bg-rose-500" />
+          <MenuCard to="/playlist" icon={Music} label="Musik" color="bg-rose-500" />
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
           <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-cyan-600" />
           <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
@@ -1152,7 +1265,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2.5">
-              {activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a)).slice(0, 3).map((act: any, idx: number) => {
+              {sortActivitiesNewestFirst(activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a))).slice(0, 3).map((act: any, idx: number) => {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';
@@ -1237,12 +1350,15 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <Link
-                      to="/kegiatan"
-                      className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 shadow-xs hover:from-emerald-700 hover:to-teal-700 transition-all"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/kegiatan', { state: { selectedActivityId: act.id, openDetail: true, activity: act } });
+                      }}
+                      className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 shadow-xs hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] transition-all cursor-pointer"
                     >
                       Buka Detail & Pendaftaran <ChevronRight size={13} />
-                    </Link>
+                    </button>
                   </div>
                 );
               })}

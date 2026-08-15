@@ -102,20 +102,36 @@ export const prayerService = {
 
   async getCurrentCoords(): Promise<{ lat: number, lon: number } | null> {
     return new Promise((resolve) => {
-      if (!navigator.geolocation) {
+      if (typeof window === 'undefined' || !navigator.geolocation) {
         resolve(null);
         return;
       }
 
+      // Check cached coords first for instant load
+      try {
+        const cached = localStorage.getItem('hw_user_coords');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
+            resolve(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          resolve({
+          const coords = {
             lat: position.coords.latitude,
             lon: position.coords.longitude
-          });
+          };
+          try {
+            localStorage.setItem('hw_user_coords', JSON.stringify(coords));
+          } catch (e) {}
+          resolve(coords);
         },
         () => resolve(null),
-        { timeout: 10000 }
+        { timeout: 2500, maximumAge: 600000 }
       );
     });
   }

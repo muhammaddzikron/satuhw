@@ -22,7 +22,7 @@ import {
   ensureUniqueKtaNumbers,
   resequenceKtaNumbers
 } from '../utils/ktaUtils';
-import { isOnlyTrainingActivity, sortActivityAppsByDate } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { normalizeTrainingKey } from '../utils/trainingUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
@@ -2652,16 +2652,18 @@ export const firestoreService = {
           }
         }
 
+        const sortedList = sortActivitiesNewestFirst(list);
+
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
-            localStorage.setItem('hw_activities', JSON.stringify(list));
+            localStorage.setItem('hw_activities', JSON.stringify(sortedList));
           } catch (e) {}
         }
-        callback(list);
+        callback(sortedList);
       }, (err) => {
         this.checkQuotaError(err);
         console.warn('subscribeToActivities warning:', err);
-        this.getActivities().then(acts => callback(acts)).catch(() => callback(defaults));
+        this.getActivities().then(acts => callback(sortActivitiesNewestFirst(acts))).catch(() => callback(sortActivitiesNewestFirst(defaults)));
       });
       return unsub;
     } catch (e) {

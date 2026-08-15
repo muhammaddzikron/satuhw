@@ -6,6 +6,7 @@ import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { pickValidImageUrl } from '../lib/utils';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey } from '../utils/trainingUtils';
+import { sortActivitiesNewestFirst } from '../utils/activityUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -2080,7 +2081,7 @@ export const sheetsService = {
                 description: fsAct.deskripsi || fsAct.description || sheetDesc,
                 kategori: fsAct.kategori || fsAct.category || sheetCat,
                 category: fsAct.kategori || fsAct.category || sheetCat,
-                gambarUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
+                gambarUrl: pickValidImageUrl(fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage, sheetImg),
                 themeSongUrl: fsAct.themeSongUrl || fsAct.themeSong || sheetSongUrl,
                 themeSongTitle: fsAct.themeSongTitle || fsAct.themeSongName || sheetSongTitle,
                 proposalUrl: fsAct.proposalUrl || fsAct.proposal || sheetProposal,
@@ -2155,12 +2156,12 @@ export const sheetsService = {
           }
         });
 
-        return Array.from(map.values());
+        return sortActivitiesNewestFirst(Array.from(map.values()));
       }
-      return fsActs;
+      return sortActivitiesNewestFirst(fsActs);
     } catch (e) {
       console.warn('getActivities Sheets API error:', e);
-      return fsActs;
+      return sortActivitiesNewestFirst(fsActs);
     }
   }, 20000);
 },

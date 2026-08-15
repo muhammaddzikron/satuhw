@@ -205,3 +205,22 @@ export const sortActivityAppsByDate = (apps: any[], ascending: boolean = true): 
   });
 };
 
+export const sortActivitiesNewestFirst = (activities: any[]): any[] => {
+  if (!Array.isArray(activities)) return [];
+  return [...activities].sort((a, b) => {
+    // 1. Check updatedAt or createdAt timestamp first
+    const updatedA = parseDateToTimestamp(a?.updatedAt || a?.createdAt);
+    const updatedB = parseDateToTimestamp(b?.updatedAt || b?.createdAt);
+    if (updatedA !== updatedB) return updatedB - updatedA;
+
+    // 2. Check startDate or tanggal
+    const dateA = parseDateToTimestamp(a?.startDate || a?.tanggal || a?.tanggalPelatihan);
+    const dateB = parseDateToTimestamp(b?.startDate || b?.tanggal || b?.tanggalPelatihan);
+    if (dateA !== dateB) return dateB - dateA;
+
+    // 3. Fallback to ID comparison
+    return String(b?.id || '').localeCompare(String(a?.id || ''));
+  });
+};
+
+
