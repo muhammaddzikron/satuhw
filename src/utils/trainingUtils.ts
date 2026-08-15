@@ -127,6 +127,92 @@ export const getTrainingDisplayName = (key?: string): string => {
 };
 
 /**
+ * Checks if a member has Jaya Matahari qualification / role (Jari 1, Jari 2, Pelatih Nasional, Pelatih)
+ */
+export const isJayaMatahariMember = (m: any): boolean => {
+  if (!m) return false;
+
+  const targets = [
+    'jari1', 'jari2',
+    'jayamatahari1', 'jayamatahari2',
+    'jaya matahari 1', 'jaya matahari 2',
+    'jaya_matahari_1', 'jaya_matahari_2',
+    'jari 1', 'jari 2',
+    'jaya matahari',
+    'pelatih nasional',
+    'pelatih'
+  ];
+
+  const checkValue = (val: any): boolean => {
+    if (!val) return false;
+    if (Array.isArray(val)) {
+      return val.some(v => checkValue(v));
+    }
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase().trim();
+      if (lower.startsWith('[') && lower.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.some(v => checkValue(v));
+        } catch (e) {}
+      }
+      return targets.some(t => lower.includes(t));
+    }
+    return false;
+  };
+
+  return (
+    checkValue(m.role) ||
+    checkValue(m.roles) ||
+    checkValue(m.activeRole) ||
+    checkValue(m.golongan) ||
+    checkValue(m.golonganPelatih) ||
+    checkValue(m.pelatihan) ||
+    checkValue(m.pendidikan) ||
+    checkValue(m.kategori) ||
+    checkValue(m.tingkat) ||
+    checkValue(m.tingkatan) ||
+    checkValue(m.upgradeRequests) ||
+    checkValue(m.pelatihanAkanDiikuti) ||
+    checkValue(m.kategoriUndangan)
+  );
+};
+
+/**
+ * Checks if a member has Jaya Melati 1 qualification / role
+ */
+export const isJayaMelati1Member = (m: any): boolean => {
+  if (!m) return false;
+  const checkValue = (val: any): boolean => {
+    if (!val) return false;
+    if (Array.isArray(val)) return val.some(v => checkValue(v));
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase().trim();
+      return lower.includes('jati1') || lower.includes('jati 1') || lower.includes('melati 1') || lower.includes('jayamelati 1') || lower.includes('jayamelati1');
+    }
+    return false;
+  };
+  return checkValue(m.role) || checkValue(m.roles) || checkValue(m.pelatihan) || checkValue(m.golongan);
+};
+
+/**
+ * Checks if a member has Jaya Melati 2 qualification / role
+ */
+export const isJayaMelati2Member = (m: any): boolean => {
+  if (!m) return false;
+  const checkValue = (val: any): boolean => {
+    if (!val) return false;
+    if (Array.isArray(val)) return val.some(v => checkValue(v));
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase().trim();
+      return lower.includes('jati2') || lower.includes('jati 2') || lower.includes('melati 2') || lower.includes('jayamelati 2') || lower.includes('jayamelati2');
+    }
+    return false;
+  };
+  return checkValue(m.role) || checkValue(m.roles) || checkValue(m.pelatihan) || checkValue(m.golongan);
+};
+
+/**
  * Checks if two training keys / strings refer to the same training level.
  * e.g. isSameTrainingLevel('jayamelati1', 'jati1') => true
  *      isSameTrainingLevel('jaya pertiwi', 'jawi') => true

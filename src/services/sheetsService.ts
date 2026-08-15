@@ -5,6 +5,7 @@ import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { firestoreService, parseRolesField } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
+import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst } from '../utils/activityUtils';
@@ -472,10 +473,11 @@ export const sheetsService = {
     const rawVerified = data.isVerified !== undefined ? data.isVerified : data.isverified;
     const isVerified = rawVerified === true || rawVerified === 'true' || rawVerified === 1 || rawVerified === '1';
 
+    const properName = toProperName(namaValue);
     const user: User = {
       id: stableId,
       email: emailValue,
-      namaLengkap: namaValue || 'Anggota HW',
+      namaLengkap: properName || 'Anggota HW',
       jenisKelamin: (genderValue.toUpperCase().startsWith('P') || genderValue.toLowerCase() === 'perempuan') ? 'P' : 'L',
       golongan: golonganValue || 'Dewasa',
       golonganPelatih: golonganPelatihValue,
@@ -910,10 +912,33 @@ export const sheetsService = {
 
   async getMembers(): Promise<User[]> {
     return cachedFetch('members', async () => {
+      // 1. Retrieve persistent custom overrides
+      let customOverrides: Record<string, any> = {};
+      try {
+        const storedOverrides = localStorage.getItem('member_custom_edits');
+        if (storedOverrides) {
+          const parsed = JSON.parse(storedOverrides);
+          if (parsed && typeof parsed === 'object') customOverrides = parsed;
+        }
+      } catch (e) {}
+
       if (!IS_API_VALID) {
-        const members = await firestoreService.getMembers();
-        return members.map((m: any) => this.mapUser(m));
+        const fsMembers = await firestoreService.getMembers();
+        const mapped = fsMembers.map((m: any) => this.mapUser(m));
+        
+        // Apply custom overrides
+        mapped.forEach((m, idx) => {
+          const mId = m.id ? String(m.id) : '';
+          const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+          const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+          if (ov) {
+            mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
+          }
+        });
+
+        return sanitizeMemberList(mapped);
       }
+
       try {
         const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 15000 });
         let rawMembers: any[] = [];
@@ -950,7 +975,7 @@ export const sheetsService = {
             );
 
             if (match) {
-              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = match.namaLengkap;
+              if (match.namaLengkap && match.namaLengkap !== 'Tanpa Nama' && match.namaLengkap !== '-') sm.namaLengkap = toProperName(match.namaLengkap);
               if (match.photo) sm.photo = match.photo;
               if ((match as any).golonganPelatih) (sm as any).golonganPelatih = (match as any).golonganPelatih;
               if (match.ktaNumber) sm.ktaNumber = match.ktaNumber;
@@ -991,6 +1016,13 @@ export const sheetsService = {
                 if (!sm.tanggalLahir && ktaMatch.tanggalLahir) sm.tanggalLahir = ktaMatch.tanggalLahir;
               }
             }
+
+            // High-priority custom overrides
+            const ov = customOverrides[smId] || (smEmail ? customOverrides[smEmail] : null);
+            if (ov) {
+              Object.assign(sm, ov);
+              sm.namaLengkap = toProperName(ov.namaLengkap || sm.namaLengkap);
+            }
           });
 
           // Add any cached member missing from sheetMembers
@@ -1006,20 +1038,35 @@ export const sheetsService = {
               (fmName && sm.namaLengkap && sm.namaLengkap.toLowerCase().trim() === fmName)
             );
             if (!existsInSheet) {
-              sheetMembers.push(this.mapUser(fm));
+              const mapped = this.mapUser(fm);
+              const ov = customOverrides[fmId] || (fmEmail ? customOverrides[fmEmail] : null);
+              if (ov) {
+                Object.assign(mapped, ov);
+                mapped.namaLengkap = toProperName(ov.namaLengkap || mapped.namaLengkap);
+              }
+              sheetMembers.push(mapped);
             }
           });
         } catch (e) {
           console.warn('Error merging Firestore photos and member data into getMembers:', e);
         }
 
-        const finalResult = ensureUniqueKtaNumbers(sheetMembers);
-        safeStorageSet('mock_members', finalResult.slice(0, 500));
+        const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(sheetMembers));
+        safeStorageSet('mock_members', finalResult);
         return finalResult;
       } catch (error) {
         console.warn('getMembers API error, falling back to Firestore:', (error as any)?.message || error);
         const members = await firestoreService.getMembers();
-        return members.map((m: any) => this.mapUser(m));
+        const mapped = members.map((m: any) => this.mapUser(m));
+        mapped.forEach((m, idx) => {
+          const mId = m.id ? String(m.id) : '';
+          const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+          const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+          if (ov) {
+            mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
+          }
+        });
+        return sanitizeMemberList(mapped);
       }
     }, 25000);
   },
@@ -1028,15 +1075,26 @@ export const sheetsService = {
     clearSheetsCache('members');
     const normRoles = parseRolesField(userData.roles, userData.role);
     const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+    const properName = toProperName(userData.namaLengkap || userData.nama);
     const cleanUserData: User = {
       ...userData,
       id: userData.id || (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`),
+      namaLengkap: properName || userData.namaLengkap || 'Anggota HW',
       role: primaryRole,
       roles: normRoles,
       activeRole: userData.activeRole || primaryRole
     };
 
-    // 1. Immediately update local mock_members cache
+    // 1. Immediately store persistent custom override
+    try {
+      const storedOverrides = localStorage.getItem('member_custom_edits');
+      const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
+      if (cleanUserData.id) overrides[String(cleanUserData.id)] = cleanUserData;
+      if (cleanUserData.email) overrides[cleanUserData.email.toLowerCase().trim()] = cleanUserData;
+      safeStorageSet('member_custom_edits', overrides);
+    } catch (e) {}
+
+    // 2. Immediately update local mock_members cache
     try {
       const stored = localStorage.getItem('mock_members');
       let members: any[] = stored ? JSON.parse(stored) : [];
@@ -1066,7 +1124,7 @@ export const sheetsService = {
       } else {
         members.push(cleanUserData);
       }
-      safeStorageSet('mock_members', members);
+      safeStorageSet('mock_members', sanitizeMemberList(members));
 
       // Also sync KTA application in localStorage if exists
       const ktaStored = localStorage.getItem('kta_applications');
@@ -1095,7 +1153,7 @@ export const sheetsService = {
       console.warn('Error updating local mock_members in saveMember:', e);
     }
 
-    // 2. Persist to Firestore
+    // 3. Persist to Firestore
     try {
       await firestoreService.saveMember(cleanUserData as User);
       if (cleanUserData.id) {

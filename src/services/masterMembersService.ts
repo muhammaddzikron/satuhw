@@ -1,5 +1,6 @@
 import { User, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
+import { toProperName } from '../utils/nameUtils';
 import { csvPart1 } from './kta_csv_part1';
 import { csvPart2 } from './kta_csv_part2';
 import { csvPart3 } from './kta_csv_part3';
@@ -48,7 +49,7 @@ const parseCsvPart = (csv: string): User[] => {
           id: docId,
           email: email || `member_${idx}_${cleanKta.replace(/[^a-zA-Z0-9]/g, '')}@hw.or.id`,
           password: '12345hw',
-          namaLengkap: name,
+          namaLengkap: toProperName(name) || name,
           jenisKelamin: jk,
           tempatLahir: tmptLahir || '',
           tanggalLahir: tglLahir || '',
@@ -113,7 +114,7 @@ export const getMasterMembersList = (): User[] => {
     rawCandidates.push({
       ...u,
       id: String(u.id || `user-init-${idx}`),
-      namaLengkap: u.namaLengkap || u.nama || 'Anggota HW',
+      namaLengkap: toProperName(u.namaLengkap || u.nama) || 'Anggota HW',
       role: parsedRole,
       roles: parsedRoles,
       isVerified: u.isVerified === true || u.isVerified === 'TRUE' || u.isVerified === 'true'

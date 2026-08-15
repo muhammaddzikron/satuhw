@@ -25,6 +25,7 @@ import {
 } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { normalizeTrainingKey } from '../utils/trainingUtils';
+import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
@@ -615,6 +616,18 @@ export const firestoreService = {
       console.error('Error syncing KTA apps in getMembers:', e);
     }
 
+    // Retrieve persistent custom overrides
+    let customOverrides: Record<string, any> = {};
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('member_custom_edits');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') customOverrides = parsed;
+        }
+      }
+    } catch (e) {}
+
     // Merge master CSV & initial spreadsheet members list to ensure no registered HW member is ever missing
     try {
       const masterList = getMasterMembersList();
@@ -646,10 +659,20 @@ export const firestoreService = {
           const validMmKta = isValidKtaNumberFormat(mm.ktaNumber || mm.nomorKTA) ? (mm.ktaNumber || mm.nomorKTA) : '';
           const finalKta = validExKta || validMmKta || '';
 
+          const finalRoles = (ex.roles && ex.roles.length > 0 && !ex.roles.every(r => r === 'umum')) ? ex.roles : (ex.roles || mm.roles);
+          const finalRole = (ex.role && ex.role !== 'umum') ? ex.role : (ex.role || mm.role);
+          const finalPelatihan = (ex.pelatihan && ex.pelatihan.length > 0) ? ex.pelatihan : (mm.pelatihan || []);
+          const finalGolonganPelatih = (ex as any).golonganPelatih || (mm as any).golonganPelatih;
+
           members[matchedIdx] = {
             ...mm,
             ...ex,
             id: ex.id || mm.id,
+            namaLengkap: toProperName(ex.namaLengkap || mm.namaLengkap),
+            roles: finalRoles,
+            role: finalRole,
+            pelatihan: finalPelatihan,
+            golonganPelatih: finalGolonganPelatih,
             ktaNumber: finalKta,
             nomorKTA: finalKta,
             noHp: ex.noHp || mm.noHp,
@@ -661,12 +684,29 @@ export const firestoreService = {
             password: ex.password || mm.password || '12345hw'
           };
         } else {
-          members.push(mm);
+          members.push({
+            ...mm,
+            namaLengkap: toProperName(mm.namaLengkap)
+          });
         }
       });
     } catch (e) {
       console.warn('Error merging master members list in getMembers:', e);
     }
+
+    // Apply custom overrides with highest precedence
+    members.forEach((m, idx) => {
+      const mId = m.id ? String(m.id) : '';
+      const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+      const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+      if (ov) {
+        members[idx] = {
+          ...m,
+          ...ov,
+          namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap)
+        };
+      }
+    });
 
     // Strict KTA validation & deduplication pass for returned members
     members = ensureUniqueKtaNumbers(members);
@@ -674,6 +714,7 @@ export const firestoreService = {
     const filteredMembers = members
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
       .map(m => {
+        const properName = toProperName(m.namaLengkap || (m as any).nama);
         const roles = parseRolesField(m.roles, m.role);
         const role = roles.find(r => r !== 'umum') || roles[0] || 'umum';
 
@@ -693,17 +734,20 @@ export const firestoreService = {
 
         return {
           ...m,
+          namaLengkap: properName || m.namaLengkap || 'Anggota HW',
           role,
           roles,
           password: normPass
         };
       });
+
+    const sanitized = sanitizeMemberList(filteredMembers);
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
-        safeStorageSet('mock_members', filteredMembers);
+        safeStorageSet('mock_members', sanitized);
       } catch (e) {}
     }
-    return filteredMembers;
+    return sanitized;
   },
 
   async login(emailOrId: string, password?: string): Promise<{ user: User; token: string } | null> {
@@ -1292,6 +1336,7 @@ export const firestoreService = {
 
     const normRoles = parseRolesField(member.roles, member.role);
     const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+    const properName = toProperName(member.namaLengkap || member.nama);
 
     const dataToSave = cleanData({
       ...member,
@@ -1299,7 +1344,8 @@ export const firestoreService = {
       uid: member.uid || memberId,
       role: primaryRole,
       roles: normRoles,
-      nama: member.nama || member.namaLengkap,
+      namaLengkap: properName || member.namaLengkap || member.nama || 'Anggota HW',
+      nama: properName || member.namaLengkap || member.nama || 'Anggota HW',
       email: member.email,
       nomorKTA: ktaInfo.nomorKTA,
       ktaNumber: ktaInfo.ktaNumber,
@@ -1312,6 +1358,17 @@ export const firestoreService = {
       status: member.status || (member.isVerified ? 'Aktif' : 'Pending'),
       aktif: member.aktif !== undefined ? member.aktif : (member.isVerified || member.statusAktivasi === 'Aktif')
     });
+
+    // 1. Immediately store in persistent custom overrides
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const storedOverrides = localStorage.getItem('member_custom_edits');
+        const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
+        if (dataToSave.id) overrides[String(dataToSave.id)] = dataToSave;
+        if (dataToSave.email) overrides[dataToSave.email.toLowerCase().trim()] = dataToSave;
+        safeStorageSet('member_custom_edits', overrides);
+      }
+    } catch (e) {}
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -1329,7 +1386,7 @@ export const firestoreService = {
     } else {
       current.push(dataToSave as User);
     }
-    safeStorageSet('mock_members', current);
+    safeStorageSet('mock_members', sanitizeMemberList(current));
 
     // Sync photo and profile updates to KTA Applications collection in both Firestore and localStorage
     try {
@@ -1390,6 +1447,24 @@ export const firestoreService = {
       normUpdates.roles = normRoles;
       normUpdates.role = primaryRole;
     }
+    if (updates.namaLengkap || (updates as any).nama) {
+      const pName = toProperName(updates.namaLengkap || (updates as any).nama);
+      normUpdates.namaLengkap = pName;
+      (normUpdates as any).nama = pName;
+    }
+
+    // Immediately store in persistent custom overrides
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const storedOverrides = localStorage.getItem('member_custom_edits');
+        const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
+        const exOv = overrides[String(id)] || (normUpdates.email ? overrides[normUpdates.email.toLowerCase().trim()] : {}) || {};
+        const mergedOv = { ...exOv, ...normUpdates, id };
+        overrides[String(id)] = mergedOv;
+        if (normUpdates.email) overrides[normUpdates.email.toLowerCase().trim()] = mergedOv;
+        safeStorageSet('member_custom_edits', overrides);
+      }
+    } catch (e) {}
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -1405,7 +1480,7 @@ export const firestoreService = {
     if (idx >= 0) {
       updatedMember = { ...current[idx], ...normUpdates };
       current[idx] = updatedMember;
-      safeStorageSet('mock_members', current);
+      safeStorageSet('mock_members', sanitizeMemberList(current));
     }
 
     // Sync photo and profile updates to KTA Applications collection
