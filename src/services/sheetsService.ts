@@ -754,7 +754,7 @@ export const sheetsService = {
       headers: {
         'Content-Type': 'text/plain',
       },
-      timeout: 5000
+      timeout: 15000
     });
     
     // Check if the response itself contains an error field (common pattern in GAS responses)
@@ -1633,7 +1633,8 @@ export const sheetsService = {
           apiData = response.data.contents;
         }
         if (apiData.length > 0) {
-          const sanitized = apiData.map(c => {
+          const sanitized = apiData
+            .map(c => {
             if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
               return {
                 ...c,
@@ -1643,17 +1644,36 @@ export const sheetsService = {
             }
             if (c.section === 'playlist') {
               const anyC = c as any;
+              let field1 = c.field1 || anyC.audiourl || anyC.audioUrl || '';
+              let field2 = c.field2 || anyC.judul || anyC.title || '';
+              let field3 = c.field3 || anyC.pencipta || anyC.creator || '';
+              let field5 = c.field5 || anyC.lirik || anyC.lyrics || '';
+              const lowerTitle = (field2 || '').trim().toLowerCase();
+              if (lowerTitle === 'sahabat hw' || field1.toLowerCase().includes('sahabathw')) {
+                if (!field1) field1 = 'https://hwjateng.org/musik/sahabathw.mp3';
+                if (!field2) field2 = 'Sahabat HW';
+                if (!field3 || field3 === 'Kwarwil HW' || field3 === 'Pandu HW' || field3 === 'Pandu Hizbul Wathan') {
+                  field3 = 'Muhammad Dzikron';
+                }
+                if (!field5) {
+                  field5 = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
+                }
+              }
               return {
                 ...c,
-                field1: c.field1 || anyC.audiourl || anyC.audioUrl || '',
-                field2: c.field2 || anyC.judul || anyC.title || '',
-                field3: c.field3 || anyC.pencipta || anyC.creator || '',
+                field1,
+                field2,
+                field3,
                 field4: '',
-                field5: c.field5 || anyC.lirik || anyC.lyrics || '',
-                pencipta: c.field3 || anyC.pencipta || anyC.creator || '',
-                creator: c.field3 || anyC.pencipta || anyC.creator || '',
-                lirik: c.field5 || anyC.lirik || anyC.lyrics || '',
-                lyrics: c.field5 || anyC.lirik || anyC.lyrics || ''
+                field5,
+                pencipta: field3,
+                creator: field3,
+                lirik: field5,
+                lyrics: field5,
+                judul: field2,
+                title: field2,
+                audioUrl: field1,
+                audiourl: field1
               };
             }
             return c;
@@ -1669,46 +1689,84 @@ export const sheetsService = {
       return section ? fsContents.filter((c: any) => c.section === section) : fsContents;
     }
     const mockData = this.getMockContents();
-    return section ? mockData.filter(c => c.section === section) : mockData;
+    return section ? mockData.filter((c: any) => c.section === section) : mockData;
   },
 
   async saveContent(content: any): Promise<any> {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
+    updateApiUrlFromStorage();
 
     const normalized = {
       ...content,
-      field1: content.field1 || content.audioUrl || content.audiourl || '',
-      field2: content.field2 || content.judul || content.title || '',
-      field3: content.field3 || content.pencipta || content.creator || '',
-      field4: '',
-      field5: content.field5 || content.lyrics || content.lirik || '',
-      pencipta: content.field3 || content.pencipta || content.creator || '',
-      creator: content.field3 || content.pencipta || content.creator || '',
-      lirik: content.field5 || content.lyrics || content.lirik || '',
-      lyrics: content.field5 || content.lyrics || content.lirik || '',
-      judul: content.field2 || content.judul || content.title || '',
-      title: content.field2 || content.judul || content.title || '',
-      audioUrl: content.field1 || content.audioUrl || content.audiourl || '',
-      audiourl: content.field1 || content.audioUrl || content.audiourl || ''
+      id: content.id || (content.section === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString()),
+      field1: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim(),
+      field2: (content.field2 || content.judul || content.title || '').toString().trim(),
+      field3: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
+      field4: (content.field4 || '').toString().trim(),
+      field5: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
+      pencipta: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
+      creator: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
+      lirik: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
+      lyrics: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
+      judul: (content.field2 || content.judul || content.title || '').toString().trim(),
+      title: (content.field2 || content.judul || content.title || '').toString().trim(),
+      audioUrl: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim(),
+      audiourl: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim()
     };
 
-    if (IS_API_VALID) {
-      if (normalized.section === 'playlist') {
-        this.post({ action: 'savePlaylistItem', ...normalized }).catch(() => {});
-      }
-      this.post({ action: 'saveContent', ...normalized }).catch(() => {});
-    }
+    // Update Firestore first for fast persistent storage
     const saved = await firestoreService.saveContent(normalized);
-    return { success: true, content: saved || normalized };
+
+    // Update local cache immediately
+    try {
+      const stored = localStorage.getItem('contents');
+      let parsed = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(parsed)) parsed = [];
+      const idx = parsed.findIndex((c: any) => c.id === normalized.id || (c.section === normalized.section && (c.field2 || c.judul || '').trim().toLowerCase() === normalized.field2.toLowerCase()));
+      if (idx >= 0) {
+        parsed[idx] = { ...parsed[idx], ...normalized };
+      } else {
+        parsed.push(normalized);
+      }
+      safeStorageSet('contents', parsed);
+    } catch (e) {}
+
+    // Force save to Google Spreadsheet via Apps Script API
+    let spreadsheetSynced = false;
+    if (IS_API_VALID) {
+      try {
+        const promises: Promise<any>[] = [this.post({ action: 'saveContent', ...normalized })];
+        if (normalized.section === 'playlist') {
+          promises.push(this.post({ action: 'savePlaylistItem', ...normalized }));
+        }
+        const results = await Promise.allSettled(promises);
+        spreadsheetSynced = results.some(r => r.status === 'fulfilled');
+        console.log('[SHEETS] Save content result:', { normalizedId: normalized.id, spreadsheetSynced, results });
+      } catch (err) {
+        console.warn('[SHEETS] Google Apps Script saveContent error:', err);
+      }
+    }
+
+    return { success: true, content: saved || normalized, spreadsheetSynced };
+  },
+
+  async savePlaylistItem(item: any): Promise<any> {
+    return this.saveContent({
+      ...item,
+      section: 'playlist',
+      type: 'list'
+    });
   },
 
   async deleteContent(id: string): Promise<any> {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
     if (IS_API_VALID) {
-      this.post({ action: 'deletePlaylistItem', id }).catch(() => {});
-      this.post({ action: 'deleteContent', id }).catch(() => {});
+      Promise.allSettled([
+        this.post({ action: 'deletePlaylistItem', id }),
+        this.post({ action: 'deleteContent', id })
+      ]).catch(() => {});
     }
     await firestoreService.deleteContent(id);
     return { success: true };
@@ -2340,12 +2398,12 @@ export const sheetsService = {
         section: 'playlist',
         field1: 'https://hwjateng.org/musik/sahabathw.mp3',
         field2: 'Sahabat HW',
-        field3: 'Pandu Hizbul Wathan',
+        field3: 'Muhammad Dzikron',
         field4: '',
-        field5: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
-        pencipta: 'Pandu Hizbul Wathan',
-        lyrics: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
-        lirik: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.'
+        field5: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!',
+        pencipta: 'Muhammad Dzikron',
+        lyrics: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!',
+        lirik: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!'
       },
       {
         id: 'playlist-2',

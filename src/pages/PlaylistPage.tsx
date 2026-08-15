@@ -22,7 +22,15 @@ import {
   Check, 
   Disc, 
   Radio,
-  Sliders
+  Sliders,
+  Edit2,
+  Plus,
+  Trash2,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -37,25 +45,58 @@ export const PlaylistPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = Boolean(user) && (user?.role === 'admin' || user?.role === 'superadmin');
 
-  // Instant initial playlist from local cache or mock
-  const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
-    const sanitize = (list: any[]) => list.map(item => {
-      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
-        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
+  // Normalize playlist data ensuring Sahabat HW has creator Muhammad Dzikron
+  const sanitizeList = useCallback((list: any[]) => {
+    const seenTitles = new Set<string>();
+    return (list || []).filter((item: any) => {
+      if (!item) return false;
+      const title = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+      if (!title) return false;
+      // Deduplicate items with identical title
+      if (seenTitles.has(title)) return false;
+      seenTitles.add(title);
+      return true;
+    }).map(item => {
+      if (!item) return item;
+      const title = (item.field2 || item.judul || item.title || '').toString().trim();
+      const audio = (item.field1 || item.audioUrl || item.audiourl || '').toString();
+      let creator = (item.field3 || item.pencipta || item.creator || '').toString().trim();
+
+      if (title.toLowerCase() === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
+        if (!creator || creator === 'Kwarwil HW' || creator === 'Pandu HW' || creator === 'Pandu Hizbul Wathan' || creator === 'Kwarnas HW') {
+          creator = 'Muhammad Dzikron';
+        }
+        return {
+          ...item,
+          field1: item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3',
+          field2: 'Sahabat HW',
+          field3: creator,
+          pencipta: creator,
+          creator: creator,
+          judul: 'Sahabat HW',
+          title: 'Sahabat HW'
+        };
+      }
+
+      if (creator === 'Kwarnas HW') {
+        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan', creator: 'Pandu Hizbul Wathan' };
       }
       return item;
     });
+  }, []);
 
+  // Instant initial playlist from local cache or mock
+  const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
     const cached = localStorage.getItem('contents');
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         const pl = parsed.filter((c: any) => c.section === 'playlist');
-        if (pl.length > 0) return sanitize(pl);
+        if (pl.length > 0) return pl;
       } catch (e) {}
     }
     const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-    return sanitize(mock);
+    return mock;
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,44 +117,43 @@ export const PlaylistPage: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedLyrics, setCopiedLyrics] = useState(false);
 
+  // Edit / Add Song Modal State (for Admin)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTrack, setEditingTrack] = useState<any | null>(null);
+  const [songFormData, setSongFormData] = useState({
+    id: '',
+    title: '',
+    creator: '',
+    audioUrl: '',
+    lyrics: ''
+  });
+  const [isSavingSong, setIsSavingSong] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch playlist data
   const fetchPlaylist = useCallback(async () => {
-    const sanitize = (list: any[]) => (list || []).map(item => {
-      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
-        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
-      }
-      return item;
-    });
-
     try {
       const data = await sheetsService.getContents('playlist');
       if (Array.isArray(data) && data.length > 0) {
-        setRawPlaylist(sanitize(data));
+        setRawPlaylist(sanitizeList(data));
       } else {
         const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-        setRawPlaylist(sanitize(mock));
+        setRawPlaylist(sanitizeList(mock));
       }
     } catch (error) {
       console.error('Error fetching playlist:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sanitizeList]);
 
   useEffect(() => {
-    const sanitize = (list: any[]) => (list || []).map(item => {
-      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
-        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
-      }
-      return item;
-    });
-
     const unsub = sheetsService.subscribeToContents((contents: any[]) => {
       const pl = contents.filter((c: any) => c.section === 'playlist');
       if (pl.length > 0) {
-        setRawPlaylist(sanitize(pl));
+        setRawPlaylist(sanitizeList(pl));
         setLoading(false);
       }
     });
@@ -123,18 +163,18 @@ export const PlaylistPage: React.FC = () => {
     return () => {
       if (unsub) unsub();
     };
-  }, [fetchPlaylist]);
+  }, [fetchPlaylist, sanitizeList]);
 
   // Normalized tracks with enriched metadata (Pencipta, Lirik, Tema)
   const tracks = useMemo(() => {
-    return (rawPlaylist || []).map((t, idx) => {
+    return sanitizeList(rawPlaylist).map((t, idx) => {
       const meta = resolveTrackMetadata(t);
       return {
         ...meta,
         index: idx
       };
     });
-  }, [rawPlaylist]);
+  }, [rawPlaylist, sanitizeList]);
 
   // Filtered tracks based on title, creator, or lyrics
   const filteredTracks = useMemo(() => {
@@ -330,6 +370,132 @@ export const PlaylistPage: React.FC = () => {
     document.body.removeChild(a);
   };
 
+  // Open Edit / Add Song modal
+  const handleOpenEditModal = (track?: any) => {
+    setSaveFeedback(null);
+    if (track) {
+      setEditingTrack(track);
+      setSongFormData({
+        id: track.id || track.raw?.id || '',
+        title: track.title || track.raw?.field2 || '',
+        creator: track.creator || track.raw?.field3 || 'Pandu Hizbul Wathan',
+        audioUrl: track.audioUrl || track.raw?.field1 || '',
+        lyrics: track.lyrics && !track.lyrics.includes('Lirik lagu belum tersedia') 
+          ? track.lyrics 
+          : (track.raw?.field5 || '')
+      });
+    } else {
+      setEditingTrack(null);
+      setSongFormData({
+        id: `playlist-${Date.now()}`,
+        title: '',
+        creator: 'Pandu Hizbul Wathan',
+        audioUrl: '',
+        lyrics: ''
+      });
+    }
+    setIsEditModalOpen(true);
+  };
+
+  // Save Song & Lyrics (Forces Save to Database and Google Spreadsheet)
+  const handleSaveSong = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!songFormData.title.trim()) {
+      setSaveFeedback({ type: 'error', message: 'Judul lagu wajib diisi!' });
+      return;
+    }
+    if (!songFormData.audioUrl.trim()) {
+      setSaveFeedback({ type: 'error', message: 'Link file audio (MP3/Drive URL) wajib diisi!' });
+      return;
+    }
+
+    try {
+      setIsSavingSong(true);
+      setSaveFeedback(null);
+
+      const targetId = songFormData.id || (editingTrack ? editingTrack.id : `playlist-${Date.now()}`);
+      const payload: any = {
+        id: targetId,
+        section: 'playlist',
+        type: 'list',
+        field1: songFormData.audioUrl.trim(),
+        field2: songFormData.title.trim(),
+        field3: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
+        field4: '',
+        field5: songFormData.lyrics.trim(),
+        judul: songFormData.title.trim(),
+        title: songFormData.title.trim(),
+        pencipta: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
+        creator: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
+        audioUrl: songFormData.audioUrl.trim(),
+        audiourl: songFormData.audioUrl.trim(),
+        lirik: songFormData.lyrics.trim(),
+        lyrics: songFormData.lyrics.trim()
+      };
+
+      // Call sheetsService with forced Google Spreadsheet sync
+      const res = await sheetsService.savePlaylistItem(payload);
+
+      // Instantly update local state for reactive UI
+      setRawPlaylist(prev => {
+        const clean = prev.filter(p => p.id !== targetId && (p.field2 || p.judul || '').trim().toLowerCase() !== payload.field2.toLowerCase());
+        return [...clean, payload];
+      });
+
+      // Update lyrics popup modal if currently viewing this track
+      if (selectedTrackForLyrics && (selectedTrackForLyrics.id === targetId || selectedTrackForLyrics.title === payload.title)) {
+        setSelectedTrackForLyrics({
+          ...selectedTrackForLyrics,
+          title: payload.title,
+          creator: payload.creator,
+          lyrics: payload.lyrics,
+          audioUrl: payload.audioUrl
+        });
+      }
+
+      setSaveFeedback({
+        type: 'success',
+        message: res.spreadsheetSynced 
+          ? 'Lirik dan lagu berhasil disimpan ke Database & disinkronkan ke Spreadsheet!' 
+          : 'Lirik dan lagu berhasil disimpan ke Database lokal & Firestore!'
+      });
+
+      setTimeout(() => {
+        setIsEditModalOpen(false);
+      }, 1200);
+
+    } catch (err: any) {
+      console.error('Save song error:', err);
+      setSaveFeedback({ 
+        type: 'error', 
+        message: err?.message || 'Gagal menyimpan lirik. Silakan coba kembali.' 
+      });
+    } finally {
+      setIsSavingSong(false);
+    }
+  };
+
+  // Delete Song
+  const handleDeleteSong = async (trackId: string, trackTitle: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus lagu "${trackTitle}" dari playlist?`)) {
+      return;
+    }
+    try {
+      await sheetsService.deleteContent(trackId);
+      setRawPlaylist(prev => prev.filter(p => p.id !== trackId));
+      if (selectedTrackForLyrics?.id === trackId) {
+        setSelectedTrackForLyrics(null);
+      }
+      if (currentTrack?.id === trackId) {
+        handleStopTrack();
+        setCurrentTrackIndex(null);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Gagal menghapus lagu. Silakan coba kembali.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-gray-800 pb-28 selection:bg-hw-green selection:text-white">
       {/* Top Header */}
@@ -349,34 +515,40 @@ export const PlaylistPage: React.FC = () => {
                   <h1 className="text-lg sm:text-xl font-display font-black text-gray-900 tracking-tight truncate">
                     Playlist Lagu HW
                   </h1>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-200 shrink-0">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-hw-green text-[10px] font-black shrink-0 border border-emerald-200">
                     {tracks.length} Lagu
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1.5 truncate">
-                  <Music size={12} className="text-hw-green shrink-0" />
-                  Koleksi Mars, Hymne & Lagu Kepanduan Hizbul Wathan
+                <p className="text-[11px] sm:text-xs text-gray-500 font-medium truncate mt-0.5">
+                  Lagu resmi, mars, dan hymne Gerakan Kepanduan Hizbul Wathan
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={fetchPlaylist}
-                className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl transition-all cursor-pointer"
-                title="Muat Ulang Playlist"
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditModal()}
+                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  title="Tambah Lagu Baru ke Playlist"
+                >
+                  <Plus size={16} />
+                  <span className="hidden sm:inline">Tambah Lagu</span>
+                </button>
+              )}
+
+              <button 
+                onClick={() => {
+                  setLoading(true);
+                  fetchPlaylist();
+                }}
+                disabled={loading}
+                className="p-2.5 sm:p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl transition-all disabled:opacity-50 cursor-pointer"
+                title="Perbarui Data"
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin text-hw-green' : ''} />
               </button>
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin', { state: { defaultTab: 'konten', defaultSection: 'playlist' } })}
-                  className="px-3.5 py-2 bg-hw-dark hover:bg-black text-white text-xs font-bold rounded-2xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                >
-                  <Sparkles size={14} className="text-hw-yellow" />
-                  <span className="hidden sm:inline">Kelola Playlist</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -524,7 +696,7 @@ export const PlaylistPage: React.FC = () => {
               </div>
             )}
 
-            {/* Song Cards List: Ultra Clean & Responsive (No Overlapping on Mobile) */}
+            {/* Song Cards List */}
             <div className="space-y-3.5">
               {filteredTracks.map((track) => {
                 const isCurrent = currentTrackIndex === track.index;
@@ -548,54 +720,49 @@ export const PlaylistPage: React.FC = () => {
 
                       {/* Vinyl Disc Icon */}
                       <div className="relative shrink-0">
-                        <div className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-md border border-white/20 overflow-hidden`}>
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-sm border border-white/20 overflow-hidden`}>
                           <Disc size={26} className={isThisPlaying ? 'animate-spin-slow' : ''} />
                         </div>
                         {isThisPlaying && (
-                          <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center gap-0.5">
-                            {[0.5, 0.8, 0.4, 0.9].map((h, i) => (
-                              <motion.div
-                                key={i}
-                                animate={{ height: ['25%', '85%', '30%'] }}
-                                transition={{ repeat: Infinity, duration: h, delay: i * 0.15 }}
-                                className="w-1 bg-hw-yellow rounded-full"
-                              />
-                            ))}
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                           </div>
                         )}
                       </div>
 
-                      {/* Text Column: Title, Creator */}
+                      {/* Song Title & Detailed Creator */}
                       <div className="flex-1 min-w-0">
-                        {/* Status when playing */}
-                        {isThisPlaying && (
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md animate-pulse flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                              Sedang Diputar
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
+                            {track.theme.category}
+                          </span>
+                          {track.isKnown && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
+                              <Sparkles size={10} className="text-amber-500" />
+                              Lagu Resmi HW
                             </span>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
-                        {/* Song Title (Wraps naturally without overflowing) */}
-                        <h3 className={`text-sm sm:text-base font-display font-black leading-snug break-words ${isCurrent ? 'text-emerald-950' : 'text-gray-900'}`}>
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-snug break-words">
                           {track.title}
                         </h3>
 
-                        {/* Creator Info */}
-                        <div className="mt-1.5 flex items-center">
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-900 text-xs font-bold border border-emerald-200/80">
-                            <Sparkles size={11} className="text-amber-500 shrink-0" />
-                            <span className="text-emerald-700 font-extrabold text-[10px] uppercase">Cipt:</span>
-                            <span className="font-semibold text-gray-800 break-words">{track.creator}</span>
-                          </div>
+                        {/* Dedicated Composer Section */}
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-600 font-semibold">
+                          <span className="text-gray-400 font-normal">Cipt:</span>
+                          <span className="text-emerald-800 font-bold bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-100/60">
+                            {track.creator}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Bottom Action Row: Clear separation, perfectly responsive */}
-                    <div className="mt-3.5 pt-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-                      <div className="flex items-center gap-1.5">
+                    {/* Bottom Row: Actions Bar */}
+                    <div className="mt-4 pt-3.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
+                      
+                      {/* Left: Lyrics Button & Utilities */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           type="button"
                           onClick={() => setSelectedTrackForLyrics(track)}
@@ -605,6 +772,19 @@ export const PlaylistPage: React.FC = () => {
                           <FileText size={14} />
                           <span>Lirik</span>
                         </button>
+
+                        {/* Admin Edit Button */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(track)}
+                            className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                            title="Edit Lirik & Data Lagu"
+                          >
+                            <Edit2 size={13} />
+                            <span>Edit</span>
+                          </button>
+                        )}
                         
                         <button
                           type="button"
@@ -623,6 +803,18 @@ export const PlaylistPage: React.FC = () => {
                         >
                           <Download size={14} />
                         </button>
+
+                        {/* Admin Delete Button */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSong(track.id, track.title)}
+                            className="p-2 rounded-xl bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-all cursor-pointer"
+                            title="Hapus Lagu dari Playlist"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
 
                       {/* Main Play Button for this Track */}
@@ -659,7 +851,7 @@ export const PlaylistPage: React.FC = () => {
         )}
       </main>
 
-      {/* CENTERED MUSIC PLAYER MODAL (Pop-up di Tengah Layar dengan Tombol X / Close) */}
+      {/* CENTERED MUSIC PLAYER MODAL */}
       <AnimatePresence>
         {isPlayerModalOpen && currentTrack && (
           <motion.div 
@@ -746,7 +938,7 @@ export const PlaylistPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Playback Controls (Shuffle, Prev, Stop, Play/Pause, Next, Loop) */}
+              {/* Playback Controls */}
               <div className="p-6 pt-3 flex flex-col gap-4">
                 <div className="flex items-center justify-center gap-3 sm:gap-4">
                   {/* Shuffle Toggle */}
@@ -818,7 +1010,7 @@ export const PlaylistPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Footer Utility Row: Lirik, Unduh, Bagikan & Volume */}
+                {/* Footer Utility Row */}
                 <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <button
@@ -829,6 +1021,20 @@ export const PlaylistPage: React.FC = () => {
                       <FileText size={14} />
                       <span>Lirik</span>
                     </button>
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleOpenEditModal(currentTrack);
+                        }}
+                        className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                        title="Edit Lirik & Lagu"
+                      >
+                        <Edit2 size={13} />
+                        <span className="hidden sm:inline">Edit</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -876,7 +1082,7 @@ export const PlaylistPage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Lyrics & Song Detail Modal Sheet - Centered */}
+      {/* Lyrics & Song Detail Modal Sheet */}
       <AnimatePresence>
         {selectedTrackForLyrics && (
           <motion.div 
@@ -917,7 +1123,7 @@ export const PlaylistPage: React.FC = () => {
                   <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
                     <Sparkles size={16} />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
                       Diciptakan / Digubah Oleh
                     </span>
@@ -925,6 +1131,20 @@ export const PlaylistPage: React.FC = () => {
                       {selectedTrackForLyrics.creator}
                     </p>
                   </div>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleOpenEditModal(selectedTrackForLyrics);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                      title="Edit Lirik & Lagu"
+                    >
+                      <Edit2 size={13} />
+                      <span>Edit Lirik</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -936,28 +1156,30 @@ export const PlaylistPage: React.FC = () => {
                     Lirik Lagu
                   </h4>
                   
-                  <button
-                    type="button"
-                    onClick={() => handleCopyLyrics(selectedTrackForLyrics.lyrics)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-200"
-                  >
-                    {copiedLyrics ? (
-                      <>
-                        <Check size={14} className="text-emerald-600" />
-                        <span>Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Share2 size={14} />
-                        <span>Salin Lirik</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLyrics(selectedTrackForLyrics.lyrics)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-200"
+                    >
+                      {copiedLyrics ? (
+                        <>
+                          <Check size={14} className="text-emerald-600" />
+                          <span>Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Share2 size={14} />
+                          <span>Salin Lirik</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-150">
                   <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm font-semibold text-gray-800 leading-relaxed">
-                    {selectedTrackForLyrics.lyrics}
+                    {selectedTrackForLyrics.lyrics || 'Lirik lagu belum tersedia.'}
                   </pre>
                 </div>
               </div>
@@ -985,6 +1207,179 @@ export const PlaylistPage: React.FC = () => {
                   <span>Putar Sekarang</span>
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT / ADD SONG & LYRICS MODAL (FOR ADMIN) */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <motion.div 
+            key="playlist-edit-modal-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto"
+          >
+            <div
+              className="fixed inset-0"
+              onClick={() => !isSavingSong && setIsEditModalOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col relative z-10 my-6"
+            >
+              {/* Modal Header */}
+              <div className="p-5 sm:p-6 bg-linear-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20">
+                    <Music className="text-amber-300" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      {editingTrack ? 'Edit Lirik & Data Lagu' : 'Tambah Lagu Playlist Baru'}
+                    </h3>
+                    <p className="text-xs text-emerald-200 font-medium">
+                      Otomatis tersimpan ke Database Firestore & disinkronkan ke Google Spreadsheet
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={isSavingSong}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleSaveSong} className="p-6 space-y-4">
+                
+                {saveFeedback && (
+                  <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-bold ${
+                    saveFeedback.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}>
+                    {saveFeedback.type === 'success' ? (
+                      <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle size={18} className="text-rose-600 shrink-0" />
+                    )}
+                    <span>{saveFeedback.message}</span>
+                  </div>
+                )}
+
+                {/* Judul Lagu */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Music size={13} className="text-hw-green" />
+                    Judul Lagu / Mars / Hymne *
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    value={songFormData.title}
+                    onChange={(e) => setSongFormData({ ...songFormData, title: e.target.value })}
+                    placeholder="Contoh: Mars Gerakan Kepanduan Hizbul Wathan"
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Pencipta */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-amber-500" />
+                    Pencipta / Penggubah Lagu
+                  </label>
+                  <input 
+                    type="text"
+                    value={songFormData.creator}
+                    onChange={(e) => setSongFormData({ ...songFormData, creator: e.target.value })}
+                    placeholder="Contoh: H. Siradj Dahlan / Pandu Hizbul Wathan"
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Audio URL */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Radio size={13} className="text-emerald-600" />
+                    Link File Audio (MP3 URL / Google Drive) *
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    value={songFormData.audioUrl}
+                    onChange={(e) => setSongFormData({ ...songFormData, audioUrl: e.target.value })}
+                    placeholder="https://hwjateng.org/musik/... atau link direct mp3"
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all font-mono"
+                  />
+                </div>
+
+                {/* Lirik Lagu Multi-line Textarea */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <FileText size={13} className="text-hw-green" />
+                      Lirik Lagu Lengkap
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-normal">Mendukung baris baru (Enter)</span>
+                  </label>
+                  <textarea 
+                    rows={8}
+                    value={songFormData.lyrics}
+                    onChange={(e) => setSongFormData({ ...songFormData, lyrics: e.target.value })}
+                    placeholder="Ketik atau tempel bait-bait lirik lagu lengkap di sini..."
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl p-4 text-xs sm:text-sm font-semibold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all leading-relaxed"
+                  />
+                </div>
+
+                {/* Persistence Notice */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center gap-2.5">
+                  <Database size={16} className="text-amber-600 shrink-0" />
+                  <p className="text-[11px] text-amber-800 font-bold leading-tight">
+                    Data lirik akan dipaksa tersimpan ke Google Spreadsheet backend dan Firestore.
+                  </p>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    disabled={isSavingSong}
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSong}
+                    className="px-6 py-2.5 bg-hw-green hover:bg-emerald-600 text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-md shadow-hw-green/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingSong ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Menyimpan ke Spreadsheet...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        <span>Simpan Lirik & Lagu</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
             </motion.div>
           </motion.div>
         )}

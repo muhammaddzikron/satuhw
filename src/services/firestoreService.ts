@@ -2337,10 +2337,21 @@ export const firestoreService = {
         };
       }
       if (c.section === 'playlist') {
-        const audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
-        const judul = c.field2 || c.judul || c.title || '';
-        const pencipta = c.field3 || c.pencipta || c.creator || '';
-        const lirik = c.field5 || c.lirik || c.lyrics || '';
+        let audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
+        let judul = c.field2 || c.judul || c.title || '';
+        let pencipta = c.field3 || c.pencipta || c.creator || '';
+        let lirik = c.field5 || c.lirik || c.lyrics || '';
+        const lowerJudul = judul.trim().toLowerCase();
+        if (lowerJudul === 'sahabat hw' || audioUrl.includes('sahabathw')) {
+          if (!audioUrl) audioUrl = 'https://hwjateng.org/musik/sahabathw.mp3';
+          if (!judul) judul = 'Sahabat HW';
+          if (!pencipta || pencipta === 'Kwarwil HW' || pencipta === 'Pandu HW' || pencipta === 'Pandu Hizbul Wathan') {
+            pencipta = 'Muhammad Dzikron';
+          }
+          if (!lirik) {
+            lirik = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
+          }
+        }
         return {
           ...c,
           field1: audioUrl,
@@ -2366,7 +2377,7 @@ export const firestoreService = {
         const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
         if (!snap.empty) {
           const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-          const sanitized = contents.map(mapContentItem);
+          const sanitized = contents.map(mapContentItem).filter(Boolean) as Content[];
           safeStorageSet('contents', sanitized);
           return sanitized;
         }
@@ -2379,7 +2390,7 @@ export const firestoreService = {
     try {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(mapContentItem);
+        return (parsed.map(mapContentItem).filter(Boolean) as Content[]);
       }
       return [];
     } catch {

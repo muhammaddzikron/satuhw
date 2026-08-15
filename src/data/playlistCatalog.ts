@@ -124,7 +124,7 @@ Jayalah Hizbul Wathan selamanya!`,
   },
   'sahabat hw': {
     title: 'Sahabat HW',
-    creator: 'Pandu Hizbul Wathan',
+    creator: 'Muhammad Dzikron',
     category: 'Lagu Pandu & Motivasi',
     lyrics: `Bersama kita melangkah
 Menembus cakrawala asa

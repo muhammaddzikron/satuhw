@@ -270,6 +270,12 @@ export default function KegiatanPage() {
     return sortActivityAppsByDate(filtered, true);
   }, [selectedActivityForParticipants, activityApps]);
 
+  const detailParticipantsList = useMemo(() => {
+    if (!selectedActivity || !activityApps?.length) return [];
+    const filtered = activityApps.filter(app => isParticipantOfActivity(app, selectedActivity));
+    return sortActivityAppsByDate(filtered, true);
+  }, [selectedActivity, activityApps]);
+
   const filteredActivities = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
     const result = activities.filter(act => {
@@ -897,6 +903,129 @@ export default function KegiatanPage() {
                   </div>
                 </div>
 
+                {/* DAFTAR PESERTA TERDAFTAR (BAGIAN BAWAH POP UP KEGIATAN) */}
+                <div className="space-y-3 pt-2 border-t border-gray-150">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-xl">
+                        <Users size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-gray-900 font-display">Daftar Peserta Terdaftar</h4>
+                        <p className="text-[10px] text-gray-500 font-medium">Peserta yang telah mendaftar pada kegiatan ini</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        {detailParticipantsList.length} Peserta
+                      </span>
+                      {selectedActivity.status !== 'Tutup' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsDetailModalOpen(false);
+                            setIsRegisterModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95"
+                        >
+                          <UserPlus size={13} /> + Daftar Peserta
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {detailParticipantsList.length === 0 ? (
+                    <div className="py-7 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2.5">
+                      <div className="w-10 h-10 bg-gray-150 text-gray-400 rounded-full flex items-center justify-center mx-auto">
+                        <Users size={20} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-gray-700">Belum ada peserta yang mendaftar pada kegiatan ini</p>
+                        <p className="text-[10px] text-gray-400">Jadilah peserta pertama yang mendaftarkan diri!</p>
+                      </div>
+                      {selectedActivity.status !== 'Tutup' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsDetailModalOpen(false);
+                            setIsRegisterModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95"
+                        >
+                          <UserPlus size={14} /> Daftar Sebagai Peserta Sekarang
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                        {detailParticipantsList.map((app, idx) => {
+                          const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
+                          const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
+
+                          return (
+                            <div 
+                              key={app.id || idx} 
+                              className="bg-gray-50/90 hover:bg-gray-100/90 p-3 rounded-2xl border border-gray-150 flex items-start justify-between gap-2.5 transition-colors"
+                            >
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                                    #{idx + 1}
+                                  </span>
+                                  <h5 className="text-xs font-black text-gray-900 truncate">{app.namaLengkap}</h5>
+                                </div>
+                                <div className="text-[10px] text-gray-600 font-medium space-y-0.5 pl-0.5">
+                                  <p className="truncate">
+                                    <span className="text-gray-400 font-bold">Unsur:</span> {app.utusan || app.qabilahPtma || app.unsur || '-'}
+                                  </p>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span><strong className="text-gray-400">Jabatan:</strong> {app.jabatan || 'Peserta'}</span>
+                                    {app.kategoriUndangan && (
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[9px] font-extrabold border border-emerald-200">
+                                        {app.kategoriUndangan}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {app.tanggalDaftar && (
+                                    <p className="text-[9px] text-gray-400">
+                                      Daftar: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {formattedWa && (
+                                <a
+                                  href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                                >
+                                  <MessageCircle size={11} /> WA
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {selectedActivity.status !== 'Tutup' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsDetailModalOpen(false);
+                            setIsRegisterModalOpen(true);
+                          }}
+                          className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <UserPlus size={14} />
+                          <span>+ Tambah Pendaftaran Peserta Baru</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               </div>
 
@@ -912,9 +1041,11 @@ export default function KegiatanPage() {
                     setIsDetailModalOpen(false);
                     setIsRegisterModalOpen(true);
                   }}
-                  className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95"
                 >
-                  Daftar Kegiatan Sekarang <ChevronRight size={16} />
+                  <UserPlus size={16} />
+                  <span>Daftar Peserta Kegiatan</span>
+                  <ChevronRight size={16} />
                 </button>
               </div>
             </motion.div>
