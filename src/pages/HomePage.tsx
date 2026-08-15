@@ -740,33 +740,37 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    try {
-      if (searchQuery.trim().length > 1) {
-        const q = searchQuery.trim().toLowerCase();
-        
-        const filteredMateri = (materiList || []).filter(m => 
-          m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
-            String(m.judul || '').toLowerCase().includes(q) ||
-            String(m.konten || '').toLowerCase().includes(q)
-          )
-        ).map(item => ({ ...item, type: 'materi' }));
+    const timer = setTimeout(() => {
+      try {
+        if (searchQuery.trim().length > 1) {
+          const q = searchQuery.trim().toLowerCase();
+          
+          const filteredMateri = (materiList || []).filter(m => 
+            m && (m.kategori === 'umum' || m.kategori === 'umum_pandu') && (
+              String(m.judul || '').toLowerCase().includes(q) ||
+              String(m.konten || '').toLowerCase().includes(q)
+            )
+          ).slice(0, 15).map(item => ({ ...item, type: 'materi' }));
 
-        const filteredVideos = (galleryItems || []).filter(v => 
-          v && String(v.field2 || '').toLowerCase().includes(q)
-        ).map(item => ({ ...item, type: 'video' }));
+          const filteredVideos = (galleryItems || []).filter(v => 
+            v && String(v.field2 || '').toLowerCase().includes(q)
+          ).slice(0, 10).map(item => ({ ...item, type: 'video' }));
 
-        const filteredAudio = (playlistItems || []).filter(a => 
-          a && String(a.field2 || '').toLowerCase().includes(q)
-        ).map(item => ({ ...item, type: 'audio' }));
+          const filteredAudio = (playlistItems || []).filter(a => 
+            a && String(a.field2 || '').toLowerCase().includes(q)
+          ).slice(0, 10).map(item => ({ ...item, type: 'audio' }));
 
-        setSearchResults([...filteredMateri, ...filteredVideos, ...filteredAudio]);
-      } else {
+          setSearchResults([...filteredMateri, ...filteredVideos, ...filteredAudio]);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (e) {
+        console.error('Error during search calculation:', e);
         setSearchResults([]);
       }
-    } catch (e) {
-      console.error('Error during search calculation:', e);
-      setSearchResults([]);
-    }
+    }, 150);
+
+    return () => clearTimeout(timer);
   }, [searchQuery, materiList, galleryItems, playlistItems]);
 
   // Removed redundant line - activeTrainings is memoized above
@@ -1258,7 +1262,7 @@ export default function HomePage() {
                     Terbaru
                   </span>
                 </div>
-                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Pelatihan, Perkemahan, dll</p>
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Perkemahan, dll</p>
               </div>
             </div>
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />

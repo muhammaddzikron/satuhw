@@ -54,7 +54,7 @@ import PelatihanPage from './pages/PelatihanPage';
 import KegiatanPage from './pages/KegiatanPage';
 import PelatihNasionalPage from './pages/PelatihNasionalPage';
 
-const Header = () => {
+const Header = React.memo(() => {
   const location = useLocation();
   const isFullWidth = location.pathname === '/admin';
 
@@ -80,32 +80,29 @@ const Header = () => {
       </div>
     </header>
   );
-};
+});
 
-const NavigationLink = ({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active?: boolean }) => (
+const NavigationLink = React.memo(({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active?: boolean }) => (
   <Link 
     to={to} 
     className={cn(
-      "flex flex-col items-center justify-center gap-1 py-1 px-2.5 transition-all duration-300 relative rounded-xl",
-      active ? "text-white font-extrabold scale-105" : "text-emerald-100 hover:text-white font-medium opacity-80 hover:opacity-100"
+      "flex flex-col items-center justify-center gap-1 py-1 px-2.5 transition-all duration-150 relative rounded-xl touch-manipulation",
+      active ? "text-white font-extrabold scale-105" : "text-emerald-100 hover:text-white font-medium opacity-85 hover:opacity-100"
     )}
   >
     <Icon size={20} strokeWidth={active ? 2.5 : 2} />
     <span className="text-[10px] tracking-tight">{label}</span>
     {active && (
-      <motion.div 
-        layoutId="nav-active"
-        className="w-1.5 h-1.5 rounded-full bg-amber-300 mt-0.5 shadow-sm"
-      />
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-300 mt-0.5 shadow-xs block" />
     )}
   </Link>
-);
+));
 
 const Navigation = () => {
   const { isAuthenticated, user, logout, activeRole } = useAuthStore();
   const location = useLocation();
   
-  const canAccessAdmin = () => {
+  const canAccessAdmin = React.useMemo(() => {
     if (!user) return false;
     const adminRoles = [
       'admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat',
@@ -174,13 +171,13 @@ const Navigation = () => {
     } catch (e) {}
 
     return false;
-  };
+  }, [user]);
 
   const isDiklatAdmin = Boolean(
     user && ((user as any).adminType === 'diklat' || user.email === 'diklat' || user.email === 'diklat@hwjateng.com' || user.role === 'admin_diklat' || user.role === 'diklat')
   );
 
-  const isMemberView = !canAccessAdmin() || activeRole === 'umum';
+  const isMemberView = !canAccessAdmin || activeRole === 'umum';
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-gradient-to-r from-hw-green via-emerald-600 to-hw-blue border-t border-white/20 shadow-2xl safe-bottom pointer-events-auto">
