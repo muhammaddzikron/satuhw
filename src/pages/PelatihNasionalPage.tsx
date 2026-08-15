@@ -330,31 +330,23 @@ export default function PelatihNasionalPage() {
     return getCorsSafeUrl(raw);
   };
 
-  // Filter members list to Pelatih Nasional & sort by Kwarda then Qabilah PTMA & then alphabetically by name
+  // Filter members list to Pelatih Nasional & sort alphabetically by member name (A-Z)
   const pelatihList = useMemo(() => {
     const filtered = members.filter(isPelatihNasional);
 
     return filtered.sort((a, b) => {
-      const rankA = getSortRank(a);
-      const rankB = getSortRank(b);
-
-      // 1. Sort by Kwarda (01..35) then Qabilah PTMA (36..58)
-      if (rankA.codeIndex !== rankB.codeIndex) {
-        return rankA.codeIndex - rankB.codeIndex;
-      }
-
-      // 2. Within each Kwarda or Qabilah PTMA, sort alphabetically by member name
-      const nameA = (a.namaLengkap || '').trim();
-      const nameB = (b.namaLengkap || '').trim();
+      // 1. Sort alphabetically by full name (A to Z)
+      const nameA = (a.namaLengkap || (a as any).nama || '').trim();
+      const nameB = (b.namaLengkap || (b as any).nama || '').trim();
       const nameComp = nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
       if (nameComp !== 0) return nameComp;
 
-      // 3. Fallback: Asal Kwarda
-      const kwardaComp = (a.asalKwarda || '').localeCompare(b.asalKwarda || '');
+      // 2. Secondary fallback: Kwarda
+      const kwardaComp = (a.asalKwarda || '').localeCompare(b.asalKwarda || '', 'id', { sensitivity: 'base' });
       if (kwardaComp !== 0) return kwardaComp;
 
-      // 4. Fallback: Qabilah
-      return (a.qabilah || '').localeCompare(b.qabilah || '');
+      // 3. Tertiary fallback: Qabilah
+      return (a.qabilah || '').localeCompare(b.qabilah || '', 'id', { sensitivity: 'base' });
     });
   }, [members]);
 
