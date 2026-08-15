@@ -2323,7 +2323,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.org/musik/sahabathw.mp3',
         field2: 'Sahabat HW',
         field3: 'Kwarnas HW',
-        field4: 'Lagu Pandu & Motivasi'
+        field4: '',
+        field5: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
+        pencipta: 'Kwarnas HW',
+        lyrics: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
+        lirik: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.'
       },
       {
         id: 'playlist-2',
@@ -2331,7 +2335,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3',
         field2: 'HW Untuk Indonesia',
         field3: 'Kwarwil HW Jateng',
-        field4: 'Lagu Pandu & Semangat'
+        field4: '',
+        field5: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
+        pencipta: 'Kwarwil HW Jateng',
+        lyrics: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
+        lirik: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.'
       },
       {
         id: 'playlist-3',
@@ -2339,7 +2347,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.org/musik/marshw.mp3',
         field2: 'Mars HW',
         field3: 'H. Siradj Dahlan',
-        field4: 'Mars & Lagu Wajib'
+        field4: '',
+        field5: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.',
+        pencipta: 'H. Siradj Dahlan',
+        lyrics: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.',
+        lirik: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.'
       },
       {
         id: 'playlist-4',
@@ -2347,7 +2359,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.org/musik/hymnehw.mp3',
         field2: 'Hymne HW Panduku',
         field3: 'H.M. Affandi',
-        field4: 'Hymne'
+        field4: '',
+        field5: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.',
+        pencipta: 'H.M. Affandi',
+        lyrics: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.',
+        lirik: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.'
       },
       {
         id: 'playlist-5',
@@ -2355,7 +2371,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.org/musik/mahrojanpenghela.mp3',
         field2: 'Mahrojan Penghela',
         field3: 'Pandu HW',
-        field4: 'Lagu Pandu & Semangat'
+        field4: '',
+        field5: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
+        pencipta: 'Pandu HW',
+        lyrics: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
+        lirik: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.'
       },
       {
         id: 'playlist-6',
@@ -2363,7 +2383,11 @@ export const sheetsService = {
         field1: 'https://hwjateng.com/audio/sang_surya.mp3',
         field2: 'Sang Surya (Mars Muhammadiyah)',
         field3: 'Djarnawi Hadikusuma',
-        field4: 'Mars & Lagu Wajib'
+        field4: '',
+        field5: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.',
+        pencipta: 'Djarnawi Hadikusuma',
+        lyrics: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.',
+        lirik: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.'
       }
     ];
   },

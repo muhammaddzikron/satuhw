@@ -582,14 +582,9 @@ export default function HomePage() {
                   {track.title}
                 </h4>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100/60 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate max-w-[200px]">
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100/60 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate max-w-[240px]">
                     Cipt: {track.creator}
                   </span>
-                  {track.category && (
-                    <span className="hidden sm:inline-block text-[9px] font-extrabold text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded truncate">
-                      {track.category}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -1345,13 +1340,6 @@ export default function HomePage() {
                           {currentMeta.creator}
                         </span>
                       </div>
-
-                      {/* Category badge */}
-                      {currentMeta.category && (
-                        <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1.5">
-                          {currentMeta.category}
-                        </span>
-                      )}
                     </div>
 
                     {/* Equalizer animation when playing */}

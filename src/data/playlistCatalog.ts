@@ -1,7 +1,7 @@
 export interface SongMetadata {
   title: string;
   creator: string;
-  category: string;
+  category?: string;
   lyrics: string;
   theme: {
     gradient: string;

@@ -51,7 +51,6 @@ export const PlaylistPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
 
   // Player state
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -104,7 +103,7 @@ export const PlaylistPage: React.FC = () => {
     };
   }, [fetchPlaylist]);
 
-  // Normalized tracks with enriched metadata (Pencipta, Kategori, Lirik, Tema)
+  // Normalized tracks with enriched metadata (Pencipta, Lirik, Tema)
   const tracks = useMemo(() => {
     return (rawPlaylist || []).map((t, idx) => {
       const meta = resolveTrackMetadata(t);
@@ -115,30 +114,18 @@ export const PlaylistPage: React.FC = () => {
     });
   }, [rawPlaylist]);
 
-  // Distinct categories
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    tracks.forEach(t => {
-      if (t.category) set.add(t.category);
-    });
-    return ['Semua', ...Array.from(set)];
-  }, [tracks]);
-
-  // Filtered tracks
+  // Filtered tracks based on title, creator, or lyrics
   const filteredTracks = useMemo(() => {
     const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return tracks;
     return tracks.filter(track => {
-      const matchQuery = !q || 
+      return (
         track.title.toLowerCase().includes(q) ||
         track.creator.toLowerCase().includes(q) ||
-        track.category.toLowerCase().includes(q) ||
-        track.lyrics.toLowerCase().includes(q);
-
-      const matchCat = selectedCategory === 'Semua' || track.category === selectedCategory;
-
-      return matchQuery && matchCat;
+        track.lyrics.toLowerCase().includes(q)
+      );
     });
-  }, [tracks, searchQuery, selectedCategory]);
+  }, [tracks, searchQuery]);
 
   const currentTrack = useMemo(() => {
     if (currentTrackIndex === null || !tracks[currentTrackIndex]) return null;
@@ -425,23 +412,6 @@ export const PlaylistPage: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-hw-dark text-white shadow-xs scale-102'
-                    : 'bg-gray-150 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 
@@ -463,11 +433,11 @@ export const PlaylistPage: React.FC = () => {
             <div>
               <h3 className="text-base font-black text-gray-800">Lagu Tidak Ditemukan</h3>
               <p className="text-xs text-gray-500 font-medium max-w-md mx-auto mt-1">
-                Tidak ada lagu atau mars yang cocok dengan kata kunci &quot;{searchQuery}&quot;. Coba cari judul lagu atau nama pencipta lainnya.
+                Tidak ada lagu atau mars yang cocok dengan kata kunci &quot;{searchQuery}&quot;. Coba cari judul lagu, nama pencipta, atau potongan lirik lainnya.
               </p>
             </div>
             <button
-              onClick={() => { setSearchQuery(''); setSelectedCategory('Semua'); }}
+              onClick={() => setSearchQuery('')}
               className="px-5 py-2.5 bg-hw-green text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all cursor-pointer"
             >
               Reset Pencarian
@@ -501,9 +471,6 @@ export const PlaylistPage: React.FC = () => {
                         <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1">
                           <Radio size={9} className={isPlaying ? 'animate-pulse' : ''} />
                           {isPlaying ? 'Sedang Diputar' : 'Terpilih'}
-                        </span>
-                        <span className="text-[10px] text-gray-300 font-bold truncate">
-                          {currentTrack.category}
                         </span>
                       </div>
                       <h3 className="text-sm font-bold text-white truncate">
@@ -576,20 +543,17 @@ export const PlaylistPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Text Column: Category, Title, Creator */}
+                      {/* Text Column: Title, Creator */}
                       <div className="flex-1 min-w-0">
-                        {/* Category & Status */}
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border tracking-wider ${track.theme.bgBadge}`}>
-                            {track.category}
-                          </span>
-                          {isThisPlaying && (
+                        {/* Status when playing */}
+                        {isThisPlaying && (
+                          <div className="flex items-center gap-2 mb-1">
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md animate-pulse flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                               Sedang Diputar
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         {/* Song Title (Wraps naturally without overflowing) */}
                         <h3 className={`text-sm sm:text-base font-display font-black leading-snug break-words ${isCurrent ? 'text-emerald-950' : 'text-gray-900'}`}>
@@ -701,9 +665,6 @@ export const PlaylistPage: React.FC = () => {
                   <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1.5">
                     <Radio size={12} className={isPlaying ? 'animate-pulse text-emerald-400' : ''} />
                     {isPlaying ? 'Memutar Audio' : 'Pemutar Musik'}
-                  </span>
-                  <span className="text-[11px] text-gray-400 font-bold truncate max-w-[140px]">
-                    {currentTrack.category}
                   </span>
                 </div>
 
@@ -924,10 +885,6 @@ export const PlaylistPage: React.FC = () => {
                 >
                   <X size={18} />
                 </button>
-
-                <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-extrabold uppercase tracking-widest border border-white/30 inline-block mb-2">
-                  {selectedTrackForLyrics.category}
-                </span>
 
                 <h3 className="text-xl sm:text-2xl font-display font-black text-white leading-tight">
                   {selectedTrackForLyrics.title}

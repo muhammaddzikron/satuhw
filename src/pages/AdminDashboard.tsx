@@ -202,7 +202,9 @@ import {
   Calendar,
   Edit,
   Upload,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  Link as LinkIcon
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
@@ -2309,8 +2311,12 @@ export default function AdminDashboard() {
         field1: contentFormData.field1,
         field2: contentFormData.field2,
         field3: contentFormData.field3,
-        field4: contentFormData.field4,
-        field5: contentFormData.field5 || ''
+        field4: '',
+        field5: contentFormData.field5 || '',
+        lirik: contentFormData.field5 || '',
+        lyrics: contentFormData.field5 || '',
+        pencipta: contentFormData.field3,
+        creator: contentFormData.field3
       };
 
       if (editingContent) {
@@ -4371,9 +4377,18 @@ export default function AdminDashboard() {
                                     {selectedContentSection === 'running-text' ? 'Teks Berjalan' : (selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section))}
                                   </h4>
                                   {selectedContentSection === 'playlist' ? (
-                                    <p className="text-[10px] text-emerald-700 truncate font-bold">
-                                      Cipt: {item.field3 || 'Muhammad Dzikron'} {item.field4 ? `• ${item.field4}` : ''}
-                                    </p>
+                                    <div className="space-y-0.5">
+                                      <p className="text-[11px] text-emerald-700 truncate font-bold">
+                                        Cipt: {item.field3 || item.pencipta || item.creator || 'Pandu Hizbul Wathan'}
+                                      </p>
+                                      {(item.field5 || item.lirik || item.lyrics) ? (
+                                        <p className="text-[9px] text-gray-500 line-clamp-1 italic font-medium">
+                                          Lirik: {(item.field5 || item.lirik || item.lyrics).substring(0, 60)}...
+                                        </p>
+                                      ) : (
+                                        <p className="text-[9px] text-amber-600 font-medium italic">Lirik belum diisi</p>
+                                      )}
+                                    </div>
                                   ) : (
                                     <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
                                   )}
@@ -9599,67 +9614,61 @@ export default function AdminDashboard() {
                     {selectedContentSection === 'playlist' && (
                       <div className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Judul Audio / Lagu / Mars *</label>
+                          <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <Music size={13} className="text-hw-green" />
+                            Judul Audio / Lagu / Mars *
+                          </label>
                           <input 
                             type="text" 
                             value={contentFormData.field2}
                             onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
                             placeholder="Contoh: Mars Hizbul Wathan"
-                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
                           />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Pencipta / Penggubah</label>
-                            <input 
-                              type="text" 
-                              value={contentFormData.field3}
-                              onChange={(e) => setContentFormData({...contentFormData, field3: e.target.value})}
-                              placeholder="Contoh: Muhammad Dzikron / K.H. Siradj Dahlan"
-                              className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori / Genre</label>
-                            <input 
-                              type="text" 
-                              value={contentFormData.field4}
-                              onChange={(e) => setContentFormData({...contentFormData, field4: e.target.value})}
-                              placeholder="Contoh: Mars & Lagu Wajib / Hymne / Lagu Pandu"
-                              list="kategori-playlist-options"
-                              className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
-                            />
-                            <datalist id="kategori-playlist-options">
-                              <option value="Mars & Lagu Wajib" />
-                              <option value="Hymne" />
-                              <option value="Lagu Pandu & Motivasi" />
-                              <option value="Lagu Pandu & Semangat" />
-                              <option value="Pop Islami" />
-                              <option value="Riang Pandu Athfal & Pengenal" />
-                            </datalist>
-                          </div>
-                        </div>
+
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Link File Audio (Google Drive / Direct URL / MP3) *</label>
+                          <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <Sparkles size={13} className="text-amber-500" />
+                            Nama Pencipta / Penggubah
+                          </label>
+                          <input 
+                            type="text" 
+                            value={contentFormData.field3}
+                            onChange={(e) => setContentFormData({...contentFormData, field3: e.target.value})}
+                            placeholder="Contoh: Muhammad Dzikron / K.H. Siradj Dahlan"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <LinkIcon size={13} className="text-blue-500" />
+                            Link File Audio (Google Drive / Direct URL / MP3) *
+                          </label>
                           <input 
                             type="text" 
                             value={contentFormData.field1}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
-                            placeholder="https://drive.google.com/file/d/..."
-                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
+                            placeholder="https://drive.google.com/file/d/... atau https://domain.com/lagu.mp3"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
                           />
-                          <p className="px-2 text-[9px] text-gray-400 font-bold italic">*Pastikan link Google Drive sudah diatur "Siapa saja yang memiliki link dapat melihat"</p>
+                          <p className="px-2 text-[9px] text-gray-400 font-bold italic">*Jika memakai Google Drive, pastikan link diatur &quot;Siapa saja yang memiliki link dapat melihat&quot;</p>
                         </div>
+
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teks Lirik Lagu Lengkap (Opsional)</label>
+                          <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <FileText size={13} className="text-emerald-600" />
+                            Lirik Lagu (Teks Lirik Lengkap)
+                          </label>
                           <textarea 
-                            rows={5}
+                            rows={7}
                             value={contentFormData.field5}
                             onChange={(e) => setContentFormData({...contentFormData, field5: e.target.value})}
-                            placeholder="Tuliskan lirik lagu atau mars di sini per baris..."
-                            className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-medium text-xs outline-none focus:ring-2 focus:ring-hw-green/20 font-mono" 
+                            placeholder="Tuliskan bait dan lirik lagu / mars secara lengkap per baris...&#10;&#10;Contoh:&#10;Hizbul Wathan yang bersemangat&#10;Menjunjung tinggi agama Islam..."
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 font-medium text-xs sm:text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white font-mono leading-relaxed transition-all" 
                           />
-                          <p className="px-2 text-[9px] text-gray-400">Lirik ini akan langsung tampil saat pengguna mengklik tombol Lirik di pemutar musik.</p>
+                          <p className="px-2 text-[9px] text-emerald-700 font-medium">Lirik ini otomatis disinkronkan ke Spreadsheet dan langsung tampil pada tombol &quot;Lirik&quot; di pemutar musik.</p>
                         </div>
                       </div>
                     )}

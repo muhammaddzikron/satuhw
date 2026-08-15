@@ -83,6 +83,9 @@ export interface Content {
   field5?: string;
   field6?: string;
   lyrics?: string;
+  lirik?: string;
+  pencipta?: string;
+  creator?: string;
   title?: string;
   body?: string;
   image?: string;
