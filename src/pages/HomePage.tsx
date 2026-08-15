@@ -61,40 +61,51 @@ import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 
-const MenuCard = ({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
+const MenuCard = React.memo(({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
   if (onClick) {
     return (
-      <button onClick={onClick} className="group w-full text-left cursor-pointer">
-        <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 h-full flex flex-col items-center text-center gap-2">
-          <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-300", color)}>
+      <button 
+        type="button" 
+        onClick={onClick} 
+        className="group w-full text-left cursor-pointer active:scale-95 transition-transform duration-150 touch-manipulation focus:outline-none"
+      >
+        <div className="bg-white p-3 rounded-2xl shadow-xs border border-gray-100 hover:border-emerald-200 hover:shadow-md transition-all duration-200 h-full flex flex-col items-center text-center gap-2">
+          <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-200 shadow-xs", color)}>
             <Icon className="text-white" size={18} />
           </div>
-          <h3 className="font-display font-bold text-[10px] text-hw-dark leading-tight uppercase tracking-tight">{label}</h3>
+          <h3 className="font-display font-bold text-[10px] text-gray-800 leading-tight uppercase tracking-tight line-clamp-2">{label}</h3>
         </div>
       </button>
     );
   }
   return (
-    <Link to={to || '#'} state={state} className="group">
-      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 h-full flex flex-col items-center text-center gap-2">
-        <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-300", color)}>
+    <Link 
+      to={to || '#'} 
+      state={state} 
+      className="group block active:scale-95 transition-transform duration-150 touch-manipulation focus:outline-none"
+    >
+      <div className="bg-white p-3 rounded-2xl shadow-xs border border-gray-100 hover:border-emerald-200 hover:shadow-md transition-all duration-200 h-full flex flex-col items-center text-center gap-2">
+        <div className={cn("p-2.5 rounded-xl mb-0.5 group-hover:scale-110 transition-transform duration-200 shadow-xs", color)}>
           <Icon className="text-white" size={18} />
         </div>
-        <h3 className="font-display font-bold text-[10px] text-hw-dark leading-tight uppercase tracking-tight">{label}</h3>
+        <h3 className="font-display font-bold text-[10px] text-gray-800 leading-tight uppercase tracking-tight line-clamp-2">{label}</h3>
       </div>
     </Link>
   );
-};
+});
 
-const FeatureCard = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
-  <Link to={to} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs hover:shadow-md hover:border-emerald-200 transition-all">
+const FeatureCard = React.memo(({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
+  <Link 
+    to={to} 
+    className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs hover:shadow-md hover:border-emerald-200 active:scale-98 transition-all touch-manipulation"
+  >
     <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
       <Icon size={18} />
     </div>
     <span className="text-xs font-bold text-gray-800 flex-1">{label}</span>
     <ChevronRight size={14} className="text-gray-300" />
   </Link>
-);
+));
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -349,8 +360,8 @@ export default function HomePage() {
     return [];
   });
 
-  // Subscribe to real-time activities, activity applications, contents, and settings so edited activities/contents in Admin immediately update on HomePage
   useEffect(() => {
+    // Realtime listeners for Firestore / Spreadsheet syncing
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       if (acts && acts.length > 0) {
         setActivitiesList(acts);
@@ -390,11 +401,26 @@ export default function HomePage() {
         }
       }
     });
+
+    // Defer background search index (Materi) load so it does not compete with initial render
+    const deferTimer = setTimeout(() => {
+      Promise.all(['umum', 'umum_pandu'].map(r => sheetsService.getMateri(r))).then((mResults) => {
+        const flatMateri = (mResults || []).flat().filter(Boolean);
+        const uniqueMateri = Array.from(new Map(flatMateri.map(item => [item.id, item])).values());
+        const filtered = uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
+        if (filtered.length > 0) {
+          setMateriList(filtered);
+          try { localStorage.setItem('hw_materi_cache_umum', JSON.stringify(filtered)); } catch (e) {}
+        }
+      }).catch(e => console.warn('Deferred materi fetch warning:', e));
+    }, 800);
+
     return () => {
       unsubActivities();
       unsubApps();
       unsubContents();
       unsubSettings();
+      clearTimeout(deferTimer);
     };
   }, []);
 
@@ -441,9 +467,10 @@ export default function HomePage() {
   }, [trainingActivities, activitiesList]);
 
   useEffect(() => {
-    // Minute-based timer for date display, saves battery and prevents frame drops on scroll
+    // Minute-based timer for date display, saves battery and prevents frame drops
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     
+    // Fast non-blocking location and prayer times fetch
     const initializeLocationAndPrayers = async () => {
       try {
         const coords = await prayerService.getCurrentCoords();
@@ -451,89 +478,20 @@ export default function HomePage() {
           const city = await prayerService.getLocationName(coords.lat, coords.lon);
           setLocation(city);
           const times = await prayerService.getPrayerTimes({ lat: coords.lat, lon: coords.lon });
-          setPrayerTimes(times);
+          if (times) setPrayerTimes(times);
         } else {
           const times = await prayerService.getPrayerTimes({ city: 'Purwokerto' });
-          setPrayerTimes(times);
+          if (times) setPrayerTimes(times);
           setLocation('Purwokerto');
         }
       } catch (error) {
-        const times = await prayerService.getPrayerTimes({ city: 'Purwokerto' });
-        setPrayerTimes(times);
-        setLocation('Purwokerto');
+        // Fallback already pre-set
       }
     };
     
-    // Non-blocking parallel background fetches that update immediately without blocking UI
-    const fetchAllData = () => {
-      // 1. Contents & playlist
-      sheetsService.getContents().then((contents) => {
-        if (contents && contents.length > 0) {
-          const gal = contents.filter(c => c.section === 'galeri');
-          if (gal.length > 0) setGalleryItems(gal);
-          const pl = contents.filter(c => c.section === 'playlist');
-          if (pl.length > 0) setPlaylistItems(pl);
-          const sm = contents.find(c => c.section === 'sosmed');
-          if (sm) setSosmed(sm);
-          const kt = contents.find(c => c.section === 'kontak');
-          if (kt) setKontak(kt);
-          const rt = contents.find(c => c.section === 'running-text');
-          if (rt?.field1) setRunningText(rt.field1);
-        }
-      }).catch(e => console.warn('Background contents fetch warning:', e));
-
-      // 2. Fresh activities
-      sheetsService.getActivities().then((acts) => {
-        if (acts && acts.length > 0) {
-          setActivitiesList(acts);
-          try { localStorage.setItem('hw_activities', JSON.stringify(acts)); } catch (e) {}
-        }
-      }).catch(e => console.warn('Background activities fetch warning:', e));
-
-      // 3. Materi for search
-      Promise.all(['umum', 'umum_pandu'].map(r => sheetsService.getMateri(r))).then((mResults) => {
-        const flatMateri = (mResults || []).flat().filter(Boolean);
-        const uniqueMateri = Array.from(new Map(flatMateri.map(item => [item.id, item])).values());
-        const filtered = uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
-        if (filtered.length > 0) {
-          setMateriList(filtered);
-          try { localStorage.setItem('hw_materi_cache_umum', JSON.stringify(filtered)); } catch (e) {}
-        }
-      }).catch(e => console.warn('Background materi fetch warning:', e));
-
-      // 4. Training Settings
-      sheetsService.getSettings().then((sData) => {
-        if (sData) {
-          if (sData.trainingActivities) {
-            const acts = Array.isArray(sData.trainingActivities)
-              ? sData.trainingActivities
-              : typeof sData.trainingActivities === 'string'
-                ? JSON.parse(sData.trainingActivities || '[]')
-                : [];
-            if (acts.length > 0) {
-              setTrainingActivities(acts);
-              try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
-            }
-          }
-          if (sData.trainingLocations) {
-            const locs = Array.isArray(sData.trainingLocations)
-              ? sData.trainingLocations
-              : typeof sData.trainingLocations === 'string'
-                ? JSON.parse(sData.trainingLocations || '[]')
-                : [];
-            if (locs.length > 0) {
-              setTrainingLocations(locs);
-              try { localStorage.setItem('hw_training_locations', JSON.stringify(locs)); } catch (e) {}
-            }
-          }
-        }
-      }).catch(e => console.warn('Background training settings fetch warning:', e));
-    };
-
     initializeLocationAndPrayers();
-    fetchAllData();
     return () => clearInterval(timer);
-  }, [isAuthenticated, user?.role]);
+  }, []);
 
   const getDriveStreamUrl = (url: string) => {
     if (!url) return '';

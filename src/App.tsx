@@ -320,7 +320,7 @@ const Navigation = () => {
 };
 
 const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fullWidth?: boolean }) => (
-  <div className={cn("pb-32 sm:pb-36 pt-4 px-4 mx-auto w-full", fullWidth ? "max-w-7xl" : "max-w-md")}>
+  <div className={cn("pb-32 sm:pb-36 pt-3 px-4 mx-auto w-full", fullWidth ? "max-w-7xl" : "max-w-md")}>
     {children}
   </div>
 );
@@ -329,31 +329,29 @@ const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location}>
-        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-        <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-        <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
-        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
-        <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
-        <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
-        <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
-        <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-        <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
-        <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
-        <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
-        <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
-        <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
-        <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
-        <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
-        <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
-        <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
-        <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+    <Routes location={location}>
+      <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+      <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+      <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+      <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+      <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+      <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
+      <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
+      <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
+      <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+      <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
+      <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
+      <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
+      <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
+      <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
+      <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
+      <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
+      <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
+      <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+      <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+      <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
