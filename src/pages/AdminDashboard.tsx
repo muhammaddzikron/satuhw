@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate } from '../utils/activityUtils';
+import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected } from '../utils/trainingUtils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -269,6 +270,8 @@ const ROLE_LABELS: Record<string, string> = {
   jaya_matahari_1: 'Jaya Matahari 1',
   jari2: 'Jaya Matahari 2',
   jaya_matahari_2: 'Jaya Matahari 2',
+  jawi: 'Jaya Pertiwi',
+  jaya_pertiwi: 'Jaya Pertiwi',
   umum: 'Umum'
 };
 
@@ -282,7 +285,8 @@ const ROLE_OPTIONS: { key: string; label: string }[] = [
   { key: 'jati1', label: 'Jaya Melati 1' },
   { key: 'jati2', label: 'Jaya Melati 2' },
   { key: 'jari1', label: 'Jaya Matahari 1' },
-  { key: 'jari2', label: 'Jaya Matahari 2' }
+  { key: 'jari2', label: 'Jaya Matahari 2' },
+  { key: 'jawi', label: 'Jaya Pertiwi' }
 ];
 
 const truncateText = (text: string, maxLen: number): string => {
@@ -1584,11 +1588,13 @@ export default function AdminDashboard() {
       if (!currentRoles.includes(roleToApprove)) {
         currentRoles.push(roleToApprove);
       }
+      const synced = syncRolesAndPelatihan(currentRoles, m.pelatihan || []);
       const remainingRequests = (Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).filter((r: string) => r !== roleToApprove);
       const updatedMember = {
         ...m,
-        role: currentRoles[0],
-        roles: currentRoles,
+        role: synced.primaryRole,
+        roles: synced.roles,
+        pelatihan: synced.pelatihan,
         upgradeRequests: remainingRequests
       };
 
@@ -2450,17 +2456,17 @@ export default function AdminDashboard() {
 
       const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : [];
       const rolesArr = Array.isArray(member.roles) && member.roles.length > 0 ? member.roles : (member.role ? [member.role] : ['umum']);
-      const primaryRole = (member.role && member.role !== 'umum') ? member.role : (rolesArr.find((r: string) => r !== 'umum') || rolesArr[0] || 'umum');
+      const synced = syncRolesAndPelatihan(rolesArr, pelatihanArr);
 
       setFormData({
         email: member.email || matchingKta?.email || '',
         namaLengkap: matchingKta?.nama || member.namaLengkap || member.nama || '',
-        role: primaryRole,
-        roles: rolesArr,
+        role: synced.primaryRole,
+        roles: synced.roles,
         jenisKelamin: matchingKta?.jenisKelamin || member.jenisKelamin || 'L',
         golongan: matchingKta?.tingkatan || member.golongan || 'Penghela',
         golonganPelatih: (member as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(member?.golongan || '') ? member.golongan : 'Penghela'),
-        pelatihan: pelatihanArr,
+        pelatihan: synced.pelatihan,
         pendidikan: member.pendidikan || 'SMA/SMK/MA',
         asalKwarda: matchingKta?.asalDaerah || member.asalKwarda || '',
         qabilah: matchingKta?.qabilah || member.qabilah || '',
@@ -2478,16 +2484,17 @@ export default function AdminDashboard() {
         jenisKta: matchingKta?.jenisKta || 'Reguler'
       });
     } else {
+      const syncedNew = syncRolesAndPelatihan([defaultRole], []);
       setEditingMember(null);
       setFormData({
         email: '',
         namaLengkap: '',
-        role: defaultRole,
-        roles: [defaultRole],
+        role: syncedNew.primaryRole,
+        roles: syncedNew.roles,
         jenisKelamin: 'L',
         golongan: 'Penghela',
         golonganPelatih: 'Penghela',
-        pelatihan: [],
+        pelatihan: syncedNew.pelatihan,
         pendidikan: 'SMA/SMK/MA',
         asalKwarda: '',
         qabilah: '',
@@ -2511,9 +2518,10 @@ export default function AdminDashboard() {
   const handleSaveMember = async () => {
     try {
       setLoading(true);
-      const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
+      const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan);
+      const isJM = synced.roles.includes('jari1') || synced.roles.includes('jari2') || synced.roles.includes('jaya_matahari_1') || synced.roles.includes('jaya_matahari_2') || synced.primaryRole === 'jari1' || synced.primaryRole === 'jari2';
       const memberId = editingMember?.id || Date.now().toString();
-      const primaryRole = formData.roles.find(r => r !== 'umum') || formData.roles[0] || formData.role || 'umum';
+      const primaryRole = synced.primaryRole;
 
       const payload = editingMember 
         ? { 
@@ -2521,7 +2529,8 @@ export default function AdminDashboard() {
             ...formData,
             id: memberId,
             role: primaryRole,
-            roles: formData.roles && formData.roles.length > 0 ? formData.roles : [primaryRole],
+            roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
+            pelatihan: synced.pelatihan,
             photo: formData.photo,
             noHp: formData.noHp,
             asalKwarda: formData.asalKwarda,
@@ -2539,7 +2548,8 @@ export default function AdminDashboard() {
             ...formData, 
             id: memberId,
             role: primaryRole,
-            roles: formData.roles && formData.roles.length > 0 ? formData.roles : [primaryRole],
+            roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
+            pelatihan: synced.pelatihan,
             photo: formData.photo,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
@@ -9061,19 +9071,29 @@ export default function AdminDashboard() {
                         <option value="P">Perempuan</option>
                       </select>
                     </div>
-                  <div className="space-y-2 col-span-1 sm:col-span-2">
-                    {(() => {
-                      const userNormRoles = parseRolesField(user?.roles, user?.role);
-                      const canEditRoles = user?.role === 'superadmin' || user?.role === 'admin' || userNormRoles.includes('superadmin') || userNormRoles.includes('admin');
-                      const isSuperAdmin = user?.role === 'superadmin' || userNormRoles.includes('superadmin');
 
-                      return (
-                        <>
+                  {(() => {
+                    const userNormRoles = parseRolesField(user?.roles, user?.role);
+                    const canEditRoles = user?.role === 'superadmin' || user?.role === 'admin' || userNormRoles.includes('superadmin') || userNormRoles.includes('admin');
+                    const isSuperAdmin = user?.role === 'superadmin' || userNormRoles.includes('superadmin');
+
+                    return (
+                      <>
+                        <div className="space-y-2 col-span-1 sm:col-span-2">
                           <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hak Akses (Role)</label>
-                            {!canEditRoles && (
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hak Akses (Role)</label>
+                              <p className="text-[9px] text-gray-400 font-medium ml-1">
+                                Menceklis role otomatis menyelaraskan dan mencentang data Pelatihan Diikuti.
+                              </p>
+                            </div>
+                            {!canEditRoles ? (
                               <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                                 Khusus Super Admin & Admin Petugas
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md border border-hw-green/20">
+                                Terhubung otomatis
                               </span>
                             )}
                           </div>
@@ -9090,25 +9110,53 @@ export default function AdminDashboard() {
                                   disabled={!canEditRoles}
                                   onClick={() => {
                                     if (!canEditRoles) return;
-                                    const current = [...formData.roles];
-                                    let next: string[];
+                                    const currentRoles = [...formData.roles];
+                                    let nextRoles: string[];
+                                    let nextPelatihan = Array.isArray(formData.pelatihan) ? [...formData.pelatihan] : [];
+
                                     if (isSelected) {
-                                      if (current.length > 1) {
-                                        next = current.filter(k => k !== key);
+                                      if (currentRoles.length > 1) {
+                                        nextRoles = currentRoles.filter(k => k !== key);
+                                        // If removing training role, also clean from pelatihan
+                                        if (key === 'jati1') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jati 1'));
+                                        else if (key === 'jati2') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jati 2'));
+                                        else if (key === 'jari1') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jari 1'));
+                                        else if (key === 'jari2') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jari 2'));
+                                        else if (key === 'jawi') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jawi'));
                                       } else {
                                         return; // Must have at least one role
                                       }
                                     } else {
-                                      next = [...current, key];
+                                      nextRoles = [...currentRoles, key];
+                                      // Automatically add corresponding training to pelatihan
+                                      if (key === 'jati1') {
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jati 1')) nextPelatihan.push('Jati 1');
+                                      } else if (key === 'jati2') {
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jati 2')) nextPelatihan.push('Jati 2');
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jati 1')) nextPelatihan.push('Jati 1');
+                                      } else if (key === 'jari1') {
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jari 1')) nextPelatihan.push('Jari 1');
+                                      } else if (key === 'jari2') {
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jari 2')) nextPelatihan.push('Jari 2');
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jari 1')) nextPelatihan.push('Jari 1');
+                                      } else if (key === 'jawi') {
+                                        if (!isPelatihanSelected(nextPelatihan, 'Jawi')) nextPelatihan.push('Jawi');
+                                      }
                                     }
-                                    const primaryRole = next.find(k => k !== 'umum') || next[0] || 'umum';
-                                    setFormData({ ...formData, roles: next, role: primaryRole });
+
+                                    const synced = syncRolesAndPelatihan(nextRoles, nextPelatihan);
+                                    setFormData({ 
+                                      ...formData, 
+                                      roles: synced.roles, 
+                                      role: synced.primaryRole, 
+                                      pelatihan: isSelected ? nextPelatihan : synced.pelatihan 
+                                    });
                                   }}
                                   className={cn(
                                     "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full",
                                     !canEditRoles && "opacity-75 cursor-not-allowed",
                                     isSelected
-                                      ? "bg-hw-green/10 border-hw-green/20 text-hw-green"
+                                      ? "bg-hw-green/10 border-hw-green/20 text-hw-green font-black"
                                       : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"
                                   )}
                                 >
@@ -9123,41 +9171,41 @@ export default function AdminDashboard() {
                               );
                             })}
                           </div>
-                        </>
-                      );
-                    })()}
-                  </div>
+                        </div>
 
-                  {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 & 2 */}
-                  {(formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2') && (
-                    <div className="space-y-2 col-span-1 sm:col-span-2 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 animate-fade-in">
-                      <label className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-1.5">
-                        <Award size={14} className="text-amber-600" />
-                        Golongan Pelatih Ahli Pandu (Jaya Matahari)
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map((gol) => {
-                          const isSelected = formData.golonganPelatih === gol || formData.golongan === gol;
-                          return (
-                            <button
-                              key={`admin-gol-pelatih-${gol}`}
-                              type="button"
-                              onClick={() => setFormData({ ...formData, golonganPelatih: gol, golongan: gol })}
-                              className={cn(
-                                "py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
-                                isSelected
-                                  ? "bg-amber-500 border-amber-600 text-amber-950 font-black shadow-sm"
-                                  : "bg-white border-amber-200 text-gray-600 hover:bg-amber-100/50"
-                              )}
-                            >
-                              {isSelected && <Check size={12} />}
-                              {gol}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                        {/* Conditional: Golongan Pelatih Ahli Pandu for Jaya Matahari 1 & 2 */}
+                        {(formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2') && (
+                          <div className="space-y-2 col-span-1 sm:col-span-2 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 animate-fade-in">
+                            <label className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-1.5">
+                              <Award size={14} className="text-amber-600" />
+                              Golongan Pelatih Ahli Pandu (Jaya Matahari)
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].map((gol) => {
+                                const isSelected = formData.golonganPelatih === gol || formData.golongan === gol;
+                                return (
+                                  <button
+                                    key={`admin-gol-pelatih-${gol}`}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, golonganPelatih: gol, golongan: gol })}
+                                    className={cn(
+                                      "py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                      isSelected
+                                        ? "bg-amber-500 border-amber-600 text-amber-950 font-black shadow-sm"
+                                        : "bg-white border-amber-200 text-gray-600 hover:bg-amber-100/50"
+                                    )}
+                                  >
+                                    {isSelected && <Check size={12} />}
+                                    {gol}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -9188,53 +9236,53 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Diikuti</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { key: 'Jati 1', label: 'Jaya Melati 1 (Jati 1)' },
-                        { key: 'Jati 2', label: 'Jaya Melati 2 (Jati 2)' },
-                        { key: 'Jari 1', label: 'Jaya Matahari 1 (Jari 1)' },
-                        { key: 'Jari 2', label: 'Jaya Matahari 2 (Jari 2)' },
-                        { key: 'Jawi', label: 'Jaya Pertiwi (Jawi)' }
-                      ].map((item) => {
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Diikuti</label>
+                      <span className="text-[9px] font-bold text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md border border-hw-green/20">
+                        Otomatis terceklist sesuai Role
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-gray-400 font-medium ml-1">
+                      Pelatihan yang dipilih otomatis memberikan hak akses (role) dan fasilitas materi terkait.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                      {PELATIHAN_OPTIONS.map((item) => {
                         const currentList = Array.isArray(formData.pelatihan) ? formData.pelatihan : [];
-                        const isSelected = currentList.some((p: string) => {
-                          const cleanP = String(p).toLowerCase().trim();
-                          const cleanKey = item.key.toLowerCase().trim();
-                          if (cleanP === cleanKey) return true;
-                          if (cleanKey === 'jati 1' && (cleanP.includes('jati 1') || cleanP.includes('jati1') || cleanP.includes('melati 1') || cleanP.includes('melati1'))) return true;
-                          if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return true;
-                          if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return true;
-                          if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return true;
-                          if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('pertiwi') || cleanP.includes('wisata'))) return true;
-                          return false;
-                        });
+                        const isSelected = isPelatihanSelected(currentList, item.key);
 
                         return (
                           <button 
                             key={item.key} 
                             type="button" 
                             onClick={() => {
-                              let next: string[];
+                              let nextPelatihan: string[];
+                              let nextRoles = Array.isArray(formData.roles) ? [...formData.roles] : [];
+
                               if (isSelected) {
-                                next = currentList.filter((p: string) => {
-                                  const cleanP = String(p).toLowerCase().trim();
-                                  const cleanKey = item.key.toLowerCase().trim();
-                                  if (cleanP === cleanKey) return false;
-                                  if (cleanKey === 'jati 1' && (cleanP.includes('jati 1') || cleanP.includes('jati1') || cleanP.includes('melati 1') || cleanP.includes('melati1'))) return false;
-                                  if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return false;
-                                  if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return false;
-                                  if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return false;
-                                  if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('pertiwi') || cleanP.includes('wisata'))) return false;
-                                  return true;
-                                });
+                                nextPelatihan = currentList.filter((p: string) => !isPelatihanSelected([p], item.key));
+                                if (item.roleKey) {
+                                  if (nextRoles.length > 1) {
+                                    nextRoles = nextRoles.filter(r => r !== item.roleKey);
+                                  }
+                                }
                               } else {
-                                next = [...currentList, item.key];
+                                nextPelatihan = [...currentList, item.key];
+                                if (item.roleKey) {
+                                  if (!nextRoles.includes(item.roleKey)) {
+                                    nextRoles.push(item.roleKey);
+                                  }
+                                }
                               }
-                              setFormData({...formData, pelatihan: next});
+                              const synced = syncRolesAndPelatihan(nextRoles, nextPelatihan);
+                              setFormData({
+                                ...formData, 
+                                pelatihan: isSelected ? nextPelatihan : synced.pelatihan,
+                                roles: isSelected ? nextRoles : synced.roles,
+                                role: isSelected ? (nextRoles.find(r => r !== 'umum') || nextRoles[0] || 'umum') : synced.primaryRole
+                              });
                             }}
                             className={cn(
-                              "p-2.5 rounded-xl text-[10px] font-bold border transition-all text-center flex items-center justify-center gap-1 cursor-pointer",
+                              "p-2.5 rounded-xl text-[10px] font-bold border transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer",
                               isSelected 
                                 ? "bg-hw-green/10 border-hw-green text-hw-green font-black shadow-sm" 
                                 : "bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"

@@ -258,3 +258,144 @@ export const DEFAULT_UPGRADE_FEES = [
   { id: 'jari2', label: 'Jaya Matahari 2', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
   { id: 'jawi', label: 'Jaya Pertiwi', value: 'Rp 50.000', note: 'Konfirmasi Bayar' },
 ];
+
+/**
+ * Standard training options in Pelatihan Diikuti UI
+ */
+export const PELATIHAN_OPTIONS = [
+  { key: 'Jati 1', label: 'Jaya Melati 1 (Jati 1)', roleKey: 'jati1' },
+  { key: 'Jati 2', label: 'Jaya Melati 2 (Jati 2)', roleKey: 'jati2' },
+  { key: 'Jari 1', label: 'Jaya Matahari 1 (Jari 1)', roleKey: 'jari1' },
+  { key: 'Jari 2', label: 'Jaya Matahari 2 (Jari 2)', roleKey: 'jari2' },
+  { key: 'Jawi',   label: 'Jaya Pertiwi (Jawi)',   roleKey: 'jawi'  }
+];
+
+/**
+ * Checks if a specific training item is selected in a member's pelatihan array.
+ */
+export const isPelatihanSelected = (pelatihanList: string[] = [], key: string): boolean => {
+  if (!Array.isArray(pelatihanList) || pelatihanList.length === 0) return false;
+  const cleanKey = key.toLowerCase().trim();
+  return pelatihanList.some((p: string) => {
+    const cleanP = String(p).toLowerCase().trim();
+    if (cleanP === cleanKey) return true;
+    if (cleanKey === 'jati 1' && (cleanP.includes('jati 1') || cleanP.includes('jati1') || cleanP.includes('melati 1') || cleanP.includes('melati1'))) return true;
+    if (cleanKey === 'jati 2' && (cleanP.includes('jati 2') || cleanP.includes('jati2') || cleanP.includes('melati 2') || cleanP.includes('melati2'))) return true;
+    if (cleanKey === 'jari 1' && (cleanP.includes('jari 1') || cleanP.includes('jari1') || cleanP.includes('matahari 1') || cleanP.includes('matahari1'))) return true;
+    if (cleanKey === 'jari 2' && (cleanP.includes('jari 2') || cleanP.includes('jari2') || cleanP.includes('matahari 2') || cleanP.includes('matahari2'))) return true;
+    if (cleanKey === 'jawi' && (cleanP.includes('jawi') || cleanP.includes('pertiwi') || cleanP.includes('wisata'))) return true;
+    return false;
+  });
+};
+
+/**
+ * Synchronizes roles and pelatihan arrays bidirectionally so that:
+ * 1. Hak Akses (Role) automatically grants & checks the corresponding training in Pelatihan Diikuti.
+ * 2. Any training in Pelatihan Diikuti is reflected in Hak Akses (Role) without ambiguity.
+ */
+export const syncRolesAndPelatihan = (
+  rawRoles: any,
+  rawPelatihan: any
+): { roles: string[]; pelatihan: string[]; primaryRole: string } => {
+  const rolesSet = new Set<string>();
+  const addRole = (r: any) => {
+    if (!r) return;
+    if (Array.isArray(r)) r.forEach(addRole);
+    else if (typeof r === 'string') {
+      r.split(',').forEach(s => {
+        const clean = s.trim().toLowerCase();
+        if (clean) rolesSet.add(clean);
+      });
+    }
+  };
+  addRole(rawRoles);
+
+  const pelatihanSet = new Set<string>();
+  const addPelatihan = (p: any) => {
+    if (!p) return;
+    if (Array.isArray(p)) p.forEach(addPelatihan);
+    else if (typeof p === 'string') {
+      p.split(',').forEach(s => {
+        const clean = s.trim();
+        if (clean) pelatihanSet.add(clean);
+      });
+    }
+  };
+  addPelatihan(rawPelatihan);
+
+  // 1. Sync from roles to pelatihan (Role Hak Akses -> Pelatihan Diikuti)
+  rolesSet.forEach(r => {
+    const cleanR = r.toLowerCase().trim();
+    if (cleanR === 'jati1' || cleanR === 'jaya_melati_1' || cleanR === 'jayamelati1' || cleanR.includes('melati 1') || cleanR.includes('jati 1')) {
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 1'))) {
+        pelatihanSet.add('Jati 1');
+      }
+    }
+    if (cleanR === 'jati2' || cleanR === 'jaya_melati_2' || cleanR === 'jayamelati2' || cleanR.includes('melati 2') || cleanR.includes('jati 2')) {
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 2'))) {
+        pelatihanSet.add('Jati 2');
+      }
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 1'))) {
+        pelatihanSet.add('Jati 1');
+      }
+    }
+    if (cleanR === 'jari1' || cleanR === 'jaya_matahari_1' || cleanR === 'jayamatahari1' || cleanR.includes('matahari 1') || cleanR.includes('jari 1')) {
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
+        pelatihanSet.add('Jari 1');
+      }
+    }
+    if (cleanR === 'jari2' || cleanR === 'jaya_matahari_2' || cleanR === 'jayamatahari2' || cleanR.includes('matahari 2') || cleanR.includes('jari 2')) {
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 2'))) {
+        pelatihanSet.add('Jari 2');
+      }
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
+        pelatihanSet.add('Jari 1');
+      }
+    }
+    if (cleanR === 'jawi' || cleanR === 'jaya_pertiwi' || cleanR === 'jayapertiwi' || cleanR.includes('pertiwi')) {
+      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jawi'))) {
+        pelatihanSet.add('Jawi');
+      }
+    }
+  });
+
+  // 2. Sync from pelatihan to roles (Pelatihan Diikuti -> Hak Akses Role)
+  pelatihanSet.forEach(p => {
+    const cleanP = p.toLowerCase().trim();
+    if (cleanP.includes('jati 1') || cleanP.includes('melati 1') || cleanP === 'jati1') {
+      rolesSet.add('jati1');
+    }
+    if (cleanP.includes('jati 2') || cleanP.includes('melati 2') || cleanP === 'jati2') {
+      rolesSet.add('jati2');
+      rolesSet.add('jati1');
+    }
+    if (cleanP.includes('jari 1') || cleanP.includes('matahari 1') || cleanP === 'jari1') {
+      rolesSet.add('jari1');
+    }
+    if (cleanP.includes('jari 2') || cleanP.includes('matahari 2') || cleanP === 'jari2') {
+      rolesSet.add('jari2');
+      rolesSet.add('jari1');
+    }
+    if (cleanP.includes('jawi') || cleanP.includes('pertiwi')) {
+      rolesSet.add('jawi');
+    }
+  });
+
+  if (rolesSet.size === 0) rolesSet.add('umum');
+
+  const rolePriority = ['superadmin', 'admin', 'diklat', 'admin_diklat', 'kwarda', 'admin_kwarda', 'sugli', 'dewan_sugli', 'jari2', 'jari1', 'jati2', 'jati1', 'jawi', 'umum'];
+  const finalRoles = Array.from(rolesSet);
+  let primaryRole = 'umum';
+  for (const pr of rolePriority) {
+    if (finalRoles.includes(pr)) {
+      primaryRole = pr;
+      break;
+    }
+  }
+
+  return {
+    roles: finalRoles,
+    pelatihan: Array.from(pelatihanSet),
+    primaryRole
+  };
+};

@@ -7,7 +7,7 @@ import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
-import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey } from '../utils/trainingUtils';
+import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst } from '../utils/activityUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
@@ -944,15 +944,17 @@ export const sheetsService = {
 
   async saveMember(userData: any): Promise<any> {
     clearSheetsCache('members');
-    const normRoles = parseRolesField(userData.roles, userData.role);
-    const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+    const rawRoles = parseRolesField(userData.roles, userData.role);
+    const synced = syncRolesAndPelatihan(rawRoles, userData.pelatihan);
+    const primaryRole = synced.primaryRole;
     const properName = toProperName(userData.namaLengkap || userData.nama);
     const cleanUserData: User = {
       ...userData,
       id: userData.id || (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`),
       namaLengkap: properName || userData.namaLengkap || 'Anggota HW',
       role: primaryRole,
-      roles: normRoles,
+      roles: synced.roles,
+      pelatihan: synced.pelatihan,
       activeRole: userData.activeRole || primaryRole
     };
 
@@ -1061,8 +1063,8 @@ export const sheetsService = {
         statusPembayaran: cleanUserData.statusPembayaran,
         ktaNumber: cleanUserData.ktaNumber,
         nomorKTA: cleanUserData.ktaNumber,
-        role: JSON.stringify(normRoles),
-        roles: JSON.stringify(normRoles),
+        role: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
+        roles: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
         pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
         upgradeRequests: Array.isArray(cleanUserData.upgradeRequests) ? JSON.stringify(cleanUserData.upgradeRequests) : cleanUserData.upgradeRequests
       };

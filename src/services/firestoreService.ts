@@ -24,7 +24,7 @@ import {
   resequenceKtaNumbers
 } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
-import { normalizeTrainingKey } from '../utils/trainingUtils';
+import { normalizeTrainingKey, syncRolesAndPelatihan } from '../utils/trainingUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
@@ -1334,8 +1334,9 @@ export const firestoreService = {
       );
     }
 
-    const normRoles = parseRolesField(member.roles, member.role);
-    const primaryRole = normRoles.find(r => r !== 'umum') || normRoles[0] || 'umum';
+    const rawRoles = parseRolesField(member.roles, member.role);
+    const synced = syncRolesAndPelatihan(rawRoles, member.pelatihan);
+    const primaryRole = synced.primaryRole;
     const properName = toProperName(member.namaLengkap || member.nama);
 
     const dataToSave = cleanData({
@@ -1343,7 +1344,8 @@ export const firestoreService = {
       id: memberId,
       uid: member.uid || memberId,
       role: primaryRole,
-      roles: normRoles,
+      roles: synced.roles,
+      pelatihan: synced.pelatihan,
       namaLengkap: properName || member.namaLengkap || member.nama || 'Anggota HW',
       nama: properName || member.namaLengkap || member.nama || 'Anggota HW',
       email: member.email,
