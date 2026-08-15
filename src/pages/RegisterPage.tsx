@@ -219,6 +219,16 @@ export default function RegisterPage() {
       // 3. Register member with transaction (validates, checks duplicate, assigns KTA number, saves member & KTA application)
       const regResult = await firestoreService.registerMemberWithTransaction(formData, firebaseUid);
 
+      // 4. Also synchronize immediately to Google Sheets
+      try {
+        await Promise.allSettled([
+          sheetsService.saveMember(regResult.user),
+          sheetsService.applyKTA(regResult.ktaApp)
+        ]);
+      } catch (sheetSyncErr) {
+        console.warn('Google Sheets sync warning on register:', sheetSyncErr);
+      }
+
       // Automatically authenticate user in state
       setAuth(regResult.user, `fs-token-${firebaseUid}`);
 

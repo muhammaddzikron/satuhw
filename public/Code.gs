@@ -698,14 +698,30 @@ function handleSaveMember(data) {
     else if (hLower === 'alamat') {
       rowData[i] = getRobustValue(data, ['alamat', 'Alamat']) || (existing ? (existing.alamat || existing.Alamat) : "");
     }
-    else if (hLower === 'isverified') {
-      var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified']) !== "" ? getRobustValue(data, ['isVerified', 'isverified', 'verified']) : (existing ? (existing.isVerified !== undefined ? existing.isVerified : existing.isverified) : false);
+    else if (hLower === 'tempatlahir' || hLower === 'kotakelahiran') {
+      rowData[i] = getRobustValue(data, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || (existing ? (existing.tempatLahir || existing.tempatlahir) : "");
+    }
+    else if (hLower === 'tanggallahir' || hLower === 'tgllahir') {
+      rowData[i] = getRobustValue(data, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir']) || (existing ? (existing.tanggalLahir || existing.tanggallahir) : "");
+    }
+    else if (hLower === 'statusaktivasi') {
+      var sa = getRobustValue(data, ['statusAktivasi', 'statusaktivasi']);
+      if (sa === "" && existing) sa = existing.statusAktivasi || existing.statusaktivasi;
+      rowData[i] = sa || "Aktif";
+    }
+    else if (hLower === 'statuspembayaran') {
+      var sp = getRobustValue(data, ['statusPembayaran', 'statuspembayaran']);
+      if (sp === "" && existing) sp = existing.statusPembayaran || existing.statuspembayaran;
+      rowData[i] = sp || "Lunas";
+    }
+    else if (hLower === 'isverified' || hLower === 'verified') {
+      var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified', 'statusAktivasi']) !== "" ? getRobustValue(data, ['isVerified', 'isverified', 'verified', 'statusAktivasi']) : (existing ? (existing.isVerified !== undefined ? existing.isVerified : existing.isverified) : false);
       rowData[i] = isTruthy(iv);
     }
-    else if (hLower === 'sosmed') {
+    else if (hLower === 'sosmed' || hLower === 'instagram') {
       rowData[i] = getRobustValue(data, ['sosmed', 'Sosmed', 'socialmedia', 'sosialmedia', 'instagram']) || (existing ? (existing.sosmed || existing.Sosmed) : "");
     }
-    else if (hLower === 'nohp') {
+    else if (hLower === 'nohp' || hLower === 'nowa' || hLower === 'phone' || hLower === 'telepon') {
       rowData[i] = getRobustValue(data, ['noHp', 'nohp', 'phone', 'telepon', 'no_hp', 'nohp', 'nowa', 'noWa']) || (existing ? (existing.noHp || existing.nohp || existing.phone || existing.no_hp) : "");
     }
     else if (hLower === 'token') {
@@ -714,6 +730,15 @@ function handleSaveMember(data) {
     else if (hLower === 'upgraderequests') {
       var ur = getRobustValue(data, ['upgradeRequests', 'upgraderequests']) || (existing ? (existing.upgradeRequests || existing.upgraderequests) : []);
       rowData[i] = typeof ur === 'string' ? ur : JSON.stringify(ur);
+    }
+    else if (hLower === 'ktanumber' || hLower === 'nomorkta' || hLower === 'nokta' || hLower === 'nbm' || hLower === 'kta') {
+      rowData[i] = getRobustValue(data, ['ktaNumber', 'ktanumber', 'nomorKTA', 'noKta', 'nbm', 'Nomor KTA', 'No KTA']) || (existing ? (existing.ktaNumber || existing.nomorKTA || existing.noKta || existing.nbm) : "");
+    }
+    else if (hLower === 'statuskta') {
+      rowData[i] = getRobustValue(data, ['statusKta', 'statuskta']) || (existing ? existing.statusKta : "");
+    }
+    else if (hLower === 'golonganpelatih' || hLower === 'pelatihgolongan') {
+      rowData[i] = getRobustValue(data, ['golonganPelatih', 'golonganpelatih', 'pelatihGolongan', 'Golongan Pelatih']) || (existing ? (existing.golonganPelatih || existing.golonganpelatih) : "");
     }
     else if (hLower === 'photo' || hLower === 'foto') {
       var profilePhoto = getRobustValue(data, ['photo', 'Photo', 'foto', 'Foto']) || (existing ? (existing.photo || existing.Photo || existing.foto || existing.Foto) : "");

@@ -124,7 +124,7 @@ Jayalah Hizbul Wathan selamanya!`,
   },
   'sahabat hw': {
     title: 'Sahabat HW',
-    creator: 'Kwarnas HW',
+    creator: 'Pandu Hizbul Wathan',
     category: 'Lagu Pandu & Motivasi',
     lyrics: `Bersama kita melangkah
 Menembus cakrawala asa

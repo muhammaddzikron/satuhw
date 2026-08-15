@@ -1110,8 +1110,29 @@ export const sheetsService = {
     if (IS_API_VALID) {
       const payload = {
         ...cleanUserData,
+        id: cleanUserData.id,
         email: cleanUserData.email,
         namaLengkap: cleanUserData.namaLengkap,
+        nama: cleanUserData.namaLengkap,
+        noHp: cleanUserData.noHp,
+        noWa: cleanUserData.noHp,
+        asalKwarda: cleanUserData.asalKwarda,
+        asalDaerah: cleanUserData.asalKwarda,
+        qabilah: cleanUserData.qabilah,
+        alamat: cleanUserData.alamat,
+        tempatLahir: cleanUserData.tempatLahir,
+        tanggalLahir: cleanUserData.tanggalLahir,
+        jenisKelamin: cleanUserData.jenisKelamin,
+        golongan: cleanUserData.golongan,
+        golonganPelatih: cleanUserData.golonganPelatih,
+        photo: cleanUserData.photo,
+        foto: cleanUserData.photo,
+        sosmed: cleanUserData.sosmed,
+        isVerified: cleanUserData.isVerified,
+        statusAktivasi: cleanUserData.statusAktivasi,
+        statusPembayaran: cleanUserData.statusPembayaran,
+        ktaNumber: cleanUserData.ktaNumber,
+        nomorKTA: cleanUserData.ktaNumber,
         role: JSON.stringify(normRoles),
         roles: JSON.stringify(normRoles),
         pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
@@ -1127,6 +1148,17 @@ export const sheetsService = {
     }
 
     return { success: true, message: 'Saved to database and local cache', member: cleanUserData };
+  },
+
+  async updateMember(idOrUser: string | Partial<User>, maybeUpdates?: Partial<User>): Promise<any> {
+    clearSheetsCache('members');
+    let mergedData: any = {};
+    if (typeof idOrUser === 'string') {
+      mergedData = { id: idOrUser, ...(maybeUpdates || {}) };
+    } else {
+      mergedData = { ...(idOrUser || {}), ...(maybeUpdates || {}) };
+    }
+    return this.saveMember(mergedData);
   },
 
   async deleteMember(id: string): Promise<any> {
@@ -1225,20 +1257,34 @@ export const sheetsService = {
       try {
         const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 15000 });
         if (Array.isArray(response.data)) {
-          const apps = response.data;
-          // Merge photos from Firestore if empty in Google Sheets response
+          const apps = [...response.data];
+          // Merge photos and missing applications from Firestore
           try {
             const fsApps = await firestoreService.getKTAApplications();
+            const sheetKeys = new Set(
+              apps.map(a => String(a.id || a.email || a.userId || a.nomorKTA || a.ktaNumber || '').toLowerCase().trim()).filter(Boolean)
+            );
+
             apps.forEach(a => {
-              if (!a.photo) {
-                const match = fsApps.find(fa => 
-                  (fa.id && a.id && String(fa.id) === String(a.id)) ||
-                  (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
-                  (fa.userId && a.userId && String(fa.userId) === String(a.userId))
-                );
-                if (match && match.photo) {
-                  a.photo = match.photo;
-                }
+              const match = fsApps.find(fa => 
+                (fa.id && a.id && String(fa.id) === String(a.id)) ||
+                (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
+                (fa.userId && a.userId && String(fa.userId) === String(a.userId))
+              );
+              if (match) {
+                if (!a.photo && match.photo) a.photo = match.photo;
+                if (!a.status && match.status) a.status = match.status;
+                if (!a.statusPembayaran && match.statusPembayaran) a.statusPembayaran = match.statusPembayaran;
+                if (!a.nomorKTA && (match.nomorKTA || match.ktaNumber)) a.nomorKTA = match.nomorKTA || match.ktaNumber;
+              }
+            });
+
+            fsApps.forEach(fa => {
+              const key1 = String(fa.id || '').toLowerCase().trim();
+              const key2 = String(fa.email || '').toLowerCase().trim();
+              const key3 = String(fa.userId || '').toLowerCase().trim();
+              if ((key1 && !sheetKeys.has(key1)) && (key2 && !sheetKeys.has(key2)) && (key3 && !sheetKeys.has(key3))) {
+                apps.push(fa);
               }
             });
           } catch (e) {}
@@ -2364,10 +2410,10 @@ export const sheetsService = {
         section: 'playlist',
         field1: 'https://hwjateng.org/musik/sahabathw.mp3',
         field2: 'Sahabat HW',
-        field3: 'Kwarnas HW',
+        field3: 'Pandu Hizbul Wathan',
         field4: '',
         field5: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
-        pencipta: 'Kwarnas HW',
+        pencipta: 'Pandu Hizbul Wathan',
         lyrics: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.',
         lirik: 'Sahabat sejati Pandu Hizbul Wathan\nMelangkah bersama membina generasi\nBertaqwa, berilmu, dan berbudi pekerti\nUntuk agama dan ibu pertiwi.\n\nReff:\nKompak dalam barisan, tangguh hadapi rintangan\nPandu HW satukan tekad pengabdian\nFastabiqul khairat semboyan di dada\nBerbakti untuk umat dan bangsa.'
       },

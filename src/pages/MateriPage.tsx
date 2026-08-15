@@ -213,23 +213,38 @@ export default function MateriPage() {
     fetchMateri();
   }, [activeRole, user, isAuthenticated]);
 
+  const isAccountActive = Boolean(
+    user && (
+      user.role === 'admin' || 
+      user.role === 'superadmin' || 
+      user.role === 'admin_diklat' || 
+      user.role === 'diklat' || 
+      user.statusAktivasi === 'Aktif' || 
+      user.statusPembayaran === 'Lunas' || 
+      user.isVerified === true
+    )
+  );
+
   useEffect(() => {
     if (location.state?.selectedMateriId && materi.length > 0) {
       const found = materi.find(m => m && String(m.id) === String(location.state.selectedMateriId));
       if (found) {
-        if (found.kategori === 'umum_pandu' && !isAuthenticated) {
+        if (found.kategori !== 'umum' && !isAuthenticated) {
           setShowLoginPromptModal(found);
+        } else if (found.kategori !== 'umum' && isAuthenticated && !isAccountActive) {
+          setActivationFeatureName(`Materi: ${found.judul}`);
+          setShowActivationModal(true);
         } else {
           setSelectedMateri(found);
         }
       }
     }
-  }, [location.state?.selectedMateriId, materi, isAuthenticated]);
+  }, [location.state?.selectedMateriId, materi, isAuthenticated, isAccountActive]);
 
   const hasAccess = (cat: string) => {
     if (!cat || cat === 'semua' || cat === 'umum') return true;
-    if (cat === 'umum_pandu') return isAuthenticated;
-    if (!isAuthenticated) return false;
+    if (cat === 'umum_pandu') return isAuthenticated && isAccountActive;
+    if (!isAuthenticated || !isAccountActive) return false;
     const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
     if (isPrivileged) return true;
     
@@ -251,23 +266,34 @@ export default function MateriPage() {
       const konten = String(m.konten || '').toLowerCase();
       const matchSearch = !searchStr || judul.includes(searchStr) || konten.includes(searchStr);
 
-      const isAccessible = kat === 'umum_pandu' ? true : hasAccess(kat);
+      const isAccessible = kat === 'umum' ? true : kat === 'umum_pandu' ? true : hasAccess(kat);
       return matchFilter && matchSearch && isAccessible;
     });
-  }, [materi, filter, search, isAuthenticated, activeRole, user?.roles, user?.role]);
+  }, [materi, filter, search, isAuthenticated, isAccountActive, activeRole, user?.roles, user?.role, trainingApps]);
 
   const handleItemClick = (item: Materi) => {
-    if (item.kategori === 'umum_pandu' && !isAuthenticated) {
+    if (!item) return;
+
+    if (item.kategori !== 'umum' && !isAuthenticated) {
       setShowLoginPromptModal(item);
       return;
     }
 
-    // Check account activation for premium materi
-    const isAccountActive = !user || user.role === 'admin' || user.role === 'superadmin' || user.statusAktivasi === 'Aktif' || user.statusPembayaran === 'Lunas';
-    if (isAuthenticated && !isAccountActive && item.kategori !== 'umum') {
+    if (item.kategori !== 'umum' && isAuthenticated && !isAccountActive) {
       setActivationFeatureName(`Materi: ${item.judul}`);
       setShowActivationModal(true);
       return;
+    }
+
+    if (item.kategori !== 'umum' && item.kategori !== 'umum_pandu') {
+      const isPrivileged = user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
+      if (!isPrivileged) {
+        const userCategories = getUserRoleCategories(user, trainingApps);
+        if (!userCategories.includes(item.kategori)) {
+          setFilter(item.kategori);
+          return;
+        }
+      }
     }
 
     setSelectedMateri(item);
@@ -477,9 +503,14 @@ export default function MateriPage() {
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${KATEGORI_COLORS[item.kategori] || 'bg-gray-100 text-gray-600'}`}>
                     {ROLE_DISPLAY[item.kategori] || item.kategori}
                   </div>
-                  {item.kategori === 'umum_pandu' && !isAuthenticated && (
+                  {item.kategori !== 'umum' && !isAuthenticated && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200">
                       <Lock size={9} /> Perlu Login
+                    </span>
+                  )}
+                  {item.kategori !== 'umum' && isAuthenticated && !isAccountActive && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-rose-50 text-rose-600 border border-rose-200">
+                      <Lock size={9} /> Perlu Aktivasi
                     </span>
                   )}
                 </div>
@@ -492,27 +523,41 @@ export default function MateriPage() {
               </div>
 
               <div className="flex items-center shrink-0 ml-auto mr-1">
-                {item.kategori === 'umum_pandu' && !isAuthenticated ? (
+                {item.kategori !== 'umum' && !isAuthenticated ? (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowLoginPromptModal(item);
                     }}
-                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-amber-50 text-amber-700 rounded-2xl hover:bg-amber-100 transition-all border border-amber-200 min-w-[76px]"
+                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-amber-50 text-amber-700 rounded-2xl hover:bg-amber-100 transition-all border border-amber-200 min-w-[76px] active:scale-95 cursor-pointer"
                     title="Login untuk mengakses materi ini"
                   >
                     <Lock size={18} />
                     <span className="text-[8px] font-black uppercase tracking-tighter">Log In</span>
+                  </button>
+                ) : item.kategori !== 'umum' && isAuthenticated && !isAccountActive ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivationFeatureName(`Materi: ${item.judul}`);
+                      setShowActivationModal(true);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-100 transition-all border border-rose-200 min-w-[76px] active:scale-95 cursor-pointer"
+                    title="Aktivasi Akun untuk membuka materi ini"
+                  >
+                    <Lock size={18} />
+                    <span className="text-[8px] font-black uppercase tracking-tighter">Aktivasi</span>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedMateri(item);
+                      handleItemClick(item);
                     }}
-                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-hw-green/10 text-hw-green rounded-2xl hover:bg-hw-green hover:text-white transition-all border border-hw-green/20 min-w-[76px]"
+                    className="flex flex-col items-center justify-center gap-1 p-2.5 bg-hw-green/10 text-hw-green rounded-2xl hover:bg-hw-green hover:text-white transition-all border border-hw-green/20 min-w-[76px] active:scale-95 cursor-pointer"
                     title="Buka / Baca Materi"
                   >
                     <BookOpen size={18} />

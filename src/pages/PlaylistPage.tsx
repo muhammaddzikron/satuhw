@@ -39,15 +39,23 @@ export const PlaylistPage: React.FC = () => {
 
   // Instant initial playlist from local cache or mock
   const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
+    const sanitize = (list: any[]) => list.map(item => {
+      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
+        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
+      }
+      return item;
+    });
+
     const cached = localStorage.getItem('contents');
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         const pl = parsed.filter((c: any) => c.section === 'playlist');
-        if (pl.length > 0) return pl;
+        if (pl.length > 0) return sanitize(pl);
       } catch (e) {}
     }
-    return sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
+    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
+    return sanitize(mock);
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,13 +80,20 @@ export const PlaylistPage: React.FC = () => {
 
   // Fetch playlist data
   const fetchPlaylist = useCallback(async () => {
+    const sanitize = (list: any[]) => (list || []).map(item => {
+      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
+        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
+      }
+      return item;
+    });
+
     try {
       const data = await sheetsService.getContents('playlist');
       if (Array.isArray(data) && data.length > 0) {
-        setRawPlaylist(data);
+        setRawPlaylist(sanitize(data));
       } else {
         const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-        setRawPlaylist(mock);
+        setRawPlaylist(sanitize(mock));
       }
     } catch (error) {
       console.error('Error fetching playlist:', error);
@@ -88,10 +103,17 @@ export const PlaylistPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const sanitize = (list: any[]) => (list || []).map(item => {
+      if (item && (item.field3 === 'Kwarnas HW' || item.pencipta === 'Kwarnas HW')) {
+        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan' };
+      }
+      return item;
+    });
+
     const unsub = sheetsService.subscribeToContents((contents: any[]) => {
       const pl = contents.filter((c: any) => c.section === 'playlist');
       if (pl.length > 0) {
-        setRawPlaylist(pl);
+        setRawPlaylist(sanitize(pl));
         setLoading(false);
       }
     });

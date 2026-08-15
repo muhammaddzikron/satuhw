@@ -663,34 +663,79 @@ export default function HomePage() {
     </>
   );
 
+  const PLAYLIST_COLOR_THEMES = [
+    {
+      btnIdle: 'bg-rose-50 text-rose-600 group-hover:bg-rose-500 group-hover:text-white',
+      btnActive: 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-300',
+      badge: 'bg-rose-50 text-rose-700',
+      cardActive: 'bg-rose-50/70 ring-1 ring-rose-300/80 shadow-xs',
+      cardIdle: 'bg-white hover:bg-rose-50/30 shadow-xs',
+      wave: 'bg-rose-500'
+    },
+    {
+      btnIdle: 'bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white',
+      btnActive: 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-300',
+      badge: 'bg-amber-50 text-amber-800',
+      cardActive: 'bg-amber-50/70 ring-1 ring-amber-300/80 shadow-xs',
+      cardIdle: 'bg-white hover:bg-amber-50/30 shadow-xs',
+      wave: 'bg-amber-500'
+    },
+    {
+      btnIdle: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white',
+      btnActive: 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300',
+      badge: 'bg-emerald-50 text-emerald-800',
+      cardActive: 'bg-emerald-50/70 ring-1 ring-emerald-300/80 shadow-xs',
+      cardIdle: 'bg-white hover:bg-emerald-50/30 shadow-xs',
+      wave: 'bg-emerald-500'
+    },
+    {
+      btnIdle: 'bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white',
+      btnActive: 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-300',
+      badge: 'bg-sky-50 text-sky-800',
+      cardActive: 'bg-sky-50/70 ring-1 ring-sky-300/80 shadow-xs',
+      cardIdle: 'bg-white hover:bg-sky-50/30 shadow-xs',
+      wave: 'bg-sky-500'
+    },
+    {
+      btnIdle: 'bg-purple-50 text-purple-600 group-hover:bg-purple-500 group-hover:text-white',
+      btnActive: 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300',
+      badge: 'bg-purple-50 text-purple-800',
+      cardActive: 'bg-purple-50/70 ring-1 ring-purple-300/80 shadow-xs',
+      cardIdle: 'bg-white hover:bg-purple-50/30 shadow-xs',
+      wave: 'bg-purple-500'
+    }
+  ];
+
   const renderPlaylistPreview = () => (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {playlistItems.length === 0 ? (
-        <div className="p-4 bg-white rounded-3xl border border-gray-100 flex items-center justify-center">
+        <div className="p-4 bg-white rounded-2xl border border-gray-100 flex items-center justify-center">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Belum ada playlist</p>
         </div>
       ) : (
         playlistItems.slice(0, 5).map((rawTrack, idx) => {
           const isCurrent = currentTrackIndex === idx;
           const track = resolveTrackMetadata(rawTrack);
+          const theme = PLAYLIST_COLOR_THEMES[idx % PLAYLIST_COLOR_THEMES.length];
+
           return (
             <div 
               key={track.id || idx}
+              onClick={() => handlePlayTrack(idx)}
               className={cn(
-                "p-3 rounded-2xl border transition-all flex items-center gap-3 group",
-                isCurrent 
-                  ? "bg-emerald-50/80 border-emerald-300 shadow-xs ring-1 ring-hw-green/20" 
-                  : "bg-white hover:bg-gray-50/80 border-gray-150 shadow-2xs hover:border-gray-300"
+                "p-2.5 rounded-2xl transition-all flex items-center gap-3 group cursor-pointer active:scale-[0.99]",
+                isCurrent ? theme.cardActive : theme.cardIdle
               )}
             >
               <button 
                 type="button"
-                onClick={() => handlePlayTrack(idx)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePlayTrack(idx);
+                }}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all shadow-xs cursor-pointer active:scale-95",
-                  isCurrent && isPlaying 
-                    ? "bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30" 
-                    : "bg-emerald-50 text-emerald-800 hover:bg-hw-green hover:text-white border border-emerald-200/60"
+                  "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all cursor-pointer active:scale-95",
+                  isCurrent && isPlaying ? theme.btnActive : theme.btnIdle
                 )}
                 title={isCurrent && isPlaying ? "Jeda" : "Putar"}
               >
@@ -698,26 +743,30 @@ export default function HomePage() {
               </button>
 
               <div className="flex-1 min-w-0">
-                <h4 className={cn("text-xs font-bold truncate", isCurrent ? "text-emerald-950 font-black" : "text-gray-900")}>
+                <h4 className={cn("text-xs font-bold truncate", isCurrent ? "text-gray-900 font-black" : "text-gray-800")}>
                   {track.title}
                 </h4>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100/60 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate max-w-[240px]">
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full truncate max-w-[240px]", theme.badge)}>
                     Cipt: {track.creator}
                   </span>
                 </div>
               </div>
 
-              {isCurrent && isPlaying && (
-                <div className="flex gap-0.5 items-end h-3.5 pr-1 shrink-0">
+              {isCurrent && isPlaying ? (
+                <div className="flex gap-0.5 items-end h-3.5 pr-2 shrink-0">
                   {[0.6, 0.4, 0.8, 0.5, 0.7].map((h, i) => (
                     <motion.div 
                       key={i}
                       animate={{ height: ['30%', '100%', '30%'] }}
                       transition={{ repeat: Infinity, duration: h + 0.4, delay: i * 0.1 }}
-                      className="w-0.5 bg-hw-green rounded-full"
+                      className={cn("w-0.5 rounded-full", theme.wave)}
                     />
                   ))}
+                </div>
+              ) : (
+                <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[10px] font-bold text-gray-400">Putar</span>
                 </div>
               )}
             </div>
@@ -725,8 +774,8 @@ export default function HomePage() {
         })
       )}
       {playlistItems.length > 5 && (
-        <Link to="/playlist" className="block text-center py-2 text-[9px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 hover:bg-emerald-100/80 rounded-xl border border-dashed border-emerald-300 transition-all">
-          Lihat Semua {playlistItems.length} Playlist Lagu HW
+        <Link to="/playlist" className="block text-center py-2.5 text-[9px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50/70 hover:bg-emerald-100/80 rounded-xl transition-all active:scale-[0.98]">
+          Lihat Semua {playlistItems.length} Playlist Lagu HW &rarr;
         </Link>
       )}
     </div>

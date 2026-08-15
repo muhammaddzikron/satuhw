@@ -621,7 +621,17 @@ function handleSaveMember(data) {
     else if (hClean === 'tanggallahir' || hClean === 'tgllahir') {
       rowData[i] = getRobustValue(data, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir']) || (existing ? (existing.tanggalLahir || existing.tanggallahir) : "");
     }
-    else if (hClean === 'isverified' || hClean === 'verified' || hClean === 'statusaktivasi') {
+    else if (hClean === 'statusaktivasi') {
+      var sa = getRobustValue(data, ['statusAktivasi', 'statusaktivasi']);
+      if (sa === "" && existing) sa = existing.statusAktivasi || existing.statusaktivasi;
+      rowData[i] = sa || "Aktif";
+    }
+    else if (hClean === 'statuspembayaran') {
+      var sp = getRobustValue(data, ['statusPembayaran', 'statuspembayaran']);
+      if (sp === "" && existing) sp = existing.statusPembayaran || existing.statuspembayaran;
+      rowData[i] = sp || "Lunas";
+    }
+    else if (hClean === 'isverified' || hClean === 'verified') {
       var iv = getRobustValue(data, ['isVerified', 'isverified', 'verified', 'statusAktivasi']);
       if (iv === "" && existing) iv = existing.isVerified !== undefined ? existing.isVerified : existing.isverified;
       rowData[i] = isTruthy(iv);
