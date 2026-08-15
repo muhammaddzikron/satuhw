@@ -1664,6 +1664,21 @@ export const sheetsService = {
                 field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
               };
             }
+            if (c.section === 'playlist') {
+              const anyC = c as any;
+              return {
+                ...c,
+                field1: c.field1 || anyC.audiourl || anyC.audioUrl || '',
+                field2: c.field2 || anyC.judul || anyC.title || '',
+                field3: c.field3 || anyC.pencipta || anyC.creator || '',
+                field4: '',
+                field5: c.field5 || anyC.lirik || anyC.lyrics || '',
+                pencipta: c.field3 || anyC.pencipta || anyC.creator || '',
+                creator: c.field3 || anyC.pencipta || anyC.creator || '',
+                lirik: c.field5 || anyC.lirik || anyC.lyrics || '',
+                lyrics: c.field5 || anyC.lirik || anyC.lyrics || ''
+              };
+            }
             return c;
           });
           return section ? sanitized.filter((c: any) => c.section === section) : sanitized;
@@ -1681,15 +1696,41 @@ export const sheetsService = {
   },
 
   async saveContent(content: any): Promise<any> {
+    clearSheetsCache('contents');
+    clearSheetsCache('playlist');
+
+    const normalized = {
+      ...content,
+      field1: content.field1 || content.audioUrl || content.audiourl || '',
+      field2: content.field2 || content.judul || content.title || '',
+      field3: content.field3 || content.pencipta || content.creator || '',
+      field4: '',
+      field5: content.field5 || content.lyrics || content.lirik || '',
+      pencipta: content.field3 || content.pencipta || content.creator || '',
+      creator: content.field3 || content.pencipta || content.creator || '',
+      lirik: content.field5 || content.lyrics || content.lirik || '',
+      lyrics: content.field5 || content.lyrics || content.lirik || '',
+      judul: content.field2 || content.judul || content.title || '',
+      title: content.field2 || content.judul || content.title || '',
+      audioUrl: content.field1 || content.audioUrl || content.audiourl || '',
+      audiourl: content.field1 || content.audioUrl || content.audiourl || ''
+    };
+
     if (IS_API_VALID) {
-      this.post({ action: 'saveContent', ...content }).catch(() => {});
+      if (normalized.section === 'playlist') {
+        this.post({ action: 'savePlaylistItem', ...normalized }).catch(() => {});
+      }
+      this.post({ action: 'saveContent', ...normalized }).catch(() => {});
     }
-    const saved = await firestoreService.saveContent(content);
-    return { success: true, content: saved };
+    const saved = await firestoreService.saveContent(normalized);
+    return { success: true, content: saved || normalized };
   },
 
   async deleteContent(id: string): Promise<any> {
+    clearSheetsCache('contents');
+    clearSheetsCache('playlist');
     if (IS_API_VALID) {
+      this.post({ action: 'deletePlaylistItem', id }).catch(() => {});
       this.post({ action: 'deleteContent', id }).catch(() => {});
     }
     await firestoreService.deleteContent(id);

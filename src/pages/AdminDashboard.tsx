@@ -216,6 +216,7 @@ import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas,
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
+import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
@@ -2262,12 +2263,14 @@ export default function AdminDashboard() {
   const handleOpenContentModal = (content?: Content) => {
     if (content) {
       setEditingContent(content);
+      const isPl = selectedContentSection === 'playlist' || content.section === 'playlist';
+      const resolved = isPl ? resolveTrackMetadata(content) : null;
       setContentFormData({
-        field1: content.field1 || '',
-        field2: content.field2 || '',
-        field3: content.field3 || '',
+        field1: content.field1 || (content as any).audioUrl || (content as any).audiourl || (resolved ? resolved.audioUrl : '') || '',
+        field2: content.field2 || (content as any).judul || (content as any).title || (resolved ? resolved.title : '') || '',
+        field3: content.field3 || (content as any).pencipta || (content as any).creator || (resolved && resolved.creator && resolved.creator !== 'Pandu Hizbul Wathan' ? resolved.creator : '') || '',
         field4: content.field4 || '',
-        field5: content.field5 || content.lyrics || (content as any).lirik || ''
+        field5: content.field5 || content.lyrics || (content as any).lirik || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
       });
     } else {
       setEditingContent(null);
@@ -2308,15 +2311,19 @@ export default function AdminDashboard() {
       const payload: any = {
         section: selectedContentSection,
         type: isList ? 'list' : 'single',
-        field1: contentFormData.field1,
-        field2: contentFormData.field2,
-        field3: contentFormData.field3,
+        field1: (contentFormData.field1 || '').trim(),
+        field2: (contentFormData.field2 || '').trim(),
+        field3: (contentFormData.field3 || '').trim(),
         field4: '',
-        field5: contentFormData.field5 || '',
-        lirik: contentFormData.field5 || '',
-        lyrics: contentFormData.field5 || '',
-        pencipta: contentFormData.field3,
-        creator: contentFormData.field3
+        field5: (contentFormData.field5 || '').trim(),
+        lirik: (contentFormData.field5 || '').trim(),
+        lyrics: (contentFormData.field5 || '').trim(),
+        pencipta: (contentFormData.field3 || '').trim(),
+        creator: (contentFormData.field3 || '').trim(),
+        judul: (contentFormData.field2 || '').trim(),
+        title: (contentFormData.field2 || '').trim(),
+        audioUrl: (contentFormData.field1 || '').trim(),
+        audiourl: (contentFormData.field1 || '').trim()
       };
 
       if (editingContent) {
@@ -2326,7 +2333,7 @@ export default function AdminDashboard() {
         if (!isList && contentList.length > 0) {
           payload.id = contentList[0].id;
         } else {
-          payload.id = Date.now().toString();
+          payload.id = selectedContentSection === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString();
         }
       }
 
