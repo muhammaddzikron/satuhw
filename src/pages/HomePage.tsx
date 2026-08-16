@@ -53,13 +53,34 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { prayerService } from '../services/prayerService';
 import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
-import { PrayerTimes, Materi, Content } from '../types';
+import { Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
+
+const sortPlaylistWithSahabatFirst = (list: Content[]): Content[] => {
+  const seen = new Set<string>();
+  const filtered = (list || []).filter(item => {
+    if (!item) return false;
+    const title = (item.field2 || (item as any).judul || (item as any).title || '').trim().toLowerCase();
+    if (!title) return false;
+    if (seen.has(title)) return false;
+    seen.add(title);
+    return true;
+  });
+
+  return filtered.sort((a, b) => {
+    const titleA = (a.field2 || (a as any).judul || (a as any).title || '').trim().toLowerCase();
+    const titleB = (b.field2 || (b as any).judul || (b as any).title || '').trim().toLowerCase();
+    const isSahabatA = titleA === 'sahabat hw' || (a.field1 && a.field1.includes('sahabathw'));
+    const isSahabatB = titleB === 'sahabat hw' || (b.field1 && b.field1.includes('sahabathw'));
+    if (isSahabatA && !isSahabatB) return -1;
+    if (!isSahabatA && isSahabatB) return 1;
+    return 0;
+  });
+};
 
 const MenuCard = React.memo(({ to, icon: Icon, label, color, description, state, onClick }: { to?: string, icon: any, label: string, color: string, description?: string, state?: any, onClick?: () => void }) => {
   if (onClick) {
@@ -110,15 +131,6 @@ const FeatureCard = React.memo(({ to, icon: Icon, label }: { to: string, icon: a
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>({
-    shubuh: '04:32',
-    dzuhur: '11:51',
-    ashar: '15:10',
-    maghrib: '17:50',
-    isya: '19:01',
-    hijri: { day: '25', month: "Sya'ban", year: '1447' }
-  });
-  const [location, setLocation] = useState('Purwokerto');
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Search State
@@ -157,12 +169,12 @@ export default function HomePage() {
       const stored = JSON.parse(localStorage.getItem('contents') || '[]');
       if (Array.isArray(stored) && stored.length > 0) {
         const pl = stored.filter((c: any) => c.section === 'playlist');
-        if (pl.length > 0) return pl;
+        if (pl.length > 0) return sortPlaylistWithSahabatFirst(pl);
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
     const pl = initialContents.filter((c: any) => c.section === 'playlist');
-    if (pl.length > 0) return pl;
+    if (pl.length > 0) return sortPlaylistWithSahabatFirst(pl);
     return [
       { id: 'pl-1', section: 'playlist', field1: 'https://hwjateng.org/musik/sahabathw.mp3', field2: 'Sahabat HW', field3: 'Muhammad Dzikron', pencipta: 'Muhammad Dzikron', title: 'Sahabat HW', creator: 'Muhammad Dzikron' },
       { id: 'pl-2', section: 'playlist', field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3', field2: 'HW Untuk Indonesia', field3: 'Muhammad Dzikron', pencipta: 'Muhammad Dzikron', title: 'HW Untuk Indonesia', creator: 'Muhammad Dzikron' },
@@ -382,7 +394,7 @@ export default function HomePage() {
         const gal = contents.filter(c => c.section === 'galeri');
         if (gal.length > 0) setGalleryItems(gal);
         const pl = contents.filter(c => c.section === 'playlist');
-        if (pl.length > 0) setPlaylistItems(pl);
+        if (pl.length > 0) setPlaylistItems(sortPlaylistWithSahabatFirst(pl));
         const sm = contents.find(c => c.section === 'sosmed');
         if (sm) setSosmed(sm);
         const kt = contents.find(c => c.section === 'kontak');
@@ -472,27 +484,6 @@ export default function HomePage() {
   useEffect(() => {
     // Minute-based timer for date display, saves battery and prevents frame drops
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    
-    // Fast non-blocking location and prayer times fetch
-    const initializeLocationAndPrayers = async () => {
-      try {
-        const coords = await prayerService.getCurrentCoords();
-        if (coords) {
-          const city = await prayerService.getLocationName(coords.lat, coords.lon);
-          setLocation(city);
-          const times = await prayerService.getPrayerTimes({ lat: coords.lat, lon: coords.lon });
-          if (times) setPrayerTimes(times);
-        } else {
-          const times = await prayerService.getPrayerTimes({ city: 'Purwokerto' });
-          if (times) setPrayerTimes(times);
-          setLocation('Purwokerto');
-        }
-      } catch (error) {
-        // Fallback already pre-set
-      }
-    };
-    
-    initializeLocationAndPrayers();
     return () => clearInterval(timer);
   }, []);
 
@@ -817,11 +808,6 @@ export default function HomePage() {
         <div className="space-y-0.5 mt-2 flex items-center justify-between">
           <div>
             <p className="text-[13px] font-medium text-gray-500">{formatDate(currentTime)}</p>
-            {prayerTimes?.hijri && (
-              <p className="text-[11px] text-hw-green font-bold uppercase tracking-wider">
-                {prayerTimes.hijri.day} {prayerTimes.hijri.month} {prayerTimes.hijri.year} H
-              </p>
-            )}
           </div>
           {/* Quick Sosmed Badges */}
           <div className="flex gap-1.5">
@@ -902,42 +888,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* Prayer Times Card */}
-      <section className="gradient-bg p-5 rounded-[2rem] text-white shadow-xl shadow-hw-green/20 relative overflow-hidden">
-        <div className="relative z-10 flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-white/90">
-              <MapPin size={14} />
-              <span className="text-xs font-medium">{location}</span>
-            </div>
-            <div className="flex items-center gap-2 text-white/90">
-              <Clock size={14} />
-              <span className="text-xs font-mono font-bold tracking-widest">{formatTime(currentTime)}</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-5 gap-1 mt-2">
-            {[
-              { name: 'Shubuh', time: prayerTimes?.shubuh },
-              { name: 'Dzuhur', time: prayerTimes?.dzuhur },
-              { name: 'Ashar', time: prayerTimes?.ashar },
-              { name: 'Maghrib', time: prayerTimes?.maghrib },
-              { name: 'Isya', time: prayerTimes?.isya }
-            ].map((p) => (
-              <div key={p.name} className="flex flex-col items-center gap-1">
-                <span className="text-[8px] uppercase tracking-tighter opacity-70 font-bold">{p.name}</span>
-                <span className="text-[11px] font-bold">{p.time || '--:--'}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-[9px] text-white/60 text-center mt-2 italic font-medium">Referensi KHGT Muhammadiyah</p>
-        </div>
-        
-        {/* Decorative Circles */}
-        <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-[-20px] left-[-20px] w-24 h-24 bg-hw-blue/20 rounded-full blur-xl"></div>
-      </section>
 
       {/* Running Announcement Text */}
       {runningText && (

@@ -75,7 +75,13 @@ const parseCsvPart = (csv: string): User[] => {
   return list;
 };
 
+let cachedMasterList: User[] | null = null;
+
 export const getMasterMembersList = (): User[] => {
+  if (cachedMasterList && cachedMasterList.length > 0) {
+    return cachedMasterList;
+  }
+
   const csvMembers = [
     ...parseCsvPart(csvPart1),
     ...parseCsvPart(csvPart2),
@@ -168,35 +174,29 @@ export const getMasterMembersList = (): User[] => {
     upgradeRequests: []
   });
 
-  const mergedList: User[] = [];
+  const mergedMap = new Map<string, User>();
+  const emailToKey = new Map<string, string>();
+  const ktaToKey = new Map<string, string>();
+  const nameToKey = new Map<string, string>();
 
-  const findExistingIndex = (item: User) => {
+  rawCandidates.forEach((item, index) => {
     const email = (item.email || '').trim().toLowerCase();
     const isRealEmail = email && !email.startsWith('member_') && !email.startsWith('user_');
     const kta = (item.ktaNumber || item.nomorKTA || '').trim().toLowerCase();
     const normName = (item.namaLengkap || '').trim().toLowerCase();
     const isRealName = normName && normName.length >= 3 && normName !== 'anggota hw' && normName !== 'tanpa nama';
 
-    for (let i = 0; i < mergedList.length; i++) {
-      const ex = mergedList[i];
-      const exEmail = (ex.email || '').trim().toLowerCase();
-      const exIsRealEmail = exEmail && !exEmail.startsWith('member_') && !exEmail.startsWith('user_');
-      const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim().toLowerCase();
-      const exNormName = (ex.namaLengkap || '').trim().toLowerCase();
-
-      if (isRealEmail && exIsRealEmail && email === exEmail) return i;
-      if (kta && exKta && kta === exKta) return i;
-      if (isRealName && normName === exNormName) return i;
+    let matchKey: string | undefined;
+    if (isRealEmail && emailToKey.has(email)) {
+      matchKey = emailToKey.get(email);
+    } else if (kta && ktaToKey.has(kta)) {
+      matchKey = ktaToKey.get(kta);
+    } else if (isRealName && nameToKey.has(normName)) {
+      matchKey = nameToKey.get(normName);
     }
-    return -1;
-  };
 
-  rawCandidates.forEach((item) => {
-    const idx = findExistingIndex(item);
-    if (idx === -1) {
-      mergedList.push({ ...item });
-    } else {
-      const ex = mergedList[idx];
+    if (matchKey && mergedMap.has(matchKey)) {
+      const ex = mergedMap.get(matchKey)!;
       const merged: User = {
         ...item,
         ...ex,
@@ -211,10 +211,18 @@ export const getMasterMembersList = (): User[] => {
         tanggalLahir: ex.tanggalLahir || item.tanggalLahir,
         email: (ex.email && !ex.email.startsWith('member_') && !ex.email.startsWith('user_')) ? ex.email : item.email
       };
-      mergedList[idx] = merged;
+      mergedMap.set(matchKey, merged);
+    } else {
+      const newKey = item.id || `user-cand-${index}`;
+      mergedMap.set(newKey, { ...item });
+      if (isRealEmail) emailToKey.set(email, newKey);
+      if (kta) ktaToKey.set(kta, newKey);
+      if (isRealName) nameToKey.set(normName, newKey);
     }
   });
 
-  return ensureUniqueKtaNumbers(mergedList);
+  const mergedList = Array.from(mergedMap.values());
+  cachedMasterList = ensureUniqueKtaNumbers(mergedList);
+  return cachedMasterList;
 };
 

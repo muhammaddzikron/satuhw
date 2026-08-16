@@ -2155,8 +2155,8 @@ export default function AdminDashboard() {
       const cachedActivities = localStorage.getItem('hw_activities');
       const cachedActRegs = localStorage.getItem('activity_applications');
 
-      if (cachedMembers) { setMembers(ensureUniqueKtaNumbers(safeJsonParse(cachedMembers, []).filter(isValidMember))); }
-      if (cachedKtas) { setKtaApps(ensureUniqueKtaNumbers(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap)))); }
+      if (cachedMembers) { setMembers(safeJsonParse(cachedMembers, []).filter(isValidMember)); }
+      if (cachedKtas) { setKtaApps(safeJsonParse(cachedKtas, []).filter((k: any) => isValidName(k?.nama || k?.namaLengkap))); }
       if (cachedTrainings) { setTrainingApps(safeJsonParse(cachedTrainings, []).filter((t: any) => isValidTrainingApp(t))); }
       if (cachedMateri) { setMateriList(safeJsonParse(cachedMateri, [])); }
       if (cachedContents) { setContents(safeJsonParse(cachedContents, [])); }
@@ -2169,29 +2169,28 @@ export default function AdminDashboard() {
     // Set loading false right away so dashboard is always clickable and responsive
     setLoading(false);
 
-    // Non-blocking background sync tasks
+    // Highly deferred background sync tasks so initial transition is silky smooth (4s delay)
     setTimeout(() => {
-      sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
-      firestoreService.purgeEmptyData().catch(() => {});
-    }, 100);
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => {
+          sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
+          firestoreService.purgeEmptyData().catch(() => {});
+        });
+      } else {
+        sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
+        firestoreService.purgeEmptyData().catch(() => {});
+      }
+    }, 4000);
 
     // Progressive background fetch so slow endpoints never block others
     sheetsService.getMembers().then(members => {
       if (Array.isArray(members) && members.length > 0) {
-        setMembers(ensureUniqueKtaNumbers(members.filter(isValidMember)));
+        setMembers(members.filter(isValidMember));
       }
     }).catch(e => console.warn('getMembers error:', e));
 
-    sheetsService.getMateri('admin').then(materi => {
-      if (materi) setMateriList(materi);
-    }).catch(e => console.warn('getMateri error:', e));
-
-    sheetsService.getContents().then(contents => {
-      if (contents) setContents(contents);
-    }).catch(e => console.warn('getContents error:', e));
-
     sheetsService.getKTAApplications().then(ktas => {
-      if (ktas) setKtaApps(ensureUniqueKtaNumbers((ktas || []).filter(k => isValidName(k?.nama || k?.namaLengkap))));
+      if (ktas) setKtaApps((ktas || []).filter(k => isValidName(k?.nama || k?.namaLengkap)));
     }).catch(e => console.warn('getKTAApplications error:', e));
 
     sheetsService.getTrainingApplications().then(trainings => {
@@ -2202,26 +2201,37 @@ export default function AdminDashboard() {
       if (activities) setActivitiesList(activities || []);
     }).catch(e => console.warn('getActivities error:', e));
 
-    sheetsService.getActivityApplications().then(actRegs => {
-      if (actRegs) setActivityApplicationsList(sortActivityAppsByDate(actRegs || [], true));
-    }).catch(e => console.warn('getActivityApplications error:', e));
+    // Stagger non-critical UI datasets by 400ms to preserve frame rate
+    setTimeout(() => {
+      sheetsService.getMateri('admin').then(materi => {
+        if (materi) setMateriList(materi);
+      }).catch(e => console.warn('getMateri error:', e));
 
-    sheetsService.getSettings().then(settingsData => {
-      if (settingsData) {
-        setSettings(prev => ({
-          ...prev,
-          ...settingsData,
-          gSheetApiUrl: prev.gSheetApiUrl,
-          trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
-          trainingActivities: (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity),
-          trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
-          trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
-          assignedTasks: Array.isArray(settingsData.assignedTasks) 
-            ? settingsData.assignedTasks 
-            : safeJsonParse<any[]>(settingsData.assignedTasks, [])
-        }));
-      }
-    }).catch(e => console.warn('getSettings error:', e));
+      sheetsService.getContents().then(contents => {
+        if (contents) setContents(contents);
+      }).catch(e => console.warn('getContents error:', e));
+
+      sheetsService.getActivityApplications().then(actRegs => {
+        if (actRegs) setActivityApplicationsList(sortActivityAppsByDate(actRegs || [], true));
+      }).catch(e => console.warn('getActivityApplications error:', e));
+
+      sheetsService.getSettings().then(settingsData => {
+        if (settingsData) {
+          setSettings(prev => ({
+            ...prev,
+            ...settingsData,
+            gSheetApiUrl: prev.gSheetApiUrl,
+            trainingTypes: Array.isArray(settingsData.trainingTypes) ? settingsData.trainingTypes : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2'],
+            trainingActivities: (Array.isArray(settingsData.trainingActivities) ? settingsData.trainingActivities : []).filter(isOnlyTrainingActivity),
+            trainingLocations: Array.isArray(settingsData.trainingLocations) ? settingsData.trainingLocations : [],
+            trainingDates: Array.isArray(settingsData.trainingDates) ? settingsData.trainingDates : [],
+            assignedTasks: Array.isArray(settingsData.assignedTasks) 
+              ? settingsData.assignedTasks 
+              : safeJsonParse<any[]>(settingsData.assignedTasks, [])
+          }));
+        }
+      }).catch(e => console.warn('getSettings error:', e));
+    }, 400);
   };
 
   useEffect(() => {

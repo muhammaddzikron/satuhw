@@ -175,7 +175,18 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
       return [defaultSahabatHW, ...filtered];
     }
 
-    return filtered;
+    // Always sort Sahabat HW to the very top (index 0)
+    const sorted = [...filtered].sort((a, b) => {
+      const titleA = (a.field2 || a.judul || a.title || '').toString().trim().toLowerCase();
+      const titleB = (b.field2 || b.judul || b.title || '').toString().trim().toLowerCase();
+      const isSahabatA = titleA === 'sahabat hw' || (a.field1 && a.field1.toString().toLowerCase().includes('sahabathw'));
+      const isSahabatB = titleB === 'sahabat hw' || (b.field1 && b.field1.toString().toLowerCase().includes('sahabathw'));
+      if (isSahabatA && !isSahabatB) return -1;
+      if (!isSahabatA && isSahabatB) return 1;
+      return 0;
+    });
+
+    return sorted;
   }, []);
 
   // Instant initial playlist from local cache or mock
