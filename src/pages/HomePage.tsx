@@ -380,13 +380,17 @@ export default function HomePage() {
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       if (acts && acts.length > 0) {
         setActivitiesList(acts);
-        try { localStorage.setItem('hw_activities', JSON.stringify(acts)); } catch (e) {}
+        setTimeout(() => {
+          try { localStorage.setItem('hw_activities', JSON.stringify(acts)); } catch (e) {}
+        }, 300);
       }
     });
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
       if (apps) {
         setActivityApps(apps);
-        try { localStorage.setItem('hw_activity_applications', JSON.stringify(apps)); } catch (e) {}
+        setTimeout(() => {
+          try { localStorage.setItem('hw_activity_applications', JSON.stringify(apps)); } catch (e) {}
+        }, 300);
       }
     });
     const unsubContents = sheetsService.subscribeToContents((contents: Content[]) => {
@@ -412,7 +416,9 @@ export default function HomePage() {
             : [];
         if (acts.length > 0) {
           setTrainingActivities(acts);
-          try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
+          setTimeout(() => {
+            try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
+          }, 300);
         }
       }
     });
@@ -425,10 +431,12 @@ export default function HomePage() {
         const filtered = uniqueMateri.filter(m => m && (m.kategori === 'umum' || m.kategori === 'umum_pandu'));
         if (filtered.length > 0) {
           setMateriList(filtered);
-          try { localStorage.setItem('hw_materi_cache_umum', JSON.stringify(filtered)); } catch (e) {}
+          setTimeout(() => {
+            try { localStorage.setItem('hw_materi_cache_umum', JSON.stringify(filtered)); } catch (e) {}
+          }, 300);
         }
       }).catch(e => console.warn('Deferred materi fetch warning:', e));
-    }, 800);
+    }, 1200);
 
     return () => {
       unsubActivities();
@@ -780,7 +788,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-6">
       {/* Greeting Section */}
       <section className="pt-1">
         <div className="flex flex-col">

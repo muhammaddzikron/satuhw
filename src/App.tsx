@@ -23,9 +23,9 @@ import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
 import { sheetsService } from './services/sheetsService';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import HomePage from './pages/HomePage';
 
-// Lazy loaded page components for optimal responsiveness and instant button/link interactions
-const HomePage = lazy(() => import('./pages/HomePage'));
+// Lazy loaded secondary page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -269,7 +269,7 @@ const Navigation = () => {
 };
 
 const PageTransition = ({ children, fullWidth }: { children: React.ReactNode, fullWidth?: boolean }) => (
-  <div className={cn("pb-32 sm:pb-36 pt-3 px-4 mx-auto w-full", fullWidth ? "max-w-7xl" : "max-w-md")}>
+  <div className={cn("pb-24 sm:pb-28 pt-3 px-4 mx-auto w-full", fullWidth ? "max-w-7xl" : "max-w-md")}>
     {children}
   </div>
 );
