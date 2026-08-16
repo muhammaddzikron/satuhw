@@ -58,7 +58,7 @@ const Header = React.memo(() => {
   const isFullWidth = location.pathname === '/admin';
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-xs isolate">
       <div className={cn("mx-auto flex items-center justify-between", isFullWidth ? "max-w-7xl" : "max-w-md")}>
         <Link to="/" className="flex items-center gap-3 group cursor-pointer touch-manipulation">
           <img 
@@ -369,9 +369,9 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-gray-50 flex flex-col relative">
         <Header />
-        <main className="flex-1 overflow-x-hidden">
+        <main className="flex-1 relative w-full">
           <ErrorBoundary>
             <AnimatedRoutes />
           </ErrorBoundary>
