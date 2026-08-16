@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { 
   Home as HomeIcon, 
@@ -16,42 +16,34 @@ import {
   LayoutDashboard, 
   GraduationCap, 
   CreditCard, 
-  Calendar,
-  Loader2
+  Calendar
 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
 import { sheetsService } from './services/sheetsService';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Page components
 import HomePage from './pages/HomePage';
-
-// Lazy loaded secondary page components for code splitting
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const MateriPage = lazy(() => import('./pages/MateriPage'));
-const QuranPage = lazy(() => import('./pages/QuranPage'));
-const ToolsPage = lazy(() => import('./pages/ToolsPage'));
-const ContactPage = lazy(() => import('./pages/ContactPage'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const DoaPage = lazy(() => import('./pages/DoaPage'));
-const GalleryPage = lazy(() => import('./pages/GalleryPage'));
-const SosmedPage = lazy(() => import('./pages/SosmedPage'));
-const UpgradePage = lazy(() => import('./pages/UpgradePage'));
-const AboutPage = lazy(() => import('./pages/AboutPage'));
-const PlaylistPage = lazy(() => import('./pages/PlaylistPage'));
-const KTAPage = lazy(() => import('./pages/KTAPage'));
-const DaftarPelatihanPage = lazy(() => import('./pages/DaftarPelatihanPage'));
-const PelatihanPage = lazy(() => import('./pages/PelatihanPage'));
-const KegiatanPage = lazy(() => import('./pages/KegiatanPage'));
-const PelatihNasionalPage = lazy(() => import('./pages/PelatihNasionalPage'));
-
-const PageFallback = () => (
-  <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-    <Loader2 className="w-8 h-8 text-hw-green animate-spin" />
-    <span className="text-xs font-semibold text-gray-500">Memuat halaman...</span>
-  </div>
-);
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import MateriPage from './pages/MateriPage';
+import QuranPage from './pages/QuranPage';
+import ToolsPage from './pages/ToolsPage';
+import ContactPage from './pages/ContactPage';
+import AdminDashboard from './pages/AdminDashboard';
+import DoaPage from './pages/DoaPage';
+import GalleryPage from './pages/GalleryPage';
+import SosmedPage from './pages/SosmedPage';
+import UpgradePage from './pages/UpgradePage';
+import AboutPage from './pages/AboutPage';
+import PlaylistPage from './pages/PlaylistPage';
+import KTAPage from './pages/KTAPage';
+import DaftarPelatihanPage from './pages/DaftarPelatihanPage';
+import PelatihanPage from './pages/PelatihanPage';
+import KegiatanPage from './pages/KegiatanPage';
+import PelatihNasionalPage from './pages/PelatihNasionalPage';
 
 const Header = React.memo(() => {
   const location = useLocation();
@@ -278,31 +270,29 @@ const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
-    <Suspense fallback={<PageFallback />}>
-      <Routes location={location}>
-        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-        <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-        <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
-        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
-        <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
-        <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
-        <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
-        <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-        <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
-        <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
-        <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
-        <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
-        <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
-        <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
-        <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
-        <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
-        <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
-        <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+    <Routes location={location}>
+      <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+      <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+      <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+      <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+      <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+      <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
+      <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
+      <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
+      <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+      <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
+      <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
+      <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
+      <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
+      <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
+      <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
+      <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
+      <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
+      <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+      <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+      <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
