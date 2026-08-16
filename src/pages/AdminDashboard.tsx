@@ -2480,9 +2480,9 @@ export default function AdminDashboard() {
         (app.email && member.email && String(app.email).toLowerCase().trim() === String(member.email).toLowerCase().trim())
       );
 
-      const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : [];
-      const rolesArr = Array.isArray(member.roles) && member.roles.length > 0 ? member.roles : (member.role ? [member.role] : ['umum']);
-      const synced = syncRolesAndPelatihan(rolesArr, pelatihanArr);
+      const rawRoles = parseRolesField(member.roles, member.role);
+      const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : (typeof member.pelatihan === 'string' ? member.pelatihan.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+      const synced = syncRolesAndPelatihan(rawRoles, pelatihanArr);
 
       setFormData({
         email: member.email || matchingKta?.email || '',
@@ -2594,6 +2594,9 @@ export default function AdminDashboard() {
         setLoading(false);
         return;
       }
+
+      // Optimistically update local members state immediately
+      setMembers(prev => prev.map(m => (m.id === payload.id || (m.email && payload.email && m.email.toLowerCase().trim() === payload.email.toLowerCase().trim())) ? { ...m, ...payload } : m));
 
       const res = await sheetsService.saveMember(payload);
       if (res.error) {
@@ -4241,7 +4244,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="p-5">
                               <div className="flex flex-wrap gap-1">
-                                {Array.isArray(row.roles) ? row.roles.map((r: string, idx: number) => (
+                                {parseRolesField(row.roles, row.role).map((r: string, idx: number) => (
                                   <span key={`${row.id}-role-${r}-${idx}`} className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
                                     r === 'superadmin' || r === 'admin' ? 'bg-red-100 text-red-600' :
                                     r === 'sugli' ? 'bg-orange-100 text-orange-600' :
@@ -4251,17 +4254,7 @@ export default function AdminDashboard() {
                                   }`}>
                                     {ROLE_LABELS[r] || r}
                                   </span>
-                                )) : (
-                                  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
-                                    row.role === 'superadmin' || row.role === 'admin' ? 'bg-red-100 text-red-600' :
-                                    row.role === 'sugli' ? 'bg-orange-100 text-orange-600' :
-                                    row.role === 'kwarda' ? 'bg-blue-100 text-blue-600' :
-                                    typeof row.role === 'string' && row.role.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {ROLE_LABELS[row.role] || row.role}
-                                  </span>
-                                )}
+                                ))}
                               </div>
                             </td>
                             <td className="p-5">

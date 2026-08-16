@@ -659,9 +659,9 @@ export const firestoreService = {
           const validMmKta = isValidKtaNumberFormat(mm.ktaNumber || mm.nomorKTA) ? (mm.ktaNumber || mm.nomorKTA) : '';
           const finalKta = validExKta || validMmKta || '';
 
-          const finalRoles = (ex.roles && ex.roles.length > 0 && !ex.roles.every(r => r === 'umum')) ? ex.roles : (ex.roles || mm.roles);
-          const finalRole = (ex.role && ex.role !== 'umum') ? ex.role : (ex.role || mm.role);
-          const finalPelatihan = (ex.pelatihan && ex.pelatihan.length > 0) ? ex.pelatihan : (mm.pelatihan || []);
+          const finalRoles = (ex.roles && Array.isArray(ex.roles) && ex.roles.length > 0) ? ex.roles : (ex.role ? [ex.role] : mm.roles);
+          const finalRole = ex.role || (finalRoles && finalRoles.length > 0 ? (finalRoles.find((r: any) => r !== 'umum') || finalRoles[0]) : mm.role);
+          const finalPelatihan = (ex.pelatihan && Array.isArray(ex.pelatihan) && ex.pelatihan.length > 0) ? ex.pelatihan : (mm.pelatihan || []);
           const finalGolonganPelatih = (ex as any).golonganPelatih || (mm as any).golonganPelatih;
 
           members[matchedIdx] = {
@@ -698,11 +698,23 @@ export const firestoreService = {
     members.forEach((m, idx) => {
       const mId = m.id ? String(m.id) : '';
       const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-      const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+      const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+      const mPhone = m.noHp ? String(m.noHp).replace(/[^0-9]/g, '') : '';
+
+      const ov = customOverrides[mId] || 
+        (mEmail ? customOverrides[mEmail] : null) ||
+        (mKta ? customOverrides[mKta] : null) ||
+        (mPhone && mPhone.length > 6 ? customOverrides[mPhone] : null);
+
       if (ov) {
+        const ovRoles = parseRolesField(ov.roles, ov.role);
+        const synced = syncRolesAndPelatihan(ovRoles, ov.pelatihan || m.pelatihan);
         members[idx] = {
           ...m,
           ...ov,
+          roles: synced.roles,
+          role: synced.primaryRole,
+          pelatihan: synced.pelatihan,
           namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap)
         };
       }
@@ -904,18 +916,28 @@ export const firestoreService = {
           if (!validatePassForMember(foundLocal)) {
             throw new Error('Password yang Anda masukkan salah.');
           }
-          let roles: UserRole[] = foundLocal.roles || [];
-          if (typeof foundLocal.role === 'string' && foundLocal.role.startsWith('[')) {
-            try { roles = JSON.parse(foundLocal.role); } catch(e) {}
-          } else if (typeof foundLocal.role === 'string') {
-            roles = [foundLocal.role as UserRole];
+          // Check if custom overrides exist for this member
+          const storedOvStr = localStorage.getItem('member_custom_edits');
+          let customOverrides: Record<string, any> = {};
+          if (storedOvStr) {
+            try { customOverrides = JSON.parse(storedOvStr); } catch(e) {}
           }
-          if (roles.length === 0) roles = ['umum'];
+          const mId = foundLocal.id ? String(foundLocal.id) : '';
+          const mEmail = foundLocal.email ? foundLocal.email.toLowerCase().trim() : '';
+          const mKta = (foundLocal.ktaNumber || foundLocal.nomorKTA || '').trim();
+          const mPhone = foundLocal.noHp ? String(foundLocal.noHp).replace(/[^0-9]/g, '') : '';
+          const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null) || (mKta ? customOverrides[mKta] : null) || (mPhone && mPhone.length > 6 ? customOverrides[mPhone] : null);
+
+          const merged = ov ? { ...foundLocal, ...ov } : foundLocal;
+          const rawRoles = parseRolesField(merged.roles, merged.role);
+          const synced = syncRolesAndPelatihan(rawRoles, merged.pelatihan);
 
           const userObj: User = {
-            ...foundLocal,
-            roles,
-            activeRole: foundLocal.activeRole || roles[0] || 'umum'
+            ...merged,
+            roles: synced.roles,
+            role: synced.primaryRole,
+            pelatihan: synced.pelatihan,
+            activeRole: merged.activeRole || synced.primaryRole
           };
           return {
             token: `fs-token-${userObj.id || Date.now()}`,
@@ -935,18 +957,15 @@ export const firestoreService = {
         if (!validatePassForMember(found)) {
           throw new Error('Password yang Anda masukkan salah.');
         }
-        let roles: UserRole[] = found.roles || [];
-        if (typeof found.role === 'string' && found.role.startsWith('[')) {
-          try { roles = JSON.parse(found.role); } catch(e) {}
-        } else if (typeof found.role === 'string') {
-          roles = [found.role as UserRole];
-        }
-        if (roles.length === 0) roles = ['umum'];
+        const rawRoles = parseRolesField(found.roles, found.role);
+        const synced = syncRolesAndPelatihan(rawRoles, found.pelatihan);
 
         const userObj: User = {
           ...found,
-          roles,
-          activeRole: found.activeRole || roles[0] || 'umum'
+          roles: synced.roles,
+          role: synced.primaryRole,
+          pelatihan: synced.pelatihan,
+          activeRole: found.activeRole || synced.primaryRole
         };
 
         return {
@@ -1368,6 +1387,12 @@ export const firestoreService = {
         const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
         if (dataToSave.id) overrides[String(dataToSave.id)] = dataToSave;
         if (dataToSave.email) overrides[dataToSave.email.toLowerCase().trim()] = dataToSave;
+        if (dataToSave.ktaNumber) overrides[dataToSave.ktaNumber.trim()] = dataToSave;
+        if (dataToSave.nomorKTA) overrides[dataToSave.nomorKTA.trim()] = dataToSave;
+        if (dataToSave.noHp) {
+          const digits = String(dataToSave.noHp).replace(/[^0-9]/g, '');
+          if (digits.length > 6) overrides[digits] = dataToSave;
+        }
         safeStorageSet('member_custom_edits', overrides);
       }
     } catch (e) {}
@@ -1464,6 +1489,12 @@ export const firestoreService = {
         const mergedOv = { ...exOv, ...normUpdates, id };
         overrides[String(id)] = mergedOv;
         if (normUpdates.email) overrides[normUpdates.email.toLowerCase().trim()] = mergedOv;
+        if (normUpdates.ktaNumber) overrides[normUpdates.ktaNumber.trim()] = mergedOv;
+        if (normUpdates.nomorKTA) overrides[normUpdates.nomorKTA.trim()] = mergedOv;
+        if (normUpdates.noHp) {
+          const digits = String(normUpdates.noHp).replace(/[^0-9]/g, '');
+          if (digits.length > 6) overrides[digits] = mergedOv;
+        }
         safeStorageSet('member_custom_edits', overrides);
       }
     } catch (e) {}

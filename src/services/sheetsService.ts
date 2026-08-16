@@ -321,32 +321,54 @@ export const sheetsService = {
           let finalUser = { ...mappedUser };
           // Sync into localStorage & Firestore
           try {
+            // Check custom overrides
+            const storedOvStr = localStorage.getItem('member_custom_edits');
+            let customOverrides: Record<string, any> = {};
+            if (storedOvStr) {
+              try { customOverrides = JSON.parse(storedOvStr); } catch(e) {}
+            }
+            const mId = finalUser.id ? String(finalUser.id) : '';
+            const mEmail = finalUser.email ? finalUser.email.toLowerCase().trim() : '';
+            const mKta = (finalUser.ktaNumber || finalUser.nomorKTA || '').trim();
+            const mPhone = finalUser.noHp ? String(finalUser.noHp).replace(/[^0-9]/g, '') : '';
+            const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null) || (mKta ? customOverrides[mKta] : null) || (mPhone && mPhone.length > 6 ? customOverrides[mPhone] : null);
+            if (ov) {
+              finalUser = { ...finalUser, ...ov };
+            }
+
+            const rawRoles = parseRolesField(finalUser.roles, finalUser.role);
+            const synced = syncRolesAndPelatihan(rawRoles, finalUser.pelatihan);
+            finalUser.roles = synced.roles;
+            finalUser.role = synced.primaryRole as UserRole;
+            finalUser.pelatihan = synced.pelatihan;
+            finalUser.activeRole = (finalUser.activeRole || synced.primaryRole) as UserRole;
+
             const stored = localStorage.getItem('mock_members');
             let parsed = stored ? JSON.parse(stored) : [];
             if (Array.isArray(parsed)) {
               const idx = parsed.findIndex((m: any) => 
-                (mappedUser.id && m.id === mappedUser.id) ||
-                (mappedUser.email && m.email?.toLowerCase() === mappedUser.email.toLowerCase())
+                (finalUser.id && m.id === finalUser.id) ||
+                (finalUser.email && m.email?.toLowerCase() === finalUser.email.toLowerCase())
               );
               if (idx >= 0) {
                 const ex = parsed[idx];
                 finalUser = {
-                  ...mappedUser,
                   ...ex,
-                  namaLengkap: (ex.namaLengkap && ex.namaLengkap !== 'Tanpa Nama' && ex.namaLengkap !== '-') ? ex.namaLengkap : (mappedUser.namaLengkap || ex.namaLengkap || 'Anggota HW'),
-                  photo: ex.photo || mappedUser.photo || '',
-                  noHp: ex.noHp || mappedUser.noHp || '',
-                  alamat: ex.alamat || mappedUser.alamat || '',
-                  qabilah: ex.qabilah || mappedUser.qabilah || '',
-                  asalKwarda: ex.asalKwarda || mappedUser.asalKwarda || '',
-                  tempatLahir: ex.tempatLahir || mappedUser.tempatLahir || '',
-                  tanggalLahir: ex.tanggalLahir || mappedUser.tanggalLahir || '',
-                  golongan: ex.golongan || mappedUser.golongan || 'Dewasa',
-                  golonganPelatih: ex.golonganPelatih || mappedUser.golonganPelatih || '',
-                  pelatihan: (Array.isArray(ex.pelatihan) && ex.pelatihan.length > 0) ? ex.pelatihan : mappedUser.pelatihan,
-                  roles: (Array.isArray(ex.roles) && ex.roles.length > 0) ? ex.roles : mappedUser.roles,
-                  role: ex.role || mappedUser.role || 'umum',
-                  ktaNumber: ex.ktaNumber || mappedUser.ktaNumber || ex.nomorKTA || mappedUser.nomorKTA || '',
+                  ...finalUser,
+                  namaLengkap: (finalUser.namaLengkap && finalUser.namaLengkap !== 'Tanpa Nama' && finalUser.namaLengkap !== '-') ? finalUser.namaLengkap : (ex.namaLengkap || 'Anggota HW'),
+                  photo: finalUser.photo || ex.photo || '',
+                  noHp: finalUser.noHp || ex.noHp || '',
+                  alamat: finalUser.alamat || ex.alamat || '',
+                  qabilah: finalUser.qabilah || ex.qabilah || '',
+                  asalKwarda: finalUser.asalKwarda || ex.asalKwarda || '',
+                  tempatLahir: finalUser.tempatLahir || ex.tempatLahir || '',
+                  tanggalLahir: finalUser.tanggalLahir || ex.tanggalLahir || '',
+                  golongan: finalUser.golongan || ex.golongan || 'Dewasa',
+                  golonganPelatih: finalUser.golonganPelatih || ex.golonganPelatih || '',
+                  pelatihan: synced.pelatihan,
+                  roles: synced.roles,
+                  role: synced.primaryRole,
+                  ktaNumber: finalUser.ktaNumber || ex.ktaNumber || finalUser.nomorKTA || ex.nomorKTA || '',
                 };
                 parsed[idx] = finalUser;
               } else {
@@ -658,9 +680,23 @@ export const sheetsService = {
       }
 
       if (isValid) {
+        // Apply custom overrides to ensure updated roles/details are reflected
+        const storedOvStr = localStorage.getItem('member_custom_edits');
+        let customOverrides: Record<string, any> = {};
+        if (storedOvStr) {
+          try { customOverrides = JSON.parse(storedOvStr); } catch(e) {}
+        }
+        const mId = found.id ? String(found.id) : '';
+        const mEmail = found.email ? found.email.toLowerCase().trim() : '';
+        const mKta = (found.ktaNumber || found.nomorKTA || '').trim();
+        const mPhone = found.noHp ? String(found.noHp).replace(/[^0-9]/g, '') : '';
+        const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null) || (mKta ? customOverrides[mKta] : null) || (mPhone && mPhone.length > 6 ? customOverrides[mPhone] : null);
+        
+        let mergedFound = ov ? { ...found, ...ov } : found;
+        const mapped = this.mapUser(mergedFound);
         return {
-          token: `mock-token-${found.email || found.id}`,
-          user: this.mapUser(found)
+          token: `mock-token-${mapped.email || mapped.id}`,
+          user: mapped
         };
       } else {
         throw new Error('Password yang Anda masukkan salah.');
@@ -930,9 +966,24 @@ export const sheetsService = {
       mapped.forEach((m, idx) => {
         const mId = m.id ? String(m.id) : '';
         const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-        const ov = customOverrides[mId] || (mEmail ? customOverrides[mEmail] : null);
+        const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+        const mPhone = m.noHp ? String(m.noHp).replace(/[^0-9]/g, '') : '';
+        const ov = customOverrides[mId] || 
+          (mEmail ? customOverrides[mEmail] : null) ||
+          (mKta ? customOverrides[mKta] : null) ||
+          (mPhone && mPhone.length > 6 ? customOverrides[mPhone] : null);
+
         if (ov) {
-          mapped[idx] = { ...m, ...ov, namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) };
+          const ovRoles = parseRolesField(ov.roles, ov.role);
+          const synced = syncRolesAndPelatihan(ovRoles, ov.pelatihan || m.pelatihan);
+          mapped[idx] = { 
+            ...m, 
+            ...ov, 
+            roles: synced.roles,
+            role: synced.primaryRole,
+            pelatihan: synced.pelatihan,
+            namaLengkap: toProperName(ov.namaLengkap || m.namaLengkap) 
+          };
         }
       });
 
@@ -964,6 +1015,12 @@ export const sheetsService = {
       const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
       if (cleanUserData.id) overrides[String(cleanUserData.id)] = cleanUserData;
       if (cleanUserData.email) overrides[cleanUserData.email.toLowerCase().trim()] = cleanUserData;
+      if (cleanUserData.ktaNumber) overrides[cleanUserData.ktaNumber.trim()] = cleanUserData;
+      if (cleanUserData.nomorKTA) overrides[cleanUserData.nomorKTA.trim()] = cleanUserData;
+      if (cleanUserData.noHp) {
+        const digits = String(cleanUserData.noHp).replace(/[^0-9]/g, '');
+        if (digits.length > 6) overrides[digits] = cleanUserData;
+      }
       safeStorageSet('member_custom_edits', overrides);
     } catch (e) {}
 
