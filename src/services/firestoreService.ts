@@ -3532,6 +3532,11 @@ export const firestoreService = {
                         ((activityData.themeSongName !== undefined && activityData.themeSongName !== null) ? activityData.themeSongName :
                         (existingAct.themeSongTitle || existingAct.themeSongName || ''));
 
+    const youtubeUrlVal = (activityData.youtubeUrl !== undefined && activityData.youtubeUrl !== null) ? activityData.youtubeUrl :
+                         ((activityData.videoUrl !== undefined && activityData.videoUrl !== null) ? activityData.videoUrl :
+                         ((activityData.youtube !== undefined && activityData.youtube !== null) ? activityData.youtube :
+                         (existingAct.youtubeUrl || existingAct.videoUrl || existingAct.youtube || '')));
+
     const proposalVal = (activityData.proposalUrl !== undefined && activityData.proposalUrl !== null && String(activityData.proposalUrl).trim() !== '') ? activityData.proposalUrl :
                         ((activityData.proposal !== undefined && activityData.proposal !== null && String(activityData.proposal).trim() !== '') ? activityData.proposal :
                         ((activityData.linkProposal !== undefined && activityData.linkProposal !== null && String(activityData.linkProposal).trim() !== '') ? activityData.linkProposal :
@@ -3598,6 +3603,8 @@ export const firestoreService = {
       kategori: catVal,
       category: catVal,
       status: activityData.status || existingAct.status || 'Buka',
+      youtubeUrl: youtubeUrlVal,
+      videoUrl: youtubeUrlVal,
       themeSongUrl: songUrlVal,
       themeSongTitle: songTitleVal,
       themeSong: songUrlVal,

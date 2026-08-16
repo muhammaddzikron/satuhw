@@ -573,6 +573,7 @@ export default function AdminDashboard() {
     kuota: '100 Peserta',
     deskripsi: '',
     gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+    youtubeUrl: '',
     themeSongUrl: '',
     themeSongTitle: '',
     penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
@@ -1832,6 +1833,7 @@ export default function AdminDashboard() {
         kuota: activity.kuota || '100 Peserta',
         deskripsi: activity.deskripsi || activity.description || '',
         gambarUrl: activity.gambarUrl || activity.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        youtubeUrl: activity.youtubeUrl || activity.videoUrl || activity.youtube || activity.linkYoutube || '',
         themeSongUrl: activity.themeSongUrl || activity.themeSong || '',
         themeSongTitle: activity.themeSongTitle || activity.themeSongName || '',
         penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
@@ -1851,6 +1853,7 @@ export default function AdminDashboard() {
         kuota: '100 Peserta',
         deskripsi: '',
         gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800',
+        youtubeUrl: '',
         themeSongUrl: '',
         themeSongTitle: '',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
@@ -1890,6 +1893,8 @@ export default function AdminDashboard() {
         gambar: kegiatanFormData.gambarUrl,
         posterUrl: kegiatanFormData.gambarUrl,
         coverImage: kegiatanFormData.gambarUrl,
+        youtubeUrl: kegiatanFormData.youtubeUrl,
+        videoUrl: kegiatanFormData.youtubeUrl,
         rekeningPembayaran: kegiatanFormData.rekeningPembiayaan,
         rekeningPembiayaan: kegiatanFormData.rekeningPembiayaan,
         noWhatsappPanitia: kegiatanFormData.noWhatsappPanitia,
@@ -3763,6 +3768,122 @@ export default function AdminDashboard() {
     };
   }, [deduplicatedMemberList]);
 
+  // High-performance Pagination States
+  const [memberPage, setMemberPage] = useState(1);
+  const [memberPageSize, setMemberPageSize] = useState(25);
+
+  const [ktaPage, setKtaPage] = useState(1);
+  const [ktaPageSize, setKtaPageSize] = useState(25);
+
+  const [trainingPage, setTrainingPage] = useState(1);
+  const [trainingPageSize, setTrainingPageSize] = useState(25);
+
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityPageSize, setActivityPageSize] = useState(25);
+
+  // Auto reset page numbers when search / filter criteria change
+  useEffect(() => {
+    setMemberPage(1);
+  }, [searchQuery, selectedFilters]);
+
+  useEffect(() => {
+    setKtaPage(1);
+  }, [ktaSearchQuery, ktaFilterStatus, ktaFilterKwarda, ktaSortBy]);
+
+  useEffect(() => {
+    setTrainingPage(1);
+  }, [trainingSearchQuery, trainingFilterStatus, trainingFilterActivity]);
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [selectedActivityForParticipants]);
+
+  // Paginated Slices & Totals
+  const paginatedMembers = useMemo(() => {
+    const start = (memberPage - 1) * memberPageSize;
+    return filteredMembers.slice(start, start + memberPageSize);
+  }, [filteredMembers, memberPage, memberPageSize]);
+
+  const totalMemberPages = Math.max(1, Math.ceil(filteredMembers.length / memberPageSize));
+
+  const paginatedKtaApps = useMemo(() => {
+    const start = (ktaPage - 1) * ktaPageSize;
+    return filteredKtaApps.slice(start, start + ktaPageSize);
+  }, [filteredKtaApps, ktaPage, ktaPageSize]);
+
+  const totalKtaPages = Math.max(1, Math.ceil(filteredKtaApps.length / ktaPageSize));
+
+  // High-performance Memoized Lookup Maps for O(1) row queries
+  const memberLookupMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const m of members) {
+      if (m.id) map.set(String(m.id), m);
+      if (m.email) map.set(String(m.email).toLowerCase().trim(), m);
+      if (m.namaLengkap) map.set(String(m.namaLengkap).toLowerCase().trim(), m);
+    }
+    return map;
+  }, [members]);
+
+  const ktaLookupMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const k of ktaApps) {
+      if (k.userId) map.set(String(k.userId), k);
+      if (k.email) map.set(String(k.email).toLowerCase().trim(), k);
+      if (k.nama) map.set(String(k.nama).toLowerCase().trim(), k);
+    }
+    return map;
+  }, [ktaApps]);
+
+  const filteredTrainingAppsList = useMemo(() => {
+    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+    const query = trainingSearchQuery.toLowerCase().trim();
+
+    return trainingApps.filter(app => {
+      const name = (app?.nama || app?.namaLengkap || '').trim();
+      const email = (app?.email || '').toLowerCase().trim();
+      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+
+      const matchSearch = !query ||
+        name.toLowerCase().includes(query) ||
+        (app?.email || '').toLowerCase().includes(query) ||
+        (app?.noWa || '').toLowerCase().includes(query) ||
+        (app?.asalDaerah || '').toLowerCase().includes(query);
+      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
+
+      let matchActivity = true;
+      if (trainingFilterActivity !== 'Semua') {
+        const acts = settings.trainingActivities || [];
+        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
+        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
+        const loc = (app?.lokasiPelatihan || '').toLowerCase();
+        const dt = (app?.tanggalPelatihan || '').toLowerCase();
+        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+      }
+
+      return matchSearch && matchStatus && matchActivity;
+    }).sort((a, b) => {
+      const timeA = new Date(a.tanggalAjuan || a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.tanggalAjuan || b.updatedAt || b.createdAt || 0).getTime();
+      if (timeA !== timeB) return timeB - timeA;
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+  }, [trainingApps, trainingSearchQuery, trainingFilterStatus, trainingFilterActivity, settings.trainingActivities]);
+
+  const paginatedTrainingApps = useMemo(() => {
+    const start = (trainingPage - 1) * trainingPageSize;
+    return filteredTrainingAppsList.slice(start, start + trainingPageSize);
+  }, [filteredTrainingAppsList, trainingPage, trainingPageSize]);
+
+  const totalTrainingPages = Math.max(1, Math.ceil(filteredTrainingAppsList.length / trainingPageSize));
+
+  const paginatedActivityApps = useMemo(() => {
+    const start = (activityPage - 1) * activityPageSize;
+    return displayedActivityApplications.slice(start, start + activityPageSize);
+  }, [displayedActivityApplications, activityPage, activityPageSize]);
+
+  const totalActivityPages = Math.max(1, Math.ceil(displayedActivityApplications.length / activityPageSize));
+
   const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0);
   const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
   const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
@@ -4054,116 +4175,162 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filteredMembers.map((row, i) => (
-                      <tr key={`member-${row.id}-${i}`} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="p-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-bold text-xs">
-                              {row.namaLengkap.charAt(0)}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-gray-800">
-                                <span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{i + 1}.</span>
-                                {row.namaLengkap}
-                              </span>
-                              <span className="text-[10px] text-gray-400 font-medium">{row.asalKwarda}, {row.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
-                              {(() => {
-                                const reqs = Array.isArray(row.upgradeRequests) 
-                                  ? row.upgradeRequests 
-                                  : (typeof row.upgradeRequests === 'string' && row.upgradeRequests) 
-                                  ? [row.upgradeRequests] 
-                                  : [];
-                                return reqs.length > 0 ? (
-                                  <span className="flex items-center gap-1 mt-1 text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100 w-fit">
-                                    <ArrowUpRight size={8} /> Permohonan: {reqs.join(', ')}
-                                  </span>
-                                ) : null;
-                              })()}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-5">
-                          <span className="text-xs font-bold text-gray-600">{row.golongan}</span>
-                        </td>
-                        <td className="p-5">
-                          <span className="text-xs font-mono font-medium text-hw-blue/70">{row.password || '•••••'}</span>
-                        </td>
-                        <td className="p-5">
-                          <div className="flex flex-wrap gap-1">
-                            {Array.isArray(row.roles) ? row.roles.map((r: string, idx: number) => (
-                              <span key={`${row.id}-role-${r}-${idx}`} className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
-                                r === 'superadmin' || r === 'admin' ? 'bg-red-100 text-red-600' :
-                                r === 'sugli' ? 'bg-orange-100 text-orange-600' :
-                                r === 'kwarda' ? 'bg-blue-100 text-blue-600' :
-                                typeof r === 'string' && r.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {ROLE_LABELS[r] || r}
-                              </span>
-                            )) : (
-                              <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
-                                row.role === 'superadmin' || row.role === 'admin' ? 'bg-red-100 text-red-600' :
-                                row.role === 'sugli' ? 'bg-orange-100 text-orange-600' :
-                                row.role === 'kwarda' ? 'bg-blue-100 text-blue-600' :
-                                typeof row.role === 'string' && row.role.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {ROLE_LABELS[row.role] || row.role}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-5">
-                          {row.isVerified ? (
-                            <button 
-                              onClick={() => handleChangeVerify(row.id)}
-                              className="flex items-center gap-1.5 text-hw-green hover:opacity-70 transition-opacity"
-                            >
-                              <CheckCircle size={14} />
-                              <span className="text-[10px] font-black uppercase tracking-wider">Terverifikasi</span>
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleChangeVerify(row.id)}
-                              className="flex items-center gap-1.5 text-orange-500 hover:opacity-70 transition-opacity"
-                            >
-                              <XCircle size={14} />
-                              <span className="text-[10px] font-black uppercase tracking-wider">Pending</span>
-                            </button>
-                          )}
-                        </td>
-                        <td className="p-5 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            {(user?.role === 'superadmin' || (row.role !== 'admin' && row.role !== 'superadmin')) && (
-                              <>
-                                <button 
-                                  onClick={() => handleOpenModal(row)}
-                                  className="p-2 text-gray-400 hover:text-hw-green hover:bg-hw-green/5 rounded-xl transition-all"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteMember(row.id)}
-                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </>
-                            )}
-                          </div>
+                    {paginatedMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider text-xs">
+                          Tidak ada data anggota yang sesuai dengan filter
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      paginatedMembers.map((row, i) => {
+                        const itemIndex = (memberPage - 1) * memberPageSize + i;
+                        return (
+                          <tr key={`member-${row.id}-${itemIndex}`} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="p-5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-bold text-xs">
+                                  {row.namaLengkap.charAt(0)}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold text-gray-800">
+                                    <span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{itemIndex + 1}.</span>
+                                    {row.namaLengkap}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 font-medium">{row.asalKwarda}, {row.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
+                                  {(() => {
+                                    const reqs = Array.isArray(row.upgradeRequests) 
+                                      ? row.upgradeRequests 
+                                      : (typeof row.upgradeRequests === 'string' && row.upgradeRequests) 
+                                      ? [row.upgradeRequests] 
+                                      : [];
+                                    return reqs.length > 0 ? (
+                                      <span className="flex items-center gap-1 mt-1 text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100 w-fit">
+                                        <ArrowUpRight size={8} /> Permohonan: {reqs.join(', ')}
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <span className="text-xs font-bold text-gray-600">{row.golongan}</span>
+                            </td>
+                            <td className="p-5">
+                              <span className="text-xs font-mono font-medium text-hw-blue/70">{row.password || '•••••'}</span>
+                            </td>
+                            <td className="p-5">
+                              <div className="flex flex-wrap gap-1">
+                                {Array.isArray(row.roles) ? row.roles.map((r: string, idx: number) => (
+                                  <span key={`${row.id}-role-${r}-${idx}`} className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
+                                    r === 'superadmin' || r === 'admin' ? 'bg-red-100 text-red-600' :
+                                    r === 'sugli' ? 'bg-orange-100 text-orange-600' :
+                                    r === 'kwarda' ? 'bg-blue-100 text-blue-600' :
+                                    typeof r === 'string' && r.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {ROLE_LABELS[r] || r}
+                                  </span>
+                                )) : (
+                                  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
+                                    row.role === 'superadmin' || row.role === 'admin' ? 'bg-red-100 text-red-600' :
+                                    row.role === 'sugli' ? 'bg-orange-100 text-orange-600' :
+                                    row.role === 'kwarda' ? 'bg-blue-100 text-blue-600' :
+                                    typeof row.role === 'string' && row.role.startsWith('ja') ? 'bg-hw-green/10 text-hw-green' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {ROLE_LABELS[row.role] || row.role}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              {row.isVerified ? (
+                                <button 
+                                  onClick={() => handleChangeVerify(row.id)}
+                                  className="flex items-center gap-1.5 text-hw-green hover:opacity-70 transition-opacity"
+                                >
+                                  <CheckCircle size={14} />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">Terverifikasi</span>
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleChangeVerify(row.id)}
+                                  className="flex items-center gap-1.5 text-orange-500 hover:opacity-70 transition-opacity"
+                                >
+                                  <XCircle size={14} />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">Pending</span>
+                                </button>
+                              )}
+                            </td>
+                            <td className="p-5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                {(user?.role === 'superadmin' || (row.role !== 'admin' && row.role !== 'superadmin')) && (
+                                  <>
+                                    <button 
+                                      onClick={() => handleOpenModal(row)}
+                                      className="p-2 text-gray-400 hover:text-hw-green hover:bg-hw-green/5 rounded-xl transition-all"
+                                    >
+                                      <Edit2 size={16} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteMember(row.id)}
+                                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
               
-              <div className="p-6 border-t border-gray-50 flex items-center justify-between text-gray-400 bg-gray-50/20">
-                <span className="text-[10px] font-bold">Menampilkan {filteredMembers.length} dari {members.length} anggota</span>
-                <div className="flex gap-2">
-                  <button className="px-4 py-2 rounded-xl text-[10px] font-black border border-gray-200 hover:bg-white transition-all disabled:opacity-50">Prev</button>
-                  <button className="px-4 py-2 rounded-xl text-[10px] font-black bg-hw-dark text-white shadow-lg shadow-hw-dark/20">1</button>
-                  <button className="px-4 py-2 rounded-xl text-[10px] font-black border border-gray-200 hover:bg-white transition-all">Next</button>
+              <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-gray-500 bg-gray-50/40">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                  <span>
+                    Menampilkan <strong className="text-gray-800 font-bold">{filteredMembers.length > 0 ? (memberPage - 1) * memberPageSize + 1 : 0}</strong> - <strong className="text-gray-800 font-bold">{Math.min(memberPage * memberPageSize, filteredMembers.length)}</strong> dari <strong className="text-gray-800 font-bold">{filteredMembers.length}</strong> anggota (Total: {members.length})
+                  </span>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-[11px] text-gray-400">Per hal:</span>
+                    <select
+                      value={memberPageSize}
+                      onChange={(e) => {
+                        setMemberPageSize(Number(e.target.value));
+                        setMemberPage(1);
+                      }}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={memberPage <= 1}
+                    onClick={() => setMemberPage(prev => Math.max(1, prev - 1))}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Prev
+                  </button>
+                  <span className="text-xs font-bold text-gray-600 px-2">
+                    Halaman <strong>{memberPage}</strong> dari <strong>{totalMemberPages}</strong>
+                  </span>
+                  <button
+                    disabled={memberPage >= totalMemberPages}
+                    onClick={() => setMemberPage(prev => Math.min(totalMemberPages, prev + 1))}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </div>
@@ -5322,14 +5489,16 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
-                          {filteredKtaApps.length === 0 ? (
+                          {paginatedKtaApps.length === 0 ? (
                             <tr>
                               <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
                                 Belum ada pengajuan KTA yang sesuai kriteria filter
                               </td>
                             </tr>
                           ) : (
-                            filteredKtaApps.map((app, idx) => (
+                            paginatedKtaApps.map((app, idx) => {
+                              const itemIndex = (ktaPage - 1) * ktaPageSize + idx;
+                              return (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
                                 <td className="p-3.5 pl-5">
                                   <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs">
@@ -5343,7 +5512,7 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
+                                  <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{itemIndex + 1}.</span>{app.nama}</div>
                                   <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                   <div className="text-[10px] text-hw-green font-mono">{app.noWa}</div>
                                 </td>
@@ -5451,10 +5620,56 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                               </tr>
-                            ))
+                            );
+                            })
                           )}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* KTA Table Pagination Footer */}
+                    <div className="p-4 sm:p-5 border-t border-gray-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-500 bg-gray-50/50">
+                      <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                        <span>
+                          Menampilkan <strong className="text-gray-800 font-bold">{filteredKtaApps.length > 0 ? (ktaPage - 1) * ktaPageSize + 1 : 0}</strong> - <strong className="text-gray-800 font-bold">{Math.min(ktaPage * ktaPageSize, filteredKtaApps.length)}</strong> dari <strong className="text-gray-800 font-bold">{filteredKtaApps.length}</strong> pengajuan KTA (Total: {ktaApps.length})
+                        </span>
+                        <div className="flex items-center gap-1.5 ml-2">
+                          <span className="text-[11px] text-gray-400">Per hal:</span>
+                          <select
+                            value={ktaPageSize}
+                            onChange={(e) => {
+                              setKtaPageSize(Number(e.target.value));
+                              setKtaPage(1);
+                            }}
+                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={ktaPage <= 1}
+                          onClick={() => setKtaPage(prev => Math.max(1, prev - 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-xs font-bold text-gray-600 px-2">
+                          Halaman <strong>{ktaPage}</strong> dari <strong>{totalKtaPages}</strong>
+                        </span>
+                        <button
+                          disabled={ktaPage >= totalKtaPages}
+                          onClick={() => setKtaPage(prev => Math.min(totalKtaPages, prev + 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -6228,63 +6443,21 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
-                          {(() => {
-                            const filteredList = trainingApps.filter(app => {
-                              const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-                              const name = (app?.nama || app?.namaLengkap || '').trim();
-                              const email = (app?.email || '').toLowerCase().trim();
-                              if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
+                          {paginatedTrainingApps.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
+                                Belum ada pendaftaran peserta yang sesuai kriteria
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedTrainingApps.map((app, idx) => {
+                              const itemIndex = (trainingPage - 1) * trainingPageSize + idx;
+                              const emailKey = String(app.email || '').toLowerCase().trim();
+                              const nameKey = String(app.nama || app.namaLengkap || '').toLowerCase().trim();
+                              const userIdKey = app.userId ? String(app.userId) : '';
 
-                              const matchSearch = 
-                                name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                                (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                                (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                                (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-                              const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-
-                              let matchActivity = true;
-                              if (trainingFilterActivity !== 'Semua') {
-                                const acts = settings.trainingActivities || [];
-                                const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-                                const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
-                                const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
-                                const loc = (app?.lokasiPelatihan || '').toLowerCase();
-                                const dt = (app?.tanggalPelatihan || '').toLowerCase();
-                                matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
-                              }
-
-                              return matchSearch && matchStatus && matchActivity;
-                            });
-
-                            // Always sort newest participants / applications first
-                            const sortedList = [...filteredList].sort((a, b) => {
-                              const timeA = new Date(a.tanggalAjuan || a.updatedAt || a.createdAt || 0).getTime();
-                              const timeB = new Date(b.tanggalAjuan || b.updatedAt || b.createdAt || 0).getTime();
-                              if (timeA !== timeB) return timeB - timeA;
-                              return String(b.id || '').localeCompare(String(a.id || ''));
-                            });
-
-                            if (sortedList.length === 0) {
-                              return (
-                                <tr>
-                                  <td colSpan={7} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider">
-                                    Belum ada pendaftaran peserta yang sesuai kriteria
-                                  </td>
-                                </tr>
-                              );
-                            }
-
-                            return sortedList.map((app, idx) => {
-                              const matchMember = members.find(m => 
-                                (m.id && app.userId && String(m.id) === String(app.userId)) ||
-                                (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
-                                (m.namaLengkap && app.nama && String(m.namaLengkap).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
-                              );
-                              const matchKta = ktaApps.find(k => 
-                                (k.userId && app.userId && String(k.userId) === String(app.userId)) ||
-                                (k.email && app.email && String(k.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()) ||
-                                (k.nama && app.nama && String(k.nama).toLowerCase().trim() === String(app.nama).toLowerCase().trim())
-                              );
+                              const matchMember = userIdKey ? memberLookupMap.get(userIdKey) : (emailKey ? memberLookupMap.get(emailKey) : (nameKey ? memberLookupMap.get(nameKey) : null));
+                              const matchKta = userIdKey ? ktaLookupMap.get(userIdKey) : (emailKey ? ktaLookupMap.get(emailKey) : (nameKey ? ktaLookupMap.get(nameKey) : null));
 
                               const dispTempat = app.tempatLahir || matchMember?.tempatLahir || matchKta?.tempatLahir || (matchMember?.alamat ? cleanTempatLahir(matchMember.alamat) : '') || '';
                               const dispTanggal = app.tanggalLahir || matchMember?.tanggalLahir || matchKta?.tanggalLahir || '';
@@ -6308,7 +6481,7 @@ export default function AdminDashboard() {
                                   </td>
 
                                   <td className="p-4">
-                                    <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
+                                    <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{itemIndex + 1}.</span>{app.nama}</div>
                                     <div className="text-[10px] text-gray-400 lowercase">{app.email}</div>
                                     <div className="text-[10px] text-gray-500">Jenis Kelamin: <span className="font-bold">{dispJk}</span></div>
                                     <div className="text-[10px] text-hw-green font-mono flex items-center gap-1 mt-1">
@@ -6545,10 +6718,55 @@ export default function AdminDashboard() {
                                 </td>
                               </tr>
                             );
-                          });
-                        })()}
+                            })
+                          )}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Training Participant Pagination Footer */}
+                    <div className="p-4 sm:p-5 border-t border-gray-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-500 bg-gray-50/50 rounded-2xl">
+                      <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                        <span>
+                          Menampilkan <strong className="text-gray-800 font-bold">{filteredTrainingAppsList.length > 0 ? (trainingPage - 1) * trainingPageSize + 1 : 0}</strong> - <strong className="text-gray-800 font-bold">{Math.min(trainingPage * trainingPageSize, filteredTrainingAppsList.length)}</strong> dari <strong className="text-gray-800 font-bold">{filteredTrainingAppsList.length}</strong> peserta pelatihan (Total: {trainingApps.length})
+                        </span>
+                        <div className="flex items-center gap-1.5 ml-2">
+                          <span className="text-[11px] text-gray-400">Per hal:</span>
+                          <select
+                            value={trainingPageSize}
+                            onChange={(e) => {
+                              setTrainingPageSize(Number(e.target.value));
+                              setTrainingPage(1);
+                            }}
+                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={trainingPage <= 1}
+                          onClick={() => setTrainingPage(prev => Math.max(1, prev - 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-xs font-bold text-gray-600 px-2">
+                          Halaman <strong>{trainingPage}</strong> dari <strong>{totalTrainingPages}</strong>
+                        </span>
+                        <button
+                          disabled={trainingPage >= totalTrainingPages}
+                          onClick={() => setTrainingPage(prev => Math.min(totalTrainingPages, prev + 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -7906,11 +8124,13 @@ export default function AdminDashboard() {
                   <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
                     {/* 1. Mobile Card View (Visible on small screens) */}
                     <div className="block md:hidden divide-y divide-gray-100">
-                      {displayedActivityApplications.map((app, index) => (
+                      {paginatedActivityApps.map((app, index) => {
+                        const itemIndex = (activityPage - 1) * activityPageSize + index;
+                        return (
                           <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div className="space-y-0.5">
-                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">#{index + 1} • {app.namaKegiatan || 'Kegiatan HW'}</span>
+                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">#{itemIndex + 1} • {app.namaKegiatan || 'Kegiatan HW'}</span>
                                 <h4 className="text-sm font-black text-gray-900">{app.namaLengkap}</h4>
                               </div>
                               <span className="text-[10px] text-gray-400 font-mono shrink-0">
@@ -7956,7 +8176,8 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        );
+                      })}
 
                       {displayedActivityApplications.length === 0 && (
                         <div className="p-8 text-center text-gray-400 font-bold text-xs">
@@ -7981,10 +8202,12 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {displayedActivityApplications.map((app, index) => (
+                          {paginatedActivityApps.map((app, index) => {
+                            const itemIndex = (activityPage - 1) * activityPageSize + index;
+                            return (
                               <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
                                 <td className="p-4 font-bold text-gray-400 text-center text-[11px]">
-                                  {index + 1}
+                                  {itemIndex + 1}
                                 </td>
                                 <td className="p-4 font-bold text-gray-900">
                                   {app.namaLengkap}
@@ -8031,7 +8254,8 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                            );
+                          })}
                           {displayedActivityApplications.length === 0 && (
                             <tr>
                               <td colSpan={8} className="p-8 text-center text-gray-400 font-bold">
@@ -8041,6 +8265,51 @@ export default function AdminDashboard() {
                           )}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Activity Participant Pagination Footer */}
+                    <div className="p-4 sm:p-5 border-t border-gray-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-500 bg-gray-50/50 rounded-b-3xl">
+                      <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                        <span>
+                          Menampilkan <strong className="text-gray-800 font-bold">{displayedActivityApplications.length > 0 ? (activityPage - 1) * activityPageSize + 1 : 0}</strong> - <strong className="text-gray-800 font-bold">{Math.min(activityPage * activityPageSize, displayedActivityApplications.length)}</strong> dari <strong className="text-gray-800 font-bold">{displayedActivityApplications.length}</strong> pendaftar
+                        </span>
+                        <div className="flex items-center gap-1.5 ml-2">
+                          <span className="text-[11px] text-gray-400">Per hal:</span>
+                          <select
+                            value={activityPageSize}
+                            onChange={(e) => {
+                              setActivityPageSize(Number(e.target.value));
+                              setActivityPage(1);
+                            }}
+                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={activityPage <= 1}
+                          onClick={() => setActivityPage(prev => Math.max(1, prev - 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-xs font-bold text-gray-600 px-2">
+                          Halaman <strong>{activityPage}</strong> dari <strong>{totalActivityPages}</strong>
+                        </span>
+                        <button
+                          disabled={activityPage >= totalActivityPages}
+                          onClick={() => setActivityPage(prev => Math.min(totalActivityPages, prev + 1))}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black border border-gray-200 bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -8333,6 +8602,58 @@ export default function AdminDashboard() {
                           compact={true}
                         />
                       )}
+                    </div>
+
+                    {/* FITUR VIDEO YOUTUBE KEGIATAN */}
+                    <div className="p-4 bg-rose-50/70 border border-rose-200/80 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-rose-700">
+                          <Youtube size={16} />
+                          <label className="text-xs font-black uppercase tracking-wider">Video YouTube Kegiatan (Opsional)</label>
+                        </div>
+                        <span className="text-[10px] font-bold text-rose-500 bg-rose-100/60 px-2 py-0.5 rounded-full">
+                          Dapat diputar di Halaman Kegiatan
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Masukkan tautan / URL video YouTube (misal teaser, dokumentasi, atau siaran kegiatan). Jika dikosongkan, video tidak akan ditampilkan di halaman kegiatan.
+                      </p>
+                      <input 
+                        type="text" 
+                        value={kegiatanFormData.youtubeUrl || ''}
+                        onChange={e => setKegiatanFormData({ ...kegiatanFormData, youtubeUrl: e.target.value })}
+                        placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
+                        className="w-full bg-white border border-rose-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500/20 text-gray-800"
+                      />
+                      {(() => {
+                        const rawUrl = kegiatanFormData.youtubeUrl || '';
+                        let videoId = '';
+                        try {
+                          if (rawUrl.includes('v=')) {
+                            videoId = rawUrl.split('v=')[1]?.split('&')[0] || '';
+                          } else if (rawUrl.includes('youtu.be/')) {
+                            videoId = rawUrl.split('youtu.be/')[1]?.split('?')[0] || '';
+                          } else if (rawUrl.includes('embed/')) {
+                            videoId = rawUrl.split('embed/')[1]?.split('?')[0] || '';
+                          } else if (rawUrl.trim().length === 11 && !rawUrl.includes('/')) {
+                            videoId = rawUrl.trim();
+                          }
+                        } catch(e) {}
+
+                        if (!videoId) return null;
+
+                        return (
+                          <div className="rounded-xl overflow-hidden border border-rose-200 aspect-video bg-black/90 relative mt-2">
+                            <iframe
+                              src={`https://www.youtube.com/embed/${videoId}`}
+                              title="Preview Video Kegiatan"
+                              className="w-full h-full border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div>

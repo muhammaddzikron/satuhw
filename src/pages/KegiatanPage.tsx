@@ -34,7 +34,9 @@ import {
   FileText,
   MessageCircle,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Youtube,
+  Play
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
@@ -111,6 +113,7 @@ export default function KegiatanPage() {
     kuota: 'Terbuka',
     penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
     gambarUrl: '',
+    youtubeUrl: '',
     deskripsi: '',
     status: 'Buka',
     themeSongUrl: '',
@@ -416,6 +419,8 @@ export default function KegiatanPage() {
         gambar: imgClean,
         posterUrl: imgClean,
         coverImage: imgClean,
+        youtubeUrl: newActivityForm.youtubeUrl,
+        videoUrl: newActivityForm.youtubeUrl,
         proposal: newActivityForm.proposalUrl,
         proposalUrl: newActivityForm.proposalUrl,
         linkProposal: newActivityForm.proposalUrl,
@@ -450,6 +455,7 @@ export default function KegiatanPage() {
         kuota: 'Terbuka',
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         gambarUrl: '',
+        youtubeUrl: '',
         deskripsi: '',
         status: 'Buka',
         themeSongUrl: '',
@@ -480,6 +486,7 @@ export default function KegiatanPage() {
       kuota: act.kuota || 'Terbuka',
       penyelenggara: act.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
       gambarUrl: act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || '',
+      youtubeUrl: act.youtubeUrl || act.videoUrl || act.youtube || act.linkYoutube || '',
       deskripsi: act.deskripsi || act.description || '',
       status: act.status || 'Buka',
       themeSongUrl: act.themeSongUrl || act.themeSong || '',
@@ -638,6 +645,11 @@ export default function KegiatanPage() {
                   {activity.themeSongUrl && (
                     <div className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs border border-emerald-400/30">
                       <Music size={12} className="animate-pulse" /> Themesong MP3
+                    </div>
+                  )}
+                  {(activity.youtubeUrl || activity.videoUrl) && (
+                    <div className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs border border-rose-400/30">
+                      <Youtube size={12} /> Video YouTube
                     </div>
                   )}
                 </div>
@@ -822,6 +834,63 @@ export default function KegiatanPage() {
                     title={selectedActivity.themeSongTitle || selectedActivity.themeSongName || 'Mars / Themesong Kegiatan'}
                   />
                 ) : null}
+
+                {/* VIDEO YOUTUBE KEGIATAN (Hanya ditampilkan jika diisi) */}
+                {(() => {
+                  const rawVideo = (selectedActivity.youtubeUrl || selectedActivity.videoUrl || selectedActivity.youtube || selectedActivity.linkYoutube || '').trim();
+                  if (!rawVideo) return null;
+
+                  let videoId = '';
+                  try {
+                    if (rawVideo.includes('v=')) {
+                      videoId = rawVideo.split('v=')[1]?.split('&')[0] || '';
+                    } else if (rawVideo.includes('youtu.be/')) {
+                      videoId = rawVideo.split('youtu.be/')[1]?.split('?')[0] || '';
+                    } else if (rawVideo.includes('embed/')) {
+                      videoId = rawVideo.split('embed/')[1]?.split('?')[0] || '';
+                    } else if (rawVideo.length === 11 && !rawVideo.includes('/')) {
+                      videoId = rawVideo;
+                    }
+                  } catch (e) {
+                    videoId = '';
+                  }
+
+                  if (!videoId) return null;
+
+                  return (
+                    <div className="bg-gradient-to-br from-rose-50 via-slate-50 to-amber-50 border border-rose-200/80 p-4 rounded-2xl space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-rose-600 text-white rounded-xl shadow-xs">
+                            <Youtube size={18} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black text-gray-900 font-display">Video Dokumentasi & Siaran Kegiatan</h5>
+                            <p className="text-[10px] text-gray-500 font-medium">Tonton video resmi seputar kegiatan ini di bawah ini</p>
+                          </div>
+                        </div>
+                        <a
+                          href={`https://www.youtube.com/watch?v=${videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                        >
+                          <ExternalLink size={12} /> Buka YouTube
+                        </a>
+                      </div>
+
+                      <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-md border border-rose-200/60">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                          title={`Video ${selectedActivity.namaKegiatan}`}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Proposal Kegiatan Download */}
                 {(() => {
@@ -1742,6 +1811,57 @@ export default function KegiatanPage() {
                       compact={true}
                     />
                   )}
+                </div>
+
+                {/* YouTube Video Section */}
+                <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-rose-900 flex items-center gap-1">
+                      <Youtube size={14} className="text-rose-600" /> Link / URL Video YouTube Kegiatan (Opsional)
+                    </label>
+                    <span className="text-[9px] font-bold text-rose-600 bg-rose-150 px-2 py-0.5 rounded-full">
+                      Bisa Diputar di Halaman
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={newActivityForm.youtubeUrl}
+                    onChange={e => setNewActivityForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                    placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
+                    className="w-full bg-white border border-rose-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500/20"
+                  />
+                  {(() => {
+                    const raw = newActivityForm.youtubeUrl || '';
+                    let vId = '';
+                    try {
+                      if (raw.includes('v=')) {
+                        vId = raw.split('v=')[1]?.split('&')[0] || '';
+                      } else if (raw.includes('youtu.be/')) {
+                        vId = raw.split('youtu.be/')[1]?.split('?')[0] || '';
+                      } else if (raw.includes('embed/')) {
+                        vId = raw.split('embed/')[1]?.split('?')[0] || '';
+                      } else if (raw.length === 11 && !raw.includes('/')) {
+                        vId = raw;
+                      }
+                    } catch(e) {}
+
+                    if (!vId) return null;
+
+                    return (
+                      <div className="rounded-xl overflow-hidden border border-rose-200 aspect-video bg-black/90 relative mt-1.5 shadow-xs">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${vId}`}
+                          title="Preview Video Kegiatan"
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    );
+                  })()}
+                  <p className="text-[9px] font-semibold text-rose-700">
+                    * Kosongkan jika tidak ada video. Jika diisi, video dapat langsung ditonton peserta di halaman detail kegiatan.
+                  </p>
                 </div>
 
                 {/* Proposal Section */}

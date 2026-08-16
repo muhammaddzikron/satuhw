@@ -1283,7 +1283,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2.5">
-              {sortActivitiesNewestFirst(activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a))).slice(0, 3).map((act: any, idx: number) => {
+              {sortActivitiesNewestFirst(activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a))).slice(0, 2).map((act: any, idx: number) => {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';

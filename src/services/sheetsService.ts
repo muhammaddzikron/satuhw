@@ -2145,6 +2145,8 @@ export const sheetsService = {
                 kategori: sheetCat || fsAct.kategori || fsAct.category,
                 category: sheetCat || fsAct.kategori || fsAct.category,
                 gambarUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
+                youtubeUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
+                videoUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
                 themeSongUrl: sheetSongUrl || fsAct.themeSongUrl || fsAct.themeSong,
                 themeSongTitle: sheetSongTitle || fsAct.themeSongTitle || fsAct.themeSongName,
                 proposalUrl: sheetProposal || fsAct.proposalUrl || fsAct.proposal,
@@ -2176,6 +2178,8 @@ export const sheetsService = {
               category: sheetCat || 'Silaturahmi',
               gambarUrl: pickValidImageUrl(sheetImg),
               imageUrl: pickValidImageUrl(sheetImg),
+              youtubeUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || '',
+              videoUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || '',
               themeSongUrl: sheetSongUrl,
               themeSongTitle: sheetSongTitle,
               proposalUrl: sheetProposal,
@@ -2212,6 +2216,7 @@ export const sheetsService = {
     const catVal = activityData.kategori || activityData.category || 'Silaturahmi';
     const kuotaVal = activityData.kuota || 'Terbuka';
     const imgVal = activityData.gambarUrl || activityData.imageUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+    const youtubeUrlVal = activityData.youtubeUrl || activityData.videoUrl || activityData.youtube || activityData.linkYoutube || '';
     const songUrlVal = activityData.themeSongUrl || activityData.themeSong || '';
     const songTitleVal = activityData.themeSongTitle || activityData.themeSongName || '';
     const proposalVal = activityData.proposalUrl || activityData.proposal || activityData.linkProposal || '';
@@ -2238,6 +2243,8 @@ export const sheetsService = {
       category: catVal,
       gambarUrl: imgVal,
       imageUrl: imgVal,
+      youtubeUrl: youtubeUrlVal,
+      videoUrl: youtubeUrlVal,
       themeSongUrl: songUrlVal,
       themeSong: songUrlVal,
       themeSongTitle: songTitleVal,

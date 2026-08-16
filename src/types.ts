@@ -111,6 +111,8 @@ export interface TrainingActivity {
   noWhatsappPanitia?: string;
   themeSongUrl?: string;
   themeSongTitle?: string;
+  youtubeUrl?: string;
+  videoUrl?: string;
   gambarUrl?: string;
   penyelenggara?: string;
   kuota?: string;
