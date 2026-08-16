@@ -40,7 +40,7 @@ import {
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
-import { getDriveDirectLink, getCorsSafeUrl } from '../lib/utils';
+import { getDriveDirectLink, getCorsSafeUrl, cn } from '../lib/utils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -973,19 +973,19 @@ export default function KegiatanPage() {
                 </div>
 
                 {/* DAFTAR PESERTA TERDAFTAR (BAGIAN BAWAH POP UP KEGIATAN) */}
-                <div className="space-y-3 pt-2 border-t border-gray-150">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-xl">
+                <div id="activity-participants-card" className="bg-slate-50 border-2 border-emerald-100/90 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-emerald-100/80">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs">
                         <Users size={16} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-black text-gray-900 font-display">Daftar Peserta Terdaftar</h4>
-                        <p className="text-[10px] text-gray-500 font-medium">Peserta yang telah mendaftar pada kegiatan ini</p>
+                        <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Daftar Peserta Terdaftar</h4>
+                        <p className="text-[10px] text-gray-500 font-medium">Daftar anggota resmi yang telah terdaftar</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                      <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 border border-emerald-300/80 px-3 py-1 rounded-full shadow-2xs">
                         {detailParticipantsList.length} Peserta
                       </span>
                       {selectedActivity.status !== 'Tutup' && (
@@ -997,20 +997,20 @@ export default function KegiatanPage() {
                           }}
                           className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95"
                         >
-                          <UserPlus size={13} /> + Daftar Peserta
+                          <UserPlus size={13} /> + Daftar
                         </button>
                       )}
                     </div>
                   </div>
 
                   {detailParticipantsList.length === 0 ? (
-                    <div className="py-7 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2.5">
-                      <div className="w-10 h-10 bg-gray-150 text-gray-400 rounded-full flex items-center justify-center mx-auto">
-                        <Users size={20} />
+                    <div className="py-8 px-4 bg-white rounded-2xl border border-dashed border-gray-300 text-center space-y-2.5 shadow-2xs">
+                      <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
+                        <Users size={22} />
                       </div>
                       <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-gray-700">Belum ada peserta yang mendaftar pada kegiatan ini</p>
-                        <p className="text-[10px] text-gray-400">Jadilah peserta pertama yang mendaftarkan diri!</p>
+                        <p className="text-xs font-black text-gray-800">Belum ada peserta yang terdaftar</p>
+                        <p className="text-[10px] text-gray-400">Jadilah peserta pertama yang mendaftarkan diri pada kegiatan ini!</p>
                       </div>
                       {selectedActivity.status !== 'Tutup' && (
                         <button
@@ -1019,15 +1019,18 @@ export default function KegiatanPage() {
                             setIsDetailModalOpen(false);
                             setIsRegisterModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95 mt-1"
                         >
-                          <UserPlus size={14} /> Daftar Sebagai Peserta Sekarang
+                          <UserPlus size={14} /> Daftar Sekarang
                         </button>
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    <div className="space-y-3">
+                      <div className={cn(
+                        "space-y-2.5",
+                        detailParticipantsList.length > 10 ? "max-h-[620px] overflow-y-auto pr-1.5" : ""
+                      )}>
                         {detailParticipantsList.map((app, idx) => {
                           const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
                           const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
@@ -1035,30 +1038,33 @@ export default function KegiatanPage() {
                           return (
                             <div 
                               key={app.id || idx} 
-                              className="bg-gray-50/90 hover:bg-gray-100/90 p-3 rounded-2xl border border-gray-150 flex items-start justify-between gap-2.5 transition-colors"
+                              id={`participant-card-${idx + 1}`}
+                              className="bg-white hover:bg-emerald-50/30 p-3.5 rounded-2xl border border-slate-200 hover:border-emerald-400 flex items-start justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
                             >
-                              <div className="space-y-1 flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
-                                    #{idx + 1}
-                                  </span>
-                                  <h5 className="text-xs font-black text-gray-900 truncate">{app.namaLengkap}</h5>
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                                  {idx + 1}
                                 </div>
-                                <div className="text-[10px] text-gray-600 font-medium space-y-0.5 pl-0.5">
-                                  <p className="truncate">
-                                    <span className="text-gray-400 font-bold">Unsur:</span> {app.utusan || app.qabilahPtma || app.unsur || '-'}
-                                  </p>
+                                <div className="space-y-1.5 flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span><strong className="text-gray-400">Jabatan:</strong> {app.jabatan || 'Peserta'}</span>
+                                    <h5 className="text-xs sm:text-[13px] font-black text-gray-900 leading-snug truncate">{app.namaLengkap}</h5>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                    <span className="bg-slate-100 border border-slate-200/90 text-slate-700 px-2 py-0.5 rounded-md font-bold truncate max-w-[200px]">
+                                      {app.utusan || app.qabilahPtma || app.unsur || '-'}
+                                    </span>
+                                    <span className="bg-emerald-50 border border-emerald-200/90 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                                      {app.jabatan || 'Peserta'}
+                                    </span>
                                     {app.kategoriUndangan && (
-                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[9px] font-extrabold border border-emerald-200">
+                                      <span className="bg-amber-50 border border-amber-200 text-amber-900 px-2 py-0.5 rounded-md font-extrabold">
                                         {app.kategoriUndangan}
                                       </span>
                                     )}
                                   </div>
                                   {app.tanggalDaftar && (
-                                    <p className="text-[9px] text-gray-400">
-                                      Daftar: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    <p className="text-[9px] text-gray-400 font-medium">
+                                      Terdaftar: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </p>
                                   )}
                                 </div>
@@ -1069,15 +1075,22 @@ export default function KegiatanPage() {
                                   href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="shrink-0 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                                  className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-colors"
                                 >
-                                  <MessageCircle size={11} /> WA
+                                  <MessageCircle size={12} />
+                                  <span>WA</span>
                                 </a>
                               )}
                             </div>
                           );
                         })}
                       </div>
+
+                      {detailParticipantsList.length > 10 && (
+                        <p className="text-center text-[10px] text-gray-400 font-medium italic">
+                          Menampilkan {detailParticipantsList.length} peserta (gulir ke bawah untuk melihat lebih banyak)
+                        </p>
+                      )}
 
                       {selectedActivity.status !== 'Tutup' && (
                         <button
@@ -1086,7 +1099,7 @@ export default function KegiatanPage() {
                             setIsDetailModalOpen(false);
                             setIsRegisterModalOpen(true);
                           }}
-                          className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                         >
                           <UserPlus size={14} />
                           <span>+ Tambah Pendaftaran Peserta Baru</span>
