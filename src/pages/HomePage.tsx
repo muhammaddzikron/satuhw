@@ -889,22 +889,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Running Announcement Text */}
-      {runningText && (
-        <div id="announcement-ticker" className="bg-emerald-100/90 border border-emerald-200/90 rounded-2xl p-2.5 flex items-center gap-3 overflow-hidden shadow-xs">
-          <div className="flex items-center gap-1.5 bg-emerald-700 text-white px-2.5 py-1 rounded-xl shadow-xs shrink-0 font-bold text-xs">
-            <Bell size={12} className="animate-bounce text-amber-300" />
-            <span className="uppercase tracking-wider text-[9px] font-black">Info</span>
-          </div>
-          <div className="relative flex-1 overflow-hidden w-full h-4 flex items-center">
-            <div className="animate-marquee inline-flex whitespace-nowrap text-xs text-emerald-900 font-bold italic leading-none">
-              <span className="pr-12">{runningText}</span>
-              <span className="pr-12">{runningText}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Search Bar */}
       <section className="relative">
         <form onSubmit={(e) => e.preventDefault()} className="relative">
