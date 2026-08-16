@@ -4563,20 +4563,23 @@ export default function AdminDashboard() {
                                   <h4 className="text-xs font-bold text-gray-800 truncate uppercase">
                                     {selectedContentSection === 'running-text' ? 'Teks Berjalan' : (selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section))}
                                   </h4>
-                                  {selectedContentSection === 'playlist' ? (
-                                    <div className="space-y-0.5">
-                                      <p className="text-[11px] text-emerald-700 truncate font-bold">
-                                        Cipt: {item.field3 || item.pencipta || item.creator || 'Pandu Hizbul Wathan'}
-                                      </p>
-                                      {(item.field5 || item.lirik || item.lyrics) ? (
-                                        <p className="text-[9px] text-gray-500 line-clamp-1 italic font-medium">
-                                          Lirik: {(item.field5 || item.lirik || item.lyrics).substring(0, 60)}...
+                                  {selectedContentSection === 'playlist' ? (() => {
+                                    const meta = resolveTrackMetadata(item);
+                                    return (
+                                      <div className="space-y-0.5">
+                                        <p className="text-[11px] text-emerald-700 truncate font-bold">
+                                          Cipt: {meta.creator || 'Muhammad Dzikron'}
                                         </p>
-                                      ) : (
-                                        <p className="text-[9px] text-amber-600 font-medium italic">Lirik belum diisi</p>
-                                      )}
-                                    </div>
-                                  ) : (
+                                        {meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? (
+                                          <p className="text-[9px] text-gray-500 line-clamp-1 italic font-medium">
+                                            Lirik: {meta.lyrics.substring(0, 60)}...
+                                          </p>
+                                        ) : (
+                                          <p className="text-[9px] text-amber-600 font-medium italic">Lirik belum diisi</p>
+                                        )}
+                                      </div>
+                                    );
+                                  })() : (
                                     <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
                                   )}
                                 </div>

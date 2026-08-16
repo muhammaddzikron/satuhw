@@ -164,8 +164,11 @@ export default function HomePage() {
     const pl = initialContents.filter((c: any) => c.section === 'playlist');
     if (pl.length > 0) return pl;
     return [
-      { id: 'pl-1', section: 'playlist', field1: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', field2: 'Mars Hizbul Wathan', field3: 'Haiban Hadjid', pencipta: 'Haiban Hadjid' },
-      { id: 'pl-2', section: 'playlist', field1: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', field2: 'Mars Athfal', field3: 'Kwarpus HW', pencipta: 'Kwarpus HW' }
+      { id: 'pl-1', section: 'playlist', field1: 'https://hwjateng.org/musik/sahabathw.mp3', field2: 'Sahabat HW', field3: 'Muhammad Dzikron', pencipta: 'Muhammad Dzikron', title: 'Sahabat HW', creator: 'Muhammad Dzikron' },
+      { id: 'pl-2', section: 'playlist', field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3', field2: 'HW Untuk Indonesia', field3: 'Muhammad Dzikron', pencipta: 'Muhammad Dzikron', title: 'HW Untuk Indonesia', creator: 'Muhammad Dzikron' },
+      { id: 'pl-3', section: 'playlist', field1: 'https://hwjateng.org/musik/marshw.mp3', field2: 'Mars HW', field3: 'H. Siradj Dahlan', pencipta: 'H. Siradj Dahlan', title: 'Mars HW', creator: 'H. Siradj Dahlan' },
+      { id: 'pl-4', section: 'playlist', field1: 'https://hwjateng.org/musik/hymnehw.mp3', field2: 'Hymne HW Panduku', field3: 'H.M. Affandi', pencipta: 'H.M. Affandi', title: 'Hymne HW Panduku', creator: 'H.M. Affandi' },
+      { id: 'pl-5', section: 'playlist', field1: 'https://hwjateng.org/musik/mahrojanpenghela.mp3', field2: 'Mahrojan Penghela', field3: 'Muhammad Dzikron', pencipta: 'Muhammad Dzikron', title: 'Mahrojan Penghela', creator: 'Muhammad Dzikron' }
     ];
   });
 

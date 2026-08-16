@@ -144,7 +144,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`,
   },
   'hw untuk indonesia': {
     title: 'HW Untuk Indonesia',
-    creator: 'Kwarwil HW Jateng',
+    creator: 'Muhammad Dzikron',
     category: 'Lagu Pandu & Semangat',
     lyrics: `Dari ujung timur hingga ke barat
 Pandu Hizbul Wathan berhimpun erat
@@ -164,7 +164,7 @@ Maju bersama, jaya selamanya!`,
   },
   'mahrojan penghela': {
     title: 'Mahrojan Penghela',
-    creator: 'Pandu Penghela HW',
+    creator: 'Muhammad Dzikron',
     category: 'Lagu Pandu & Semangat',
     lyrics: `Derap langkah penghela berderap maju
 Menatap masa depan cerah berseri
@@ -240,9 +240,36 @@ export const resolveTrackMetadata = (track: any) => {
 
   const matched = matchedKey ? KNOWN_HW_SONGS[matchedKey] : null;
 
+  const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
+  const isHymneHW = lowerTitle.includes('hymne');
+  const isSangSurya = lowerTitle.includes('sang surya');
+  const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
+
+  let defaultCreator = 'Muhammad Dzikron';
+  if (isMarsHW) {
+    defaultCreator = 'H. Siradj Dahlan';
+  } else if (isHymneHW) {
+    defaultCreator = 'H.M. Affandi';
+  } else if (isSangSurya) {
+    defaultCreator = 'Djarnawi Hadikusuma';
+  } else if (isMarsAisyiyah) {
+    defaultCreator = 'Ny. Hj. Siti Badilah Zuber';
+  }
+
   // Custom metadata from Admin/Spreadsheet input takes precedence, followed by matched catalog, then fallback
-  const creator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || '').trim() || 'Pandu Hizbul Wathan';
-  const category = (track?.field4 || track?.kategori || track?.category || matched?.category || '').trim() || 'Lagu Pandu HW';
+  let rawCreator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || '').trim();
+  
+  if (!rawCreator || ['pandu hw', 'pandu hizbul wathan', 'kwarwil hw', 'kwarnas hw', 'kwarpus hw', 'kwarwil hw jateng', 'kwarda hw'].includes(rawCreator.toLowerCase())) {
+    rawCreator = defaultCreator;
+  } else if (!isMarsHW && !isHymneHW && !isSangSurya && !isMarsAisyiyah) {
+    // Other than Mars HW and Hymne HW, song creator is Muhammad Dzikron
+    if (rawCreator.toLowerCase().includes('hw') || rawCreator.toLowerCase().includes('pandu') || rawCreator.toLowerCase().includes('kwar')) {
+      rawCreator = 'Muhammad Dzikron';
+    }
+  }
+
+  const creator = rawCreator || defaultCreator;
+  const category = (track?.field4 || track?.kategori || track?.category || matched?.category || '').trim() || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW');
   const lyrics = (track?.field5 || track?.lirik || track?.lyrics || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
 
   // Color theme

@@ -1649,14 +1649,35 @@ export const sheetsService = {
               let field3 = c.field3 || anyC.pencipta || anyC.creator || '';
               let field5 = c.field5 || anyC.lirik || anyC.lyrics || '';
               const lowerTitle = (field2 || '').trim().toLowerCase();
+
+              const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
+              const isHymneHW = lowerTitle.includes('hymne');
+              const isSangSurya = lowerTitle.includes('sang surya');
+              const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
+
               if (lowerTitle === 'sahabat hw' || field1.toLowerCase().includes('sahabathw')) {
                 if (!field1) field1 = 'https://hwjateng.org/musik/sahabathw.mp3';
                 if (!field2) field2 = 'Sahabat HW';
-                if (!field3 || field3 === 'Kwarwil HW' || field3 === 'Pandu HW' || field3 === 'Pandu Hizbul Wathan') {
-                  field3 = 'Muhammad Dzikron';
-                }
+                field3 = 'Muhammad Dzikron';
                 if (!field5) {
                   field5 = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
+                }
+              } else if (isMarsHW) {
+                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
+                  field3 = 'H. Siradj Dahlan';
+                }
+              } else if (isHymneHW) {
+                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
+                  field3 = 'H.M. Affandi';
+                }
+              } else if (isSangSurya) {
+                if (!field3) field3 = 'Djarnawi Hadikusuma';
+              } else if (isMarsAisyiyah) {
+                if (!field3) field3 = 'Ny. Hj. Siti Badilah Zuber';
+              } else {
+                // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
+                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
+                  field3 = 'Muhammad Dzikron';
                 }
               }
               return {
@@ -2417,10 +2438,10 @@ export const sheetsService = {
         section: 'playlist',
         field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3',
         field2: 'HW Untuk Indonesia',
-        field3: 'Kwarwil HW Jateng',
+        field3: 'Muhammad Dzikron',
         field4: '',
         field5: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
-        pencipta: 'Kwarwil HW Jateng',
+        pencipta: 'Muhammad Dzikron',
         lyrics: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
         lirik: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.'
       },
@@ -2453,10 +2474,10 @@ export const sheetsService = {
         section: 'playlist',
         field1: 'https://hwjateng.org/musik/mahrojanpenghela.mp3',
         field2: 'Mahrojan Penghela',
-        field3: 'Pandu HW',
+        field3: 'Muhammad Dzikron',
         field4: '',
         field5: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
-        pencipta: 'Pandu HW',
+        pencipta: 'Muhammad Dzikron',
         lyrics: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
         lirik: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.'
       },

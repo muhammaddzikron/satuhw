@@ -45,13 +45,18 @@ export const PlaylistPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = Boolean(user) && (user?.role === 'admin' || user?.role === 'superadmin');
 
-  // Normalize playlist data ensuring Sahabat HW has creator Muhammad Dzikron
+  // Normalize playlist data ensuring Sahabat HW is present and all songs except Mars & Hymne are created by Muhammad Dzikron
   const sanitizeList = useCallback((list: any[]) => {
     const seenTitles = new Set<string>();
-    return (list || []).filter((item: any) => {
+    let hasSahabatHW = false;
+
+    const filtered = (list || []).filter((item: any) => {
       if (!item) return false;
       const title = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
       if (!title) return false;
+      if (title === 'sahabat hw' || (item.field1 && item.field1.toString().toLowerCase().includes('sahabathw'))) {
+        hasSahabatHW = true;
+      }
       // Deduplicate items with identical title
       if (seenTitles.has(title)) return false;
       seenTitles.add(title);
@@ -59,30 +64,118 @@ export const PlaylistPage: React.FC = () => {
     }).map(item => {
       if (!item) return item;
       const title = (item.field2 || item.judul || item.title || '').toString().trim();
+      const lowerTitle = title.toLowerCase();
       const audio = (item.field1 || item.audioUrl || item.audiourl || '').toString();
       let creator = (item.field3 || item.pencipta || item.creator || '').toString().trim();
+      let lyrics = (item.field5 || item.lirik || item.lyrics || '').toString().trim();
 
-      if (title.toLowerCase() === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
-        if (!creator || creator === 'Kwarwil HW' || creator === 'Pandu HW' || creator === 'Pandu Hizbul Wathan' || creator === 'Kwarnas HW') {
-          creator = 'Muhammad Dzikron';
+      const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
+      const isHymneHW = lowerTitle.includes('hymne');
+      const isSangSurya = lowerTitle.includes('sang surya');
+      const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
+
+      if (lowerTitle === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
+        creator = 'Muhammad Dzikron';
+        if (!lyrics) {
+          lyrics = `Bersama kita melangkah
+Menembus cakrawala asa
+Sahabat sejati Pandu HW
+Satu hati dalam ukhuwah persaudaraan
+
+Di bumi perkemahan kita bersua
+Belajar mandiri, disiplin, berjiwa ksatria
+Setia pandu, suci pikiran perkataan perbuatan
+Hizbul Wathan, sahabat setia sepanjang zaman!`;
         }
         return {
           ...item,
           field1: item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3',
           field2: 'Sahabat HW',
-          field3: creator,
-          pencipta: creator,
-          creator: creator,
+          field3: 'Muhammad Dzikron',
+          field4: 'Lagu Pandu HW',
+          field5: lyrics,
+          pencipta: 'Muhammad Dzikron',
+          creator: 'Muhammad Dzikron',
           judul: 'Sahabat HW',
-          title: 'Sahabat HW'
+          title: 'Sahabat HW',
+          lirik: lyrics,
+          lyrics: lyrics,
+          audioUrl: item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3'
         };
       }
 
-      if (creator === 'Kwarnas HW') {
-        return { ...item, field3: 'Pandu Hizbul Wathan', pencipta: 'Pandu Hizbul Wathan', creator: 'Pandu Hizbul Wathan' };
+      if (isMarsHW) {
+        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
+          creator = 'H. Siradj Dahlan';
+        }
+      } else if (isHymneHW) {
+        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
+          creator = 'H.M. Affandi';
+        }
+      } else if (isSangSurya) {
+        if (!creator) creator = 'Djarnawi Hadikusuma';
+      } else if (isMarsAisyiyah) {
+        if (!creator) creator = 'Ny. Hj. Siti Badilah Zuber';
+      } else {
+        // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
+        creator = 'Muhammad Dzikron';
       }
-      return item;
+
+      return {
+        ...item,
+        field3: creator,
+        pencipta: creator,
+        creator: creator
+      };
     });
+
+    // If Sahabat HW is missing, restore it as the primary track
+    if (!hasSahabatHW) {
+      const defaultSahabatHW = {
+        id: 'playlist-sahabat-hw',
+        section: 'playlist',
+        field1: 'https://hwjateng.org/musik/sahabathw.mp3',
+        field2: 'Sahabat HW',
+        field3: 'Muhammad Dzikron',
+        field4: 'Lagu Pandu HW',
+        field5: `Bersama kita melangkah
+Menembus cakrawala asa
+Sahabat sejati Pandu HW
+Satu hati dalam ukhuwah persaudaraan
+
+Di bumi perkemahan kita bersua
+Belajar mandiri, disiplin, berjiwa ksatria
+Setia pandu, suci pikiran perkataan perbuatan
+Hizbul Wathan, sahabat setia sepanjang zaman!`,
+        pencipta: 'Muhammad Dzikron',
+        creator: 'Muhammad Dzikron',
+        judul: 'Sahabat HW',
+        title: 'Sahabat HW',
+        audioUrl: 'https://hwjateng.org/musik/sahabathw.mp3',
+        audiourl: 'https://hwjateng.org/musik/sahabathw.mp3',
+        lyrics: `Bersama kita melangkah
+Menembus cakrawala asa
+Sahabat sejati Pandu HW
+Satu hati dalam ukhuwah persaudaraan
+
+Di bumi perkemahan kita bersua
+Belajar mandiri, disiplin, berjiwa ksatria
+Setia pandu, suci pikiran perkataan perbuatan
+Hizbul Wathan, sahabat setia sepanjang zaman!`,
+        lirik: `Bersama kita melangkah
+Menembus cakrawala asa
+Sahabat sejati Pandu HW
+Satu hati dalam ukhuwah persaudaraan
+
+Di bumi perkemahan kita bersua
+Belajar mandiri, disiplin, berjiwa ksatria
+Setia pandu, suci pikiran perkataan perbuatan
+Hizbul Wathan, sahabat setia sepanjang zaman!`
+      };
+      return [defaultSahabatHW, ...filtered];
+    }
+
+    return filtered;
   }, []);
 
   // Instant initial playlist from local cache or mock

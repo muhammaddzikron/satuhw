@@ -2342,14 +2342,35 @@ export const firestoreService = {
         let pencipta = c.field3 || c.pencipta || c.creator || '';
         let lirik = c.field5 || c.lirik || c.lyrics || '';
         const lowerJudul = judul.trim().toLowerCase();
-        if (lowerJudul === 'sahabat hw' || audioUrl.includes('sahabathw')) {
+
+        const isMarsHW = lowerJudul.includes('mars hizbul wathan') || lowerJudul === 'mars hw' || lowerJudul.includes('mars gerakan kepanduan hizbul wathan') || lowerJudul.includes('mars pandu hw');
+        const isHymneHW = lowerJudul.includes('hymne');
+        const isSangSurya = lowerJudul.includes('sang surya');
+        const isMarsAisyiyah = lowerJudul.includes('mars aisyiyah');
+
+        if (lowerJudul === 'sahabat hw' || audioUrl.toLowerCase().includes('sahabathw')) {
           if (!audioUrl) audioUrl = 'https://hwjateng.org/musik/sahabathw.mp3';
           if (!judul) judul = 'Sahabat HW';
-          if (!pencipta || pencipta === 'Kwarwil HW' || pencipta === 'Pandu HW' || pencipta === 'Pandu Hizbul Wathan') {
-            pencipta = 'Muhammad Dzikron';
-          }
+          pencipta = 'Muhammad Dzikron';
           if (!lirik) {
             lirik = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
+          }
+        } else if (isMarsHW) {
+          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+            pencipta = 'H. Siradj Dahlan';
+          }
+        } else if (isHymneHW) {
+          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+            pencipta = 'H.M. Affandi';
+          }
+        } else if (isSangSurya) {
+          if (!pencipta) pencipta = 'Djarnawi Hadikusuma';
+        } else if (isMarsAisyiyah) {
+          if (!pencipta) pencipta = 'Ny. Hj. Siti Badilah Zuber';
+        } else {
+          // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
+          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+            pencipta = 'Muhammad Dzikron';
           }
         }
         return {
