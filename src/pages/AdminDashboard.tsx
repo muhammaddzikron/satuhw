@@ -1433,8 +1433,12 @@ export default function AdminDashboard() {
     if (!viewingKtaApp || isGeneratingPdfAdmin) return;
     setIsGeneratingPdfAdmin(true);
     try {
-      const frontEl = document.getElementById('kta-front-capture-admin');
-      const backEl = document.getElementById('kta-back-capture-admin');
+      const frontEl = (document.getElementById('kta-front-card-admin-view') || 
+                       document.getElementById('kta-front-capture-admin') || 
+                       document.querySelector('.kta-card-printable')) as HTMLElement | null;
+      const backEl = (document.getElementById('kta-back-card-admin-view') || 
+                      document.getElementById('kta-back-capture-admin') || 
+                      document.querySelectorAll('.kta-card-printable')[1]) as HTMLElement | null;
       
       if (!frontEl || !backEl) {
         throw new Error("Elemen kartu tidak ditemukan");
@@ -1449,18 +1453,17 @@ export default function AdminDashboard() {
             return new Promise(resolve => {
               img.onload = resolve;
               img.onerror = resolve;
-              setTimeout(resolve, 1500);
+              setTimeout(resolve, 800);
             });
           })
         );
       };
 
-      await waitForImages(frontEl);
-      await waitForImages(backEl);
+      await Promise.all([waitForImages(frontEl), waitForImages(backEl)]);
 
       // Capture front card
       const frontCanvas = await safeHtml2Canvas(frontEl, {
-        scale: 4, // 300+ DPI high quality
+        scale: 3, // 300 DPI high quality
         useCORS: true,
         allowTaint: true,
         backgroundColor: null
@@ -1468,7 +1471,7 @@ export default function AdminDashboard() {
 
       // Capture back card
       const backCanvas = await safeHtml2Canvas(backEl, {
-        scale: 4, // 300+ DPI high quality
+        scale: 3, // 300 DPI high quality
         useCORS: true,
         allowTaint: true,
         backgroundColor: null
@@ -1476,6 +1479,13 @@ export default function AdminDashboard() {
 
       const frontImgData = safeCanvasToDataURL(frontCanvas);
       const backImgData = safeCanvasToDataURL(backCanvas);
+
+      if (!frontImgData || !frontImgData.startsWith('data:image/')) {
+        throw new Error("Gagal mengonversi kartu depan ke format gambar");
+      }
+      if (!backImgData || !backImgData.startsWith('data:image/')) {
+        throw new Error("Gagal mengonversi kartu belakang ke format gambar");
+      }
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -1546,10 +1556,11 @@ export default function AdminDashboard() {
       pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 211);
       pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 217);
 
-      pdf.save(`KTA_HW_${(viewingKtaApp?.nama || 'Anggota').replace(/\s+/g, '_')}.pdf`);
+      const cleanFileName = (viewingKtaApp?.nama || 'Anggota').replace(/[^a-zA-Z0-9_-]/g, '_');
+      pdf.save(`KTA_HW_${cleanFileName}.pdf`);
     } catch (err: any) {
       console.error('Error generating PDF:', err);
-      alert('Gagal mengunduh KTA PDF. Silakan coba kembali.');
+      alert('Gagal mengunduh KTA PDF: ' + (err?.message || 'Silakan coba kembali.'));
     } finally {
       setIsGeneratingPdfAdmin(false);
     }
@@ -12138,6 +12149,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col items-center gap-2 shrink-0">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">TAMPILAN DEPAN (FRONT)</span>
                       <KTACard 
+                        id="kta-front-card-admin-view"
                         application={viewingKtaApp} 
                         settings={settings} 
                         side="front" 
@@ -12150,6 +12162,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col items-center gap-2 shrink-0">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">TAMPILAN BELAKANG (BACK)</span>
                       <KTACard 
+                        id="kta-back-card-admin-view"
                         application={viewingKtaApp} 
                         settings={settings} 
                         side="back" 

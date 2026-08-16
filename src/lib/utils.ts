@@ -406,10 +406,13 @@ export async function imageUrlToBase64(url: string): Promise<string> {
 
   const cacheVersion = String(Math.floor(Date.now() / 300000));
 
-  // 1. Try fetch with getCorsSafeUrl (images.weserv.nl)
+  // 1. Try fetch with getCorsSafeUrl (images.weserv.nl) with fast timeout
   try {
     const corsUrl = getCorsSafeUrl(url, cacheVersion);
-    const response = await fetch(corsUrl, { mode: 'cors' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch(corsUrl, { mode: 'cors', signal: controller.signal });
+    clearTimeout(timeoutId);
     if (response.ok) {
       const blob = await response.blob();
       const b64 = await new Promise<string>((resolve) => {
@@ -430,11 +433,14 @@ export async function imageUrlToBase64(url: string): Promise<string> {
     // Ignore fetch error
   }
 
-  // 2. Try corsproxy.io as fallback CORS proxy
+  // 2. Try corsproxy.io as fallback CORS proxy with fast timeout
   try {
     const directUrl = getDriveDirectLink(url);
     const altCorsUrl = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
-    const response = await fetch(altCorsUrl, { mode: 'cors' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch(altCorsUrl, { mode: 'cors', signal: controller.signal });
+    clearTimeout(timeoutId);
     if (response.ok) {
       const blob = await response.blob();
       const b64 = await new Promise<string>((resolve) => {
@@ -460,7 +466,12 @@ export async function imageUrlToBase64(url: string): Promise<string> {
     const b64 = await new Promise<string>((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      const timeoutId = setTimeout(() => {
+        img.src = '';
+        resolve('');
+      }, 1500);
       img.onload = () => {
+        clearTimeout(timeoutId);
         try {
           const canvas = document.createElement('canvas');
           canvas.width = img.naturalWidth || img.width || 350;
@@ -479,7 +490,10 @@ export async function imageUrlToBase64(url: string): Promise<string> {
         }
         resolve('');
       };
-      img.onerror = () => resolve('');
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        resolve('');
+      };
       img.src = getCorsSafeUrl(url, cacheVersion);
     });
     if (b64) return b64;
@@ -526,6 +540,8 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
     allowTaint: true,
     backgroundColor: null,
     logging: false,
+    scrollX: 0,
+    scrollY: 0,
     ...options,
     onclone: (clonedDoc, clonedEl) => {
       // 1. Reset positioning and visibility on cloned target & ALL ancestor chain
@@ -536,6 +552,7 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
         clonedEl.style.visibility = 'visible';
         clonedEl.style.left = '0';
         clonedEl.style.top = '0';
+        clonedEl.style.margin = '0';
 
         let curr: HTMLElement | null = clonedEl.parentElement;
         while (curr && curr !== clonedDoc.body) {
@@ -597,25 +614,33 @@ export async function safeHtml2Canvas(element: HTMLElement, options: any = {}): 
 
 export function safeCanvasToDataURL(canvas: HTMLCanvasElement): string {
   try {
-    return canvas.toDataURL('image/png');
+    const data = canvas.toDataURL('image/png');
+    if (data && data.startsWith('data:image/png;base64,') && data.length > 100) {
+      return data;
+    }
   } catch (err) {
     console.warn('Tainted canvas detected during export, attempting clean reconstruction:', err);
-    const cleanCanvas = document.createElement('canvas');
-    cleanCanvas.width = canvas.width || 1050;
-    cleanCanvas.height = canvas.height || 660;
-    const ctx = cleanCanvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
-      try {
-        ctx.drawImage(canvas, 0, 0);
-        return cleanCanvas.toDataURL('image/png');
-      } catch (e) {
-        // Tainted draw fails
-      }
-    }
-    return cleanCanvas.toDataURL('image/png');
   }
+
+  // Safe fallback clean canvas
+  const cleanCanvas = document.createElement('canvas');
+  cleanCanvas.width = canvas.width || 1050;
+  cleanCanvas.height = canvas.height || 660;
+  const ctx = cleanCanvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+    try {
+      ctx.drawImage(canvas, 0, 0);
+      const res = cleanCanvas.toDataURL('image/png');
+      if (res && res.startsWith('data:image/png;base64,')) {
+        return res;
+      }
+    } catch (e) {
+      // Tainted draw fails
+    }
+  }
+  return cleanCanvas.toDataURL('image/png');
 }
 
 

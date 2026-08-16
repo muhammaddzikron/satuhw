@@ -714,14 +714,19 @@ export default function KTAPage() {
     if (isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      const frontEl = document.getElementById('kta-front-capture');
-      const backEl = document.getElementById('kta-back-capture');
+      // Prioritize the visible rendered card elements on screen
+      const frontEl = (document.getElementById('kta-front-card-view') || 
+                       document.getElementById('kta-front-capture') || 
+                       document.querySelector('.kta-card-printable')) as HTMLElement | null;
+      const backEl = (document.getElementById('kta-back-card-view') || 
+                      document.getElementById('kta-back-capture') || 
+                      document.querySelectorAll('.kta-card-printable')[1]) as HTMLElement | null;
       
       if (!frontEl || !backEl) {
-        throw new Error("Elemen kartu tidak ditemukan");
+        throw new Error("Elemen kartu tidak ditemukan di halaman");
       }
 
-      // Helper to wait for all images inside an element to load
+      // Quick helper to ensure images are loaded
       const waitForImages = async (el: HTMLElement) => {
         const images = Array.from(el.querySelectorAll('img'));
         await Promise.all(
@@ -730,18 +735,17 @@ export default function KTAPage() {
             return new Promise(resolve => {
               img.onload = resolve;
               img.onerror = resolve;
-              setTimeout(resolve, 1500);
+              setTimeout(resolve, 800);
             });
           })
         );
       };
 
-      await waitForImages(frontEl);
-      await waitForImages(backEl);
+      await Promise.all([waitForImages(frontEl), waitForImages(backEl)]);
 
       // Capture front card
       const frontCanvas = await safeHtml2Canvas(frontEl, {
-        scale: 4, // 300+ DPI high quality
+        scale: 3, // High quality 300 DPI
         useCORS: true,
         allowTaint: true,
         backgroundColor: null
@@ -749,7 +753,7 @@ export default function KTAPage() {
 
       // Capture back card
       const backCanvas = await safeHtml2Canvas(backEl, {
-        scale: 4, // 300+ DPI high quality
+        scale: 3, // High quality 300 DPI
         useCORS: true,
         allowTaint: true,
         backgroundColor: null
@@ -757,6 +761,13 @@ export default function KTAPage() {
 
       const frontImgData = safeCanvasToDataURL(frontCanvas);
       const backImgData = safeCanvasToDataURL(backCanvas);
+
+      if (!frontImgData || !frontImgData.startsWith('data:image/')) {
+        throw new Error("Gagal mengonversi kartu depan ke format gambar");
+      }
+      if (!backImgData || !backImgData.startsWith('data:image/')) {
+        throw new Error("Gagal mengonversi kartu belakang ke format gambar");
+      }
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -827,7 +838,8 @@ export default function KTAPage() {
       pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 211);
       pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 217);
 
-      pdf.save(`KTA_HW_${(myApplication?.nama || 'Anggota').replace(/\s+/g, '_')}.pdf`);
+      const cleanFileName = (myApplication?.nama || 'Anggota').replace(/[^a-zA-Z0-9_-]/g, '_');
+      pdf.save(`KTA_HW_${cleanFileName}.pdf`);
       
       setMessage({
         type: 'success',
@@ -837,7 +849,7 @@ export default function KTAPage() {
       console.error('Error generating PDF:', err);
       setMessage({
         type: 'error',
-        text: 'Gagal mengunduh KTA PDF. Silakan coba kembali.'
+        text: 'Gagal mengunduh KTA PDF. ' + (err?.message || 'Silakan coba kembali.')
       });
     } finally {
       setIsGeneratingPdf(false);
@@ -1067,6 +1079,7 @@ export default function KTAPage() {
                     TAMPILAN DEPAN (FRONT)
                   </span>
                   <KTACard 
+                    id="kta-front-card-view"
                     application={myApplication} 
                     settings={settings} 
                     side="front" 
@@ -1081,6 +1094,7 @@ export default function KTAPage() {
                     TAMPILAN BELAKANG (BACK)
                   </span>
                   <KTACard 
+                    id="kta-back-card-view"
                     application={myApplication} 
                     settings={settings} 
                     side="back" 

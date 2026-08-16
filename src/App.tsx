@@ -3,56 +3,55 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   Home as HomeIcon, 
   User as UserIcon, 
   LogIn, 
   UserPlus, 
   LogOut, 
-  Lock, 
-  ChevronRight,
-  Menu as MenuIcon,
-  X,
-  Bell,
-  BookOpen,
-  LayoutDashboard,
-  Layout,
-  Shield,
-  ShieldCheck,
-  GraduationCap,
-  CreditCard,
-  Calendar
+  Bell, 
+  BookOpen, 
+  LayoutDashboard, 
+  GraduationCap, 
+  CreditCard, 
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
-import React, { useState, useEffect } from 'react';
 import { sheetsService } from './services/sheetsService';
-
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Pages (to be created)
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
-import MateriPage from './pages/MateriPage';
-import QuranPage from './pages/QuranPage';
-import ToolsPage from './pages/ToolsPage';
-import ContactPage from './pages/ContactPage';
-import AdminDashboard from './pages/AdminDashboard';
-import DoaPage from './pages/DoaPage';
-import GalleryPage from './pages/GalleryPage';
-import SosmedPage from './pages/SosmedPage';
-import UpgradePage from './pages/UpgradePage';
-import AboutPage from './pages/AboutPage';
-import PlaylistPage from './pages/PlaylistPage';
-import KTAPage from './pages/KTAPage';
-import DaftarPelatihanPage from './pages/DaftarPelatihanPage';
-import PelatihanPage from './pages/PelatihanPage';
-import KegiatanPage from './pages/KegiatanPage';
-import PelatihNasionalPage from './pages/PelatihNasionalPage';
+// Lazy loaded page components for optimal responsiveness and instant button/link interactions
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const MateriPage = lazy(() => import('./pages/MateriPage'));
+const QuranPage = lazy(() => import('./pages/QuranPage'));
+const ToolsPage = lazy(() => import('./pages/ToolsPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const DoaPage = lazy(() => import('./pages/DoaPage'));
+const GalleryPage = lazy(() => import('./pages/GalleryPage'));
+const SosmedPage = lazy(() => import('./pages/SosmedPage'));
+const UpgradePage = lazy(() => import('./pages/UpgradePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const PlaylistPage = lazy(() => import('./pages/PlaylistPage'));
+const KTAPage = lazy(() => import('./pages/KTAPage'));
+const DaftarPelatihanPage = lazy(() => import('./pages/DaftarPelatihanPage'));
+const PelatihanPage = lazy(() => import('./pages/PelatihanPage'));
+const KegiatanPage = lazy(() => import('./pages/KegiatanPage'));
+const PelatihNasionalPage = lazy(() => import('./pages/PelatihNasionalPage'));
+
+const PageFallback = () => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+    <Loader2 className="w-8 h-8 text-hw-green animate-spin" />
+    <span className="text-xs font-semibold text-gray-500">Memuat halaman...</span>
+  </div>
+);
 
 const Header = React.memo(() => {
   const location = useLocation();
@@ -61,7 +60,7 @@ const Header = React.memo(() => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 shadow-xs">
       <div className={cn("mx-auto flex items-center justify-between", isFullWidth ? "max-w-7xl" : "max-w-md")}>
-        <Link to="/" className="flex items-center gap-3 group">
+        <Link to="/" className="flex items-center gap-3 group cursor-pointer touch-manipulation">
           <img 
             src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" 
             alt="Logo HW" 
@@ -73,7 +72,7 @@ const Header = React.memo(() => {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer" title="Notifikasi">
+          <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer touch-manipulation" title="Notifikasi">
             <Bell size={20} />
           </button>
         </div>
@@ -86,8 +85,8 @@ const NavigationLink = React.memo(({ to, icon: Icon, label, active }: { to: stri
   <Link 
     to={to} 
     className={cn(
-      "flex flex-col items-center justify-center gap-1 py-1 px-2.5 transition-all duration-150 relative rounded-xl touch-manipulation",
-      active ? "text-white font-extrabold scale-105" : "text-emerald-100 hover:text-white font-medium opacity-85 hover:opacity-100"
+      "flex flex-col items-center justify-center gap-1 py-1 px-2.5 transition-all duration-100 relative rounded-xl touch-manipulation cursor-pointer select-none",
+      active ? "text-white font-extrabold scale-105" : "text-emerald-100 hover:text-white font-medium opacity-85 hover:opacity-100 active:scale-95"
     )}
   >
     <Icon size={20} strokeWidth={active ? 2.5 : 2} />
@@ -123,55 +122,8 @@ const Navigation = () => {
     if (userRolesList.some(r => adminRoles.some(ar => r.includes(ar) || ar.includes(r)) || r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari'))) return true;
     if ((user as any).adminType === 'diklat') return true;
 
-    try {
-      let acts: any[] = [];
-      const rawSettings = localStorage.getItem('hw_settings');
-      if (rawSettings) {
-        const settings = JSON.parse(rawSettings);
-        if (Array.isArray(settings?.trainingActivities)) acts = [...acts, ...settings.trainingActivities];
-      }
-      if (typeof window !== 'undefined' && (window as any)?.hw_settings?.trainingActivities) {
-        if (Array.isArray((window as any).hw_settings.trainingActivities)) {
-          acts = [...acts, ...(window as any).hw_settings.trainingActivities];
-        }
-      }
-
-      const userEmail = (user.email || '').toLowerCase().trim();
-      const userName = (user.namaLengkap || user.nama || (user as any)?.name || '').toLowerCase().trim();
-      const userNbm = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
-
-      return acts.some((act: any) => {
-        if (!act) return false;
-        const parseList = (val: any) => {
-          if (Array.isArray(val)) return val;
-          if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
-          return [];
-        };
-        const pelatihList = parseList(act.pelatih);
-        const asistenList = parseList(act.asistenPelatih);
-        const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
-
-        return allTrainers.some(t => {
-          if (!t) return false;
-          if (userName && (t.includes(userName) || userName.includes(t))) return true;
-          if (userNbm && userNbm.length >= 4 && t.includes(userNbm)) return true;
-          if (userEmail && userEmail.length >= 4) {
-            const prefix = userEmail.split('@')[0];
-            if (prefix && prefix.length >= 3 && t.includes(prefix)) return true;
-          }
-          const nameWords = userName.split(/\s+/).filter(w => w.length >= 3);
-          if (nameWords.length > 0) {
-            const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
-            if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
-            if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
-          }
-          return false;
-        });
-      });
-    } catch (e) {}
-
     return false;
-  }, [user]);
+  }, [user?.role, (user as any)?.roles, (user as any)?.adminType]);
 
   const isDiklatAdmin = Boolean(
     user && ((user as any).adminType === 'diklat' || user.email === 'diklat' || user.email === 'diklat@hwjateng.com' || user.role === 'admin_diklat' || user.role === 'diklat')
@@ -200,7 +152,7 @@ const Navigation = () => {
               />
               <button 
                 onClick={logout}
-                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-rose-200 hover:text-white transition-colors cursor-pointer"
+                className="flex flex-col items-center justify-center gap-1 py-1 px-3 text-rose-200 hover:text-white transition-colors cursor-pointer touch-manipulation"
               >
                 <LogOut size={20} />
                 <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
@@ -246,7 +198,7 @@ const Navigation = () => {
               />
               <button 
                 onClick={logout}
-                className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-rose-200 hover:text-white transition-colors"
+                className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-rose-200 hover:text-white transition-colors cursor-pointer touch-manipulation"
               >
                 <LogOut size={20} />
                 <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
@@ -286,7 +238,7 @@ const Navigation = () => {
                 />
                 <button 
                   onClick={logout}
-                  className="flex flex-col items-center justify-center gap-1 py-1 px-2.5 text-rose-200 hover:text-white transition-colors"
+                  className="flex flex-col items-center justify-center gap-1 py-1 px-2.5 text-rose-200 hover:text-white transition-colors cursor-pointer touch-manipulation"
                 >
                   <LogOut size={20} />
                   <span className="text-[10px] font-medium transition-all duration-300">Logout</span>
@@ -326,29 +278,31 @@ const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
-    <Routes location={location}>
-      <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-      <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-      <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-      <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
-      <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
-      <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
-      <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
-      <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
-      <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-      <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
-      <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
-      <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
-      <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
-      <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
-      <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
-      <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
-      <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
-      <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
-      <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
-      <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes location={location}>
+        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+        <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+        <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
+        <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
+        <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+        <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
+        <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
+        <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
+        <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
+        <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
+        <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
+        <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
+        <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
+        <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+        <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 };
 

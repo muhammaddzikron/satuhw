@@ -755,15 +755,21 @@ export default function KegiatanPage() {
       {/* DETAIL MODAL */}
       <AnimatePresence>
         {isDetailModalOpen && selectedActivity && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
+          <div 
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 pt-3 pb-20 sm:pt-6 sm:pb-6 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsDetailModalOpen(false);
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative h-48 bg-gray-900 shrink-0">
+              <div className="relative h-44 sm:h-52 bg-gray-900 shrink-0">
                 <img 
                   src={getCorsSafeUrl(selectedActivity.gambarUrl, selectedActivity.updatedAt || selectedActivity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
                   alt={selectedActivity.namaKegiatan} 
@@ -775,20 +781,22 @@ export default function KegiatanPage() {
                   }}
                 />
                 <button
+                  type="button"
                   onClick={() => setIsDetailModalOpen(false)}
-                  className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors cursor-pointer"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 p-2 sm:p-2.5 bg-black/60 hover:bg-black/80 text-white rounded-full shadow-lg transition-transform active:scale-90 cursor-pointer touch-manipulation flex items-center justify-center border border-white/20"
+                  title="Tutup Modal"
                 >
                   <X size={18} />
                 </button>
-                <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
-                  <span className="bg-hw-green text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full">
+                <div className="absolute bottom-3 left-3.5 right-3.5 sm:bottom-4 sm:left-4 sm:right-4 text-white space-y-1">
+                  <span className="bg-hw-green text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
                     {selectedActivity.kategori}
                   </span>
-                  <h3 className="text-base font-black font-display leading-tight">{selectedActivity.namaKegiatan}</h3>
+                  <h3 className="text-sm sm:text-base font-black font-display leading-tight line-clamp-2">{selectedActivity.namaKegiatan}</h3>
                 </div>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 overscroll-contain">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-xs">
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pelaksanaan</span>
@@ -1111,19 +1119,21 @@ export default function KegiatanPage() {
 
               </div>
 
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex gap-2.5 sm:gap-3 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setIsDetailModalOpen(false)}
-                  className="px-5 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl text-xs font-bold hover:bg-gray-100 cursor-pointer"
+                  className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border border-gray-200 text-gray-700 rounded-xl sm:rounded-2xl text-xs font-bold hover:bg-gray-100 cursor-pointer touch-manipulation active:scale-95 transition-all"
                 >
                   Tutup
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsDetailModalOpen(false);
                     setIsRegisterModalOpen(true);
                   }}
-                  className="flex-1 py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95"
+                  className="flex-1 py-2.5 sm:py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95 touch-manipulation"
                 >
                   <UserPlus size={16} />
                   <span>Daftar Peserta Kegiatan</span>
@@ -1138,22 +1148,33 @@ export default function KegiatanPage() {
       {/* REGISTRATION MODAL */}
       <AnimatePresence>
         {isRegisterModalOpen && selectedActivity && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
+          <div 
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 pt-3 pb-20 sm:pt-6 sm:pb-6 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsRegisterModalOpen(false);
+                setRegSuccess(null);
+              }
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Formulir Pendaftaran</span>
-                  <h3 className="text-sm font-black font-display leading-tight">{selectedActivity.namaKegiatan}</h3>
+              <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
+                <div className="min-w-0 flex-1 pr-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">Formulir Pendaftaran</span>
+                  <h3 className="text-xs sm:text-sm font-black font-display leading-tight truncate">{selectedActivity.namaKegiatan}</h3>
                 </div>
                 <button 
+                  type="button"
                   onClick={() => { setIsRegisterModalOpen(false); setRegSuccess(null); }}
-                  className="p-2 text-white/70 hover:text-white rounded-full cursor-pointer"
+                  className="p-2 text-white/70 hover:text-white rounded-full cursor-pointer touch-manipulation active:scale-95 shrink-0"
+                  title="Tutup Formulir"
                 >
                   <X size={18} />
                 </button>
@@ -1437,28 +1458,36 @@ export default function KegiatanPage() {
       {/* PARTICIPANTS LIST MODAL */}
       <AnimatePresence>
         {isParticipantsModalOpen && selectedActivityForParticipants && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
+          <div 
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 pt-3 pb-20 sm:pt-6 sm:pb-6 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsParticipantsModalOpen(false);
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-xl w-full overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-100 shadow-2xl max-w-xl w-full overflow-hidden max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Daftar Pendaftar Kegiatan</span>
-                  <h3 className="text-sm font-black font-display leading-tight">{selectedActivityForParticipants.namaKegiatan}</h3>
+              <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
+                <div className="min-w-0 flex-1 pr-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">Daftar Pendaftar Kegiatan</span>
+                  <h3 className="text-xs sm:text-sm font-black font-display leading-tight truncate">{selectedActivityForParticipants.namaKegiatan}</h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsParticipantsModalOpen(false)}
-                  className="p-2 text-gray-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                  className="p-2 text-gray-400 hover:text-white rounded-full transition-colors cursor-pointer touch-manipulation active:scale-95 shrink-0"
+                  title="Tutup Modal"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 overscroll-contain">
                 {activeParticipantsList.length === 0 ? (
                   <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
                     <Users size={36} className="mx-auto text-gray-300" />
@@ -1551,25 +1580,27 @@ export default function KegiatanPage() {
                 )}
               </div>
 
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+              <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setIsParticipantsModalOpen(false)}
-                  className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-100 cursor-pointer"
+                  className="px-4 sm:px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-100 cursor-pointer touch-manipulation active:scale-95"
                 >
                   Tutup
                 </button>
 
                 {selectedActivityForParticipants.status !== 'Tutup' && (
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedActivity(selectedActivityForParticipants);
                       setIsParticipantsModalOpen(false);
                       setIsRegisterModalOpen(true);
                     }}
-                    className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    className="px-4 sm:px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-1.5 cursor-pointer active:scale-95 touch-manipulation"
                   >
                     <UserPlus size={15} />
-                    <span>Mendaftar Kegiatan Sekarang</span>
+                    <span>Daftar Sekarang</span>
                   </button>
                 )}
               </div>
@@ -1581,33 +1612,44 @@ export default function KegiatanPage() {
       {/* MODAL TAMBAH / EDIT KEGIATAN */}
       <AnimatePresence>
         {isAddActivityModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
+          <div 
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 pt-3 pb-20 sm:pt-6 sm:pb-6 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsAddActivityModalOpen(false);
+                setEditingActivity(null);
+              }
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
+              <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Pusat Data Kegiatan</span>
-                  <h3 className="text-sm font-black font-display leading-tight">
+                  <h3 className="text-xs sm:text-sm font-black font-display leading-tight">
                     {editingActivity ? 'Edit Data Kegiatan' : 'Tambah Kegiatan Baru'}
                   </h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsAddActivityModalOpen(false);
                     setEditingActivity(null);
                   }}
-                  className="p-2 text-white/70 hover:text-white rounded-full transition-colors cursor-pointer"
+                  className="p-2 text-white/70 hover:text-white rounded-full transition-colors cursor-pointer touch-manipulation active:scale-95 shrink-0"
+                  title="Tutup Modal"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveNewActivity} className="p-6 overflow-y-auto space-y-4 flex-1">
+              <form onSubmit={handleSaveNewActivity} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 overscroll-contain">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
                     Nama Kegiatan *
