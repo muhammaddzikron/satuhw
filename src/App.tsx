@@ -114,12 +114,57 @@ const Navigation = () => {
     if (userRolesList.some(r => adminRoles.some(ar => r.includes(ar) || ar.includes(r)) || r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari'))) return true;
     if ((user as any).adminType === 'diklat') return true;
 
-    return false;
-  }, [user?.role, (user as any)?.roles, (user as any)?.adminType]);
+    // Check if user is assigned as trainer or assistant in any activity
+    let cachedActsList: any[] = [];
+    try {
+      const rawLs = localStorage.getItem('hw_settings');
+      if (rawLs) {
+        const parsedLs = JSON.parse(rawLs);
+        if (Array.isArray(parsedLs?.trainingActivities)) {
+          cachedActsList = parsedLs.trainingActivities;
+        }
+      }
+    } catch (e) {}
+
+    const rawActsList = [
+      ...cachedActsList,
+      ...(Array.isArray((window as any)?.hw_settings?.trainingActivities) ? (window as any).hw_settings.trainingActivities : [])
+    ];
+
+    const userEmailStr = (user?.email || '').toLowerCase().trim();
+    const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
+    const userNbmStr = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
+
+    return rawActsList.some((act: any) => {
+      if (!act) return false;
+      const parseList = (val: any) => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
+        return [];
+      };
+      const pelatihList = parseList(act.pelatih);
+      const asistenList = parseList(act.asistenPelatih);
+      const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+
+      return allTrainers.some((t: string) => {
+        if (!t) return false;
+        if (userNameStr && (t.includes(userNameStr) || userNameStr.includes(t))) return true;
+        if (userNbmStr && userNbmStr.length >= 4 && t.includes(userNbmStr)) return true;
+        if (userEmailStr && userEmailStr.length >= 4 && t.includes(userEmailStr.split('@')[0])) return true;
+        return false;
+      });
+    });
+  }, [user?.role, (user as any)?.roles, (user as any)?.adminType, user?.email, user?.namaLengkap]);
 
   const isDiklatAdmin = Boolean(
     user && ((user as any).adminType === 'diklat' || user.email === 'diklat' || user.email === 'diklat@hwjateng.com' || user.role === 'admin_diklat' || user.role === 'diklat')
   );
+
+  const isPelatihOnly = React.useMemo(() => {
+    if (!user) return false;
+    if (user.role === 'superadmin' || user.role === 'admin' || isDiklatAdmin) return false;
+    return canAccessAdmin;
+  }, [user, isDiklatAdmin, canAccessAdmin]);
 
   const isMemberView = !canAccessAdmin || activeRole === 'umum';
 
@@ -128,7 +173,7 @@ const Navigation = () => {
       <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
         {isAuthenticated && !isMemberView ? (
           /* Admin/Staff view */
-          isDiklatAdmin ? (
+          (isDiklatAdmin || isPelatihOnly) ? (
             <>
               <NavigationLink 
                 to="/" 
@@ -141,6 +186,12 @@ const Navigation = () => {
                 icon={GraduationCap} 
                 label="Pelatihan" 
                 active={location.pathname === '/admin'} 
+              />
+              <NavigationLink 
+                to="/profile" 
+                icon={UserIcon} 
+                label="Akun" 
+                active={location.pathname === '/profile'} 
               />
               <button 
                 onClick={logout}

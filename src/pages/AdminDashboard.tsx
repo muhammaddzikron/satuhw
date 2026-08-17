@@ -4033,7 +4033,7 @@ export default function AdminDashboard() {
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[9px] font-black uppercase rounded-lg tracking-wider">
-                {isPelatihOnly ? 'Tim Pelatih / Asisten Pelatih' : (isDiklatAdmin ? 'Admin Diklat' : user?.role)}
+                {isPelatihOnly ? 'Mode Pelatih • Tim Pelatih HW Jateng' : (isDiklatAdmin ? 'Admin Diklat' : user?.role)}
               </span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
@@ -4043,6 +4043,22 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Mode Switcher */}
+          <div className="hidden sm:flex bg-gray-100 p-1 rounded-2xl items-center border border-gray-200/60 shadow-xs">
+            <Link
+              to="/pelatihan"
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-all cursor-pointer"
+            >
+              Mode Anggota
+            </Link>
+            <span
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-hw-green text-white shadow-xs flex items-center gap-1 cursor-default"
+            >
+              <GraduationCap size={13} />
+              Mode Pelatih
+            </span>
+          </div>
+
           {totalNotifications > 0 && (
             <button 
               onClick={() => {

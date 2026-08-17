@@ -798,6 +798,52 @@ export default function PelatihanPage() {
 
   const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';
 
+  const userRolesList = [
+    ...(Array.isArray(user?.roles) ? user.roles : []),
+    user?.role,
+    ...(Array.isArray(user?.pelatihan) ? user.pelatihan : [user?.pelatihan]),
+    (user as any)?.golonganPelatih,
+    (user as any)?.tingkatan
+  ].filter(Boolean).map(r => String(r).toLowerCase().trim());
+
+  const trainerRoleIdentifiers = [
+    'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
+    'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
+    'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
+    'pelatih kegiatan', 'asisten pelatih'
+  ];
+
+  const isJayaMatahariRole = userRolesList.some(r => 
+    trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+    r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+  );
+
+  const userEmailStr = (user?.email || '').toLowerCase().trim();
+  const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
+  const userNbmStr = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
+
+  const isAssignedTrainerInAnyActivity = (Array.isArray(trainingActivities) ? trainingActivities : []).some((act: any) => {
+    if (!act) return false;
+    const parseList = (val: any) => {
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string' && val.trim()) return val.split(/[,;]/).map((s: string) => s.trim());
+      return [];
+    };
+    const pelatihList = parseList(act.pelatih);
+    const asistenList = parseList(act.asistenPelatih);
+    const allTrainers = [...pelatihList, ...asistenList].map((s: string) => String(s).toLowerCase().trim());
+
+    return allTrainers.some((t: string) => {
+      if (!t) return false;
+      if (userNameStr && (t.includes(userNameStr) || userNameStr.includes(t))) return true;
+      if (userNbmStr && userNbmStr.length >= 4 && t.includes(userNbmStr)) return true;
+      if (userEmailStr && userEmailStr.length >= 4 && t.includes(userEmailStr.split('@')[0])) return true;
+      return false;
+    });
+  });
+
+  const isTrainerOrAdmin = isRealAdmin || isJayaMatahariRole || isAssignedTrainerInAnyActivity;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Top Header & Navigation */}
@@ -810,7 +856,7 @@ export default function PelatihanPage() {
           Kembali
         </button>
 
-        {isRealAdmin && (
+        {isTrainerOrAdmin && (
           <div className="bg-gray-100 p-1 rounded-2xl flex items-center border border-gray-200/60 shadow-xs">
             <button
               onClick={() => setPerspective('peserta')}
@@ -821,12 +867,11 @@ export default function PelatihanPage() {
               Mode Anggota
             </button>
             <button
-              onClick={() => setPerspective('admin')}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                perspective === 'admin' ? 'bg-hw-green text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'
-              }`}
+              onClick={() => navigate('/admin?tab=pelatihan')}
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 bg-hw-green text-white shadow-xs hover:bg-emerald-700`}
             >
-              Kelola Admin
+              <GraduationCap size={13} />
+              Mode Pelatih
             </button>
           </div>
         )}
