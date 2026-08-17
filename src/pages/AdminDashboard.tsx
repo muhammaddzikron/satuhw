@@ -496,7 +496,11 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if ((isDiklatAdmin || isPelatihOnly) && activeTab !== 'pelatihan' && activeTab !== 'akun') {
+    if (isPelatihOnly && activeTab !== 'pelatihan') {
+      setActiveTabState('pelatihan');
+      return;
+    }
+    if (isDiklatAdmin && activeTab !== 'pelatihan' && activeTab !== 'akun') {
       setActiveTabState('pelatihan');
       return;
     }
@@ -1425,8 +1429,8 @@ export default function AdminDashboard() {
       setIsResequencingKta(true);
 
       // 1. Optimistic local state update
-      const resequencedKtas = resequenceKtaNumbers([...ktaApps]);
-      const resequencedMembers = resequenceKtaNumbers([...members]);
+      const resequencedKtas = ensureUniqueKtaNumbers([...ktaApps]);
+      const resequencedMembers = ensureUniqueKtaNumbers([...members]);
 
       setKtaApps(resequencedKtas);
       setMembers(resequencedMembers);
@@ -1435,7 +1439,10 @@ export default function AdminDashboard() {
       safeStorageSet('mock_members', resequencedMembers);
 
       // 2. Sync to Firestore in background
-      await firestoreService.resequenceAndSaveAllKTAs();
+      const synced = await firestoreService.resequenceAndSaveAllKTAs();
+      if (synced && synced.length > 0) {
+        setKtaApps(synced);
+      }
 
       alert("Berhasil merapikan dan menggeser nomor KTA!\nSemua urutan anggota di tiap Kwarda/Qabilah kini lengkap dan rapat dari yang terkecil.");
     } catch (err: any) {
@@ -4037,7 +4044,7 @@ export default function AdminDashboard() {
               </span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                Gerakan Kepanduan HW
+                Gerakan Kepanduan Hizbul Wathan
               </span>
             </div>
           </div>
@@ -4099,34 +4106,36 @@ export default function AdminDashboard() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
-        <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 max-w-6xl mx-auto">
-          {[
-            (!isDiklatAdmin && !isPelatihOnly) && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-            { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
-            (!isDiklatAdmin && !isPelatihOnly) && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
-            { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
-          ].filter(Boolean).map((tab: any) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-                activeTab === tab.id 
-                ? tab.activeClass
-                : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
-              }`}
-            >
-              <tab.icon size={16} className="shrink-0" />
-              <span>{tab.label}</span>
-            </button>
-          ))}
+      {!isPelatihOnly && (
+        <div className="w-full pb-3 sticky top-0 bg-gray-50 z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60 flex justify-center">
+          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 max-w-6xl mx-auto">
+            {[
+              (!isDiklatAdmin) && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+              (!isDiklatAdmin) && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+              { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
+              (!isDiklatAdmin) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+              (!isDiklatAdmin) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
+              (!isDiklatAdmin) && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
+              (!isDiklatAdmin) && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
+              (!isDiklatAdmin) && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
+              { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
+            ].filter(Boolean).map((tab: any) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+                  activeTab === tab.id 
+                  ? tab.activeClass
+                  : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
+                }`}
+              >
+                <tab.icon size={16} className="shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content Area */}
       <AnimatePresence mode="wait">

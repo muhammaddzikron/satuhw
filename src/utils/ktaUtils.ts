@@ -340,7 +340,7 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
         return parsedA.hasKta ? -1 : 1;
       }
 
-      // If both have assigned KTAs, sort by current sequence number
+      // If both have assigned KTAs, sort by current sequence number to maintain established order
       if (parsedA.hasKta && parsedB.hasKta) {
         if (parsedA.seq !== parsedB.seq) {
           return parsedA.seq - parsedB.seq;
@@ -348,15 +348,15 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
       }
 
       // Fallback sorting by registration date or name
-      const dateA = a.tanggalDaftar || a.createdAt || a.tanggal || '';
-      const dateB = b.tanggalDaftar || b.createdAt || b.tanggal || '';
+      const dateA = a.tanggalAjuan || a.tanggalDaftar || a.createdAt || a.tanggal || '';
+      const dateB = b.tanggalAjuan || b.tanggalDaftar || b.createdAt || b.tanggal || '';
       if (dateA && dateB && dateA !== dateB) {
         return String(dateA).localeCompare(String(dateB));
       }
 
       const nameA = a.namaLengkap || a.nama || '';
       const nameB = b.namaLengkap || b.nama || '';
-      return nameA.localeCompare(nameB);
+      return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
     });
 
     let currentSeq = 1;
@@ -488,21 +488,32 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       newPel.forEach(p => combinedPelMap.set(normStr(p), p));
       const combinedPel = Array.from(combinedPelMap.values()).filter(Boolean);
 
+      const resolvedName = existing.namaLengkap || raw.namaLengkap || existing.nama || raw.nama || name;
+      const resolvedKwarda = existing.asalKwarda || raw.asalKwarda || existing.asalDaerah || raw.asalDaerah || '';
+      const resolvedPhone = existing.noHp || raw.noHp || existing.noWa || raw.noWa || '';
+      const resolvedGol = (existing.golongan && existing.golongan !== 'Dewasa') ? existing.golongan : (raw.golongan || existing.tingkatan || raw.tingkatan || existing.golongan || 'Dewasa');
+
       const merged: T = {
         ...raw,
         ...existing,
         id: existing.id || raw.id,
-        namaLengkap: existing.namaLengkap || raw.namaLengkap || name,
+        namaLengkap: resolvedName,
+        nama: resolvedName,
         email: validEmail || existing.email || raw.email || '',
-        noHp: existing.noHp || raw.noHp || raw.noWa || '',
+        noHp: resolvedPhone,
+        noWa: resolvedPhone,
         alamat: existing.alamat || raw.alamat || '',
         qabilah: existing.qabilah || raw.qabilah || '',
-        asalKwarda: existing.asalKwarda || raw.asalKwarda || raw.asalDaerah || '',
+        asalKwarda: resolvedKwarda,
+        asalDaerah: resolvedKwarda,
         tempatLahir: existing.tempatLahir || raw.tempatLahir || '',
         tanggalLahir: existing.tanggalLahir || raw.tanggalLahir || '',
-        golongan: (existing.golongan && existing.golongan !== 'Dewasa') ? existing.golongan : (raw.golongan || existing.golongan || 'Dewasa'),
+        golongan: resolvedGol,
+        tingkatan: resolvedGol,
+        jenisKta: existing.jenisKta || raw.jenisKta || 'Digital',
+        status: existing.status || raw.status || (existing.isVerified || raw.isVerified ? 'approved' : 'pending'),
         photo: (existing.photo && existing.photo.length > (raw.photo || '').length) ? existing.photo : (raw.photo || existing.photo || ''),
-        isVerified: Boolean(existing.isVerified || raw.isVerified || raw.status === 'approved'),
+        isVerified: Boolean(existing.isVerified || raw.isVerified || existing.status === 'approved' || raw.status === 'approved'),
         statusAktivasi: (existing.statusAktivasi === 'Aktif' || raw.statusAktivasi === 'Aktif') ? 'Aktif' : (existing.statusAktivasi || raw.statusAktivasi || 'Belum Aktif'),
         statusPembayaran: (existing.statusPembayaran === 'Lunas' || raw.statusPembayaran === 'Lunas') ? 'Lunas' : (existing.statusPembayaran || raw.statusPembayaran || 'Belum Bayar'),
         ktaNumber: validKta || existing.ktaNumber || raw.ktaNumber || '',
@@ -546,15 +557,25 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
         }
       }
 
+      const resolvedKwarda = raw.asalKwarda || raw.asalDaerah || '';
+      const resolvedPhone = raw.noHp || raw.noWa || '';
+      const resolvedGol = raw.golongan || raw.tingkatan || 'Dewasa';
+
       const newObj: T = {
         ...raw,
         id: memberId,
         namaLengkap: name,
+        nama: name,
         email: raw.email || '',
-        noHp: raw.noHp || raw.noWa || '',
-        asalKwarda: raw.asalKwarda || raw.asalDaerah || '',
+        noHp: resolvedPhone,
+        noWa: resolvedPhone,
+        asalKwarda: resolvedKwarda,
+        asalDaerah: resolvedKwarda,
         jenisKelamin: raw.jenisKelamin === 'Perempuan' || raw.jenisKelamin === 'P' ? 'P' : 'L',
-        golongan: raw.golongan || 'Dewasa',
+        golongan: resolvedGol,
+        tingkatan: resolvedGol,
+        jenisKta: raw.jenisKta || 'Digital',
+        status: raw.status || (raw.isVerified ? 'approved' : 'pending'),
         isVerified: Boolean(raw.isVerified || raw.status === 'approved'),
         role: primaryRole,
         roles: combinedRoles,

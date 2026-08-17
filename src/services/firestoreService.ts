@@ -1864,7 +1864,7 @@ export const firestoreService = {
             });
           } catch (e) {}
         }
-        ensureUniqueKtaNumbers(ktas);
+        ktas = ensureUniqueKtaNumbers(ktas);
         safeStorageSet('kta_applications', ktas);
         return ktas;
       } catch (err) {
@@ -1891,7 +1891,7 @@ export const firestoreService = {
   async resequenceAndSaveAllKTAs(): Promise<any[]> {
     try {
       const ktas = await this.getKTAApplications();
-      const resequenced = resequenceKtaNumbers(ktas);
+      const resequenced = ensureUniqueKtaNumbers(ktas);
       safeStorageSet('kta_applications', resequenced);
 
       if (resequenced.length > 0) {
