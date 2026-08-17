@@ -296,7 +296,8 @@ export const isPelatihanSelected = (pelatihanList: string[] = [], key: string): 
  */
 export const syncRolesAndPelatihan = (
   rawRoles: any,
-  rawPelatihan: any
+  rawPelatihan: any,
+  explicitPrimaryRole?: string
 ): { roles: string[]; pelatihan: string[]; primaryRole: string } => {
   const rolesSet = new Set<string>();
 
@@ -326,6 +327,9 @@ export const syncRolesAndPelatihan = (
     }
   };
   addRole(rawRoles);
+  if (explicitPrimaryRole) {
+    addRole(explicitPrimaryRole);
+  }
 
   const pelatihanSet = new Set<string>();
   const addPelatihan = (p: any) => {
@@ -367,9 +371,6 @@ export const syncRolesAndPelatihan = (
       if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 2'))) {
         pelatihanSet.add('Jati 2');
       }
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 1'))) {
-        pelatihanSet.add('Jati 1');
-      }
     }
     if (cleanR === 'jari1' || cleanR === 'jaya_matahari_1' || cleanR === 'jayamatahari1' || cleanR.includes('matahari 1') || cleanR.includes('jari 1')) {
       if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
@@ -379,9 +380,6 @@ export const syncRolesAndPelatihan = (
     if (cleanR === 'jari2' || cleanR === 'jaya_matahari_2' || cleanR === 'jayamatahari2' || cleanR.includes('matahari 2') || cleanR.includes('jari 2')) {
       if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 2'))) {
         pelatihanSet.add('Jari 2');
-      }
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
-        pelatihanSet.add('Jari 1');
       }
     }
     if (cleanR === 'jawi' || cleanR === 'jaya_pertiwi' || cleanR === 'jayapertiwi' || cleanR.includes('pertiwi')) {
@@ -399,14 +397,12 @@ export const syncRolesAndPelatihan = (
     }
     if (cleanP.includes('jati 2') || cleanP.includes('melati 2') || cleanP === 'jati2') {
       rolesSet.add('jati2');
-      rolesSet.add('jati1');
     }
     if (cleanP.includes('jari 1') || cleanP.includes('matahari 1') || cleanP === 'jari1') {
       rolesSet.add('jari1');
     }
     if (cleanP.includes('jari 2') || cleanP.includes('matahari 2') || cleanP === 'jari2') {
       rolesSet.add('jari2');
-      rolesSet.add('jari1');
     }
     if (cleanP.includes('jawi') || cleanP.includes('pertiwi')) {
       rolesSet.add('jawi');
@@ -415,13 +411,20 @@ export const syncRolesAndPelatihan = (
 
   if (rolesSet.size === 0) rolesSet.add('umum');
 
-  const rolePriority = ['superadmin', 'admin', 'diklat', 'admin_diklat', 'kwarda', 'admin_kwarda', 'sugli', 'dewan_sugli', 'jari2', 'jari1', 'jati2', 'jati1', 'jawi', 'umum'];
   const finalRoles = Array.from(rolesSet);
   let primaryRole = 'umum';
-  for (const pr of rolePriority) {
-    if (finalRoles.includes(pr)) {
-      primaryRole = pr;
-      break;
+
+  // If explicit primary role was given and exists in finalRoles, prioritize it
+  const normExplicit = explicitPrimaryRole ? normalizeTrainingKey(explicitPrimaryRole) : '';
+  if (normExplicit && finalRoles.includes(normExplicit)) {
+    primaryRole = normExplicit;
+  } else {
+    const rolePriority = ['superadmin', 'admin', 'diklat', 'admin_diklat', 'kwarda', 'admin_kwarda', 'sugli', 'dewan_sugli', 'jari2', 'jari1', 'jati2', 'jati1', 'jawi', 'umum'];
+    for (const pr of rolePriority) {
+      if (finalRoles.includes(pr)) {
+        primaryRole = pr;
+        break;
+      }
     }
   }
 

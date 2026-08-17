@@ -28,7 +28,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
 import { User, UserRole } from '../types';
-import { formatTempatTanggalLahir } from '../lib/utils';
+import { formatTempatTanggalLahir, normalizeDateForInput } from '../lib/utils';
 import { Navigate, Link } from 'react-router-dom';
 import { cn, safeJsonParse } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
@@ -170,7 +170,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = React.useState({
     namaLengkap: user?.namaLengkap || '',
     tempatLahir: user?.tempatLahir || '',
-    tanggalLahir: user?.tanggalLahir || '',
+    tanggalLahir: normalizeDateForInput(user?.tanggalLahir || (user as any)?.tanggallahir || ''),
     golongan: user?.golongan || 'Penghela',
     golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user?.golongan || '') ? user?.golongan : 'Penghela'),
     pendidikan: user?.pendidikan || 'SMA/SMK/MA',
@@ -193,7 +193,7 @@ export default function ProfilePage() {
       setFormData({
         namaLengkap: user.namaLengkap || '',
         tempatLahir: user.tempatLahir || '',
-        tanggalLahir: user.tanggalLahir || '',
+        tanggalLahir: normalizeDateForInput(user.tanggalLahir || (user as any)?.tanggallahir || ''),
         golongan: user.golongan || 'Penghela',
         golonganPelatih: (user as any)?.golonganPelatih || (['Athfal', 'Pengenal', 'Penghela', 'Penuntun'].includes(user.golongan || '') ? user.golongan : 'Penghela'),
         pendidikan: user.pendidikan || 'SMA/SMK/MA',
@@ -228,6 +228,8 @@ export default function ProfilePage() {
           freshUser.role
         ].filter(Boolean))) as UserRole[];
 
+        const cleanTgl = normalizeDateForInput(freshUser.tanggalLahir || (freshUser as any)?.tanggallahir || currentUser.tanggalLahir || '');
+
         const mergedUser: User = {
           ...currentUser,
           ...freshUser,
@@ -236,7 +238,7 @@ export default function ProfilePage() {
           activeRole: currentUser.activeRole || freshUser.activeRole || combinedRoles[0] || 'umum',
           namaLengkap: freshUser.namaLengkap && freshUser.namaLengkap !== 'Tanpa Nama' ? freshUser.namaLengkap : currentUser.namaLengkap,
           tempatLahir: freshUser.tempatLahir || currentUser.tempatLahir || '',
-          tanggalLahir: freshUser.tanggalLahir || currentUser.tanggalLahir || '',
+          tanggalLahir: cleanTgl,
           noHp: freshUser.noHp || currentUser.noHp,
           alamat: freshUser.alamat || currentUser.alamat,
           asalKwarda: freshUser.asalKwarda || currentUser.asalKwarda,
@@ -310,18 +312,20 @@ export default function ProfilePage() {
 
       const rawRoles = (formData.roles && formData.roles.length > 0) ? formData.roles : (user?.roles || [user?.role || 'umum']);
       const rawPelatihan = (formData.pelatihan && formData.pelatihan.length > 0) ? formData.pelatihan : (user?.pelatihan || []);
-      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan);
+      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan, formData.role);
+
+      const cleanTgl = normalizeDateForInput(formData.tanggalLahir || user?.tanggalLahir || '');
 
       // Ensure we have a payload that includes identifier and preserves existing values
       const payload = {
         ...user,
         ...formData,
         tempatLahir: formData.tempatLahir?.trim() || user?.tempatLahir || '',
-        tanggalLahir: formData.tanggalLahir || user?.tanggalLahir || '',
-        role: synced.primaryRole,
+        tanggalLahir: cleanTgl,
+        role: formData.role || synced.primaryRole,
         roles: synced.roles,
         pelatihan: synced.pelatihan,
-        activeRole: user?.activeRole || synced.primaryRole,
+        activeRole: user?.activeRole || formData.role || synced.primaryRole,
         golongan: isJM ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
         golonganPelatih: isJM ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
         photo: formData.photo || user.photo || ''

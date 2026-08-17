@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
-import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
+import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate } from '../utils/activityUtils';
 import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey } from '../utils/trainingUtils';
 
@@ -2560,12 +2560,15 @@ export default function AdminDashboard() {
 
       const rawRoles = parseRolesField(member.roles, member.role);
       const pelatihanArr = Array.isArray(member.pelatihan) ? member.pelatihan : (typeof member.pelatihan === 'string' ? member.pelatihan.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
-      const synced = syncRolesAndPelatihan(rawRoles, pelatihanArr);
+      const synced = syncRolesAndPelatihan(rawRoles, pelatihanArr, member.role);
+
+      const rawTanggal = member.tanggalLahir || (member as any)?.tanggallahir || matchingKta?.tanggalLahir || (matchingKta as any)?.tanggallahir || '';
+      const normTanggal = normalizeDateForInput(rawTanggal);
 
       setFormData({
         email: member.email || matchingKta?.email || '',
         namaLengkap: matchingKta?.nama || member.namaLengkap || member.nama || '',
-        role: synced.primaryRole,
+        role: member.role || synced.primaryRole,
         roles: synced.roles,
         jenisKelamin: matchingKta?.jenisKelamin || member.jenisKelamin || 'L',
         golongan: matchingKta?.tingkatan || member.golongan || 'Penghela',
@@ -2581,8 +2584,8 @@ export default function AdminDashboard() {
         isVerified: matchingKta?.status === 'approved' ? true : (member.isVerified ?? true),
         upgradeRequests: Array.isArray(member.upgradeRequests) ? member.upgradeRequests : [],
         photo: matchingKta?.photo || member.photo || member.foto || '',
-        tempatLahir: matchingKta?.tempatLahir || member.tempatLahir || '',
-        tanggalLahir: matchingKta?.tanggalLahir || member.tanggalLahir || '',
+        tempatLahir: member.tempatLahir || (member as any)?.tempatlahir || matchingKta?.tempatLahir || '',
+        tanggalLahir: normTanggal,
         statusKta: matchingKta?.status || (member.isVerified ? 'approved' : 'pending'),
         ktaNumber: matchingKta?.ktaNumber || member.ktaNumber || '',
         jenisKta: matchingKta?.jenisKta || 'Reguler'
@@ -2622,10 +2625,11 @@ export default function AdminDashboard() {
   const handleSaveMember = async () => {
     try {
       setLoading(true);
-      const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan);
+      const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan, formData.role);
       const isJM = synced.roles.includes('jari1') || synced.roles.includes('jari2') || synced.roles.includes('jaya_matahari_1') || synced.roles.includes('jaya_matahari_2') || synced.primaryRole === 'jari1' || synced.primaryRole === 'jari2';
       const memberId = editingMember?.id || Date.now().toString();
-      const primaryRole = synced.primaryRole;
+      const primaryRole = formData.role || synced.primaryRole;
+      const cleanTanggalLahir = normalizeDateForInput(formData.tanggalLahir || editingMember?.tanggalLahir || '');
 
       const payload = editingMember 
         ? { 
@@ -2640,8 +2644,8 @@ export default function AdminDashboard() {
             asalKwarda: formData.asalKwarda,
             qabilah: formData.qabilah,
             alamat: formData.alamat,
-            tempatLahir: formData.tempatLahir,
-            tanggalLahir: formData.tanggalLahir,
+            tempatLahir: formData.tempatLahir || editingMember?.tempatLahir || '',
+            tanggalLahir: cleanTanggalLahir,
             jenisKelamin: formData.jenisKelamin,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
@@ -2655,6 +2659,8 @@ export default function AdminDashboard() {
             roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
             pelatihan: synced.pelatihan,
             photo: formData.photo,
+            tempatLahir: formData.tempatLahir || '',
+            tanggalLahir: cleanTanggalLahir,
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
               golonganPelatih: formData.golonganPelatih || formData.golongan
@@ -2703,8 +2709,8 @@ export default function AdminDashboard() {
         asalDaerah: payload.asalKwarda || formData.asalKwarda || '',
         qabilah: payload.qabilah || formData.qabilah || '',
         alamat: payload.alamat || formData.alamat || '',
-        tempatLahir: formData.tempatLahir || payload.tempatLahir || '',
-        tanggalLahir: formData.tanggalLahir || payload.tanggalLahir || '',
+        tempatLahir: payload.tempatLahir || formData.tempatLahir || '',
+        tanggalLahir: cleanTanggalLahir || payload.tanggalLahir || '',
         jenisKelamin: payload.jenisKelamin || formData.jenisKelamin || 'L',
         tingkatan: payload.golongan || formData.golongan || 'Penghela',
         photo: payload.photo || formData.photo || '',
@@ -5682,7 +5688,10 @@ export default function AdminDashboard() {
                                     
                                     <button
                                       onClick={() => {
-                                        setEditingKtaApp(app);
+                                        setEditingKtaApp({
+                                          ...app,
+                                          tanggalLahir: normalizeDateForInput(app.tanggalLahir || (app as any).tanggallahir || '')
+                                        });
                                         setIsEditKtaModalOpen(true);
                                       }}
                                       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs"
@@ -12134,7 +12143,10 @@ export default function AdminDashboard() {
                                       <button
                                         onClick={() => {
                                           setSelectedKwardaModal(null);
-                                          setEditingKtaApp(app);
+                                          setEditingKtaApp({
+                                            ...app,
+                                            tanggalLahir: normalizeDateForInput(app.tanggalLahir || (app as any).tanggallahir || '')
+                                          });
                                           setIsEditKtaModalOpen(true);
                                         }}
                                         className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors"

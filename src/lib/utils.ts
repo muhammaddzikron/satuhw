@@ -57,75 +57,137 @@ export function cleanTempatLahir(tempat?: string | null): string {
   return cleaned;
 }
 
+/**
+ * Normalizes any date value (ISO string, DD/MM/YYYY, Indonesian text, timestamp) into YYYY-MM-DD for HTML5 date inputs.
+ */
+export function normalizeDateForInput(dateVal?: string | number | Date | null): string {
+  if (!dateVal) return '';
+  if (dateVal instanceof Date) {
+    if (isNaN(dateVal.getTime())) return '';
+    const y = dateVal.getFullYear();
+    const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+    const d = String(dateVal.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  if (typeof dateVal === 'number') {
+    // Check if Excel serial date (e.g. 20000 to 60000)
+    if (dateVal > 20000 && dateVal < 60000) {
+      const utcDays = Math.floor(dateVal - 25569);
+      const utcValue = utcDays * 86400;
+      const dateInfo = new Date(utcValue * 1000);
+      const y = dateInfo.getUTCFullYear();
+      const m = String(dateInfo.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dateInfo.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const dObj = new Date(dateVal);
+    if (!isNaN(dObj.getTime())) {
+      const y = dObj.getFullYear();
+      const m = String(dObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return '';
+  }
+
+  const str = String(dateVal).trim();
+  if (!str || str === '-' || str === 'null' || str === 'undefined' || str.includes('...')) {
+    return '';
+  }
+
+  // Already standard YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+
+  // ISO string with T: 1991-08-11T...
+  if (str.includes('T')) {
+    const isoPart = str.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoPart)) {
+      return isoPart;
+    }
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+  if (dmyMatch) {
+    const d = dmyMatch[1].padStart(2, '0');
+    const m = dmyMatch[2].padStart(2, '0');
+    const y = dmyMatch[3];
+    return `${y}-${m}-${d}`;
+  }
+
+  // YYYY/MM/DD or YYYY.MM.DD
+  const ymdMatch = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+  if (ymdMatch) {
+    const y = ymdMatch[1];
+    const m = ymdMatch[2].padStart(2, '0');
+    const d = ymdMatch[3].padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Indonesian date text: "12 Agustus 1991", "17 Agu 1995", "12-Agustus-1991"
+  const indonesianMonths: Record<string, string> = {
+    januari: '01', februari: '02', maret: '03', april: '04', mei: '05', juni: '06',
+    juli: '07', agustus: '08', september: '09', oktober: '10', november: '11', desember: '12',
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', ags: '08', sep: '09', okt: '10', nov: '11', des: '12', dec: '12'
+  };
+  const indoMatch = str.match(/^(\d{1,2})[\s\-]+([a-zA-Z]+)[\s\-]+(\d{4})/);
+  if (indoMatch) {
+    const d = indoMatch[1].padStart(2, '0');
+    const mName = indoMatch[2].toLowerCase();
+    const m = indonesianMonths[mName];
+    const y = indoMatch[3];
+    if (m) {
+      return `${y}-${m}-${d}`;
+    }
+  }
+
+  // Fallback to standard Date parsing
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  return '';
+}
+
 export function formatIndonesianDate(dateString?: string | number | Date | null, includeDay: boolean = false): string {
   if (!dateString) {
     return '';
   }
 
   try {
-    let date: Date;
-    if (dateString instanceof Date) {
-      date = dateString;
-    } else if (typeof dateString === 'number') {
-      date = new Date(dateString);
-    } else if (typeof dateString === 'string') {
-      const trimmed = dateString.trim();
-      if (!trimmed || trimmed === '-' || trimmed.includes('...')) {
-        return '';
-      }
-
-      // If it's already in Indonesian formatted date format like "12 Agustus 1991"
+    const iso = normalizeDateForInput(dateString);
+    if (!iso) {
+      const trimmed = typeof dateString === 'string' ? dateString.trim() : '';
       if (/^\d{1,2}\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+\d{4}$/i.test(trimmed)) {
         return trimmed;
       }
-
-      if (trimmed.includes('T')) {
-        const parsed = new Date(trimmed);
-        if (!isNaN(parsed.getTime())) {
-          try {
-            const options: Intl.DateTimeFormatOptions = {
-              timeZone: 'Asia/Jakarta',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric'
-            };
-            if (includeDay) {
-              options.weekday = 'long';
-            }
-            return new Intl.DateTimeFormat('id-ID', options).format(parsed);
-          } catch {
-            date = parsed;
-          }
-        } else {
-          return trimmed;
-        }
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-        const parts = trimmed.split('-');
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        date = new Date(y, m, d);
-      } else {
-        date = new Date(trimmed);
-      }
-    } else {
-      return '';
+      return trimmed;
     }
 
-    if (isNaN(date.getTime())) {
-      return typeof dateString === 'string' ? dateString : '';
-    }
+    const parts = iso.split('-');
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
 
     const months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
+    const day = d;
+    const month = months[m - 1] || '';
+    const year = y;
 
     if (includeDay) {
+      const date = new Date(y, m - 1, d);
       const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
       const dayName = days[date.getDay()];
       return `${dayName}, ${day} ${month} ${year}`;
