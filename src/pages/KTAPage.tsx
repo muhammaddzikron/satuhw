@@ -1314,7 +1314,7 @@ export default function KTAPage() {
               <input 
                 type="text"
                 required
-                value={formData.nama}
+                value={formData.nama || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, nama: e.target.value }))}
                 placeholder="Masukkan nama lengkap Anda"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
@@ -1328,7 +1328,7 @@ export default function KTAPage() {
                 <input 
                   type="text"
                   required
-                  value={formData.tempatLahir}
+                  value={formData.tempatLahir || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, tempatLahir: e.target.value }))}
                   placeholder="Contoh: Banyumas"
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
@@ -1340,7 +1340,7 @@ export default function KTAPage() {
                 <input 
                   type="date"
                   required
-                  value={formData.tanggalLahir}
+                  value={formData.tanggalLahir || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, tanggalLahir: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 />
@@ -1352,7 +1352,7 @@ export default function KTAPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Kelamin</label>
                 <select 
-                  value={formData.jenisKelamin}
+                  value={formData.jenisKelamin || 'Laki-laki'}
                   onChange={(e) => setFormData(prev => ({ ...prev, jenisKelamin: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
@@ -1364,7 +1364,7 @@ export default function KTAPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis KTA</label>
                 <select 
-                  value={formData.jenisKta}
+                  value={formData.jenisKta || 'Digital'}
                   onChange={(e) => setFormData(prev => ({ ...prev, jenisKta: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold text-hw-green"
                 >
@@ -1379,7 +1379,7 @@ export default function KTAPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tingkatan HW</label>
                 <select 
-                  value={formData.tingkatan}
+                  value={formData.tingkatan || 'Pengenal'}
                   onChange={(e) => setFormData(prev => ({ ...prev, tingkatan: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
@@ -1392,7 +1392,7 @@ export default function KTAPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Kabupaten/Kota</label>
                 <select 
-                  value={formData.asalDaerah}
+                  value={formData.asalDaerah || 'Banyumas'}
                   onChange={(e) => setFormData(prev => ({ ...prev, asalDaerah: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
@@ -1412,7 +1412,7 @@ export default function KTAPage() {
               <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan) (Opsional)</label>
               <input 
                 type="text"
-                value={formData.qabilah}
+                value={formData.qabilah || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qabilah: e.target.value }))}
                 placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
@@ -1425,7 +1425,7 @@ export default function KTAPage() {
               <textarea 
                 required
                 rows={2}
-                value={formData.alamat}
+                value={formData.alamat || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, alamat: e.target.value }))}
                 placeholder="Dusun, RT/RW, Kelurahan, Kecamatan, Kode Pos"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold resize-none"
@@ -1440,7 +1440,7 @@ export default function KTAPage() {
                   type="text"
                   required
                   placeholder="Contoh: 081234567890"
-                  value={formData.noWa}
+                  value={formData.noWa || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, noWa: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 />
@@ -1452,7 +1452,7 @@ export default function KTAPage() {
                   type="email"
                   required
                   placeholder="nama@email.com"
-                  value={formData.email}
+                  value={formData.email || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 />
@@ -1465,7 +1465,7 @@ export default function KTAPage() {
               <input 
                 type="text"
                 placeholder="Contoh: @username"
-                value={formData.sosmed}
+                value={formData.sosmed || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, sosmed: e.target.value }))}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
               />

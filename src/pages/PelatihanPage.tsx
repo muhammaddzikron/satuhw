@@ -1700,7 +1700,7 @@ export default function PelatihanPage() {
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-gray-500 ml-1">Pilih Tugas yang Dikumpulkan</label>
                             <select 
-                              value={taskTitle}
+                              value={taskTitle || ''}
                               onChange={(e) => setTaskTitle(e.target.value)}
                               className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800"
                               required
@@ -1729,7 +1729,7 @@ export default function PelatihanPage() {
                             <input 
                               type="url" 
                               placeholder="https://drive.google.com/file/d/... atau link tugas"
-                              value={taskLink}
+                              value={taskLink || ''}
                               onChange={(e) => setTaskLink(e.target.value)}
                               className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium"
                               required
@@ -1744,7 +1744,7 @@ export default function PelatihanPage() {
                             <textarea 
                               rows={3}
                               placeholder="Tuliskan catatan, ringkasan, atau pesan terkait tugas Anda..."
-                              value={taskMessage}
+                              value={taskMessage || ''}
                               onChange={(e) => setTaskMessage(e.target.value)}
                               className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl p-3 text-xs text-gray-800 font-medium resize-none outline-none"
                             />
@@ -2145,7 +2145,7 @@ export default function PelatihanPage() {
                 <label className="text-[10px] font-bold text-gray-500">Grade Nilai (Contoh: A, B+, Sangat Memuaskan)</label>
                 <input 
                   type="text" 
-                  value={gradeInput}
+                  value={gradeInput || ''}
                   onChange={(e) => setGradeInput(e.target.value)}
                   placeholder="Masukkan grade"
                   className="w-full bg-gray-50 border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800"
@@ -2155,7 +2155,7 @@ export default function PelatihanPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500">Status Kelulusan</label>
                 <select 
-                  value={passingStatus}
+                  value={passingStatus || 'Lulus'}
                   onChange={(e) => setPassingStatus(e.target.value)}
                   className="w-full bg-gray-50 border-gray-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800"
                 >
@@ -2167,7 +2167,7 @@ export default function PelatihanPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500">Catatan Tim Pelatih</label>
                 <textarea 
-                  value={remarkInput}
+                  value={remarkInput || ''}
                   onChange={(e) => setRemarkInput(e.target.value)}
                   placeholder="Catatan tambahan..."
                   rows={2}

@@ -644,7 +644,7 @@ export default function DaftarPelatihanPage() {
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatih Golongan Yang Dituju</label>
                 <select 
                   name="pelatihGolongan" 
-                  value={formData.pelatihGolongan} 
+                  value={formData.pelatihGolongan || 'Tunas Athfal'} 
                   onChange={handleChange} 
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
@@ -760,7 +760,7 @@ export default function DaftarPelatihanPage() {
                         <input
                           type="text"
                           placeholder="Ketik Nama, Email, atau No. WhatsApp Anda..."
-                          value={lookupQuery}
+                          value={lookupQuery || ''}
                           onChange={(e) => setLookupQuery(e.target.value)}
                           className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                         />
@@ -840,7 +840,7 @@ export default function DaftarPelatihanPage() {
                       name="namaLengkap" 
                       required 
                       placeholder="Nama sesuai KTP/KTA"
-                      value={formData.namaLengkap} 
+                      value={formData.namaLengkap || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
@@ -855,7 +855,7 @@ export default function DaftarPelatihanPage() {
                         name="tempatLahir" 
                         required 
                         placeholder="Contoh: Banyumas"
-                        value={formData.tempatLahir} 
+                        value={formData.tempatLahir || ''} 
                         onChange={handleChange} 
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                       />
@@ -867,7 +867,7 @@ export default function DaftarPelatihanPage() {
                         type="date" 
                         name="tanggalLahir" 
                         required 
-                        value={formData.tanggalLahir} 
+                        value={formData.tanggalLahir || ''} 
                         onChange={handleChange} 
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                       />
@@ -880,7 +880,7 @@ export default function DaftarPelatihanPage() {
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Kelamin</label>
                       <select 
                         name="jenisKelamin" 
-                        value={formData.jenisKelamin} 
+                        value={formData.jenisKelamin || 'L'} 
                         onChange={handleChange} 
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                       >
@@ -892,7 +892,7 @@ export default function DaftarPelatihanPage() {
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Golongan Anggota</label>
                       <select 
                         name="golongan" 
-                        value={formData.golongan} 
+                        value={formData.golongan || 'Pengenal'} 
                         onChange={handleChange} 
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                       >
@@ -908,7 +908,7 @@ export default function DaftarPelatihanPage() {
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pelatih Golongan</label>
                     <select 
                       name="pelatihGolongan" 
-                      value={formData.pelatihGolongan} 
+                      value={formData.pelatihGolongan || 'Tunas Athfal'} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                     >
@@ -971,7 +971,7 @@ export default function DaftarPelatihanPage() {
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Pendidikan Terakhir</label>
                     <select 
                       name="pendidikan" 
-                      value={formData.pendidikan} 
+                      value={formData.pendidikan || 'SMA/SMK/MA'} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                     >
@@ -989,7 +989,7 @@ export default function DaftarPelatihanPage() {
                       name="asalKwarda" 
                       required 
                       placeholder="Contoh: Banyumas"
-                      value={formData.asalKwarda} 
+                      value={formData.asalKwarda || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
@@ -1002,7 +1002,7 @@ export default function DaftarPelatihanPage() {
                       type="text" 
                       name="qabilah" 
                       placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"
-                      value={formData.qabilah} 
+                      value={formData.qabilah || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
@@ -1016,7 +1016,7 @@ export default function DaftarPelatihanPage() {
                       required 
                       rows={3} 
                       placeholder="Dusun, RT/RW, Kelurahan, Kecamatan, Kabupaten, Kode Pos"
-                      value={formData.alamat} 
+                      value={formData.alamat || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold resize-none" 
                     />
@@ -1057,7 +1057,7 @@ export default function DaftarPelatihanPage() {
                       name="noHp" 
                       required 
                       placeholder="Contoh: 08123456789"
-                      value={formData.noHp} 
+                      value={formData.noHp || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
@@ -1071,7 +1071,7 @@ export default function DaftarPelatihanPage() {
                       name="email" 
                       required 
                       placeholder="nama@email.com"
-                      value={formData.email} 
+                      value={formData.email || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />
@@ -1084,7 +1084,7 @@ export default function DaftarPelatihanPage() {
                       type="text" 
                       name="sosmed" 
                       placeholder="Contoh: @username"
-                      value={formData.sosmed} 
+                      value={formData.sosmed || ''} 
                       onChange={handleChange} 
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold" 
                     />

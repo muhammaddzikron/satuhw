@@ -51,7 +51,7 @@ export default function DoaPage() {
         <input 
           type="text" 
           placeholder="Cari doa harian..." 
-          value={search}
+          value={search || ''}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-12 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-sm shadow-sm"
         />

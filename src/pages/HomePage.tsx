@@ -902,7 +902,7 @@ export default function HomePage() {
           <input 
             type="text" 
             placeholder="Cari materi, audio, video..." 
-            value={searchQuery}
+            value={searchQuery || ''}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-gray-100 rounded-2xl py-3.5 pl-12 pr-12 focus:ring-2 focus:ring-hw-green/20 outline-none text-sm shadow-sm transition-all"
           />

@@ -1081,9 +1081,16 @@ export const sheetsService = {
         statusPembayaran: cleanUserData.statusPembayaran,
         ktaNumber: cleanUserData.ktaNumber,
         nomorKTA: cleanUserData.ktaNumber,
-        role: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
-        roles: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
-        pelatihan: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
+        role: (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        roles: (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        hakAkses: (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        'Hak Akses': (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        'Role': (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        'Roles': (cleanUserData.roles && cleanUserData.roles.length > 0 ? cleanUserData.roles : [cleanUserData.role]).join(', '),
+        roleJson: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
+        rolesJson: JSON.stringify(cleanUserData.roles || [cleanUserData.role]),
+        pelatihan: Array.isArray(cleanUserData.pelatihan) ? cleanUserData.pelatihan.join(', ') : (cleanUserData.pelatihan || ''),
+        pelatihanJson: Array.isArray(cleanUserData.pelatihan) ? JSON.stringify(cleanUserData.pelatihan) : cleanUserData.pelatihan,
         upgradeRequests: Array.isArray(cleanUserData.upgradeRequests) ? JSON.stringify(cleanUserData.upgradeRequests) : cleanUserData.upgradeRequests
       };
       try {
@@ -2123,8 +2130,11 @@ export const sheetsService = {
           const sheetSongUrl = sheetAct.themesongurl || sheetAct.themeSongUrl || sheetAct.themesong || sheetAct.themeSong || '';
           const sheetSongTitle = sheetAct.themesongtitle || sheetAct.themeSongTitle || sheetAct.themesongname || sheetAct.themeSongName || '';
           const sheetProposal = sheetAct.proposalurl || sheetAct.proposalUrl || sheetAct.proposal || sheetAct.linkproposal || sheetAct.linkProposal || '';
-          const sheetRekening = sheetAct.rekeningpembayaran || sheetAct.rekeningPembayaran || sheetAct.rekeningpembiayaan || sheetAct.rekeningPembiayaan || '';
-          const sheetKonfirmasi = sheetAct.nowhatsapppanitia || sheetAct.noWhatsappPanitia || sheetAct.konfirmasipembayaran || sheetAct.konfirmasiPembayaran || '';
+          const sheetRekening = sheetAct.rekeningpembayaran || sheetAct.rekeningPembayaran || sheetAct.rekeningpembiayaan || sheetAct.rekeningPembiayaan || sheetAct.nomorrekening || sheetAct.nomorRekening || sheetAct.rekening || '';
+          const sheetKonfirmasi = sheetAct.nowhatsapppanitia || sheetAct.noWhatsappPanitia || sheetAct.konfirmasipembayaran || sheetAct.konfirmasiPembayaran || sheetAct.nowakonfirmasi || sheetAct.noWaKonfirmasi || sheetAct.nowa || '';
+          const sheetYoutube = sheetAct.youtubeurl || sheetAct.youtubeUrl || sheetAct.videourl || sheetAct.videoUrl || sheetAct.youtube || sheetAct.linkyoutube || sheetAct.linkYoutube || sheetAct.video || '';
+          const sheetKuota = sheetAct.kuota || sheetAct.quota || sheetAct.kapasitas || 'Terbuka';
+          const sheetPenyelenggara = sheetAct.penyelenggara || sheetAct.panitia || 'Kwartir Wilayah HW Jawa Tengah';
 
           if (!sheetTitle && !sheetLoc && !sheetDate) return;
 
@@ -2150,11 +2160,16 @@ export const sheetsService = {
                 tanggalPelatihan: fsAct.tanggal || fsAct.tanggalPelatihan || sheetDate,
                 biaya: fsAct.biaya || fsAct.biayaPelatihan || sheetBiaya,
                 biayaPelatihan: fsAct.biaya || fsAct.biayaPelatihan || sheetBiaya,
+                kuota: fsAct.kuota || sheetKuota,
+                penyelenggara: fsAct.penyelenggara || sheetPenyelenggara,
                 deskripsi: fsAct.deskripsi || fsAct.description || sheetDesc,
                 description: fsAct.deskripsi || fsAct.description || sheetDesc,
                 kategori: fsAct.kategori || fsAct.category || sheetCat,
                 category: fsAct.kategori || fsAct.category || sheetCat,
                 gambarUrl: pickValidImageUrl(fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage, sheetImg),
+                imageUrl: pickValidImageUrl(fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage, sheetImg),
+                youtubeUrl: fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || sheetYoutube,
+                videoUrl: fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || sheetYoutube,
                 themeSongUrl: fsAct.themeSongUrl || fsAct.themeSong || sheetSongUrl,
                 themeSongTitle: fsAct.themeSongTitle || fsAct.themeSongName || sheetSongTitle,
                 proposalUrl: fsAct.proposalUrl || fsAct.proposal || sheetProposal,
@@ -2179,13 +2194,16 @@ export const sheetsService = {
                 tanggalPelatihan: sheetDate || fsAct.tanggal || fsAct.tanggalPelatihan,
                 biaya: sheetBiaya || fsAct.biaya || fsAct.biayaPelatihan,
                 biayaPelatihan: sheetBiaya || fsAct.biaya || fsAct.biayaPelatihan,
+                kuota: sheetKuota || fsAct.kuota,
+                penyelenggara: sheetPenyelenggara || fsAct.penyelenggara,
                 deskripsi: sheetDesc || fsAct.deskripsi || fsAct.description,
                 description: sheetDesc || fsAct.deskripsi || fsAct.description,
                 kategori: sheetCat || fsAct.kategori || fsAct.category,
                 category: sheetCat || fsAct.kategori || fsAct.category,
                 gambarUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
-                youtubeUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
-                videoUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
+                imageUrl: pickValidImageUrl(sheetImg, fsAct.gambarUrl || fsAct.imageUrl || fsAct.gambar || fsAct.posterUrl || fsAct.coverImage),
+                youtubeUrl: sheetYoutube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
+                videoUrl: sheetYoutube || fsAct.youtubeUrl || fsAct.videoUrl || fsAct.youtube || '',
                 themeSongUrl: sheetSongUrl || fsAct.themeSongUrl || fsAct.themeSong,
                 themeSongTitle: sheetSongTitle || fsAct.themeSongTitle || fsAct.themeSongName,
                 proposalUrl: sheetProposal || fsAct.proposalUrl || fsAct.proposal,
@@ -2211,14 +2229,16 @@ export const sheetsService = {
               tanggalPelatihan: sheetDate,
               biaya: sheetBiaya || 'Gratis',
               biayaPelatihan: sheetBiaya || 'Gratis',
+              kuota: sheetKuota,
+              penyelenggara: sheetPenyelenggara,
               deskripsi: sheetDesc,
               description: sheetDesc,
               kategori: sheetCat || 'Silaturahmi',
               category: sheetCat || 'Silaturahmi',
               gambarUrl: pickValidImageUrl(sheetImg),
               imageUrl: pickValidImageUrl(sheetImg),
-              youtubeUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || '',
-              videoUrl: sheetAct.youtubeUrl || sheetAct.videoUrl || sheetAct.youtube || '',
+              youtubeUrl: sheetYoutube,
+              videoUrl: sheetYoutube,
               themeSongUrl: sheetSongUrl,
               themeSongTitle: sheetSongTitle,
               proposalUrl: sheetProposal,

@@ -1932,10 +1932,18 @@ export default function AdminDashboard() {
         coverImage: kegiatanFormData.gambarUrl,
         youtubeUrl: kegiatanFormData.youtubeUrl,
         videoUrl: kegiatanFormData.youtubeUrl,
+        youtube: kegiatanFormData.youtubeUrl,
+        linkYoutube: kegiatanFormData.youtubeUrl,
+        themeSongUrl: kegiatanFormData.themeSongUrl,
+        themeSong: kegiatanFormData.themeSongUrl,
+        themeSongTitle: kegiatanFormData.themeSongTitle,
+        themeSongName: kegiatanFormData.themeSongTitle,
         rekeningPembayaran: kegiatanFormData.rekeningPembiayaan,
         rekeningPembiayaan: kegiatanFormData.rekeningPembiayaan,
+        nomorRekening: kegiatanFormData.rekeningPembiayaan,
         noWhatsappPanitia: kegiatanFormData.noWhatsappPanitia,
         konfirmasiPembayaran: kegiatanFormData.noWhatsappPanitia,
+        noWaKonfirmasi: kegiatanFormData.noWhatsappPanitia,
         proposalUrl: kegiatanFormData.proposalUrl,
         proposal: kegiatanFormData.proposalUrl,
         linkProposal: kegiatanFormData.proposalUrl,
@@ -4147,7 +4155,7 @@ export default function AdminDashboard() {
                       <input 
                         type="text" 
                         placeholder="Cari nama, email, atau kwarda..." 
-                        value={searchQuery}
+                        value={searchQuery || ''}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-semibold shadow-sm outline-none" 
                       />
@@ -4382,7 +4390,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-1.5 ml-2">
                     <span className="text-[11px] text-gray-400">Per hal:</span>
                     <select
-                      value={memberPageSize}
+                      value={memberPageSize || 10}
                       onChange={(e) => {
                         setMemberPageSize(Number(e.target.value));
                         setMemberPage(1);
@@ -4459,7 +4467,7 @@ export default function AdminDashboard() {
                   <input 
                     type="text" 
                     placeholder="Cari judul materi..." 
-                    value={materiSearch}
+                    value={materiSearch || ''}
                     onChange={(e) => setMateriSearch(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-medium" 
                   />
@@ -4771,7 +4779,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-bold text-gray-500 ml-1">Nama Aplikasi</label>
                     <input 
                       type="text" 
-                      value={settings.appName} 
+                      value={settings.appName || ''} 
                       onChange={(e) => setSettings({...settings, appName: e.target.value})}
                       className="w-full bg-gray-50 border-gray-100 focus:ring-hw-green/20 rounded-2xl px-4 py-3 text-xs font-bold" 
                     />
@@ -4780,7 +4788,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-bold text-gray-500 ml-1">Nama Organisasi</label>
                     <input 
                       type="text" 
-                      value={settings.orgName} 
+                      value={settings.orgName || ''} 
                       onChange={(e) => setSettings({...settings, orgName: e.target.value})}
                       className="w-full bg-gray-50 border-gray-100 focus:ring-hw-green/20 rounded-2xl px-4 py-3 text-xs font-bold" 
                     />
@@ -4832,7 +4840,7 @@ export default function AdminDashboard() {
                           <label className="text-[8px] font-black text-gray-400 uppercase tracking-tighter ml-1">Nominal Biaya</label>
                           <input 
                             type="text" 
-                            value={fee.value} 
+                            value={fee.value || ''} 
                             onChange={(e) => {
                               const newFees = [...settings.upgradeFees];
                               newFees[idx] = { ...fee, value: e.target.value };
@@ -4847,7 +4855,7 @@ export default function AdminDashboard() {
                           <label className="text-[8px] font-black text-gray-400 uppercase tracking-tighter ml-1">Syarat / Keterangan</label>
                           <input 
                             type="text" 
-                            value={fee.note} 
+                            value={fee.note || ''} 
                             onChange={(e) => {
                               const newFees = [...settings.upgradeFees];
                               newFees[idx] = { ...fee, note: e.target.value };
@@ -5427,7 +5435,7 @@ export default function AdminDashboard() {
                           <input 
                             type="text" 
                             placeholder="Cari nama, email, Kwarda, no. KTA, qabilah..." 
-                            value={ktaSearchQuery}
+                            value={ktaSearchQuery || ''}
                             onChange={(e) => setKtaSearchQuery(e.target.value)}
                             className="w-full bg-white border border-gray-150 rounded-xl py-2.5 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold shadow-2xs"
                           />
@@ -5449,7 +5457,7 @@ export default function AdminDashboard() {
                             <MapPin size={14} className="text-hw-green shrink-0" />
                             <span className="font-bold text-gray-400 whitespace-nowrap text-[10px] uppercase tracking-wider">Kwarda:</span>
                             <select
-                              value={ktaFilterKwarda}
+                              value={ktaFilterKwarda || 'Semua'}
                               onChange={(e) => setKtaFilterKwarda(e.target.value)}
                               className="bg-transparent font-extrabold text-gray-800 outline-none text-xs cursor-pointer max-w-[190px] truncate"
                             >
@@ -5491,7 +5499,7 @@ export default function AdminDashboard() {
                             <ArrowUpDown size={14} className="text-hw-green shrink-0" />
                             <span className="font-bold text-gray-400 whitespace-nowrap text-[10px] uppercase tracking-wider">Urutan:</span>
                             <select
-                              value={ktaSortBy}
+                              value={ktaSortBy || 'kwarda'}
                               onChange={(e) => setKtaSortBy(e.target.value as any)}
                               className="bg-transparent font-extrabold text-gray-800 outline-none text-xs cursor-pointer"
                             >
@@ -5723,7 +5731,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-1.5 ml-2">
                           <span className="text-[11px] text-gray-400">Per hal:</span>
                           <select
-                            value={ktaPageSize}
+                            value={ktaPageSize || 10}
                             onChange={(e) => {
                               setKtaPageSize(Number(e.target.value));
                               setKtaPage(1);
@@ -5772,7 +5780,7 @@ export default function AdminDashboard() {
                     <input 
                       type="text" 
                       placeholder="Cari berdasarkan nama Kwarda atau Qabilah..." 
-                      value={ktaSearchQuery}
+                      value={ktaSearchQuery || ''}
                       onChange={(e) => setKtaSearchQuery(e.target.value)}
                       className="w-full bg-white border border-gray-150 rounded-xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                     />
@@ -6330,7 +6338,7 @@ export default function AdminDashboard() {
                     
                     <div className="relative">
                       <select
-                        value={trainingFilterActivity}
+                        value={trainingFilterActivity || 'Semua'}
                         onChange={(e) => {
                           const val = e.target.value;
                           setTrainingFilterActivity(val);
@@ -6404,7 +6412,7 @@ export default function AdminDashboard() {
                         <input 
                           type="text" 
                           placeholder="Cari berdasarkan nama, WhatsApp, asal daerah..." 
-                          value={trainingSearchQuery}
+                          value={trainingSearchQuery || ''}
                           onChange={(e) => setTrainingSearchQuery(e.target.value)}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold"
                         />
@@ -6422,7 +6430,7 @@ export default function AdminDashboard() {
                       {/* Filter Jenis & Kegiatan Pelatihan (Memuat Tempat Pelaksanaan & Tanggal, Terbaru di Atas) */}
                       <div className="relative min-w-[260px] shrink-0">
                         <select
-                          value={trainingFilterActivity}
+                          value={trainingFilterActivity || 'Semua'}
                           onChange={(e) => setTrainingFilterActivity(e.target.value)}
                           className="w-full bg-emerald-50/70 border border-emerald-200 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-extrabold text-xs outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
                         >
@@ -6600,7 +6608,7 @@ export default function AdminDashboard() {
                                       <div className="space-y-0.5">
                                         <label className="text-[8px] font-black uppercase text-gray-400 tracking-wider">📍 Lokasi</label>
                                         <select
-                                          value={editLokasi}
+                                          value={editLokasi || ''}
                                           onChange={(e) => setEditLokasi(e.target.value)}
                                           className="w-full text-[10px] p-1 bg-white border border-gray-200 rounded-md outline-none font-bold text-gray-700"
                                         >
@@ -6613,7 +6621,7 @@ export default function AdminDashboard() {
                                       <div className="space-y-0.5">
                                         <label className="text-[8px] font-black uppercase text-gray-400 tracking-wider">📅 Tanggal</label>
                                         <select
-                                          value={editTanggal}
+                                          value={editTanggal || ''}
                                           onChange={(e) => setEditTanggal(e.target.value)}
                                           className="w-full text-[10px] p-1 bg-white border border-gray-200 rounded-md outline-none font-bold text-gray-700"
                                         >
@@ -6820,7 +6828,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-1.5 ml-2">
                           <span className="text-[11px] text-gray-400">Per hal:</span>
                           <select
-                            value={trainingPageSize}
+                            value={trainingPageSize || 10}
                             onChange={(e) => {
                               setTrainingPageSize(Number(e.target.value));
                               setTrainingPage(1);
@@ -7206,7 +7214,7 @@ export default function AdminDashboard() {
                                 <div className="flex flex-col">
                                   <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Filter Materi</span>
                                   <select
-                                    value={selectedTugasMateriId}
+                                    value={selectedTugasMateriId || 'all'}
                                     onChange={(e) => setSelectedTugasMateriId(e.target.value)}
                                     className="bg-transparent text-xs font-bold text-gray-700 outline-none cursor-pointer"
                                   >
@@ -7933,7 +7941,7 @@ export default function AdminDashboard() {
                           <input
                             type="text"
                             placeholder="Contoh: Jaya Melati 3..."
-                            value={newTypeInput}
+                            value={newTypeInput || ''}
                             onChange={(e) => setNewTypeInput(e.target.value)}
                             className="flex-1 bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-700"
                           />
@@ -8036,7 +8044,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2 max-w-md">
                       <input
                         type="text"
-                        value={newCategoryInput}
+                        value={newCategoryInput || ''}
                         onChange={(e) => setNewCategoryInput(e.target.value)}
                         placeholder="Contoh: Rapat HW, Bakti Sosial, Lomba,..."
                         className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green"
@@ -8167,7 +8175,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
                       <span className="text-xs font-black text-gray-500 uppercase tracking-wider shrink-0">Pilih Kegiatan:</span>
                       <select
-                        value={selectedActivityForParticipants}
+                        value={selectedActivityForParticipants || 'semua'}
                         onChange={(e) => setSelectedActivityForParticipants(e.target.value)}
                         className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none w-full sm:w-auto focus:ring-2 focus:ring-hw-green/20"
                       >
@@ -8363,7 +8371,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-1.5 ml-2">
                           <span className="text-[11px] text-gray-400">Per hal:</span>
                           <select
-                            value={activityPageSize}
+                            value={activityPageSize || 10}
                             onChange={(e) => {
                               setActivityPageSize(Number(e.target.value));
                               setActivityPage(1);
@@ -8430,7 +8438,7 @@ export default function AdminDashboard() {
                       <input 
                         type="text" 
                         required
-                        value={kegiatanFormData.namaKegiatan}
+                        value={kegiatanFormData.namaKegiatan || ''}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, namaKegiatan: e.target.value })}
                         placeholder="Contoh: Rapat Kerja Wilayah HW Jateng 2026"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -8441,7 +8449,7 @@ export default function AdminDashboard() {
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Kategori</label>
                         <select
-                          value={kegiatanFormData.kategori}
+                          value={kegiatanFormData.kategori || 'Pelatihan'}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, kategori: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                         >
@@ -8457,7 +8465,7 @@ export default function AdminDashboard() {
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Status Pendaftaran</label>
                         <select
-                          value={kegiatanFormData.status}
+                          value={kegiatanFormData.status || 'Buka'}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, status: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                         >
@@ -8472,7 +8480,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Tanggal Pelaksanaan</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.tanggal}
+                          value={kegiatanFormData.tanggal || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, tanggal: e.target.value })}
                           placeholder="Contoh: 15-18 Oktober 2026"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8482,7 +8490,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Lokasi</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.lokasi}
+                          value={kegiatanFormData.lokasi || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, lokasi: e.target.value })}
                           placeholder="Contoh: Baturraden, Banyumas"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8495,7 +8503,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Infaq / Biaya</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.biaya}
+                          value={kegiatanFormData.biaya || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, biaya: e.target.value })}
                           placeholder="Contoh: Rp 75.000 / Gratis"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8505,7 +8513,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Kuota Peserta</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.kuota}
+                          value={kegiatanFormData.kuota || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, kuota: e.target.value })}
                           placeholder="Contoh: 500 Peserta"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8541,7 +8549,7 @@ export default function AdminDashboard() {
                       </div>
                       <input 
                         type="text" 
-                        value={kegiatanFormData.gambarUrl}
+                        value={kegiatanFormData.gambarUrl || ''}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, gambarUrl: e.target.value })}
                         placeholder="https://... atau upload foto poster"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8570,7 +8578,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nomor Rekening Pembayaran</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.rekeningPembiayaan}
+                          value={kegiatanFormData.rekeningPembiayaan || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, rekeningPembiayaan: e.target.value })}
                           placeholder="Contoh: Bank BSI 7307427448 a.n. Kwarwil HW Jateng"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8580,7 +8588,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nomor Konfirmasi Pembayaran (WA)</label>
                         <input 
                           type="text" 
-                          value={kegiatanFormData.noWhatsappPanitia}
+                          value={kegiatanFormData.noWhatsappPanitia || ''}
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, noWhatsappPanitia: e.target.value })}
                           placeholder="Contoh: 089688754000"
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8616,7 +8624,7 @@ export default function AdminDashboard() {
                       </div>
                       <input 
                         type="text" 
-                        value={kegiatanFormData.proposalUrl}
+                        value={kegiatanFormData.proposalUrl || ''}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, proposalUrl: e.target.value })}
                         placeholder="Contoh: https://drive.google.com/file/d/... atau upload PDF"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8664,7 +8672,7 @@ export default function AdminDashboard() {
                           </div>
                           <input 
                             type="text" 
-                            value={kegiatanFormData.themeSongUrl}
+                            value={kegiatanFormData.themeSongUrl || ''}
                             onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongUrl: e.target.value })}
                             placeholder="https://.../lagu.mp3 atau Google Drive link"
                             className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -8676,7 +8684,7 @@ export default function AdminDashboard() {
                           </label>
                           <input 
                             type="text" 
-                            value={kegiatanFormData.themeSongTitle}
+                            value={kegiatanFormData.themeSongTitle || ''}
                             onChange={e => setKegiatanFormData({ ...kegiatanFormData, themeSongTitle: e.target.value })}
                             placeholder="Contoh: Mars Hizbul Wathan"
                             className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -8749,7 +8757,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Deskripsi Kegiatan</label>
                       <textarea 
                         rows={3}
-                        value={kegiatanFormData.deskripsi}
+                        value={kegiatanFormData.deskripsi || ''}
                         onChange={e => setKegiatanFormData({ ...kegiatanFormData, deskripsi: e.target.value })}
                         placeholder="Tuliskan ringkasan agenda kegiatan..."
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
@@ -8802,7 +8810,7 @@ export default function AdminDashboard() {
                   <input 
                     type="password" 
                     required
-                    value={passwordFormData.newPassword}
+                    value={passwordFormData.newPassword || ''}
                     onChange={(e) => setPasswordFormData({...passwordFormData, newPassword: e.target.value})}
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-4 focus:ring-hw-green/10" 
                     placeholder="••••••••"
@@ -8813,7 +8821,7 @@ export default function AdminDashboard() {
                   <input 
                     type="password" 
                     required
-                    value={passwordFormData.confirmPassword}
+                    value={passwordFormData.confirmPassword || ''}
                     onChange={(e) => setPasswordFormData({...passwordFormData, confirmPassword: e.target.value})}
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-4 focus:ring-hw-green/10" 
                     placeholder="••••••••"
@@ -9358,7 +9366,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
                     <input 
                       type="text" 
-                      value={formData.namaLengkap}
+                      value={formData.namaLengkap || ''}
                       onChange={(e) => setFormData({...formData, namaLengkap: e.target.value})}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
                     />
@@ -9384,7 +9392,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tempat Lahir</label>
                       <input 
                         type="text" 
-                        value={formData.tempatLahir}
+                        value={formData.tempatLahir || ''}
                         onChange={(e) => setFormData({...formData, tempatLahir: e.target.value})}
                         placeholder="Kota / Kabupaten"
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
@@ -9394,7 +9402,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
                       <input 
                         type="date" 
-                        value={formData.tanggalLahir}
+                        value={formData.tanggalLahir || ''}
                         onChange={(e) => setFormData({...formData, tanggalLahir: e.target.value})}
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
                       />
@@ -9449,7 +9457,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
                     <input 
                       type="email" 
-                      value={formData.email}
+                      value={formData.email || ''}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
                       placeholder="nama@email.com"
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
@@ -9462,7 +9470,7 @@ export default function AdminDashboard() {
                     </label>
                     <input 
                       type="text" 
-                      value={formData.password}
+                      value={formData.password || ''}
                       onChange={(e) => setFormData({...formData, password: e.target.value})}
                       placeholder={editingMember ? "••••••••" : "Masukkan password awal..."}
                       className="w-full bg-gray-50 border border-hw-blue/10 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-blue/10 outline-none" 
@@ -9473,7 +9481,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jenis Kelamin</label>
                       <select 
-                        value={formData.jenisKelamin}
+                        value={formData.jenisKelamin || 'L'}
                         onChange={(e) => setFormData({...formData, jenisKelamin: e.target.value})}
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none"
                       >
@@ -9622,7 +9630,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan</label>
                       <select 
-                        value={formData.golongan}
+                        value={formData.golongan || 'Pengenal'}
                         onChange={(e) => setFormData({...formData, golongan: e.target.value})}
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none"
                       >
@@ -9634,7 +9642,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pendidikan</label>
                       <select 
-                        value={formData.pendidikan}
+                        value={formData.pendidikan || 'SMA/SMK/MA'}
                         onChange={(e) => setFormData({...formData, pendidikan: e.target.value})}
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none"
                       >
@@ -9750,7 +9758,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qabilah / Tempat Latihan (Opsional)</label>
                     <input 
                       type="text" 
-                      value={formData.qabilah}
+                      value={formData.qabilah || ''}
                       onChange={(e) => setFormData({...formData, qabilah: e.target.value})}
                       placeholder="Contoh: Qabilah Ahmad Dahlan"
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
@@ -9760,7 +9768,7 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alamat Lengkap</label>
                     <textarea 
-                      value={formData.alamat}
+                      value={formData.alamat || ''}
                       onChange={(e) => setFormData({...formData, alamat: e.target.value})}
                       rows={2}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none resize-none"
@@ -9772,7 +9780,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. HP/WA</label>
                       <input 
                         type="text" 
-                        value={formData.noHp}
+                        value={formData.noHp || ''}
                         onChange={(e) => setFormData({...formData, noHp: e.target.value})}
                         placeholder="08xxxx"
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
@@ -9782,7 +9790,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sosmed</label>
                       <input 
                         type="text" 
-                        value={formData.sosmed}
+                        value={formData.sosmed || ''}
                         onChange={(e) => setFormData({...formData, sosmed: e.target.value})}
                         placeholder="@username"
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
@@ -9856,7 +9864,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Judul Materi</label>
                     <input 
                       type="text" 
-                      value={materiFormData.judul}
+                      value={materiFormData.judul || ''}
                       onChange={(e) => setMateriFormData({...materiFormData, judul: e.target.value})}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none" 
                     />
@@ -9865,7 +9873,7 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kategori</label>
                     <select 
-                      value={materiFormData.kategori}
+                      value={materiFormData.kategori || 'umum'}
                       onChange={(e) => setMateriFormData({...materiFormData, kategori: e.target.value})}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none"
                     >
@@ -9882,7 +9890,7 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Isi Konten</label>
                     <textarea 
-                      value={materiFormData.konten}
+                      value={materiFormData.konten || ''}
                       onChange={(e) => setMateriFormData({...materiFormData, konten: e.target.value})}
                       rows={5}
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm focus:ring-4 focus:ring-hw-green/10 outline-none resize-none"
@@ -9893,7 +9901,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL Gambar Cover</label>
                     <input 
                       type="text" 
-                      value={materiFormData.coverImage}
+                      value={materiFormData.coverImage || ''}
                       onChange={(e) => setMateriFormData({...materiFormData, coverImage: e.target.value})}
                       placeholder="https://..."
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
@@ -9904,7 +9912,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL Google Drive (Download)</label>
                     <input 
                       type="text" 
-                      value={materiFormData.driveUrl}
+                      value={materiFormData.driveUrl || ''}
                       onChange={(e) => setMateriFormData({...materiFormData, driveUrl: e.target.value})}
                       placeholder="https://drive.google.com/..."
                       className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none" 
@@ -9974,7 +9982,7 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL Gambar Header</label>
                           <input 
                             type="text"
-                            value={contentFormData.field1}
+                            value={contentFormData.field1 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             placeholder="https://..."
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
@@ -9984,7 +9992,7 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Konten Profil</label>
                           <textarea 
                             rows={8}
-                            value={contentFormData.field2}
+                            value={contentFormData.field2 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm h-48 outline-none focus:ring-2 focus:ring-hw-green/20"
                             placeholder="Isi konten profil..."
@@ -9999,7 +10007,7 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teks Berjalan Beranda</label>
                           <textarea 
                             rows={4}
-                            value={contentFormData.field1}
+                            value={contentFormData.field1 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm h-32 outline-none focus:ring-2 focus:ring-hw-green/20"
                             placeholder="Saat ini sedang migrasi data dari MATERIHW.COM ke aplikasi SATU HW JATENG, mohon dukungan dan supportnya, Salam HW!"
@@ -10023,7 +10031,7 @@ export default function AdminDashboard() {
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{item.label}</label>
                             <input 
                               type="text"
-                              value={(contentFormData as any)[item.field]}
+                              value={(contentFormData as any)[item.field] || ''}
                               onChange={(e) => setContentFormData({...contentFormData, [item.field]: e.target.value})}
                               placeholder={item.placeholder}
                               className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
@@ -10044,7 +10052,7 @@ export default function AdminDashboard() {
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{item.label}</label>
                             <input 
                               type="text"
-                              value={(contentFormData as any)[item.field]}
+                              value={(contentFormData as any)[item.field] || ''}
                               onChange={(e) => setContentFormData({...contentFormData, [item.field]: e.target.value})}
                               placeholder={item.placeholder}
                               className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
@@ -10060,7 +10068,7 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Judul Video</label>
                           <input 
                             type="text" 
-                            value={contentFormData.field2}
+                            value={contentFormData.field2 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
                             placeholder="Judul Video..."
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
@@ -10070,7 +10078,7 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL Video Youtube</label>
                           <input 
                             type="text" 
-                            value={contentFormData.field1}
+                            value={contentFormData.field1 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             placeholder="https://www.youtube.com/watch?v=..."
                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20" 
@@ -10088,7 +10096,7 @@ export default function AdminDashboard() {
                           </label>
                           <input 
                             type="text" 
-                            value={contentFormData.field2}
+                            value={contentFormData.field2 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field2: e.target.value})}
                             placeholder="Contoh: Mars Hizbul Wathan"
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
@@ -10102,7 +10110,7 @@ export default function AdminDashboard() {
                           </label>
                           <input 
                             type="text" 
-                            value={contentFormData.field3}
+                            value={contentFormData.field3 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field3: e.target.value})}
                             placeholder="Contoh: Muhammad Dzikron / K.H. Siradj Dahlan"
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
@@ -10116,7 +10124,7 @@ export default function AdminDashboard() {
                           </label>
                           <input 
                             type="text" 
-                            value={contentFormData.field1}
+                            value={contentFormData.field1 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field1: e.target.value})}
                             placeholder="https://drive.google.com/file/d/... atau https://domain.com/lagu.mp3"
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white transition-all" 
@@ -10131,7 +10139,7 @@ export default function AdminDashboard() {
                           </label>
                           <textarea 
                             rows={7}
-                            value={contentFormData.field5}
+                            value={contentFormData.field5 || ''}
                             onChange={(e) => setContentFormData({...contentFormData, field5: e.target.value})}
                             placeholder="Tuliskan bait dan lirik lagu / mars secara lengkap per baris...&#10;&#10;Contoh:&#10;Hizbul Wathan yang bersemangat&#10;Menjunjung tinggi agama Islam..."
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 font-medium text-xs sm:text-sm outline-none focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green focus:bg-white font-mono leading-relaxed transition-all" 
@@ -10181,7 +10189,7 @@ export default function AdminDashboard() {
                   </div>
                   
                   <textarea 
-                    value={rejectReason}
+                    value={rejectReason || ''}
                     onChange={(e) => setRejectReason(e.target.value)}
                     placeholder="Contoh: Foto kepala kurang jelas atau tidak portrait / Alamat Rumah tidak lengkap."
                     rows={3}
@@ -10234,7 +10242,7 @@ export default function AdminDashboard() {
                   </div>
                   
                   <textarea 
-                    value={trainingRejectReason}
+                    value={trainingRejectReason || ''}
                     onChange={(e) => setTrainingRejectReason(e.target.value)}
                     placeholder="Contoh: Bukti transfer pembayaran tidak valid / salah nominal."
                     rows={3}
@@ -10310,7 +10318,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nilai / Predikat</label>
                       <input 
                         type="text" 
-                        value={gradeInput}
+                        value={gradeInput || ''}
                         onChange={(e) => setGradeInput(e.target.value)}
                         placeholder="Contoh: A, B+, 85, Lulus Memuaskan, dll."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-4 focus:ring-hw-green/10" 
@@ -10321,7 +10329,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Kelulusan</label>
                       <select
-                        value={graduationStatusInput}
+                        value={graduationStatusInput || 'Lulus'}
                         onChange={(e) => setGraduationStatusInput(e.target.value)}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-xs text-gray-800 outline-none focus:ring-4 focus:ring-hw-green/10"
                       >
@@ -10336,7 +10344,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ulasan / Catatan Pelatih</label>
                       <textarea 
-                        value={remarkInput}
+                        value={remarkInput || ''}
                         onChange={(e) => setRemarkInput(e.target.value)}
                         placeholder="Tuliskan ulasan tugas atau pesan untuk peserta..."
                         rows={3}
@@ -10393,7 +10401,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instruksi / Deskripsi Tugas</label>
                       <textarea 
-                        value={assignTaskInstruksi}
+                        value={assignTaskInstruksi || ''}
                         onChange={(e) => setAssignTaskInstruksi(e.target.value)}
                         placeholder="Contoh: Buatlah resume materi ini minimal 2 halaman PDF, unggah ke Google Drive lalu kumpulkan linknya di sini."
                         rows={4}
@@ -10406,7 +10414,7 @@ export default function AdminDashboard() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Batas Pengumpulan / Deadline</label>
                       <input 
                         type="text" 
-                        value={assignTaskDeadline}
+                        value={assignTaskDeadline || ''}
                         onChange={(e) => setAssignTaskDeadline(e.target.value)}
                         placeholder="Contoh: 20 Juli 2026, 23:59 WIB"
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-4 focus:ring-hw-green/10" 
@@ -10519,7 +10527,7 @@ export default function AdminDashboard() {
                           <input 
                             type="text" 
                             placeholder="Ketik nama, email, No. KTA, atau WhatsApp..."
-                            value={addParticipantSearchQuery}
+                            value={addParticipantSearchQuery || ''}
                             onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
                             className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 pl-10 pr-9 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800" 
                           />
@@ -10655,7 +10663,7 @@ export default function AdminDashboard() {
                           type="text"
                           required
                           placeholder="Nama lengkap peserta..."
-                          value={addParticipantForm.nama}
+                          value={addParticipantForm.nama || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nama: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10667,7 +10675,7 @@ export default function AdminDashboard() {
                           type="text"
                           required
                           placeholder="08..."
-                          value={addParticipantForm.noWa}
+                          value={addParticipantForm.noWa || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, noWa: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10678,7 +10686,7 @@ export default function AdminDashboard() {
                         <input
                           type="email"
                           placeholder="email@domain.com"
-                          value={addParticipantForm.email}
+                          value={addParticipantForm.email || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, email: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10689,7 +10697,7 @@ export default function AdminDashboard() {
                         <input
                           type="text"
                           placeholder="Nomor KTA..."
-                          value={addParticipantForm.nbm}
+                          value={addParticipantForm.nbm || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, nbm: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10700,7 +10708,7 @@ export default function AdminDashboard() {
                         <input
                           type="text"
                           placeholder="Kota/Kab lahir..."
-                          value={addParticipantForm.tempatLahir}
+                          value={addParticipantForm.tempatLahir || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tempatLahir: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10710,7 +10718,7 @@ export default function AdminDashboard() {
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
                         <input
                           type="date"
-                          value={addParticipantForm.tanggalLahir}
+                          value={addParticipantForm.tanggalLahir || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalLahir: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10719,7 +10727,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Jenis Kelamin</label>
                         <select
-                          value={addParticipantForm.jenisKelamin}
+                          value={addParticipantForm.jenisKelamin || 'L'}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, jenisKelamin: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         >
@@ -10733,7 +10741,7 @@ export default function AdminDashboard() {
                         <input
                           type="text"
                           placeholder="Asal Kwarda/Kabupaten..."
-                          value={addParticipantForm.asalDaerah}
+                          value={addParticipantForm.asalDaerah || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, asalDaerah: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10744,7 +10752,7 @@ export default function AdminDashboard() {
                         <input
                           type="text"
                           placeholder="Qabilah/Sekolah..."
-                          value={addParticipantForm.qabilah}
+                          value={addParticipantForm.qabilah || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, qabilah: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2 px-3 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                         />
@@ -10779,7 +10787,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1 sm:col-span-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Program / Kegiatan Pelatihan *</label>
                         <select 
-                          value={addParticipantForm.pelatihanAkanDiikuti}
+                          value={addParticipantForm.pelatihanAkanDiikuti || ''}
                           onChange={(e) => handleAddParticipantTrainingChange(e.target.value)}
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800 focus:ring-2 focus:ring-emerald-400"
                         >
@@ -10795,7 +10803,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Pelatih Golongan</label>
                         <select 
-                          value={addParticipantForm.pelatihGolongan}
+                          value={addParticipantForm.pelatihGolongan || 'Tunas Athfal'}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, pelatihGolongan: e.target.value })}
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
                         >
@@ -10816,7 +10824,7 @@ export default function AdminDashboard() {
                         <input 
                           type="text"
                           list="add-participant-locations-list"
-                          value={addParticipantForm.lokasiPelatihan}
+                          value={addParticipantForm.lokasiPelatihan || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, lokasiPelatihan: e.target.value })}
                           placeholder="misal: Pusdiklat HW Jateng..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
@@ -10842,7 +10850,7 @@ export default function AdminDashboard() {
                         <input 
                           type="text"
                           list="add-participant-dates-list"
-                          value={addParticipantForm.tanggalPelatihan}
+                          value={addParticipantForm.tanggalPelatihan || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalPelatihan: e.target.value })}
                           placeholder="misal: 15-18 Agustus 2026..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
@@ -10868,7 +10876,7 @@ export default function AdminDashboard() {
                         <input 
                           type="text"
                           list="add-participant-fees-list"
-                          value={addParticipantForm.biayaPelatihan}
+                          value={addParticipantForm.biayaPelatihan || ''}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, biayaPelatihan: e.target.value })}
                           placeholder="misal: Rp 50.000..."
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
@@ -10889,7 +10897,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Status Pembayaran</label>
                         <select 
-                          value={addParticipantForm.statusPembayaran}
+                          value={addParticipantForm.statusPembayaran || 'Lunas'}
                           onChange={(e) => setAddParticipantForm({ ...addParticipantForm, statusPembayaran: e.target.value })}
                           className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-black text-xs outline-none text-emerald-900"
                         >
@@ -11666,7 +11674,7 @@ export default function AdminDashboard() {
                       <input 
                         type="text" 
                         required
-                        value={editingKtaApp.nama}
+                        value={editingKtaApp.nama || ''}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, nama: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       />
@@ -11677,7 +11685,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tingkatan HW</label>
                       <select 
-                        value={editingKtaApp.tingkatan}
+                        value={editingKtaApp.tingkatan || 'Penghela'}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, tingkatan: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       >
@@ -11689,7 +11697,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Kabupaten/Kwarda</label>
                       <select 
-                        value={editingKtaApp.asalDaerah}
+                        value={editingKtaApp.asalDaerah || KABUPATEN_KOTA_JATENG[0]}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, asalDaerah: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       >
@@ -11720,7 +11728,7 @@ export default function AdminDashboard() {
                       <input 
                         type="text" 
                         required
-                        value={editingKtaApp.noWa}
+                        value={editingKtaApp.noWa || ''}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, noWa: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       />
@@ -11730,7 +11738,7 @@ export default function AdminDashboard() {
                       <input 
                         type="email" 
                         required
-                        value={editingKtaApp.email}
+                        value={editingKtaApp.email || ''}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, email: e.target.value })}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       />
@@ -11742,7 +11750,7 @@ export default function AdminDashboard() {
                     <textarea 
                       required
                       rows={2}
-                      value={editingKtaApp.alamat}
+                      value={editingKtaApp.alamat || ''}
                       onChange={(e) => setEditingKtaApp({ ...editingKtaApp, alamat: e.target.value })}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none resize-none font-sans"
                     />
@@ -11852,7 +11860,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Status Pengajuan</label>
                       <select 
-                        value={editingKtaApp.status}
+                        value={editingKtaApp.status || 'pending'}
                         onChange={(e) => setEditingKtaApp({ ...editingKtaApp, status: e.target.value })}
                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none"
                       >
@@ -12012,7 +12020,7 @@ export default function AdminDashboard() {
                           <input 
                             type="text" 
                             placeholder="Cari anggota / no. KTA..." 
-                            value={kwardaModalSearch}
+                            value={kwardaModalSearch || ''}
                             onChange={(e) => setKwardaModalSearch(e.target.value)}
                             className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-8 text-xs outline-none focus:ring-2 focus:ring-hw-green/20"
                           />
@@ -12342,7 +12350,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: Pelatihan Jaya Melati 1/2 HW Jateng"
-                    value={activityForm.namaKegiatan}
+                    value={activityForm.namaKegiatan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, namaKegiatan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12352,7 +12360,7 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Pelatihan</label>
                     <select
-                      value={activityForm.jenisPelatihan}
+                      value={activityForm.jenisPelatihan || 'Jaya Melati 1'}
                       onChange={(e) => setActivityForm(prev => ({ ...prev, jenisPelatihan: e.target.value }))}
                       className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                     >
@@ -12365,7 +12373,7 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Status Pendaftaran</label>
                     <select
-                      value={activityForm.status}
+                      value={activityForm.status || 'Buka'}
                       onChange={(e) => setActivityForm(prev => ({ ...prev, status: e.target.value as any }))}
                       className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                     >
@@ -12380,7 +12388,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: Pusdiklat HW Jateng / Gedung Dakwah Muhammadiyah Jateng"
-                    value={activityForm.lokasiPelatihan}
+                    value={activityForm.lokasiPelatihan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, lokasiPelatihan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12391,7 +12399,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: 12-14 Juli 2026"
-                    value={activityForm.tanggalPelatihan}
+                    value={activityForm.tanggalPelatihan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, tanggalPelatihan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12402,7 +12410,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: Rp 150.000"
-                    value={activityForm.biayaPelatihan}
+                    value={activityForm.biayaPelatihan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, biayaPelatihan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12413,7 +12421,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
-                    value={activityForm.rekeningPembiayaan}
+                    value={activityForm.rekeningPembiayaan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, rekeningPembiayaan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12424,7 +12432,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: 089688754000"
-                    value={activityForm.noWhatsappPanitia}
+                    value={activityForm.noWhatsappPanitia || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, noWhatsappPanitia: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
                   />
@@ -12457,7 +12465,7 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     placeholder="Contoh: https://drive.google.com/file/d/... atau upload PDF"
-                    value={activityForm.proposalUrl}
+                    value={activityForm.proposalUrl || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold"
                   />
@@ -12481,7 +12489,7 @@ export default function AdminDashboard() {
                   <textarea
                     rows={2}
                     placeholder="Keterangan singkat kegiatan..."
-                    value={activityForm.deskripsi}
+                    value={activityForm.deskripsi || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, deskripsi: e.target.value }))}
                     className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none text-xs"
                   />

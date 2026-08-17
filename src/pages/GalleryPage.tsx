@@ -59,7 +59,7 @@ export default function GalleryPage() {
         <input 
           type="text" 
           placeholder="Cari video..." 
-          value={searchQuery}
+          value={searchQuery || ''}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-white border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3.5 pl-12 pr-10 text-sm font-medium shadow-sm transition-all" 
         />

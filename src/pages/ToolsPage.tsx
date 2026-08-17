@@ -148,7 +148,7 @@ export default function ToolsPage() {
       {type === 'translate' && (
         <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm mb-2">
           <select 
-            value={sourceLang}
+            value={sourceLang || 'Bahasa Indonesia'}
             onChange={(e) => setSourceLang(e.target.value)}
             className="flex-1 bg-transparent border-none text-xs font-bold text-hw-green focus:ring-0 cursor-pointer"
           >
@@ -163,7 +163,7 @@ export default function ToolsPage() {
             <ArrowLeftRight size={14} />
           </button>
           <select 
-            value={targetLang}
+            value={targetLang || 'Bahasa Arab'}
             onChange={(e) => setTargetLang(e.target.value)}
             className="flex-1 bg-transparent border-none text-xs font-bold text-hw-green focus:ring-0 cursor-pointer text-right"
           >
@@ -179,7 +179,7 @@ export default function ToolsPage() {
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-2">Teks Input</label>
             <div className="relative">
               <textarea 
-                value={input}
+                value={input || ''}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ketik sesuatu di sini..."
                 rows={4}

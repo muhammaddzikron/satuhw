@@ -213,7 +213,7 @@ export const ThemeSongPlayer: React.FC<ThemeSongPlayerProps> = ({
                 type="range"
                 min={0}
                 max={duration || 100}
-                value={currentTime}
+                value={currentTime || 0}
                 onChange={handleSeek}
                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-400"
               />

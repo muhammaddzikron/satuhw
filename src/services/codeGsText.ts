@@ -312,7 +312,7 @@ function getSheet(name) {
   } else if (name == 'Activity_Applications') {
     sheet.appendRow(['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
   } else if (name == 'Activities') {
-    sheet.appendRow(['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
+    sheet.appendRow(['id', 'namaKegiatan', 'kategori', 'lokasi', 'tanggal', 'biaya', 'kuota', 'penyelenggara', 'status', 'deskripsi', 'gambarUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'proposalUrl', 'themeSongUrl', 'themeSongTitle', 'youtubeUrl', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'createdAt', 'updatedAt']);
   } else if (name == 'Activity_Categories') {
     sheet.appendRow(['id', 'name', 'createdAt']);
     var defaultCats = ['Silaturahmi', 'Baitul Arqam', 'Latihan', 'Rapat', 'Lainnya'];
@@ -353,7 +353,7 @@ function handleSyncDatabase() {
   ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
   ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
   ensureHeaders('Activity_Applications', ['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
-  ensureHeaders('Activities', ['id', 'namaKegiatan', 'jenisPelatihan', 'lokasiPelatihan', 'tanggalPelatihan', 'status', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'deskripsi', 'biayaPelatihan', 'proposalUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'themeSongUrl', 'themeSongTitle', 'gambarUrl', 'penyelenggara', 'kuota', 'kategori', 'createdAt']);
+  ensureHeaders('Activities', ['id', 'namaKegiatan', 'kategori', 'lokasi', 'tanggal', 'biaya', 'kuota', 'penyelenggara', 'status', 'deskripsi', 'gambarUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'proposalUrl', 'themeSongUrl', 'themeSongTitle', 'youtubeUrl', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'createdAt', 'updatedAt']);
   ensureHeaders('Activity_Categories', ['id', 'name', 'createdAt']);
   ensureHeaders('Settings', ['key', 'value']);
 
@@ -2966,10 +2966,12 @@ function handleGetActivities() {
             penyelenggara: getRobustValue(row, ['penyelenggara', 'panitia', 'Penyelenggara', 'Panitia']) || 'Kwarda Hizbul Wathan Banyumas',
             kuota: getRobustValue(row, ['kuota', 'quota', 'Kuota', 'Kapasitas']) || '',
             proposalUrl: getRobustValue(row, ['proposalUrl', 'proposalurl', 'proposal', 'linkProposal', 'linkproposal', 'Proposal']) || '',
-            rekeningPembayaran: getRobustValue(row, ['rekeningPembayaran', 'rekeningpembayaran', 'rekeningPembiayaan', 'rekeningpembiayaan', 'Rekening']) || '',
-            noWhatsappPanitia: getRobustValue(row, ['noWhatsappPanitia', 'nowhatsapppanitia', 'konfirmasiPembayaran', 'konfirmasipembayaran', 'noKonfirmasi', 'kontakPanitia']) || '',
-            themeSongUrl: getRobustValue(row, ['themeSongUrl', 'themesongurl', 'themeSong', 'themesong']) || '',
-            themeSongTitle: getRobustValue(row, ['themeSongTitle', 'themesongtitle', 'themeSongName', 'themesongname']) || '',
+            rekeningPembayaran: getRobustValue(row, ['rekeningPembayaran', 'rekeningpembayaran', 'rekeningPembiayaan', 'rekeningpembiayaan', 'rekening', 'Rekening', 'nomorRekening', 'nomorrekening', 'noRekening']) || '',
+            noWhatsappPanitia: getRobustValue(row, ['noWhatsappPanitia', 'nowhatsapppanitia', 'konfirmasiPembayaran', 'konfirmasipembayaran', 'noKonfirmasi', 'nokonfirmasi', 'kontakPanitia', 'noWaKonfirmasi', 'nowakonfirmasi', 'noWaPanitia', 'noHpPanitia', 'noWa']) || '',
+            themeSongUrl: getRobustValue(row, ['themeSongUrl', 'themesongurl', 'themeSong', 'themesong', 'laguUrl', 'laguurl', 'lagu', 'Lagu', 'audioUrl', 'audiourl']) || '',
+            themeSongTitle: getRobustValue(row, ['themeSongTitle', 'themesongtitle', 'themeSongName', 'themesongname', 'judulLagu', 'judullagu', 'laguTitle', 'lagutitle']) || '',
+            youtubeUrl: getRobustValue(row, ['youtubeUrl', 'youtubeurl', 'videoUrl', 'videourl', 'youtube', 'Youtube', 'linkYoutube', 'linkyoutube', 'video', 'Video']) || '',
+            videoUrl: getRobustValue(row, ['youtubeUrl', 'youtubeurl', 'videoUrl', 'videourl', 'youtube', 'Youtube', 'linkYoutube', 'linkyoutube', 'video', 'Video']) || '',
             status: getRobustValue(row, ['status', 'Status']) || 'Buka',
             createdAt: formatDateVal(getRobustValue(row, ['createdAt', 'createdat', 'created_at'])) || new Date().toISOString(),
             updatedAt: formatDateVal(getRobustValue(row, ['updatedAt', 'updatedat', 'updated_at'])) || new Date().toISOString()
@@ -2987,6 +2989,15 @@ function handleGetActivities() {
 }
 
 function handleSaveActivity(data) {
+  var requiredHeaders = [
+    'id', 'namaKegiatan', 'kategori', 'lokasi', 'tanggal', 'biaya', 'kuota', 
+    'penyelenggara', 'status', 'deskripsi', 'gambarUrl', 'rekeningPembayaran', 
+    'noWhatsappPanitia', 'proposalUrl', 'themeSongUrl', 'themeSongTitle', 
+    'youtubeUrl', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 
+    'golonganAnggota', 'createdAt', 'updatedAt'
+  ];
+  ensureHeaders('Activities', requiredHeaders);
+
   var sheet = getSheet('Activities');
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
     return h ? h.toString().trim().toLowerCase() : ""; 
@@ -3005,11 +3016,11 @@ function handleSaveActivity(data) {
   headers.forEach(function(header, i) {
     var val = undefined;
     if (header === 'id') val = actId;
-    else if (header === 'namakegiatan' || header === 'title') {
+    else if (header === 'namakegiatan' || header === 'title' || header === 'judul') {
       val = (data.namaKegiatan !== undefined && data.namaKegiatan !== "") ? data.namaKegiatan :
             ((data.title !== undefined && data.title !== "") ? data.title :
             ((data.jenisPelatihan !== undefined && data.jenisPelatihan !== "") ? data.jenisPelatihan :
-            (existing ? (existing.namakegiatan || existing.namaKegiatan || existing.title || existing.jenispelatihan) : "")));
+            (existing ? (existing.namakegiatan || existing.namaKegiatan || existing.title || existing.judul || existing.jenispelatihan) : "")));
     }
     else if (header === 'jenispelatihan') {
       val = (data.jenisPelatihan !== undefined && data.jenisPelatihan !== "") ? data.jenisPelatihan :
@@ -3017,17 +3028,17 @@ function handleSaveActivity(data) {
             ((data.title !== undefined && data.title !== "") ? data.title :
             (existing ? (existing.jenispelatihan || existing.jenisPelatihan || existing.namakegiatan) : "")));
     }
-    else if (header === 'lokasipelatihan' || header === 'lokasi' || header === 'location') {
+    else if (header === 'lokasipelatihan' || header === 'lokasi' || header === 'location' || header === 'tempat') {
       val = (data.lokasiPelatihan !== undefined && data.lokasiPelatihan !== "") ? data.lokasiPelatihan :
             ((data.lokasi !== undefined && data.lokasi !== "") ? data.lokasi :
             ((data.location !== undefined && data.location !== "") ? data.location :
-            (existing ? (existing.lokasipelatihan || existing.lokasiPelatihan || existing.lokasi || existing.location) : "")));
+            (existing ? (existing.lokasipelatihan || existing.lokasiPelatihan || existing.lokasi || existing.location || existing.tempat) : "")));
     }
-    else if (header === 'tanggalpelatihan' || header === 'tanggal' || header === 'startdate') {
+    else if (header === 'tanggalpelatihan' || header === 'tanggal' || header === 'startdate' || header === 'waktu') {
       val = (data.tanggalPelatihan !== undefined && data.tanggalPelatihan !== "") ? data.tanggalPelatihan :
             ((data.tanggal !== undefined && data.tanggal !== "") ? data.tanggal :
             ((data.startDate !== undefined && data.startDate !== "") ? data.startDate :
-            (existing ? (existing.tanggalpelatihan || existing.tanggalPelatihan || existing.tanggal || existing.startDate) : "")));
+            (existing ? (existing.tanggalpelatihan || existing.tanggalPelatihan || existing.tanggal || existing.startDate || existing.waktu) : "")));
     }
     else if (header === 'status') {
       val = data.status !== undefined ? data.status : (existing ? existing.status : "Buka");
@@ -3046,16 +3057,16 @@ function handleSaveActivity(data) {
     else if (header === 'golongananggota') {
       val = data.golonganAnggota !== undefined ? data.golonganAnggota : (existing ? existing.golongananggota : "");
     }
-    else if (header === 'deskripsi' || header === 'description') {
+    else if (header === 'deskripsi' || header === 'description' || header === 'keterangan') {
       val = (data.deskripsi !== undefined && data.deskripsi !== "") ? data.deskripsi :
             ((data.description !== undefined && data.description !== "") ? data.description :
-            (existing ? (existing.deskripsi || existing.description) : ""));
+            (existing ? (existing.deskripsi || existing.description || existing.keterangan) : ""));
     }
     else if (header === 'biayapelatihan' || header === 'biaya' || header === 'infaq') {
       val = (data.biayaPelatihan !== undefined && data.biayaPelatihan !== "") ? data.biayaPelatihan :
             ((data.biaya !== undefined && data.biaya !== "") ? data.biaya :
             ((data.infaq !== undefined && data.infaq !== "") ? data.infaq :
-            (existing ? (existing.biayapelatihan || existing.biaya) : "Gratis")));
+            (existing ? (existing.biayapelatihan || existing.biaya || existing.infaq) : "Gratis")));
     }
     else if (header === 'proposalurl' || header === 'proposal' || header === 'linkproposal') {
       val = (data.proposalUrl !== undefined && data.proposalUrl !== "") ? data.proposalUrl :
@@ -3063,28 +3074,43 @@ function handleSaveActivity(data) {
             ((data.linkProposal !== undefined && data.linkProposal !== "") ? data.linkProposal :
             (existing ? (existing.proposalurl || existing.proposal || existing.linkproposal) : "")));
     }
-    else if (header === 'rekeningpembayaran' || header === 'rekeningpembiayaan') {
+    else if (header === 'rekeningpembayaran' || header === 'rekeningpembiayaan' || header === 'rekening' || header === 'nomorrekening' || header === 'norekening') {
       val = (data.rekeningPembayaran !== undefined && data.rekeningPembayaran !== "") ? data.rekeningPembayaran :
             ((data.rekeningPembiayaan !== undefined && data.rekeningPembiayaan !== "") ? data.rekeningPembiayaan :
-            (existing ? (existing.rekeningpembayaran || existing.rekeningpembiayaan) : ""));
+            ((data.nomorRekening !== undefined && data.nomorRekening !== "") ? data.nomorRekening :
+            (existing ? (existing.rekeningpembayaran || existing.rekeningpembiayaan || existing.rekening || existing.nomorrekening) : "")));
     }
-    else if (header === 'nowhatsapppanitia' || header === 'konfirmasipembayaran' || header === 'nokonfirmasi') {
+    else if (header === 'nowhatsapppanitia' || header === 'konfirmasipembayaran' || header === 'nokonfirmasi' || header === 'nowakonfirmasi' || header === 'nowapanitia' || header === 'kontakpanitia' || header === 'nowa' || header === 'nohppanitia') {
       val = (data.noWhatsappPanitia !== undefined && data.noWhatsappPanitia !== "") ? data.noWhatsappPanitia :
             ((data.konfirmasiPembayaran !== undefined && data.konfirmasiPembayaran !== "") ? data.konfirmasiPembayaran :
             ((data.noKonfirmasi !== undefined && data.noKonfirmasi !== "") ? data.noKonfirmasi :
-            (existing ? (existing.nowhatsapppanitia || existing.konfirmasipembayaran) : "")));
+            ((data.noWaKonfirmasi !== undefined && data.noWaKonfirmasi !== "") ? data.noWaKonfirmasi :
+            ((data.noWaPanitia !== undefined && data.noWaPanitia !== "") ? data.noWaPanitia :
+            (existing ? (existing.nowhatsapppanitia || existing.konfirmasipembayaran || existing.nowakonfirmasi || existing.nokonfirmasi) : "")))));
     }
-    else if (header === 'themesongurl' || header === 'themesong') {
+    else if (header === 'themesongurl' || header === 'themesong' || header === 'laguurl' || header === 'lagu' || header === 'audiourl') {
       val = (data.themeSongUrl !== undefined && data.themeSongUrl !== "") ? data.themeSongUrl :
             ((data.themeSong !== undefined && data.themeSong !== "") ? data.themeSong :
-            (existing ? (existing.themesongurl || existing.themesong) : ""));
+            ((data.audioUrl !== undefined && data.audioUrl !== "") ? data.audioUrl :
+            ((data.laguUrl !== undefined && data.laguUrl !== "") ? data.laguUrl :
+            ((data.lagu !== undefined && data.lagu !== "") ? data.lagu :
+            (existing ? (existing.themesongurl || existing.themesong || existing.laguurl || existing.audiourl || existing.lagu) : "")))));
     }
-    else if (header === 'themesongtitle' || header === 'themesongname') {
+    else if (header === 'themesongtitle' || header === 'themesongname' || header === 'judullagu' || header === 'lagutitle') {
       val = (data.themeSongTitle !== undefined && data.themeSongTitle !== "") ? data.themeSongTitle :
             ((data.themeSongName !== undefined && data.themeSongName !== "") ? data.themeSongName :
-            (existing ? (existing.themesongtitle || existing.themesongname) : ""));
+            ((data.judulLagu !== undefined && data.judulLagu !== "") ? data.judulLagu :
+            ((data.laguTitle !== undefined && data.laguTitle !== "") ? data.laguTitle :
+            (existing ? (existing.themesongtitle || existing.themesongname || existing.judullagu || existing.lagutitle) : ""))));
     }
-    else if (header.indexOf('gambar') !== -1 || header.indexOf('image') !== -1 || header.indexOf('poster') !== -1 || header.indexOf('cover') !== -1 || header.indexOf('banner') !== -1) {
+    else if (header === 'youtubeurl' || header === 'youtube' || header === 'videourl' || header === 'video' || header === 'linkyoutube') {
+      val = (data.youtubeUrl !== undefined && data.youtubeUrl !== "") ? data.youtubeUrl :
+            ((data.videoUrl !== undefined && data.videoUrl !== "") ? data.videoUrl :
+            ((data.youtube !== undefined && data.youtube !== "") ? data.youtube :
+            ((data.linkYoutube !== undefined && data.linkYoutube !== "") ? data.linkYoutube :
+            (existing ? (existing.youtubeurl || existing.videourl || existing.youtube || existing.linkyoutube) : ""))));
+    }
+    else if (header.indexOf('gambar') !== -1 || header.indexOf('image') !== -1 || header.indexOf('poster') !== -1 || header.indexOf('cover') !== -1 || header.indexOf('banner') !== -1 || header.indexOf('foto') !== -1) {
       val = (data.gambarUrl !== undefined && data.gambarUrl !== "") ? data.gambarUrl :
             ((data.imageUrl !== undefined && data.imageUrl !== "") ? data.imageUrl :
             ((data.gambar !== undefined && data.gambar !== "") ? data.gambar :
@@ -3092,11 +3118,11 @@ function handleSaveActivity(data) {
             ((data.coverImage !== undefined && data.coverImage !== "") ? data.coverImage :
             (existing ? (existing.gambarurl || existing.imageurl || existing.gambar || existing.posterurl || existing.coverimage) : "")))));
     }
-    else if (header === 'penyelenggara') {
-      val = data.penyelenggara !== undefined ? data.penyelenggara : (existing ? existing.penyelenggara : "");
+    else if (header === 'penyelenggara' || header === 'panitia') {
+      val = data.penyelenggara !== undefined ? data.penyelenggara : (existing ? (existing.penyelenggara || existing.panitia) : "");
     }
-    else if (header === 'kuota') {
-      val = data.kuota !== undefined ? data.kuota : (existing ? existing.kuota : "");
+    else if (header === 'kuota' || header === 'quota' || header === 'kapasitas') {
+      val = data.kuota !== undefined ? data.kuota : (existing ? (existing.kuota || existing.quota || existing.kapasitas) : "");
     }
     else if (header === 'kategori' || header === 'category') {
       val = (data.kategori !== undefined && data.kategori !== "") ? data.kategori :

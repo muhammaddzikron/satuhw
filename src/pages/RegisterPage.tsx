@@ -400,7 +400,7 @@ export default function RegisterPage() {
                     <User className="absolute left-4 top-3.5 text-gray-400" size={16} />
                     <input 
                       name="namaLengkap" 
-                      value={formData.namaLengkap} 
+                      value={formData.namaLengkap || ''} 
                       onChange={handleChange} 
                       placeholder="Masukkan nama lengkap Anda" 
                       required 
@@ -416,7 +416,7 @@ export default function RegisterPage() {
                     <input 
                       name="email" 
                       type="email"
-                      value={formData.email} 
+                      value={formData.email || ''} 
                       onChange={handleChange} 
                       placeholder="nama@email.com" 
                       required 
@@ -432,7 +432,7 @@ export default function RegisterPage() {
                     <input 
                       name="password" 
                       type="password"
-                      value={formData.password} 
+                      value={formData.password || ''} 
                       onChange={handleChange} 
                       placeholder="Minimal 5 karakter" 
                       required 
@@ -447,7 +447,7 @@ export default function RegisterPage() {
                     <Phone className="absolute left-4 top-3.5 text-gray-400" size={16} />
                     <input 
                       name="noHp" 
-                      value={formData.noHp} 
+                      value={formData.noHp || ''} 
                       onChange={(e) => setFormData(prev => ({ ...prev, noHp: e.target.value.replace(/\D/g, '') }))}
                       placeholder="Contoh: 08123456789" 
                       required 
@@ -460,7 +460,7 @@ export default function RegisterPage() {
                   <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Username Sosial Media (Instagram/FB)</label>
                   <input 
                     name="sosmed" 
-                    value={formData.sosmed} 
+                    value={formData.sosmed || ''} 
                     onChange={handleChange} 
                     placeholder="Contoh: @username" 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none" 
@@ -530,7 +530,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Tempat Lahir</label>
                     <input 
                       name="tempatLahir" 
-                      value={formData.tempatLahir} 
+                      value={formData.tempatLahir || ''} 
                       onChange={handleChange} 
                       placeholder="Contoh: Banyumas" 
                       required 
@@ -542,7 +542,7 @@ export default function RegisterPage() {
                     <input 
                       name="tanggalLahir" 
                       type="date"
-                      value={formData.tanggalLahir} 
+                      value={formData.tanggalLahir || ''} 
                       onChange={handleChange} 
                       required 
                       className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none" 
@@ -555,7 +555,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Jenis Kelamin</label>
                     <select 
                       name="jenisKelamin" 
-                      value={formData.jenisKelamin} 
+                      value={formData.jenisKelamin || 'L'} 
                       onChange={handleChange} 
                       className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none"
                     >
@@ -567,7 +567,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Jenis KTA</label>
                     <select 
                       name="jenisKta" 
-                      value={formData.jenisKta} 
+                      value={formData.jenisKta || 'Digital'} 
                       onChange={handleChange} 
                       className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none text-hw-green"
                     >
@@ -640,7 +640,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Tingkatan HW</label>
                     <select 
                       name="golongan" 
-                      value={formData.golongan} 
+                      value={formData.golongan || 'Pengenal'} 
                       onChange={handleChange} 
                       className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none"
                     >
@@ -653,7 +653,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Pendidikan Terakhir</label>
                     <select 
                       name="pendidikan" 
-                      value={formData.pendidikan} 
+                      value={formData.pendidikan || 'SMA/SMK/MA'} 
                       onChange={handleChange} 
                       className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none"
                     >
@@ -668,7 +668,7 @@ export default function RegisterPage() {
                   <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Kwarda (Kabupaten/Kota)</label>
                   <select 
                     name="asalKwarda" 
-                    value={formData.asalKwarda} 
+                    value={formData.asalKwarda || ''} 
                     onChange={handleChange} 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none text-gray-700"
                   >
@@ -682,7 +682,7 @@ export default function RegisterPage() {
                   <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Qabilah (Sekolah/Tempat Latihan) (Opsional)</label>
                   <input 
                     name="qabilah" 
-                    value={formData.qabilah} 
+                    value={formData.qabilah || ''} 
                     onChange={handleChange} 
                     placeholder="Contoh: Qabilah Ahmad Dahlan" 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none" 
@@ -693,7 +693,7 @@ export default function RegisterPage() {
                   <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Alamat Lengkap Rumah</label>
                   <textarea 
                     name="alamat" 
-                    value={formData.alamat} 
+                    value={formData.alamat || ''} 
                     onChange={handleChange} 
                     rows={2} 
                     placeholder="Masukkan alamat domisili lengkap Anda"

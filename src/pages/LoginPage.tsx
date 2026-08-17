@@ -277,7 +277,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text"
-                value={email}
+                value={email || ''}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Masukkan email atau ID anggota..."
                 required
@@ -292,7 +292,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type={showPassword ? 'text' : 'password'}
-                value={password}
+                value={password || ''}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
@@ -331,7 +331,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                 <input
                   type="email"
-                  value={checkEmailInput}
+                  value={checkEmailInput || ''}
                   onChange={(e) => {
                     setCheckEmailInput(e.target.value);
                     if (checkResult) setCheckResult(null);
@@ -433,7 +433,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
                     type="email"
-                    value={resetEmail}
+                    value={resetEmail || ''}
                     onChange={(e) => setResetEmail(e.target.value)}
                     placeholder="nama@email.com"
                     required
@@ -448,7 +448,7 @@ Mohon bantuan verifikasi akun saya. Terima kasih.`);
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
                     type="tel"
-                    value={resetPhone}
+                    value={resetPhone || ''}
                     onChange={(e) => setResetPhone(e.target.value)}
                     placeholder="081234567890"
                     required

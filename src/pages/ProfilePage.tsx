@@ -543,7 +543,7 @@ export default function ProfilePage() {
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Nama Lengkap</label>
                   <input 
                     type="text"
-                    value={formData.namaLengkap}
+                    value={formData.namaLengkap || ''}
                     onChange={(e) => setFormData({...formData, namaLengkap: e.target.value})}
                     className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-sm font-bold text-gray-800 focus:ring-2 focus:ring-hw-green transition-all"
                   />
@@ -633,7 +633,7 @@ export default function ProfilePage() {
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
               <input 
                 type="text"
-                value={formData.namaLengkap}
+                value={formData.namaLengkap || ''}
                 onChange={(e) => setFormData({...formData, namaLengkap: e.target.value})}
                 className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
               />
@@ -720,7 +720,7 @@ export default function ProfilePage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Golongan HW</label>
                 <select 
-                  value={formData.golongan}
+                  value={formData.golongan || 'Pengenal'}
                   onChange={(e) => setFormData({...formData, golongan: e.target.value})}
                   className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all outline-none"
                 >
@@ -732,7 +732,7 @@ export default function ProfilePage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pendidikan</label>
                 <select 
-                  value={formData.pendidikan}
+                  value={formData.pendidikan || 'SMA/SMK/MA'}
                   onChange={(e) => setFormData({...formData, pendidikan: e.target.value})}
                   className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all outline-none"
                 >
@@ -790,7 +790,7 @@ export default function ProfilePage() {
                 <input 
                   type="text"
                   placeholder="Contoh: Semarang"
-                  value={formData.tempatLahir}
+                  value={formData.tempatLahir || ''}
                   onChange={(e) => setFormData({...formData, tempatLahir: e.target.value})}
                   className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
                 />
@@ -799,7 +799,7 @@ export default function ProfilePage() {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal Lahir</label>
                 <input 
                   type="date"
-                  value={formData.tanggalLahir}
+                  value={formData.tanggalLahir || ''}
                   onChange={(e) => setFormData({...formData, tanggalLahir: e.target.value})}
                   className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
                 />
@@ -810,7 +810,7 @@ export default function ProfilePage() {
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp</label>
               <input 
                 type="text"
-                value={formData.noHp}
+                value={formData.noHp || ''}
                 onChange={(e) => setFormData({...formData, noHp: e.target.value})}
                 className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
               />
@@ -819,7 +819,7 @@ export default function ProfilePage() {
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alamat Lengkap</label>
               <textarea 
-                value={formData.alamat}
+                value={formData.alamat || ''}
                 onChange={(e) => setFormData({...formData, alamat: e.target.value})}
                 className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all h-20 resize-none"
               />
@@ -829,7 +829,7 @@ export default function ProfilePage() {
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sosial Media</label>
               <input 
                 type="text"
-                value={formData.sosmed}
+                value={formData.sosmed || ''}
                 onChange={(e) => setFormData({...formData, sosmed: e.target.value})}
                 className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-green transition-all"
               />
@@ -876,7 +876,7 @@ export default function ProfilePage() {
               <input 
                 type="password"
                 placeholder="Masukkan password baru..."
-                value={formData.password}
+                value={formData.password || ''}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 className="w-full bg-gray-50 border border-hw-blue/10 rounded-xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-hw-blue transition-all"
               />

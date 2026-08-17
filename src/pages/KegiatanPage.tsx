@@ -571,7 +571,7 @@ export default function KegiatanPage() {
           <input 
             type="text" 
             placeholder="Cari kegiatan atau lokasi..."
-            value={searchQuery}
+            value={searchQuery || ''}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-10 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-hw-green/20 outline-none shadow-xs"
           />
@@ -1317,7 +1317,7 @@ export default function KegiatanPage() {
                       <input 
                         type="text" 
                         required
-                        value={formData.namaLengkap}
+                        value={formData.namaLengkap || ''}
                         onChange={e => setFormData({ ...formData, namaLengkap: e.target.value })}
                         placeholder="Nama lengkap sesuai identitas"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1328,7 +1328,7 @@ export default function KegiatanPage() {
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Unsur *</label>
                       <select
-                        value={formData.unsur}
+                        value={formData.unsur || 'Kwarwil HW Jateng'}
                         onChange={e => setFormData({ ...formData, unsur: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
                       >
@@ -1349,7 +1349,7 @@ export default function KegiatanPage() {
                       >
                         <label className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">Utusan Kwarda HW (Se-Jawa Tengah) *</label>
                         <select
-                          value={formData.utusan}
+                          value={formData.utusan || kwardaOptions[0]}
                           onChange={e => setFormData({ ...formData, utusan: e.target.value })}
                           className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 text-xs font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
                         >
@@ -1369,7 +1369,7 @@ export default function KegiatanPage() {
                       >
                         <label className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">Daftar Qabilah PTMA (Se-Jawa Tengah) *</label>
                         <select
-                          value={formData.qabilahPtma}
+                          value={formData.qabilahPtma || qabilahPtmaOptions[0]}
                           onChange={e => setFormData({ ...formData, qabilahPtma: e.target.value })}
                           className="w-full bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 text-xs font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-hw-green/20 cursor-pointer"
                         >
@@ -1385,7 +1385,7 @@ export default function KegiatanPage() {
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Jabatan *</label>
                         <select
-                          value={formData.jabatan}
+                          value={formData.jabatan || 'Anggota'}
                           onChange={e => setFormData({ ...formData, jabatan: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                         >
@@ -1402,7 +1402,7 @@ export default function KegiatanPage() {
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Kategori Undangan *</label>
                         <select
-                          value={formData.kategoriUndangan}
+                          value={formData.kategoriUndangan || 'Tidak Ada / Umum'}
                           onChange={e => setFormData({ ...formData, kategoriUndangan: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                         >
@@ -1423,7 +1423,7 @@ export default function KegiatanPage() {
                       <input 
                         type="tel" 
                         required
-                        value={formData.noHp}
+                        value={formData.noHp || ''}
                         onChange={e => setFormData({ ...formData, noHp: e.target.value })}
                         placeholder="Contoh: 081234567890"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1657,7 +1657,7 @@ export default function KegiatanPage() {
                   <input
                     type="text"
                     required
-                    value={newActivityForm.namaKegiatan}
+                    value={newActivityForm.namaKegiatan || ''}
                     onChange={e => setNewActivityForm({ ...newActivityForm, namaKegiatan: e.target.value })}
                     placeholder="Contoh: Perkemahan Sabtu Minggu (Persami) HW Jateng"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1670,7 +1670,7 @@ export default function KegiatanPage() {
                       Kategori Kegiatan *
                     </label>
                     <select
-                      value={newActivityForm.kategori}
+                      value={newActivityForm.kategori || 'Kegiatan Umum'}
                       onChange={e => setNewActivityForm({ ...newActivityForm, kategori: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                     >
@@ -1690,7 +1690,7 @@ export default function KegiatanPage() {
                       Status Kegiatan *
                     </label>
                     <select
-                      value={newActivityForm.status}
+                      value={newActivityForm.status || 'Buka'}
                       onChange={e => setNewActivityForm({ ...newActivityForm, status: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                     >
@@ -1708,7 +1708,7 @@ export default function KegiatanPage() {
                     <input
                       type="text"
                       required
-                      value={newActivityForm.tanggal}
+                      value={newActivityForm.tanggal || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, tanggal: e.target.value })}
                       placeholder="Contoh: 12 - 14 September 2026"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1722,7 +1722,7 @@ export default function KegiatanPage() {
                     <input
                       type="text"
                       required
-                      value={newActivityForm.lokasi}
+                      value={newActivityForm.lokasi || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, lokasi: e.target.value })}
                       placeholder="Contoh: Bumi Perkemahan Karanganyar"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1737,7 +1737,7 @@ export default function KegiatanPage() {
                     </label>
                     <input
                       type="text"
-                      value={newActivityForm.biaya}
+                      value={newActivityForm.biaya || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, biaya: e.target.value })}
                       placeholder="Gratis / Rp 50.000"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1750,7 +1750,7 @@ export default function KegiatanPage() {
                     </label>
                     <input
                       type="text"
-                      value={newActivityForm.kuota}
+                      value={newActivityForm.kuota || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, kuota: e.target.value })}
                       placeholder="Terbuka / 100 Orang"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1786,7 +1786,7 @@ export default function KegiatanPage() {
                   </div>
                   <input
                     type="text"
-                    value={newActivityForm.gambarUrl}
+                    value={newActivityForm.gambarUrl || ''}
                     onChange={e => setNewActivityForm({ ...newActivityForm, gambarUrl: e.target.value })}
                     placeholder="https://... atau tempel link / upload foto poster"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1839,7 +1839,7 @@ export default function KegiatanPage() {
                       </div>
                       <input
                         type="text"
-                        value={newActivityForm.themeSongUrl}
+                        value={newActivityForm.themeSongUrl || ''}
                         onChange={e => setNewActivityForm({ ...newActivityForm, themeSongUrl: e.target.value })}
                         placeholder="https://.../lagu.mp3 atau Google Drive link"
                         className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -1851,7 +1851,7 @@ export default function KegiatanPage() {
                       </label>
                       <input
                         type="text"
-                        value={newActivityForm.themeSongTitle}
+                        value={newActivityForm.themeSongTitle || ''}
                         onChange={e => setNewActivityForm({ ...newActivityForm, themeSongTitle: e.target.value })}
                         placeholder="Contoh: Mars Hizbul Wathan"
                         className="w-full bg-white border border-emerald-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -1880,7 +1880,7 @@ export default function KegiatanPage() {
                   </div>
                   <input
                     type="text"
-                    value={newActivityForm.youtubeUrl}
+                    value={newActivityForm.youtubeUrl || ''}
                     onChange={e => setNewActivityForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
                     placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
                     className="w-full bg-white border border-rose-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500/20"
@@ -1948,7 +1948,7 @@ export default function KegiatanPage() {
                   </div>
                   <input
                     type="text"
-                    value={newActivityForm.proposalUrl}
+                    value={newActivityForm.proposalUrl || ''}
                     onChange={e => setNewActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
                     placeholder="https://drive.google.com/file/d/... atau upload PDF/Word"
                     className="w-full bg-white border border-sky-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20"
@@ -1978,7 +1978,7 @@ export default function KegiatanPage() {
                     </label>
                     <input
                       type="text"
-                      value={newActivityForm.rekeningPembayaran}
+                      value={newActivityForm.rekeningPembayaran || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, rekeningPembayaran: e.target.value })}
                       placeholder="Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
                       className="w-full bg-white border border-gray-250 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -1992,7 +1992,7 @@ export default function KegiatanPage() {
                     </label>
                     <input
                       type="text"
-                      value={newActivityForm.konfirmasiPembayaran}
+                      value={newActivityForm.konfirmasiPembayaran || ''}
                       onChange={e => setNewActivityForm({ ...newActivityForm, konfirmasiPembayaran: e.target.value })}
                       placeholder="089688754000 (Medkom HW Jateng)"
                       className="w-full bg-white border border-gray-250 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"
@@ -2007,7 +2007,7 @@ export default function KegiatanPage() {
                   </label>
                   <textarea
                     rows={4}
-                    value={newActivityForm.deskripsi}
+                    value={newActivityForm.deskripsi || ''}
                     onChange={e => setNewActivityForm({ ...newActivityForm, deskripsi: e.target.value })}
                     placeholder="Jelaskan detail susunan acara, syarat peserta, fasilitas, serta ketentuan pendaftaran..."
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-hw-green/20"

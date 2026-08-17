@@ -663,7 +663,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
               <input 
                 type="text" 
                 placeholder="Cari judul lagu, nama pencipta, atau lirik..."
-                value={searchQuery}
+                value={searchQuery || ''}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 pl-11 pr-10 text-xs sm:text-sm font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
               />
@@ -1031,7 +1031,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                     min={0}
                     max={duration || 100}
                     step={0.1}
-                    value={currentTime}
+                    value={currentTime || 0}
                     onChange={handleSeek}
                     className="w-full h-2 bg-white/15 rounded-lg appearance-none cursor-pointer accent-emerald-400 hover:h-2.5 transition-all"
                   />
@@ -1173,7 +1173,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                       min={0}
                       max={1}
                       step={0.05}
-                      value={isMuted ? 0 : volume}
+                      value={isMuted ? 0 : (volume ?? 1)}
                       onChange={handleVolumeChange}
                       className="w-16 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-emerald-400"
                     />
@@ -1389,7 +1389,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   <input 
                     type="text"
                     required
-                    value={songFormData.title}
+                    value={songFormData.title || ''}
                     onChange={(e) => setSongFormData({ ...songFormData, title: e.target.value })}
                     placeholder="Contoh: Mars Gerakan Kepanduan Hizbul Wathan"
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
@@ -1404,7 +1404,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   </label>
                   <input 
                     type="text"
-                    value={songFormData.creator}
+                    value={songFormData.creator || ''}
                     onChange={(e) => setSongFormData({ ...songFormData, creator: e.target.value })}
                     placeholder="Contoh: H. Siradj Dahlan / Pandu Hizbul Wathan"
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
@@ -1420,7 +1420,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   <input 
                     type="text"
                     required
-                    value={songFormData.audioUrl}
+                    value={songFormData.audioUrl || ''}
                     onChange={(e) => setSongFormData({ ...songFormData, audioUrl: e.target.value })}
                     placeholder="https://hwjateng.org/musik/... atau link direct mp3"
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all font-mono"
@@ -1438,7 +1438,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   </label>
                   <textarea 
                     rows={8}
-                    value={songFormData.lyrics}
+                    value={songFormData.lyrics || ''}
                     onChange={(e) => setSongFormData({ ...songFormData, lyrics: e.target.value })}
                     placeholder="Ketik atau tempel bait-bait lirik lagu lengkap di sini..."
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl p-4 text-xs sm:text-sm font-semibold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all leading-relaxed"

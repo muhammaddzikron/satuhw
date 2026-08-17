@@ -465,7 +465,7 @@ export default function PelatihNasionalPage() {
             <input 
               type="text"
               placeholder="Cari nama pelatih, kwarda, qabilah..."
-              value={searchQuery}
+              value={searchQuery || ''}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-10 pr-9 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
             />
@@ -483,7 +483,7 @@ export default function PelatihNasionalPage() {
           <div className="relative">
             <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
             <select
-              value={selectedKwardaQabilah}
+              value={selectedKwardaQabilah || 'semua'}
               onChange={(e) => setSelectedKwardaQabilah(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-10 pr-8 text-xs font-bold text-gray-700 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer"
             >
