@@ -16,7 +16,7 @@ let firestoreDb;
 try {
   firestoreDb = initializeFirestore(app, {
     localCache: memoryLocalCache(),
-    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: true,
   }, dbId);
 } catch {
   firestoreDb = dbId
