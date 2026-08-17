@@ -315,18 +315,15 @@ export default function HomePage() {
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Training Banner & Modal States
+  // Training Banner & Modal States - only training activities created by admin
   const [trainingActivities, setTrainingActivities] = useState<any[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('hw_training_activities') || '[]');
-      if (Array.isArray(stored) && stored.length > 0) return stored;
+      if (Array.isArray(stored)) {
+        return stored.filter(isOnlyTrainingActivity);
+      }
     } catch {}
-    return [
-      { id: 'train-1', namaKegiatan: 'Pelatihan Jaya Melati 1 (JML 1)', title: 'Pelatihan Jaya Melati 1 (JML 1)', kategori: 'Pelatihan', status: 'Buka' },
-      { id: 'train-2', namaKegiatan: 'Pelatihan Jaya Melati 2 (JML 2)', title: 'Pelatihan Jaya Melati 2 (JML 2)', kategori: 'Pelatihan', status: 'Buka' },
-      { id: 'train-3', namaKegiatan: 'Pelatihan Jaya Matahari 1 (JMT 1)', title: 'Pelatihan Jaya Matahari 1 (JMT 1)', kategori: 'Pelatihan', status: 'Buka' },
-      { id: 'train-4', namaKegiatan: 'Pelatihan Jaya Pertiwi', title: 'Pelatihan Jaya Pertiwi', kategori: 'Pelatihan', status: 'Buka' }
-    ];
+    return [];
   });
   const [trainingLocations, setTrainingLocations] = useState<string[]>(() => {
     try {
@@ -408,18 +405,17 @@ export default function HomePage() {
       }
     });
     const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
-      if (sData && sData.trainingActivities) {
+      if (sData && sData.trainingActivities !== undefined) {
         const acts = Array.isArray(sData.trainingActivities)
           ? sData.trainingActivities
           : typeof sData.trainingActivities === 'string'
             ? JSON.parse(sData.trainingActivities || '[]')
             : [];
-        if (acts.length > 0) {
-          setTrainingActivities(acts);
-          setTimeout(() => {
-            try { localStorage.setItem('hw_training_activities', JSON.stringify(acts)); } catch (e) {}
-          }, 300);
-        }
+        const cleanActs = acts.filter(isOnlyTrainingActivity);
+        setTrainingActivities(cleanActs);
+        setTimeout(() => {
+          try { localStorage.setItem('hw_training_activities', JSON.stringify(cleanActs)); } catch (e) {}
+        }, 300);
       }
     });
 
@@ -469,12 +465,12 @@ export default function HomePage() {
       }
     });
     (activitiesList || []).forEach((act: any) => {
-      if (!act || !act.id) return;
-      if (map.has(act.id) && isOnlyTrainingActivity(act)) {
+      if (!act || !act.id || !isOnlyTrainingActivity(act)) return;
+      if (map.has(act.id)) {
         const prev = map.get(act.id) || {};
         const merged = { ...prev, ...act };
-        const finalLoc = act.lokasi || act.lokasiPelatihan || act.location || prev.lokasi || prev.lokasiPelatihan || '';
-        const finalDate = act.tanggal || act.tanggalPelatihan || act.startDate || prev.tanggal || prev.tanggalPelatihan || '';
+        const finalLoc = act.lokasiPelatihan || act.lokasi || act.location || prev.lokasiPelatihan || prev.lokasi || '';
+        const finalDate = act.tanggalPelatihan || act.tanggal || act.startDate || prev.tanggalPelatihan || prev.tanggal || '';
         map.set(act.id, {
           ...merged,
           lokasi: finalLoc,
@@ -484,6 +480,8 @@ export default function HomePage() {
           startDate: finalDate,
           tanggalPelatihan: finalDate
         });
+      } else {
+        map.set(act.id, act);
       }
     });
     return Array.from(map.values()).filter(isOnlyTrainingActivity);

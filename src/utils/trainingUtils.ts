@@ -75,7 +75,9 @@ export const TRAINING_LEVELS: Record<TrainingLevelKey, TrainingLevelConfig> = {
  */
 export const normalizeTrainingKey = (str?: string): string => {
   if (!str) return '';
-  const clean = String(str).trim().toLowerCase().replace(/[\s_-]+/g, '');
+  // Clean brackets, quotes, slashes, and leading/trailing whitespace
+  const rawClean = String(str).trim().replace(/^['"\[\]\\]+|['"\[\]\\]+$/g, '').trim();
+  const clean = rawClean.toLowerCase().replace(/['"\[\]\\]/g, '').replace(/[\s_-]+/g, '');
 
   if (clean === 'jayamelati1' || clean === 'jati1' || clean === 'jm1') return 'jati1';
   if (clean === 'jayamelati2' || clean === 'jati2' || clean === 'jm2') return 'jati2';
@@ -84,20 +86,19 @@ export const normalizeTrainingKey = (str?: string): string => {
   if (clean === 'jayapertiwi' || clean === 'jawi' || clean === 'pertiwi') return 'jawi';
 
   // Broader contains check if not exact
-  const raw = String(str).toLowerCase().trim();
+  const raw = rawClean.toLowerCase();
   if (raw.includes('jaya melati 1') || raw.includes('jati 1') || raw.includes('jayamelati 1')) return 'jati1';
   if (raw.includes('jaya melati 2') || raw.includes('jati 2') || raw.includes('jayamelati 2')) return 'jati2';
   if (raw.includes('jaya matahari 1') || raw.includes('jari 1') || raw.includes('jayamatahari 1') || raw.includes('jaya rintisan 1')) return 'jari1';
   if (raw.includes('jaya matahari 2') || raw.includes('jari 2') || raw.includes('jayamatahari 2') || raw.includes('jaya rintisan 2')) return 'jari2';
   if (raw.includes('jaya pertiwi') || raw.includes('jayapertiwi') || raw.includes('jawi')) return 'jawi';
 
-  if (raw.includes('dewan sugli') || raw.includes('sugli_daerah') || raw.includes('sugli_wilayah') || raw === 'sugli') return 'sugli';
-  if (raw.includes('admin_kwarda') || raw === 'kwarda') return 'kwarda';
-  if (raw.includes('super_admin') || raw === 'superadmin') return 'superadmin';
-  if (raw.includes('admin_petugas') || raw === 'admin') return 'admin';
-  if (raw.includes('admin_diklat') || raw === 'diklat') return 'diklat';
-  if (raw === 'umum_pandu') return 'umum_pandu';
-  if (raw === 'umum') return 'umum';
+  if (raw.includes('dewan sugli') || raw.includes('sugli_daerah') || raw.includes('sugli_wilayah') || clean === 'sugli') return 'sugli';
+  if (raw.includes('admin_kwarda') || clean === 'kwarda') return 'kwarda';
+  if (raw.includes('super_admin') || clean === 'superadmin') return 'superadmin';
+  if (raw.includes('admin_petugas') || clean === 'admin') return 'admin';
+  if (raw.includes('admin_diklat') || clean === 'diklat') return 'diklat';
+  if (clean === 'umum_pandu' || clean === 'umum') return 'umum';
 
   return clean;
 };
@@ -298,14 +299,30 @@ export const syncRolesAndPelatihan = (
   rawPelatihan: any
 ): { roles: string[]; pelatihan: string[]; primaryRole: string } => {
   const rolesSet = new Set<string>();
+
   const addRole = (r: any) => {
     if (!r) return;
-    if (Array.isArray(r)) r.forEach(addRole);
-    else if (typeof r === 'string') {
-      r.split(',').forEach(s => {
-        const clean = s.trim().toLowerCase();
-        if (clean) rolesSet.add(clean);
+    if (Array.isArray(r)) {
+      r.forEach(addRole);
+    } else if (typeof r === 'string') {
+      const trimmed = r.trim();
+      if (!trimmed) return;
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(addRole);
+            return;
+          }
+        } catch (e) {}
+      }
+      trimmed.split(',').forEach(s => {
+        const norm = normalizeTrainingKey(s);
+        if (norm) rolesSet.add(norm);
       });
+    } else {
+      const norm = normalizeTrainingKey(String(r));
+      if (norm) rolesSet.add(norm);
     }
   };
   addRole(rawRoles);
@@ -313,12 +330,27 @@ export const syncRolesAndPelatihan = (
   const pelatihanSet = new Set<string>();
   const addPelatihan = (p: any) => {
     if (!p) return;
-    if (Array.isArray(p)) p.forEach(addPelatihan);
-    else if (typeof p === 'string') {
-      p.split(',').forEach(s => {
-        const clean = s.trim();
+    if (Array.isArray(p)) {
+      p.forEach(addPelatihan);
+    } else if (typeof p === 'string') {
+      const trimmed = p.trim();
+      if (!trimmed) return;
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(addPelatihan);
+            return;
+          }
+        } catch (e) {}
+      }
+      trimmed.split(',').forEach(s => {
+        const clean = s.trim().replace(/^['"\[\]\\]+|['"\[\]\\]+$/g, '').trim();
         if (clean) pelatihanSet.add(clean);
       });
+    } else {
+      const clean = String(p).trim();
+      if (clean) pelatihanSet.add(clean);
     }
   };
   addPelatihan(rawPelatihan);

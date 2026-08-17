@@ -32,6 +32,7 @@ import { formatTempatTanggalLahir } from '../lib/utils';
 import { Navigate, Link } from 'react-router-dom';
 import { cn, safeJsonParse } from '../lib/utils';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
+import { syncRolesAndPelatihan } from '../utils/trainingUtils';
 
 const ProfileItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string }) => (
   <div className="flex items-center gap-4 p-4">
@@ -307,15 +308,20 @@ export default function ProfilePage() {
       
       const isJM = formData.roles.includes('jari1') || formData.roles.includes('jari2') || formData.roles.includes('jaya_matahari_1') || formData.roles.includes('jaya_matahari_2') || formData.role === 'jari1' || formData.role === 'jari2';
 
+      const rawRoles = (formData.roles && formData.roles.length > 0) ? formData.roles : (user?.roles || [user?.role || 'umum']);
+      const rawPelatihan = (formData.pelatihan && formData.pelatihan.length > 0) ? formData.pelatihan : (user?.pelatihan || []);
+      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan);
+
       // Ensure we have a payload that includes identifier and preserves existing values
       const payload = {
         ...user,
         ...formData,
         tempatLahir: formData.tempatLahir?.trim() || user?.tempatLahir || '',
         tanggalLahir: formData.tanggalLahir || user?.tanggalLahir || '',
-        role: formData.roles[0] || formData.role || 'umum',
-        roles: formData.roles,
-        activeRole: formData.roles[0] || formData.role || 'umum',
+        role: synced.primaryRole,
+        roles: synced.roles,
+        pelatihan: synced.pelatihan,
+        activeRole: user?.activeRole || synced.primaryRole,
         golongan: isJM ? (formData.golonganPelatih || formData.golongan) : formData.golongan,
         golonganPelatih: isJM ? (formData.golonganPelatih || formData.golongan) : (user as any)?.golonganPelatih,
         photo: formData.photo || user.photo || ''

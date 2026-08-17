@@ -6,7 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate } from '../utils/activityUtils';
-import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected } from '../utils/trainingUtils';
+import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey } from '../utils/trainingUtils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -1002,12 +1002,29 @@ export default function AdminDashboard() {
     }
   };
 
+  const allTrainingActivitiesList = useMemo(() => {
+    const map = new Map<string, any>();
+    (settings.trainingActivities || []).filter(isOnlyTrainingActivity).forEach((a: any) => {
+      if (a && a.id) map.set(a.id, a);
+    });
+    (activitiesList || []).filter(isOnlyTrainingActivity).forEach((a: any) => {
+      if (a && a.id) {
+        if (map.has(a.id)) {
+          map.set(a.id, { ...map.get(a.id), ...a });
+        } else {
+          map.set(a.id, a);
+        }
+      }
+    });
+    return Array.from(map.values()).filter(isOnlyTrainingActivity);
+  }, [settings.trainingActivities, activitiesList]);
+
   const getAvailableTrainingOptions = () => {
     const options: { id: string; name: string; label: string; act?: any }[] = [];
     const addedNames = new Set<string>();
 
-    // 1. Registered training activities from settings
-    (settings.trainingActivities || []).forEach((act: any) => {
+    // 1. Registered training activities from settings & activitiesList
+    allTrainingActivitiesList.forEach((act: any) => {
       const name = act.namaKegiatan || act.jenisPelatihan;
       if (name && !addedNames.has(name)) {
         addedNames.add(name);
@@ -1885,6 +1902,15 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const actId = editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`;
+      const isPel = kegiatanFormData.kategori === 'Pelatihan' || 
+                    kegiatanFormData.kategori === 'Diklat' || 
+                    isOnlyTrainingActivity({
+                      namaKegiatan: kegiatanFormData.namaKegiatan,
+                      title: kegiatanFormData.namaKegiatan,
+                      kategori: kegiatanFormData.kategori,
+                      lokasi: kegiatanFormData.lokasi
+                    });
+
       const payload = {
         ...(editingKegiatan || {}),
         ...kegiatanFormData,
@@ -1913,22 +1939,33 @@ export default function AdminDashboard() {
         proposalUrl: kegiatanFormData.proposalUrl,
         proposal: kegiatanFormData.proposalUrl,
         linkProposal: kegiatanFormData.proposalUrl,
-        isPelatihan: false,
+        isPelatihan: isPel,
         updatedAt: new Date().toISOString()
       };
       const saved = await sheetsService.saveActivity(payload);
 
       // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
-      const currentActs = [...(settings.trainingActivities || [])];
-      const normTitle = (kegiatanFormData.namaKegiatan || '').trim().toLowerCase();
-      const filteredActs = currentActs.filter((a: any) => {
-        if (a.id === actId) return false;
-        const aTitle = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
-        if (aTitle && normTitle && (aTitle === normTitle || aTitle.includes(normTitle) || normTitle.includes(aTitle))) return false;
-        return true;
-      });
-      filteredActs.unshift(saved || payload);
-      setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
+      if (isPel) {
+        const currentActs = [...(settings.trainingActivities || [])];
+        const normTitle = (kegiatanFormData.namaKegiatan || '').trim().toLowerCase();
+        const filteredActs = currentActs.filter((a: any) => {
+          if (a.id === actId) return false;
+          const aTitle = (a.namaKegiatan || a.title || a.jenisPelatihan || '').trim().toLowerCase();
+          if (aTitle && normTitle && (aTitle === normTitle || aTitle.includes(normTitle) || normTitle.includes(aTitle))) return false;
+          return true;
+        });
+        filteredActs.unshift(saved || payload);
+        const locs = Array.isArray(settings.trainingLocations) ? [...settings.trainingLocations] : [];
+        if (kegiatanFormData.lokasi && !locs.includes(kegiatanFormData.lokasi)) locs.push(kegiatanFormData.lokasi);
+        const dts = Array.isArray(settings.trainingDates) ? [...settings.trainingDates] : [];
+        if (kegiatanFormData.tanggal && !dts.includes(kegiatanFormData.tanggal)) dts.push(kegiatanFormData.tanggal);
+        setSettings(prev => ({
+          ...prev,
+          trainingActivities: filteredActs,
+          trainingLocations: locs,
+          trainingDates: dts
+        }));
+      }
 
       alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Spreadsheet & Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Spreadsheet & Firebase!');
       setIsKegiatanModalOpen(false);
@@ -2265,6 +2302,39 @@ export default function AdminDashboard() {
 
     const unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
       setActivitiesList(acts || []);
+      if (Array.isArray(acts) && acts.length > 0) {
+        const trainActs = acts.filter(isOnlyTrainingActivity);
+        if (trainActs.length > 0) {
+          setSettings(prev => {
+            const m = new Map<string, any>();
+            (prev.trainingActivities || []).filter(isOnlyTrainingActivity).forEach((a: any) => { if (a && a.id) m.set(a.id, a); });
+            trainActs.forEach((a: any) => {
+              if (a && a.id) {
+                if (m.has(a.id)) {
+                  m.set(a.id, { ...m.get(a.id), ...a });
+                } else {
+                  m.set(a.id, a);
+                }
+              }
+            });
+            const allActs = Array.from(m.values()).filter(isOnlyTrainingActivity);
+            const locs = Array.isArray(prev.trainingLocations) ? [...prev.trainingLocations] : [];
+            const dts = Array.isArray(prev.trainingDates) ? [...prev.trainingDates] : [];
+            allActs.forEach((a: any) => {
+              const loc = a.lokasiPelatihan || a.lokasi || a.location;
+              if (loc && !locs.includes(loc)) locs.push(loc);
+              const dt = a.tanggalPelatihan || a.tanggal || a.startDate;
+              if (dt && !dts.includes(dt)) dts.push(dt);
+            });
+            return {
+              ...prev,
+              trainingActivities: allActs,
+              trainingLocations: locs,
+              trainingDates: dts
+            };
+          });
+        }
+      }
     });
 
     const unsubApps = sheetsService.subscribeToActivityApplications((apps: any[]) => {
@@ -7663,12 +7733,12 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                         <span className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black">
-                          {(settings.trainingActivities || []).filter(isOnlyTrainingActivity).length} Kegiatan
+                          {allTrainingActivitiesList.length} Kegiatan
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {(settings.trainingActivities || []).filter(isOnlyTrainingActivity).length === 0 ? (
+                        {allTrainingActivitiesList.length === 0 ? (
                           <div className="col-span-full py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                             <p className="text-xs font-bold text-gray-400">Belum ada Kegiatan Pelatihan terdaftar.</p>
                             <button
@@ -7697,7 +7767,7 @@ export default function AdminDashboard() {
                             </button>
                           </div>
                         ) : (
-                          (settings.trainingActivities || []).filter(isOnlyTrainingActivity).map((act: any, idx: number) => (
+                          allTrainingActivitiesList.map((act: any, idx: number) => (
                             <div key={act.id || idx} className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all space-y-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div>
@@ -8375,6 +8445,8 @@ export default function AdminDashboard() {
                           onChange={e => setKegiatanFormData({ ...kegiatanFormData, kategori: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none"
                         >
+                          <option value="Pelatihan">Pelatihan</option>
+                          <option value="Diklat">Diklat</option>
                           <option value="Rapat HW">Rapat HW</option>
                           <option value="Silaturahmi">Silaturahmi</option>
                           <option value="Perkemahan">Perkemahan</option>
@@ -9440,7 +9512,8 @@ export default function AdminDashboard() {
                               // Skip superadmin role for non-superadmins
                               if (key === 'superadmin' && !isSuperAdmin) return null;
 
-                              const isSelected = formData.roles.includes(key as any);
+                              const normalizedCurrentRoles = (formData.roles || []).map(r => normalizeTrainingKey(r)).filter(Boolean);
+                              const isSelected = normalizedCurrentRoles.includes(key) || (formData.roles || []).includes(key as any);
                               return (
                                 <button
                                   key={`role-opt-${key}`}
@@ -9448,13 +9521,12 @@ export default function AdminDashboard() {
                                   disabled={!canEditRoles}
                                   onClick={() => {
                                     if (!canEditRoles) return;
-                                    const currentRoles = [...formData.roles];
                                     let nextRoles: string[];
                                     let nextPelatihan = Array.isArray(formData.pelatihan) ? [...formData.pelatihan] : [];
 
                                     if (isSelected) {
-                                      if (currentRoles.length > 1) {
-                                        nextRoles = currentRoles.filter(k => k !== key);
+                                      if (normalizedCurrentRoles.length > 1) {
+                                        nextRoles = normalizedCurrentRoles.filter(k => k !== key && normalizeTrainingKey(k) !== key);
                                         // If removing training role, also clean from pelatihan
                                         if (key === 'jati1') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jati 1'));
                                         else if (key === 'jati2') nextPelatihan = nextPelatihan.filter(p => !isPelatihanSelected([p], 'Jati 2'));
@@ -9465,7 +9537,7 @@ export default function AdminDashboard() {
                                         return; // Must have at least one role
                                       }
                                     } else {
-                                      nextRoles = [...currentRoles, key];
+                                      nextRoles = [...normalizedCurrentRoles, key];
                                       // Automatically add corresponding training to pelatihan
                                       if (key === 'jati1') {
                                         if (!isPelatihanSelected(nextPelatihan, 'Jati 1')) nextPelatihan.push('Jati 1');
@@ -9491,7 +9563,7 @@ export default function AdminDashboard() {
                                     });
                                   }}
                                   className={cn(
-                                    "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full",
+                                    "flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all text-left h-full cursor-pointer",
                                     !canEditRoles && "opacity-75 cursor-not-allowed",
                                     isSelected
                                       ? "bg-hw-green/10 border-hw-green/20 text-hw-green font-black"

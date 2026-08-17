@@ -1,6 +1,8 @@
 import { User, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { toProperName } from '../utils/nameUtils';
+import { parseRolesField } from './firestoreService';
+import { syncRolesAndPelatihan } from '../utils/trainingUtils';
 import { csvPart1 } from './kta_csv_part1';
 import { csvPart2 } from './kta_csv_part2';
 import { csvPart3 } from './kta_csv_part3';
@@ -96,33 +98,16 @@ export const getMasterMembersList = (): User[] => {
   // 1. Initial spreadsheet users
   (INITIAL_SPREADSHEET_DATA.users || []).forEach((u: any, idx: number) => {
     if (!u) return;
-    let parsedRole: UserRole = 'umum';
-    if (typeof u.role === 'string' && u.role.startsWith('[')) {
-      try {
-        const rolesArr = JSON.parse(u.role);
-        parsedRole = (rolesArr[0] as UserRole) || 'umum';
-      } catch (e) {}
-    } else if (u.role) {
-      parsedRole = u.role as UserRole;
-    }
-
-    let parsedRoles: UserRole[] = ['umum'];
-    if (Array.isArray(u.roles)) {
-      parsedRoles = u.roles;
-    } else if (typeof u.role === 'string' && u.role.startsWith('[')) {
-      try {
-        parsedRoles = JSON.parse(u.role);
-      } catch (e) {}
-    } else if (u.role) {
-      parsedRoles = [u.role as UserRole];
-    }
+    const rawRoles = parseRolesField(u.roles, u.role);
+    const synced = syncRolesAndPelatihan(rawRoles, u.pelatihan || []);
 
     rawCandidates.push({
       ...u,
       id: String(u.id || `user-init-${idx}`),
       namaLengkap: toProperName(u.namaLengkap || u.nama) || 'Anggota HW',
-      role: parsedRole,
-      roles: parsedRoles,
+      role: (synced.primaryRole || 'umum') as UserRole,
+      roles: (synced.roles && synced.roles.length > 0 ? synced.roles : ['umum']) as UserRole[],
+      pelatihan: synced.pelatihan,
       isVerified: u.isVerified === true || u.isVerified === 'TRUE' || u.isVerified === 'true'
     });
   });

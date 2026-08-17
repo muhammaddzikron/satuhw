@@ -311,42 +311,60 @@ export default function PelatihanPage() {
 
       // Fetch dynamic training activities from Settings & Realtime Activities
       try {
-        const settingsData = await sheetsService.getSettings();
-        if (settingsData) {
-          if (settingsData.assignedTasks) {
-            const parsed = Array.isArray(settingsData.assignedTasks) 
-              ? settingsData.assignedTasks 
-              : JSON.parse(settingsData.assignedTasks || '[]');
-            setAssignedTasks(parsed);
-          }
-          if (settingsData.trainingActivities) {
-            const acts = (Array.isArray(settingsData.trainingActivities)
-              ? settingsData.trainingActivities
-              : JSON.parse(settingsData.trainingActivities || '[]')).filter(isOnlyTrainingActivity);
-            if (acts && acts.length > 0) {
-              setTrainingActivities(acts);
-            } else {
-              setTrainingActivities(DEFAULT_TRAINING_ACTIVITIES);
-            }
-          } else {
-            setTrainingActivities(DEFAULT_TRAINING_ACTIVITIES);
-          }
-        } else {
-          setTrainingActivities(DEFAULT_TRAINING_ACTIVITIES);
-        }
-      } catch (err) {
-        console.error('Failed to fetch settings for activities:', err);
-        setTrainingActivities(DEFAULT_TRAINING_ACTIVITIES);
-      }
+        const [settingsData, generalActs] = await Promise.all([
+          sheetsService.getSettings(),
+          sheetsService.getActivities()
+        ]);
 
-      const unsubSettings = sheetsService.subscribeToSettings((settingsData: any) => {
-        if (settingsData && settingsData.trainingActivities) {
+        if (settingsData?.assignedTasks) {
+          const parsed = Array.isArray(settingsData.assignedTasks) 
+            ? settingsData.assignedTasks 
+            : JSON.parse(settingsData.assignedTasks || '[]');
+          setAssignedTasks(parsed);
+        }
+
+        const map = new Map<string, any>();
+        if (settingsData && settingsData.trainingActivities !== undefined) {
           const acts = (Array.isArray(settingsData.trainingActivities)
             ? settingsData.trainingActivities
             : JSON.parse(settingsData.trainingActivities || '[]')).filter(isOnlyTrainingActivity);
-          if (acts && acts.length > 0) {
-            setTrainingActivities(acts);
-          }
+          acts.forEach(a => { if (a && a.id) map.set(a.id, a); });
+        }
+        if (Array.isArray(generalActs)) {
+          generalActs.filter(isOnlyTrainingActivity).forEach(a => {
+            if (a && a.id) {
+              if (map.has(a.id)) {
+                map.set(a.id, { ...map.get(a.id), ...a });
+              } else {
+                map.set(a.id, a);
+              }
+            }
+          });
+        }
+        setTrainingActivities(Array.from(map.values()).filter(isOnlyTrainingActivity));
+      } catch (err) {
+        console.error('Failed to fetch settings for activities:', err);
+      }
+
+      const unsubSettings = sheetsService.subscribeToSettings((settingsData: any) => {
+        if (settingsData && settingsData.trainingActivities !== undefined) {
+          const acts = (Array.isArray(settingsData.trainingActivities)
+            ? settingsData.trainingActivities
+            : JSON.parse(settingsData.trainingActivities || '[]')).filter(isOnlyTrainingActivity);
+          setTrainingActivities(prev => {
+            const map = new Map<string, any>();
+            (prev || []).filter(isOnlyTrainingActivity).forEach(a => { if (a && a.id) map.set(a.id, a); });
+            acts.forEach(a => {
+              if (a && a.id) {
+                if (map.has(a.id)) {
+                  map.set(a.id, { ...map.get(a.id), ...a });
+                } else {
+                  map.set(a.id, a);
+                }
+              }
+            });
+            return Array.from(map.values()).filter(isOnlyTrainingActivity);
+          });
         }
       });
 
@@ -356,9 +374,13 @@ export default function PelatihanPage() {
             const map = new Map<string, any>();
             (prev || []).filter(isOnlyTrainingActivity).forEach(a => { if (a && a.id) map.set(a.id, a); });
             (acts || []).forEach(a => {
-              if (a && a.id && map.has(a.id) && isOnlyTrainingActivity(a)) {
-                const existing = map.get(a.id) || {};
-                map.set(a.id, { ...existing, ...a });
+              if (a && a.id && isOnlyTrainingActivity(a)) {
+                if (map.has(a.id)) {
+                  const existing = map.get(a.id) || {};
+                  map.set(a.id, { ...existing, ...a });
+                } else {
+                  map.set(a.id, a);
+                }
               }
             });
             return Array.from(map.values()).filter(isOnlyTrainingActivity);

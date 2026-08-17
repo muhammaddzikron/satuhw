@@ -133,6 +133,54 @@ export function parseRolesField(rolesVal: any, roleVal: any): UserRole[] {
   return result;
 }
 
+export function applyMemberOverrides(member: any): any {
+  if (!member) return member;
+  let customOverrides: Record<string, any> = {};
+  try {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('member_custom_edits');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') customOverrides = parsed;
+      }
+    }
+  } catch (e) {}
+
+  const mId = member.id ? String(member.id).trim() : '';
+  const mIdClean = mId.replace(/^user-/, '');
+  const mEmail = member.email ? String(member.email).toLowerCase().trim() : '';
+  const mKta = String(member.ktaNumber || member.nomorKTA || '').trim();
+  const mPhone = member.noHp ? String(member.noHp).replace(/[^0-9]/g, '') : '';
+  const mName = member.namaLengkap ? String(member.namaLengkap).toLowerCase().trim() : '';
+
+  const ov = (mId && customOverrides[mId]) ||
+    (mIdClean && customOverrides[mIdClean]) ||
+    (mId && customOverrides[`user-${mIdClean}`]) ||
+    (mEmail && customOverrides[mEmail]) ||
+    (mKta && customOverrides[mKta]) ||
+    (mPhone && mPhone.length > 5 && customOverrides[mPhone]) ||
+    (mName && customOverrides[mName]);
+
+  const base = ov ? { ...member, ...ov } : member;
+  const rawRoles = parseRolesField(base.roles, base.role);
+  const synced = syncRolesAndPelatihan(rawRoles, base.pelatihan || []);
+  const properName = toProperName(base.namaLengkap || base.nama);
+
+  return {
+    ...base,
+    namaLengkap: properName || base.namaLengkap || 'Anggota HW',
+    roles: synced.roles,
+    role: synced.primaryRole,
+    pelatihan: synced.pelatihan,
+    activeRole: base.activeRole || synced.primaryRole
+  };
+}
+
+export function applyMemberListOverrides(members: User[]): User[] {
+  if (!Array.isArray(members)) return [];
+  return members.map(m => applyMemberOverrides(m));
+}
+
 const isValidName = (n?: string): boolean => {
   if (!n) return false;
   const lower = n.trim().toLowerCase();
@@ -158,6 +206,19 @@ export const firestoreService = {
 
   getIsQuotaExceeded(): boolean {
     return this.isQuotaExceeded;
+  },
+
+  isOfflineError(err: any): boolean {
+    if (!err) return false;
+    const errMsg = String(err?.message || err?.code || err || '').toLowerCase();
+    return (
+      errMsg.includes('client is offline') ||
+      errMsg.includes('offline') ||
+      errMsg.includes('unavailable') ||
+      errMsg.includes('could not reach cloud firestore backend') ||
+      errMsg.includes('network') ||
+      errMsg.includes('failed to get document')
+    );
   },
 
   checkQuotaError(err: any): boolean {
@@ -1385,13 +1446,20 @@ export const firestoreService = {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const storedOverrides = localStorage.getItem('member_custom_edits');
         const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
-        if (dataToSave.id) overrides[String(dataToSave.id)] = dataToSave;
+        const idStr = String(dataToSave.id || memberId).trim();
+        const idClean = idStr.replace(/^user-/, '');
+        if (idStr) overrides[idStr] = dataToSave;
+        if (idClean) overrides[idClean] = dataToSave;
+        if (idClean) overrides[`user-${idClean}`] = dataToSave;
         if (dataToSave.email) overrides[dataToSave.email.toLowerCase().trim()] = dataToSave;
         if (dataToSave.ktaNumber) overrides[dataToSave.ktaNumber.trim()] = dataToSave;
         if (dataToSave.nomorKTA) overrides[dataToSave.nomorKTA.trim()] = dataToSave;
         if (dataToSave.noHp) {
           const digits = String(dataToSave.noHp).replace(/[^0-9]/g, '');
-          if (digits.length > 6) overrides[digits] = dataToSave;
+          if (digits.length > 5) overrides[digits] = dataToSave;
+        }
+        if (dataToSave.namaLengkap) {
+          overrides[dataToSave.namaLengkap.toLowerCase().trim()] = dataToSave;
         }
         safeStorageSet('member_custom_edits', overrides);
       }
@@ -1413,7 +1481,7 @@ export const firestoreService = {
     } else {
       current.push(dataToSave as User);
     }
-    safeStorageSet('mock_members', sanitizeMemberList(current));
+    safeStorageSet('mock_members', sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(current))));
 
     // Sync photo and profile updates to KTA Applications collection in both Firestore and localStorage
     try {
@@ -1485,15 +1553,23 @@ export const firestoreService = {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const storedOverrides = localStorage.getItem('member_custom_edits');
         const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
-        const exOv = overrides[String(id)] || (normUpdates.email ? overrides[normUpdates.email.toLowerCase().trim()] : {}) || {};
-        const mergedOv = { ...exOv, ...normUpdates, id };
-        overrides[String(id)] = mergedOv;
+        const idStr = String(id).trim();
+        const idClean = idStr.replace(/^user-/, '');
+        const exOv = overrides[idStr] || (idClean ? overrides[idClean] : {}) || (normUpdates.email ? overrides[normUpdates.email.toLowerCase().trim()] : {}) || {};
+        const mergedOv = { ...exOv, ...normUpdates, id: idStr };
+        
+        overrides[idStr] = mergedOv;
+        if (idClean) overrides[idClean] = mergedOv;
+        if (idClean) overrides[`user-${idClean}`] = mergedOv;
         if (normUpdates.email) overrides[normUpdates.email.toLowerCase().trim()] = mergedOv;
         if (normUpdates.ktaNumber) overrides[normUpdates.ktaNumber.trim()] = mergedOv;
         if (normUpdates.nomorKTA) overrides[normUpdates.nomorKTA.trim()] = mergedOv;
         if (normUpdates.noHp) {
           const digits = String(normUpdates.noHp).replace(/[^0-9]/g, '');
-          if (digits.length > 6) overrides[digits] = mergedOv;
+          if (digits.length > 5) overrides[digits] = mergedOv;
+        }
+        if (normUpdates.namaLengkap) {
+          overrides[normUpdates.namaLengkap.toLowerCase().trim()] = mergedOv;
         }
         safeStorageSet('member_custom_edits', overrides);
       }
@@ -1513,7 +1589,7 @@ export const firestoreService = {
     if (idx >= 0) {
       updatedMember = { ...current[idx], ...normUpdates };
       current[idx] = updatedMember;
-      safeStorageSet('mock_members', sanitizeMemberList(current));
+      safeStorageSet('mock_members', sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(current))));
     }
 
     // Sync photo and profile updates to KTA Applications collection
@@ -1585,7 +1661,7 @@ export const firestoreService = {
       try {
         const parsed = JSON.parse(cachedStr);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          callback(parsed);
+          callback(sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(parsed))));
         }
       } catch (e) {}
     }
@@ -1604,8 +1680,25 @@ export const firestoreService = {
                 validMembers.push(m);
               }
             }
-            safeStorageSet('mock_members', validMembers);
-            callback(validMembers);
+
+            // Merge with master members list so no registered accounts are lost
+            const masterList = getMasterMembersList();
+            masterList.forEach((mm) => {
+              if (!mm || !mm.namaLengkap || mm.namaLengkap === 'Tanpa Nama' || mm.namaLengkap === '-') return;
+              const mmEmail = mm.email ? String(mm.email).toLowerCase().trim() : '';
+              const mmId = mm.id ? String(mm.id) : '';
+              const exists = validMembers.some(m => 
+                (m.id && mmId && String(m.id) === mmId) ||
+                (mmEmail && m.email && m.email.toLowerCase().trim() === mmEmail)
+              );
+              if (!exists) {
+                validMembers.push(mm);
+              }
+            });
+
+            const finalMembers = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(validMembers)));
+            safeStorageSet('mock_members', finalMembers);
+            callback(finalMembers);
           }
         }, (err) => {
           this.checkQuotaError(err);
@@ -1628,9 +1721,25 @@ export const firestoreService = {
         const unsub = onSnapshot(memberRef, (snap) => {
           if (snap.exists()) {
             const data = { id: snap.id, ...snap.data() } as User;
-            callback(data);
+            const merged = applyMemberOverrides(data);
+            callback(merged);
           } else {
-            callback(null);
+            // Check local cache
+            const cachedStr = localStorage.getItem('mock_members');
+            let found: any = null;
+            if (cachedStr) {
+              try {
+                const parsed = JSON.parse(cachedStr);
+                if (Array.isArray(parsed)) {
+                  found = parsed.find(m => String(m.id) === String(memberId) || (m.email && String(m.email).toLowerCase().trim() === String(memberId).toLowerCase().trim()));
+                }
+              } catch (e) {}
+            }
+            if (found) {
+              callback(applyMemberOverrides(found));
+            } else {
+              callback(null);
+            }
           }
         }, (err) => {
           this.checkQuotaError(err);
@@ -1656,8 +1765,8 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) {
-          console.error('Firestore getMateri error, fallback to cache:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore getMateri offline / fallback to cache:', (err as any)?.message || err);
         }
       }
     }
@@ -2435,7 +2544,9 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getContents error, fallback to cache:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore getContents offline / fallback to cache:', (err as any)?.message || err);
+        }
       }
     }
     const stored = localStorage.getItem('contents') || '[]';
@@ -2478,7 +2589,9 @@ export const firestoreService = {
         await setDoc(doc(db, 'contents', itemData.id), itemData);
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore saveContent error:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore saveContent offline queue:', (err as any)?.message || err);
+        }
       }
     }
     const list = await this.getContents();
@@ -2498,7 +2611,9 @@ export const firestoreService = {
         await deleteDoc(doc(db, 'contents', id));
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore deleteContent error:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore deleteContent offline queue:', (err as any)?.message || err);
+        }
       }
     }
     const list = await this.getContents();
@@ -2524,7 +2639,9 @@ export const firestoreService = {
         }
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore getSettings error, fallback to cache:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore getSettings offline / fallback to cache:', (err as any)?.message || err);
+        }
       }
     }
     const stored = localStorage.getItem('hw_settings');
@@ -2559,7 +2676,9 @@ export const firestoreService = {
         await setDoc(doc(db, 'settings', 'app_settings'), dataToSave, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore saveSettings error:', err);
+        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+          console.warn('Firestore saveSettings offline queue:', (err as any)?.message || err);
+        }
       }
     }
     safeStorageSet('hw_settings', dataToSave);
@@ -3716,13 +3835,23 @@ export const firestoreService = {
       const deletedIds = Array.isArray(currentSettings.deletedActivityIds) ? currentSettings.deletedActivityIds.filter((dId: string) => dId !== actId) : [];
       const deletedTitles = Array.isArray(currentSettings.deletedActivityTitles) ? currentSettings.deletedActivityTitles.filter((dT: string) => dT.toLowerCase() !== actTitle.toLowerCase()) : [];
 
-      if (isOnlyTrainingActivity(newAct) && currentActs.some((a: any) => a && (a.id === actId || isSameActivity(a, newAct)))) {
+      if (isOnlyTrainingActivity(newAct)) {
         const filtered = currentActs.filter((a: any) => a && a.id !== actId && !isSameActivity(a, newAct));
         filtered.unshift(newAct);
+
+        // Also add location and date to lookup lists if not already there
+        const loc = newAct.lokasiPelatihan || newAct.lokasi || newAct.location;
+        const dt = newAct.tanggalPelatihan || newAct.tanggal || newAct.startDate;
+        const currentLocs = Array.isArray(currentSettings.trainingLocations) ? [...currentSettings.trainingLocations] : [];
+        if (loc && !currentLocs.includes(loc)) currentLocs.push(loc);
+        const currentDates = Array.isArray(currentSettings.trainingDates) ? [...currentSettings.trainingDates] : [];
+        if (dt && !currentDates.includes(dt)) currentDates.push(dt);
 
         await this.saveSettings({
           ...currentSettings,
           trainingActivities: filtered,
+          trainingLocations: currentLocs,
+          trainingDates: currentDates,
           deletedActivityIds: deletedIds,
           deletedActivityTitles: deletedTitles
         });

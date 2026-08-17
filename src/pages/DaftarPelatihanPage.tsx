@@ -85,10 +85,11 @@ export default function DaftarPelatihanPage() {
 
     const fetchData = async () => {
       try {
-        const [list, s, ktaApps] = await Promise.all([
+        const [list, s, ktaApps, generalActs] = await Promise.all([
           sheetsService.getMembers().catch(() => []),
           sheetsService.getSettings().catch(() => ({} as any)),
-          sheetsService.getKTAApplications().catch(() => [])
+          sheetsService.getKTAApplications().catch(() => []),
+          sheetsService.getActivities().catch(() => [])
         ]);
         setAllMembers(list || []);
 
@@ -98,8 +99,8 @@ export default function DaftarPelatihanPage() {
         let types: string[] = [];
 
         if (s) {
-          locations = Array.isArray(s.trainingLocations) ? s.trainingLocations : [];
-          dates = Array.isArray(s.trainingDates) ? s.trainingDates : [];
+          locations = Array.isArray(s.trainingLocations) ? [...s.trainingLocations] : [];
+          dates = Array.isArray(s.trainingDates) ? [...s.trainingDates] : [];
           activities = (Array.isArray(s.trainingActivities)
             ? s.trainingActivities
             : typeof s.trainingActivities === 'string'
@@ -112,15 +113,36 @@ export default function DaftarPelatihanPage() {
               : [];
         }
 
+        const map = new Map<string, any>();
+        activities.forEach(a => { if (a && a.id) map.set(a.id, a); });
+        if (Array.isArray(generalActs)) {
+          generalActs.filter(isOnlyTrainingActivity).forEach(a => {
+            if (a && a.id) {
+              if (map.has(a.id)) {
+                map.set(a.id, { ...map.get(a.id), ...a });
+              } else {
+                map.set(a.id, a);
+              }
+            }
+          });
+        }
+        const mergedActivities = Array.from(map.values()).filter(isOnlyTrainingActivity);
+        mergedActivities.forEach((a: any) => {
+          const loc = a.lokasiPelatihan || a.lokasi || a.location;
+          if (loc && !locations.includes(loc)) locations.push(loc);
+          const dt = a.tanggalPelatihan || a.tanggal || a.startDate;
+          if (dt && !dates.includes(dt)) dates.push(dt);
+        });
+
         const defaultTypes = DEFAULT_TRAINING_TYPES;
-        const activityTypes = activities.map((a: any) => a.jenisPelatihan).filter(Boolean);
+        const activityTypes = mergedActivities.map((a: any) => a.jenisPelatihan).filter(Boolean);
         const mergedTypes = Array.from(new Set([...types, ...activityTypes, ...defaultTypes])).filter(Boolean);
 
         setSettings({
           ...s,
           trainingLocations: locations,
           trainingDates: dates,
-          trainingActivities: activities,
+          trainingActivities: mergedActivities,
           trainingTypes: mergedTypes
         });
 
@@ -131,39 +153,68 @@ export default function DaftarPelatihanPage() {
             : typeof newSettings.trainingActivities === 'string'
               ? JSON.parse(newSettings.trainingActivities || '[]')
               : []).filter(isOnlyTrainingActivity);
-          setSettings(prev => ({
-            ...prev,
-            ...newSettings,
-            trainingActivities: acts.length > 0 ? acts : prev.trainingActivities
-          }));
+          setSettings(prev => {
+            const m = new Map<string, any>();
+            (prev.trainingActivities || []).filter(isOnlyTrainingActivity).forEach((a: any) => { if (a && a.id) m.set(a.id, a); });
+            acts.forEach(a => {
+              if (a && a.id) {
+                if (m.has(a.id)) {
+                  m.set(a.id, { ...m.get(a.id), ...a });
+                } else {
+                  m.set(a.id, a);
+                }
+              }
+            });
+            const allActs = Array.from(m.values()).filter(isOnlyTrainingActivity);
+            return {
+              ...prev,
+              ...newSettings,
+              trainingActivities: allActs
+            };
+          });
         });
 
         unsubActivities = sheetsService.subscribeToActivities((acts: any[]) => {
           if (!acts || acts.length === 0) return;
           setSettings(prev => {
             const currentActs = (Array.isArray(prev.trainingActivities) ? [...prev.trainingActivities] : []).filter(isOnlyTrainingActivity);
-            const map = new Map<string, any>();
-            currentActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
+            const m = new Map<string, any>();
+            currentActs.forEach(a => { if (a && a.id) m.set(a.id, a); });
             acts.forEach(a => {
-              if (a && a.id && map.has(a.id) && isOnlyTrainingActivity(a)) {
-                const prevAct = map.get(a.id) || {};
-                const merged = { ...prevAct, ...a };
-                const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prevAct.lokasi || prevAct.lokasiPelatihan || '';
-                const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prevAct.tanggal || prevAct.tanggalPelatihan || '';
-                map.set(a.id, {
-                  ...merged,
-                  lokasi: finalLoc,
-                  location: finalLoc,
-                  lokasiPelatihan: finalLoc,
-                  tanggal: finalDate,
-                  startDate: finalDate,
-                  tanggalPelatihan: finalDate
-                });
+              if (a && a.id && isOnlyTrainingActivity(a)) {
+                if (m.has(a.id)) {
+                  const prevAct = m.get(a.id) || {};
+                  const merged = { ...prevAct, ...a };
+                  const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prevAct.lokasi || prevAct.lokasiPelatihan || '';
+                  const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prevAct.tanggal || prevAct.tanggalPelatihan || '';
+                  m.set(a.id, {
+                    ...merged,
+                    lokasi: finalLoc,
+                    location: finalLoc,
+                    lokasiPelatihan: finalLoc,
+                    tanggal: finalDate,
+                    startDate: finalDate,
+                    tanggalPelatihan: finalDate
+                  });
+                } else {
+                  m.set(a.id, a);
+                }
               }
+            });
+            const allActs = Array.from(m.values()).filter(isOnlyTrainingActivity);
+            const locs = Array.isArray(prev.trainingLocations) ? [...prev.trainingLocations] : [];
+            const dts = Array.isArray(prev.trainingDates) ? [...prev.trainingDates] : [];
+            allActs.forEach((a: any) => {
+              const loc = a.lokasiPelatihan || a.lokasi || a.location;
+              if (loc && !locs.includes(loc)) locs.push(loc);
+              const dt = a.tanggalPelatihan || a.tanggal || a.startDate;
+              if (dt && !dts.includes(dt)) dts.push(dt);
             });
             return {
               ...prev,
-              trainingActivities: Array.from(map.values()).filter(isOnlyTrainingActivity)
+              trainingActivities: allActs,
+              trainingLocations: locs,
+              trainingDates: dts
             };
           });
         });

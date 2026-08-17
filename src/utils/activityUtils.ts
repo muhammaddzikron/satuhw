@@ -45,15 +45,68 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
 export const isOnlyTrainingActivity = (act: any): boolean => {
   if (!act) return false;
 
-  // 1. Explicit boolean overrides
-  if (act.isPelatihan === false) return false;
-  if (act.isPelatihan === true) return true;
-
   const cat = String(act.kategori || act.category || '').toLowerCase().trim();
   const name = String(act.namaKegiatan || act.title || '').toLowerCase().trim();
   const jenis = String(act.jenisPelatihan || act.pelatihanAkanDiikuti || '').toLowerCase().trim();
+  const loc = String(act.lokasi || act.lokasiPelatihan || act.location || '').toLowerCase().trim();
 
-  // 2. Explicit general activity categories
+  // 1. Explicit boolean true
+  if (act.isPelatihan === true) return true;
+
+  // 2. Explicit training category
+  if (
+    cat === 'pelatihan' ||
+    cat === 'diklat' ||
+    cat === 'kegiatan pelatihan' ||
+    cat === 'pelatihan hw' ||
+    cat === 'diklat hw' ||
+    cat.includes('pelatihan') ||
+    cat.includes('diklat')
+  ) {
+    return true;
+  }
+
+  // 3. Clear training keywords in name, jenisPelatihan, or location
+  const hasTrainingName = 
+    name.includes('pelatihan') ||
+    name.includes('diklat') ||
+    name.includes('jaya melati') ||
+    name.includes('jaya matahari') ||
+    name.includes('taruna melati') ||
+    name.includes('jaya pertiwi') ||
+    name.includes('kursus pembina') ||
+    name.includes('kursus pelatih') ||
+    name.includes('kpd') ||
+    name.includes('kpl') ||
+    name.includes('training') ||
+    name.includes('jml') ||
+    name.includes('jmt') ||
+    name.includes('jati') ||
+    name.includes('jari') ||
+    ((name.includes('solo') || name.includes('surakarta') || loc.includes('solo') || loc.includes('surakarta')) && (name.includes('pembina') || name.includes('pelatih') || name.includes('pandu')));
+
+  const hasTrainingJenis = 
+    jenis.includes('jaya melati') ||
+    jenis.includes('jaya matahari') ||
+    jenis.includes('taruna melati') ||
+    jenis.includes('jaya pertiwi') ||
+    jenis.includes('jati') ||
+    jenis.includes('jari') ||
+    jenis.includes('pelatihan') ||
+    jenis.includes('diklat');
+
+  if (hasTrainingName || hasTrainingJenis) {
+    // Only exclude if it's purely a reunion/silaturahmi with no training keywords
+    if ((name.includes('silaturahmi') || name.includes('alumni')) && !name.includes('pelatihan') && !name.includes('diklat') && !name.includes('jaya melati') && !name.includes('jaya matahari')) {
+      return false;
+    }
+    return true;
+  }
+
+  // 4. Explicit boolean false (only if not matching training keywords above)
+  if (act.isPelatihan === false) return false;
+
+  // 5. General activity categories
   if (
     cat === 'silaturahmi' ||
     cat === 'rapat' ||
@@ -71,7 +124,7 @@ export const isOnlyTrainingActivity = (act: any): boolean => {
     return false;
   }
 
-  // 3. Name contains meeting / gathering / conference / reunion keywords
+  // 6. Name contains meeting / gathering / conference / reunion keywords
   if (
     name.includes('silaturahmi') ||
     name.includes('pertemuan') ||
@@ -86,36 +139,6 @@ export const isOnlyTrainingActivity = (act: any): boolean => {
     name.includes('alumni')
   ) {
     return false;
-  }
-
-  // 4. Explicit training category
-  if (
-    cat === 'pelatihan' ||
-    cat === 'diklat' ||
-    cat === 'kegiatan pelatihan' ||
-    cat === 'pelatihan hw' ||
-    cat === 'diklat hw'
-  ) {
-    return true;
-  }
-
-  // 5. Training-specific names or tier names
-  if (
-    name.startsWith('pelatihan') ||
-    name.startsWith('diklat') ||
-    name.includes('pelatihan jaya') ||
-    name.includes('pelatihan taruna') ||
-    name.includes('diklat jaya') ||
-    name.includes('diklat taruna') ||
-    (jenis && (
-      jenis.includes('jaya melati') ||
-      jenis.includes('jaya matahari') ||
-      jenis.includes('taruna melati') ||
-      jenis.includes('jati') ||
-      jenis.includes('jari')
-    ) && !name.includes('silaturahmi') && !name.includes('alumni'))
-  ) {
-    return true;
   }
 
   return false;

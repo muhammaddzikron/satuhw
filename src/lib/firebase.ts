@@ -16,7 +16,7 @@ let firestoreDb;
 try {
   firestoreDb = initializeFirestore(app, {
     localCache: memoryLocalCache(),
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   }, dbId);
 } catch {
   firestoreDb = dbId
@@ -35,6 +35,8 @@ if (typeof window !== 'undefined') {
       msg.includes('database connection is closing') ||
       msg.includes('IDBDatabase') ||
       msg.includes('client is offline') ||
+      msg.includes('Could not reach Cloud Firestore backend') ||
+      msg.includes("Backend didn't respond within") ||
       msg.includes('Quota limit exceeded') ||
       msg.includes('resource-exhausted') ||
       msg.includes('removeAndCleanupTarget') ||
@@ -55,7 +57,7 @@ if (typeof window !== 'undefined') {
     if (isFirestoreInternalError(reason)) {
       event.preventDefault();
       event.stopImmediatePropagation?.();
-      console.warn('[Firestore] Handled background/SDK event:', reason);
+      // Silently handled background / offline sync event
     }
   }, true);
 
@@ -64,20 +66,9 @@ if (typeof window !== 'undefined') {
     if (isFirestoreInternalError(msg)) {
       event.preventDefault();
       event.stopImmediatePropagation?.();
-      console.warn('[Firestore] Handled internal target cleanup event:', msg);
+      // Silently handled internal target cleanup event
     }
   }, true);
-
-  async function testConnection() {
-    try {
-      await getDocFromServer(doc(db, 'test', 'connection'));
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('the client is offline')) {
-        console.warn('Please check your Firebase configuration or network connection.');
-      }
-    }
-  }
-  testConnection().catch(() => {});
 }
 
 export default app;
