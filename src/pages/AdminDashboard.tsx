@@ -419,16 +419,15 @@ export default function AdminDashboard() {
     (user as any)?.tingkatan
   ].filter(Boolean).map(r => String(r).toLowerCase().trim());
 
-  const trainerRoleIdentifiers = [
-    'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
-    'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
-    'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
-    'pelatih kegiatan', 'asisten pelatih'
+  const jayaMatahariIdentifiers = [
+    'jari1', 'jari2', 'jari 1', 'jari 2',
+    'jaya_matahari_1', 'jaya_matahari_2', 'jaya matahari 1', 'jaya matahari 2', 'jaya matahari',
+    'pelatih', 'pelatih_nasional', 'pelatih nasional'
   ];
 
   const isJayaMatahariRole = userRolesList.some(r => 
-    trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
-    r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+    jayaMatahariIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+    r.includes('matahari') || r.includes('jari')
   );
 
   let cachedActsList: any[] = [];
@@ -481,8 +480,10 @@ export default function AdminDashboard() {
     });
   });
 
-  const isPelatihUser = isJayaMatahariRole || isAssignedTrainerInAnyActivity;
-  const isPelatihOnly = isPelatihUser && user?.role !== 'superadmin' && user?.role !== 'admin' && !isDiklatAdmin;
+  const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || isDiklatAdmin;
+  const isAppointedJayaMatahariTrainer = !isRealAdmin && isJayaMatahariRole && isAssignedTrainerInAnyActivity;
+  const isPelatihOnly = isAppointedJayaMatahariTrainer;
+  const isPelatihUser = isRealAdmin || isAppointedJayaMatahariTrainer;
 
   const [activeTab, setActiveTabState] = useState(() => {
     if (isDiklatAdmin || isPelatihOnly) return 'pelatihan';
@@ -4050,21 +4051,23 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Mode Switcher */}
-          <div className="hidden sm:flex bg-gray-100 p-1 rounded-2xl items-center border border-gray-200/60 shadow-xs">
-            <Link
-              to="/pelatihan"
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-all cursor-pointer"
-            >
-              Mode Anggota
-            </Link>
-            <span
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-hw-green text-white shadow-xs flex items-center gap-1 cursor-default"
-            >
-              <GraduationCap size={13} />
-              Mode Pelatih
-            </span>
-          </div>
+          {/* Mode Switcher - Only shown for appointed Jaya Matahari trainers (isPelatihOnly) */}
+          {isPelatihOnly && (
+            <div className="hidden sm:flex bg-gray-100 p-1 rounded-2xl items-center border border-gray-200/60 shadow-xs">
+              <Link
+                to="/pelatihan"
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-all cursor-pointer"
+              >
+                Mode Anggota
+              </Link>
+              <span
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-hw-green text-white shadow-xs flex items-center gap-1 cursor-default"
+              >
+                <GraduationCap size={13} />
+                Mode Pelatih
+              </span>
+            </div>
+          )}
 
           {totalNotifications > 0 && (
             <button 

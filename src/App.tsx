@@ -95,13 +95,18 @@ const Navigation = () => {
   
   const canAccessAdmin = React.useMemo(() => {
     if (!user) return false;
-    const adminRoles = [
-      'admin', 'superadmin', 'sugli', 'kwarda', 'admin_diklat', 'diklat',
-      'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
-      'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
-      'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
-      'pelatih kegiatan', 'asisten pelatih'
-    ];
+    const isRealAdmin = 
+      user.role === 'admin' || 
+      user.role === 'superadmin' || 
+      user.role === 'sugli' || 
+      user.role === 'kwarda' || 
+      user.role === 'admin_diklat' || 
+      user.role === 'diklat' || 
+      (user as any).adminType === 'diklat' ||
+      user.email === 'diklat' ||
+      user.email === 'diklat@hwjateng.com';
+
+    if (isRealAdmin) return true;
 
     const userRolesList = [
       ...(Array.isArray(user.roles) ? user.roles : []),
@@ -111,8 +116,18 @@ const Navigation = () => {
       (user as any).tingkatan
     ].filter(Boolean).map(r => String(r).toLowerCase().trim());
 
-    if (userRolesList.some(r => adminRoles.some(ar => r.includes(ar) || ar.includes(r)) || r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari'))) return true;
-    if ((user as any).adminType === 'diklat') return true;
+    const jayaMatahariIdentifiers = [
+      'jari1', 'jari2', 'jari 1', 'jari 2',
+      'jaya_matahari_1', 'jaya_matahari_2', 'jaya matahari 1', 'jaya matahari 2', 'jaya matahari',
+      'pelatih', 'pelatih_nasional', 'pelatih nasional'
+    ];
+
+    const isJayaMatahariRole = userRolesList.some(r => 
+      jayaMatahariIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+      r.includes('matahari') || r.includes('jari')
+    );
+
+    if (!isJayaMatahariRole) return false;
 
     // Check if user is assigned as trainer or assistant in any activity
     let cachedActsList: any[] = [];
@@ -151,6 +166,12 @@ const Navigation = () => {
         if (userNameStr && (t.includes(userNameStr) || userNameStr.includes(t))) return true;
         if (userNbmStr && userNbmStr.length >= 4 && t.includes(userNbmStr)) return true;
         if (userEmailStr && userEmailStr.length >= 4 && t.includes(userEmailStr.split('@')[0])) return true;
+        const nameWords = userNameStr.split(/\s+/).filter(w => w.length >= 3);
+        if (nameWords.length > 0) {
+          const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
+          if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
+          if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
+        }
         return false;
       });
     });

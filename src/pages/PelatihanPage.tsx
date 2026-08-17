@@ -806,16 +806,15 @@ export default function PelatihanPage() {
     (user as any)?.tingkatan
   ].filter(Boolean).map(r => String(r).toLowerCase().trim());
 
-  const trainerRoleIdentifiers = [
-    'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
-    'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
-    'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
-    'pelatih kegiatan', 'asisten pelatih'
+  const jayaMatahariIdentifiers = [
+    'jari1', 'jari2', 'jari 1', 'jari 2',
+    'jaya_matahari_1', 'jaya_matahari_2', 'jaya matahari 1', 'jaya matahari 2', 'jaya matahari',
+    'pelatih', 'pelatih_nasional', 'pelatih nasional'
   ];
 
   const isJayaMatahariRole = userRolesList.some(r => 
-    trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
-    r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+    jayaMatahariIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
+    r.includes('matahari') || r.includes('jari')
   );
 
   const userEmailStr = (user?.email || '').toLowerCase().trim();
@@ -838,11 +837,18 @@ export default function PelatihanPage() {
       if (userNameStr && (t.includes(userNameStr) || userNameStr.includes(t))) return true;
       if (userNbmStr && userNbmStr.length >= 4 && t.includes(userNbmStr)) return true;
       if (userEmailStr && userEmailStr.length >= 4 && t.includes(userEmailStr.split('@')[0])) return true;
+      const nameWords = userNameStr.split(/\s+/).filter(w => w.length >= 3);
+      if (nameWords.length > 0) {
+        const matchingWords = nameWords.filter(w => t.includes(w) || w.includes(t));
+        if (nameWords.length >= 2 && matchingWords.length >= 2) return true;
+        if (nameWords.length === 1 && matchingWords.length === 1 && nameWords[0].length >= 4) return true;
+      }
       return false;
     });
   });
 
-  const isTrainerOrAdmin = isRealAdmin || isJayaMatahariRole || isAssignedTrainerInAnyActivity;
+  // Mode Anggota and Mode Pelatih switcher ONLY appears for Jaya Matahari members who are appointed as trainers in an activity (NOT admin, NOT regular members)
+  const isAppointedJayaMatahariTrainer = !isRealAdmin && isJayaMatahariRole && isAssignedTrainerInAnyActivity;
 
   return (
     <div className="space-y-6 pb-12">
@@ -856,7 +862,7 @@ export default function PelatihanPage() {
           Kembali
         </button>
 
-        {isTrainerOrAdmin && (
+        {isAppointedJayaMatahariTrainer && (
           <div className="bg-gray-100 p-1 rounded-2xl flex items-center border border-gray-200/60 shadow-xs">
             <button
               onClick={() => setPerspective('peserta')}
