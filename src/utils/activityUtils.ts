@@ -42,31 +42,92 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
   return false;
 };
 
+export const extractYoutubeId = (rawUrl: any): string => {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const url = rawUrl.trim();
+  if (!url) return '';
+  if (url.includes('youtube.com/watch')) {
+    const match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) return match[1];
+  }
+  if (url.includes('youtu.be/')) {
+    const match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) return match[1];
+  }
+  if (url.includes('youtube.com/embed/')) {
+    const match = url.match(/embed\/([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) return match[1];
+  }
+  if (url.includes('youtube.com/shorts/')) {
+    const match = url.match(/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) return match[1];
+  }
+  if (url.includes('youtube.com/live/')) {
+    const match = url.match(/live\/([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) return match[1];
+  }
+  if (url.length === 11 && !url.includes('/') && !url.includes(' ') && !url.includes(':') && !url.includes('.')) {
+    return url;
+  }
+  return '';
+};
+
 export const isOnlyTrainingActivity = (act: any): boolean => {
   if (!act) return false;
+
+  const id = String(act.id || '').toLowerCase().trim();
+  // 1. Explicitly known Kegiatan IDs
+  if (id === 'keg-silaturahmi-pelatih' || id === 'keg-1') {
+    return false;
+  }
+
+  // 2. Explicit boolean flag
+  if (act.isPelatihan === false) return false;
+  if (act.isPelatihan === true) return true;
 
   const cat = String(act.kategori || act.category || '').toLowerCase().trim();
   const name = String(act.namaKegiatan || act.title || '').toLowerCase().trim();
   const jenis = String(act.jenisPelatihan || act.pelatihanAkanDiikuti || '').toLowerCase().trim();
   const loc = String(act.lokasi || act.lokasiPelatihan || act.location || '').toLowerCase().trim();
 
-  // 1. Explicit boolean true
-  if (act.isPelatihan === true) return true;
+  // 3. Gathering / Silaturahmi / General Activity Categories & Titles
+  const isSilaturahmiOrGathering =
+    cat === 'silaturahmi' ||
+    cat === 'rapat' ||
+    cat === 'rapat hw' ||
+    cat === 'perkemahan' ||
+    cat === 'musyawarah' ||
+    cat === 'lomba' ||
+    cat === 'pertemuan' ||
+    cat === 'kegiatan' ||
+    cat === 'umum' ||
+    cat === 'kegiatan umum' ||
+    cat === 'raker' ||
+    cat === 'rakerwil' ||
+    cat === 'muswil' ||
+    cat === 'musda' ||
+    name.includes('silaturahmi') ||
+    name.includes('pertemuan silaturahmi') ||
+    name.includes('temu alumni') ||
+    name.includes('reuni') ||
+    name.includes('pandu senior');
 
-  // 2. Explicit training category
+  if (isSilaturahmiOrGathering && !cat.includes('pelatihan') && !cat.includes('diklat')) {
+    return false;
+  }
+
+  // 4. Explicit training category
   if (
     cat === 'pelatihan' ||
     cat === 'diklat' ||
     cat === 'kegiatan pelatihan' ||
     cat === 'pelatihan hw' ||
-    cat === 'diklat hw' ||
-    cat.includes('pelatihan') ||
-    cat.includes('diklat')
+    cat === 'diklat hw'
   ) {
     return true;
   }
 
-  // 3. Clear training keywords in name, jenisPelatihan, or location
+  // 5. Training keywords in name, jenisPelatihan, or location
   const hasTrainingName = 
     name.includes('pelatihan') ||
     name.includes('diklat') ||
@@ -96,49 +157,10 @@ export const isOnlyTrainingActivity = (act: any): boolean => {
     jenis.includes('diklat');
 
   if (hasTrainingName || hasTrainingJenis) {
-    // Only exclude if it's purely a reunion/silaturahmi with no training keywords
-    if ((name.includes('silaturahmi') || name.includes('alumni')) && !name.includes('pelatihan') && !name.includes('diklat') && !name.includes('jaya melati') && !name.includes('jaya matahari')) {
+    if (name.includes('silaturahmi') || name.includes('alumni') || name.includes('pertemuan')) {
       return false;
     }
     return true;
-  }
-
-  // 4. Explicit boolean false (only if not matching training keywords above)
-  if (act.isPelatihan === false) return false;
-
-  // 5. General activity categories
-  if (
-    cat === 'silaturahmi' ||
-    cat === 'rapat' ||
-    cat === 'rapat hw' ||
-    cat === 'perkemahan' ||
-    cat === 'musyawarah' ||
-    cat === 'lomba' ||
-    cat === 'pertemuan' ||
-    cat === 'kegiatan' ||
-    cat === 'umum' ||
-    cat === 'kegiatan umum' ||
-    cat === 'raker' ||
-    cat === 'rakerwil'
-  ) {
-    return false;
-  }
-
-  // 6. Name contains meeting / gathering / conference / reunion keywords
-  if (
-    name.includes('silaturahmi') ||
-    name.includes('pertemuan') ||
-    name.includes('rapat') ||
-    name.includes('musyawarah') ||
-    name.includes('perkemahan') ||
-    name.includes('lomba') ||
-    name.includes('raker') ||
-    name.includes('rakerwil') ||
-    name.includes('muswil') ||
-    name.includes('musda') ||
-    name.includes('alumni')
-  ) {
-    return false;
   }
 
   return false;

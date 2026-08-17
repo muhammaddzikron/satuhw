@@ -3472,15 +3472,18 @@ export const firestoreService = {
         endDate: '2026-08-30',
         lokasi: 'Unimugo Kebumen',
         location: 'Unimugo Kebumen',
-        biaya: 'Infaq: Rp 100.000 / Kwarda/Qabilah PTMA',
+        biaya: 'Rp 100.000 / Kwarda/Qabilah PTMA',
+        biayaPelatihan: 'Rp 100.000 / Kwarda/Qabilah PTMA',
         status: 'Buka',
         kuota: '200 Orang',
-        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
-        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong',
-        gambarUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
-        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=800',
-        themeSongUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        themeSongTitle: 'Mars Hizbul Wathan / Themesong Utama',
+        deskripsi: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
+        description: 'Pertemuan silaturahmi Pelatih Nasional, Pandu Senior HW Jateng, dan Alumni Jaya Melati 2 HW Jateng (di Klaten) - di Universitas Muhammadiyah Gombong (UNIMUGO) untuk penguatan silaturahmi, perkaderan, dan konsolidasi kepanduan Hizbul Wathan.',
+        gambarUrl: 'https://s3.ap-southeast-1.amazonaws.com/cdn.e-ujian.com/lembaga-header-portal/header_14134_14134.jpeg',
+        imageUrl: 'https://s3.ap-southeast-1.amazonaws.com/cdn.e-ujian.com/lembaga-header-portal/header_14134_14134.jpeg',
+        themeSongUrl: 'https://hwjateng.com/pelatnas.mp3',
+        themeSongTitle: 'Pelatih Nasional HW',
+        youtubeUrl: '',
+        videoUrl: '',
         proposalUrl: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
         proposal: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
         linkProposal: 'https://drive.google.com/file/d/1glD4rL-ZxA_g1Kpe9hQKFDS',
@@ -3492,6 +3495,7 @@ export const firestoreService = {
         createdBy: 'muhammaddzikron@gmail.com',
         creatorName: 'Muhammad Dzikron',
         isPublished: true,
+        isPelatihan: false,
         createdAt: '2026-08-01T00:00:00.000Z',
         updatedAt: '2026-08-01T00:00:00.000Z'
       }
@@ -3520,6 +3524,7 @@ export const firestoreService = {
             const actCat = data.kategori || data.category || 'Silaturahmi';
             const actSongUrl = data.themeSongUrl || data.themeSong || '';
             const actSongTitle = data.themeSongTitle || data.themeSongName || '';
+            const actYoutube = data.youtubeUrl || data.videoUrl || data.youtube || data.linkYoutube || '';
             const actProposalUrl = data.proposalUrl || data.proposal || data.linkProposal || '';
             const actRekening = data.rekeningPembayaran || data.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
             const actKonfirmasi = data.konfirmasiPembayaran || data.noWhatsappPanitia || '089688754000';
@@ -3539,6 +3544,8 @@ export const firestoreService = {
               imageUrl: actImg,
               themeSongUrl: actSongUrl,
               themeSongTitle: actSongTitle,
+              youtubeUrl: actYoutube,
+              videoUrl: actYoutube,
               proposalUrl: actProposalUrl,
               proposal: actProposalUrl,
               linkProposal: actProposalUrl,
@@ -3583,6 +3590,7 @@ export const firestoreService = {
         const finalImg = a.gambarUrl || a.imageUrl || prev.gambarUrl || prev.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
         const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
         const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
+        const finalYoutube = a.youtubeUrl || a.videoUrl || a.youtube || a.linkYoutube || prev.youtubeUrl || prev.videoUrl || prev.youtube || prev.linkYoutube || '';
         const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
         const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
         const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
@@ -3601,6 +3609,8 @@ export const firestoreService = {
           imageUrl: finalImg,
           themeSongUrl: finalSongUrl,
           themeSongTitle: finalSongTitle,
+          youtubeUrl: finalYoutube,
+          videoUrl: finalYoutube,
           proposalUrl: finalProposal,
           proposal: finalProposal,
           linkProposal: finalProposal,
