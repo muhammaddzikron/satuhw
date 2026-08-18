@@ -582,42 +582,69 @@ function handleGetMembers() {
       var d = ('0' + val.getDate()).slice(-2);
       return y + '-' + m + '-' + d;
     }
-    return val.toString().trim();
+    var str = val.toString().trim();
+    if (str.indexOf('T') > -1) {
+      return str.split('T')[0];
+    }
+    return str;
   }
 
   users.forEach(function(u) {
-    var email = cleanKey(getRobustValue(u, ['email', 'Email', 'alamatEmail', 'alamat_email']));
-    var nama = (getRobustValue(u, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap']) || '').toString().trim();
-    var id = (getRobustValue(u, ['id', 'Id', 'userId', 'userid']) || '').toString().trim();
-    var kta = (getRobustValue(u, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm']) || '').toString().trim();
+    var email = cleanKey(getRobustValue(u, ['email', 'Email', 'alamatEmail', 'alamat_email', 'E-mail']));
+    var nama = (getRobustValue(u, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Full Name', 'Nama Lengkap']) || '').toString().trim();
+    var id = (getRobustValue(u, ['id', 'Id', 'userId', 'userid', 'User ID']) || '').toString().trim();
+    var kta = (getRobustValue(u, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA', 'KTA']) || '').toString().trim();
 
     if (id) existingMap['id:' + id] = true;
     if (email) existingMap['email:' + email] = true;
     if (kta) existingMap['kta:' + kta] = true;
     if (nama) existingMap['name:' + cleanKey(nama)] = true;
 
+    var rawRoles = getRobustValue(u, ['roles', 'Roles', 'role', 'Role', 'hakAkses', 'Hak Akses']);
+    var parsedRoles = ['umum'];
+    if (rawRoles) {
+      if (typeof rawRoles === 'string') {
+        try {
+          if (rawRoles.indexOf('[') === 0) {
+            parsedRoles = JSON.parse(rawRoles);
+          } else {
+            parsedRoles = rawRoles.split(/[,;|]/).map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+          }
+        } catch (e) {
+          parsedRoles = [rawRoles.toLowerCase().trim()];
+        }
+      } else if (Array.isArray(rawRoles)) {
+        parsedRoles = rawRoles;
+      }
+    }
+    if (!parsedRoles || parsedRoles.length === 0) parsedRoles = ['umum'];
+
+    var primaryRole = parsedRoles[0] || 'umum';
+
     var cleanUser = {
       id: id || (email ? 'user-' + email.replace(/[^a-zA-Z0-9]/g, '_') : 'user-' + new Date().getTime()),
       email: email,
       namaLengkap: nama || 'Anggota HW',
-      jenisKelamin: getRobustValue(u, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk']) || 'L',
-      golongan: getRobustValue(u, ['golongan', 'tingkatan', 'jenjang']) || 'Dewasa',
-      golonganPelatih: getRobustValue(u, ['golonganPelatih', 'golonganpelatih']) || '',
-      pelatihan: getRobustValue(u, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan']) || '[]',
-      pendidikan: getRobustValue(u, ['pendidikan']) || '',
-      asalKwarda: getRobustValue(u, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah']) || '',
-      qabilah: getRobustValue(u, ['qabilah', 'pangkalan', 'gudep']) || '',
-      alamat: getRobustValue(u, ['alamat', 'domisili']) || '',
-      tempatLahir: getRobustValue(u, ['tempatLahir', 'tempatlahir', 'tempat_lahir']) || '',
-      tanggalLahir: formatDateVal(getRobustValue(u, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir'])),
-      noHp: getRobustValue(u, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'whatsapp']) || '',
-      sosmed: getRobustValue(u, ['sosmed', 'instagram']) || '',
-      role: getRobustValue(u, ['role', 'roles']) || 'umum',
-      roles: getRobustValue(u, ['roles', 'role']) || '["umum"]',
-      activeRole: getRobustValue(u, ['activeRole', 'activerole', 'role']) || 'umum',
-      isVerified: getRobustValue(u, ['isVerified', 'isverified']) === true || getRobustValue(u, ['isVerified', 'isverified']) === 'true' || getRobustValue(u, ['isVerified', 'isverified']) === 1,
+      jenisKelamin: getRobustValue(u, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk', 'Sex', 'Jenis Kelamin']) || 'L',
+      golongan: getRobustValue(u, ['golongan', 'tingkatan', 'jenjang', 'Golongan', 'Tingkat']) || 'Dewasa',
+      golonganPelatih: getRobustValue(u, ['golonganPelatih', 'golonganpelatih', 'pelatihGolongan', 'Golongan Pelatih']) || '',
+      pelatihan: getRobustValue(u, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan', 'Pelatihan']) || '[]',
+      pendidikan: getRobustValue(u, ['pendidikan', 'Pendidikan', 'pendidikanTerakhir']) || '',
+      asalKwarda: getRobustValue(u, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah', 'Kwarcab']) || '',
+      qabilah: getRobustValue(u, ['qabilah', 'pangkalan', 'gudep', 'Qabilah', 'Pangkalan']) || '',
+      alamat: getRobustValue(u, ['alamat', 'domisili', 'Alamat', 'Alamat Lengkap']) || '',
+      tempatLahir: getRobustValue(u, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || '',
+      tanggalLahir: formatDateVal(getRobustValue(u, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir', 'Tgl Lahir'])),
+      noHp: getRobustValue(u, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'whatsapp', 'No HP', 'No WA']) || '',
+      sosmed: getRobustValue(u, ['sosmed', 'instagram', 'Sosmed', 'Social Media']) || '',
+      role: primaryRole,
+      roles: parsedRoles,
+      activeRole: getRobustValue(u, ['activeRole', 'activerole', 'role']) || primaryRole,
+      isVerified: getRobustValue(u, ['isVerified', 'isverified', 'verified', 'Verified']) === true || getRobustValue(u, ['isVerified', 'isverified']) === 'true' || getRobustValue(u, ['isVerified', 'isverified']) === 1 || Boolean(kta),
+      statusAktivasi: getRobustValue(u, ['statusAktivasi', 'statusaktivasi', 'Status Aktivasi']) || (kta ? 'Aktif' : 'Aktif'),
+      statusPembayaran: getRobustValue(u, ['statusPembayaran', 'statuspembayaran', 'Status Pembayaran']) || 'Lunas',
       ktaNumber: kta,
-      photo: getRobustValue(u, ['photo', 'foto', 'photoUrl', 'image']) || ''
+      photo: getRobustValue(u, ['photo', 'foto', 'photoUrl', 'image', 'Foto', 'Photo', 'Pas Foto', 'Link Foto']) || ''
     };
     memberList.push(cleanUser);
   });
@@ -637,6 +664,7 @@ function handleGetMembers() {
       shLower.indexOf('sheet1') !== -1 ||
       shLower.indexOf('form response') !== -1 ||
       shLower.indexOf('peserta') !== -1 ||
+      shLower.indexOf('pendaftaran') !== -1 ||
       shLower === 'kta_applications' ||
       shLower === 'training_applications'
     );
@@ -648,13 +676,13 @@ function handleGetMembers() {
     try {
       var rows = getRowsAsObjects(sh);
       rows.forEach(function(row, rIdx) {
-        var rNama = (getRobustValue(row, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Full Name', 'Nama Peserta']) || '').toString().trim();
+        var rNama = (getRobustValue(row, ['namaLengkap', 'namalengkap', 'nama', 'Nama', 'nama_lengkap', 'Full Name', 'Nama Peserta', 'Nama Lengkap']) || '').toString().trim();
         if (!rNama || rNama === '-' || rNama.toLowerCase() === 'tanpa nama' || rNama.toLowerCase() === 'nama lengkap' || rNama.indexOf('@') !== -1) return;
 
         var rEmail = cleanKey(getRobustValue(row, ['email', 'Email', 'alamatEmail', 'alamat_email', 'E-mail']));
-        var rKta = (getRobustValue(row, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA']) || '').toString().trim();
+        var rKta = (getRobustValue(row, ['ktaNumber', 'ktanumber', 'noKta', 'nokta', 'nomorKTA', 'nbm', 'Nomor KTA', 'No KTA', 'KTA']) || '').toString().trim();
         var rPhone = (getRobustValue(row, ['noHp', 'nohp', 'noWa', 'nowa', 'phone', 'telepon', 'whatsapp', 'No HP', 'No WA']) || '').toString().trim();
-        var rId = (getRobustValue(row, ['id', 'Id', 'userId', 'userid']) || '').toString().trim();
+        var rId = (getRobustValue(row, ['id', 'Id', 'userId', 'userid', 'User ID']) || '').toString().trim();
 
         var isAlreadyPresent = (
           (rId && existingMap['id:' + rId]) ||
@@ -664,50 +692,46 @@ function handleGetMembers() {
         );
 
         if (!isAlreadyPresent) {
-          var fallbackEmail = rEmail || (rPhone ? 'user_' + rPhone.replace(/[^0-9]/g, '') + '@hwjateng.com' : 'user_' + cleanKey(rNama).replace(/[^a-z0-9]/g, '_') + '@hwjateng.com');
-          var fallbackId = rId || ('member-' + shLower.replace(/[^a-z0-9]/g, '_') + '-' + (rIdx + 1));
-
-          var newMember = {
-            id: fallbackId,
-            email: fallbackEmail,
-            namaLengkap: rNama,
-            jenisKelamin: getRobustValue(row, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk', 'Jenis Kelamin']) || 'L',
-            golongan: getRobustValue(row, ['golongan', 'tingkatan', 'jenjang', 'Golongan']) || 'Dewasa',
-            golonganPelatih: getRobustValue(row, ['golonganPelatih', 'golonganpelatih']) || '',
-            pelatihan: getRobustValue(row, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan', 'Pelatihan']) || '[]',
-            pendidikan: getRobustValue(row, ['pendidikan', 'Pendidikan']) || '',
-            asalKwarda: getRobustValue(row, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah', 'Kwarcab']) || '',
-            qabilah: getRobustValue(row, ['qabilah', 'pangkalan', 'gudep', 'Qabilah']) || '',
-            alamat: getRobustValue(row, ['alamat', 'domisili', 'Alamat']) || '',
-            tempatLahir: getRobustValue(row, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || '',
-            tanggalLahir: formatDateVal(getRobustValue(row, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir'])),
-            noHp: rPhone,
-            sosmed: getRobustValue(row, ['sosmed', 'instagram', 'Sosmed']) || '',
-            role: 'umum',
-            roles: '["umum"]',
-            activeRole: 'umum',
-            isVerified: true,
-            ktaNumber: rKta,
-            photo: getRobustValue(row, ['photo', 'foto', 'photoUrl', 'image', 'Foto']) || ''
-          };
-
-          if (fallbackId) existingMap['id:' + fallbackId] = true;
-          if (fallbackEmail) existingMap['email:' + fallbackEmail] = true;
+          if (rId) existingMap['id:' + rId] = true;
+          if (rEmail) existingMap['email:' + rEmail] = true;
           if (rKta) existingMap['kta:' + rKta] = true;
           if (rNama) existingMap['name:' + cleanKey(rNama)] = true;
 
-          memberList.push(newMember);
+          var synthId = rId || (rEmail ? 'user-' + rEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'user-sheet-' + shName.replace(/[^a-zA-Z0-9]/g, '') + '-' + (rIdx + 1));
+          var cleanUser = {
+            id: synthId,
+            email: rEmail,
+            namaLengkap: rNama,
+            jenisKelamin: getRobustValue(row, ['jenisKelamin', 'jeniskelamin', 'gender', 'jk', 'Sex', 'Jenis Kelamin']) || 'L',
+            golongan: getRobustValue(row, ['golongan', 'tingkatan', 'jenjang', 'Golongan', 'Tingkat', 'golonganAnggota']) || 'Dewasa',
+            golonganPelatih: getRobustValue(row, ['golonganPelatih', 'golonganpelatih', 'pelatihGolongan', 'Golongan Pelatih']) || '',
+            pelatihan: getRobustValue(row, ['pelatihan', 'pelatihanakandiikuti', 'tingkatPelatihan', 'Pelatihan']) || '[]',
+            pendidikan: getRobustValue(row, ['pendidikan', 'Pendidikan', 'pendidikanTerakhir']) || '',
+            asalKwarda: getRobustValue(row, ['asalKwarda', 'asalkwarda', 'kwarda', 'asalDaerah', 'asaldaerah', 'daerah', 'Asal Daerah', 'Kwarcab']) || '',
+            qabilah: getRobustValue(row, ['qabilah', 'pangkalan', 'gudep', 'Qabilah', 'Pangkalan']) || '',
+            alamat: getRobustValue(row, ['alamat', 'domisili', 'Alamat', 'Alamat Lengkap']) || '',
+            tempatLahir: getRobustValue(row, ['tempatLahir', 'tempatlahir', 'tempat_lahir', 'Tempat Lahir']) || '',
+            tanggalLahir: formatDateVal(getRobustValue(row, ['tanggalLahir', 'tanggallahir', 'tanggal_lahir', 'Tanggal Lahir', 'Tgl Lahir'])),
+            noHp: rPhone,
+            sosmed: getRobustValue(row, ['sosmed', 'instagram', 'Sosmed']) || '',
+            role: 'umum',
+            roles: ['umum'],
+            activeRole: 'umum',
+            isVerified: Boolean(rKta) || getRobustValue(row, ['isVerified', 'isverified', 'status']) === 'approved',
+            statusAktivasi: 'Aktif',
+            statusPembayaran: 'Lunas',
+            ktaNumber: rKta,
+            photo: getRobustValue(row, ['photo', 'foto', 'photoUrl', 'image', 'Foto', 'Photo', 'Pas Foto', 'Link Foto']) || ''
+          };
+          memberList.push(cleanUser);
         }
       });
     } catch (e) {
-      // Continue safely if a specific sheet fails
+      // ignore sheet reading error
     }
   });
 
-  return responseOk(memberList.map(function(m) { 
-    delete m.password; 
-    return m; 
-  }));
+  return responseOk(memberList);
 }
 
 function handleSaveMember(data) {

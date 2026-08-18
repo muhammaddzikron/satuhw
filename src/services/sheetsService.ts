@@ -925,26 +925,88 @@ export const sheetsService = {
     }
   },
 
-  async getMembers(): Promise<User[]> {
-    return cachedFetch('members', async () => {
-      // 1. Retrieve persistent custom overrides
-      let customOverrides: Record<string, any> = {};
-      try {
-        const storedOverrides = localStorage.getItem('member_custom_edits');
-        if (storedOverrides) {
-          const parsed = JSON.parse(storedOverrides);
-          if (parsed && typeof parsed === 'object') customOverrides = parsed;
+  async getMembers(forceRefresh = false): Promise<User[]> {
+    const fetcher = async () => {
+      let sheetMembers: User[] = [];
+      if (IS_API_VALID) {
+        try {
+          const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 15000 });
+          if (Array.isArray(response.data) && response.data.length > 0) {
+            sheetMembers = response.data.map((m: any) => this.mapUser(m));
+          }
+        } catch (e) {
+          console.warn('getMembers from Google Sheets API warning:', e);
         }
-      } catch (e) {}
+      }
 
       // Always retrieve from unified firestoreService repository which holds the complete, deduped master dataset + Firestore database + KTA apps
       const fsMembers = await firestoreService.getMembers();
-      const mapped = fsMembers.map((m: any) => this.mapUser(m));
-      
-      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(mapped)));
+      const mappedFs = fsMembers.map((m: any) => this.mapUser(m));
+
+      // Combine spreadsheet members with firestore/local members
+      const combinedMap = new Map<string, User>();
+
+      // Put mappedFs first
+      mappedFs.forEach((m: User) => {
+        const key = (m.id || m.email || m.ktaNumber || m.namaLengkap || '').toLowerCase().trim();
+        if (key) combinedMap.set(key, m);
+      });
+
+      // Merge sheetMembers
+      sheetMembers.forEach((sm: User) => {
+        const smEmail = (sm.email || '').toLowerCase().trim();
+        const smId = (sm.id || '').trim();
+        const smKta = (sm.ktaNumber || sm.nomorKTA || '').trim();
+        const smPhone = sm.noHp ? sm.noHp.replace(/[^0-9]/g, '') : '';
+        const smName = (sm.namaLengkap || '').toLowerCase().trim();
+
+        let matchedKey: string | null = null;
+        for (const [key, ex] of combinedMap.entries()) {
+          const exEmail = (ex.email || '').toLowerCase().trim();
+          const exId = (ex.id || '').trim();
+          const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim();
+          const exPhone = ex.noHp ? ex.noHp.replace(/[^0-9]/g, '') : '';
+          const exName = (ex.namaLengkap || '').toLowerCase().trim();
+
+          if (
+            (smId && exId && smId === exId) ||
+            (smEmail && exEmail && smEmail === exEmail) ||
+            (smKta && exKta && smKta === exKta) ||
+            (smPhone && smPhone.length > 5 && exPhone && smPhone === exPhone) ||
+            (smName && exName && smName === exName && smName !== 'anggota hw')
+          ) {
+            matchedKey = key;
+            break;
+          }
+        }
+
+        if (matchedKey) {
+          const existing = combinedMap.get(matchedKey)!;
+          combinedMap.set(matchedKey, {
+            ...existing,
+            ...sm,
+            photo: sm.photo || existing.photo,
+            roles: (sm.roles && sm.roles.length > 0) ? sm.roles : existing.roles,
+            role: sm.role || existing.role,
+            password: sm.password || existing.password
+          });
+        } else {
+          const newKey = (sm.id || sm.email || sm.ktaNumber || sm.namaLengkap || `sheet-${Math.random()}`).toLowerCase().trim();
+          if (newKey) combinedMap.set(newKey, sm);
+        }
+      });
+
+      const combinedList = Array.from(combinedMap.values());
+      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(combinedList)));
       safeStorageSet('mock_members', finalResult);
       return finalResult;
-    }, 30000);
+    };
+
+    if (forceRefresh) {
+      clearSheetsCache('members');
+      return await fetcher();
+    }
+    return cachedFetch('members', fetcher, 15000);
   },
 
   async saveMember(userData: any): Promise<any> {
@@ -1133,7 +1195,56 @@ export const sheetsService = {
   },
 
   subscribeToMembers(callback: (members: User[]) => void): () => void {
-    return firestoreService.subscribeToMembers(callback);
+    // 1. Initial cached return
+    const cached = localStorage.getItem('mock_members');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          callback(sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(parsed))));
+        }
+      } catch (e) {}
+    }
+
+    // 2. Fetch fresh data immediately
+    this.getMembers(true).then((freshMembers) => {
+      if (freshMembers && freshMembers.length > 0) {
+        callback(freshMembers);
+      }
+    }).catch(() => {});
+
+    // 3. Subscribe to real-time Firestore changes
+    const unsubFs = firestoreService.subscribeToMembers((fsMembers) => {
+      const mapped = fsMembers.map((m: any) => this.mapUser(m));
+      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(mapped)));
+      safeStorageSet('mock_members', finalResult);
+      callback(finalResult);
+    });
+
+    // 4. Poll Google Sheets API periodically (every 25s) if API is valid and window is active
+    let pollInterval: any = null;
+    if (IS_API_VALID) {
+      pollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          this.getMembers(true).then((m) => {
+            if (m && m.length > 0) callback(m);
+          }).catch(() => {});
+        }
+      }, 25000);
+    }
+
+    const onFocus = () => {
+      this.getMembers(true).then((m) => {
+        if (m && m.length > 0) callback(m);
+      }).catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      if (typeof unsubFs === 'function') unsubFs();
+      if (pollInterval) clearInterval(pollInterval);
+      window.removeEventListener('focus', onFocus);
+    };
   },
 
   subscribeToMember(memberId: string, callback: (member: User | null) => void): () => void {
@@ -1204,53 +1315,115 @@ export const sheetsService = {
     }
   },
 
-  async getKTAApplications(): Promise<any[]> {
-    return cachedFetch('ktaApplications', async () => {
-      if (!IS_API_VALID) {
-        return await firestoreService.getKTAApplications();
-      }
-      try {
-        const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 15000 });
-        if (Array.isArray(response.data)) {
-          const apps = [...response.data];
-          // Merge photos and missing applications from Firestore
-          try {
-            const fsApps = await firestoreService.getKTAApplications();
-            const sheetKeys = new Set(
-              apps.map(a => String(a.id || a.email || a.userId || a.nomorKTA || a.ktaNumber || '').toLowerCase().trim()).filter(Boolean)
-            );
-
-            apps.forEach(a => {
-              const match = fsApps.find(fa => 
-                (fa.id && a.id && String(fa.id) === String(a.id)) ||
-                (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
-                (fa.userId && a.userId && String(fa.userId) === String(a.userId))
-              );
-              if (match) {
-                if (!a.photo && match.photo) a.photo = match.photo;
-                if (!a.status && match.status) a.status = match.status;
-                if (!a.statusPembayaran && match.statusPembayaran) a.statusPembayaran = match.statusPembayaran;
-                if (!a.nomorKTA && (match.nomorKTA || match.ktaNumber)) a.nomorKTA = match.nomorKTA || match.ktaNumber;
-              }
-            });
-
-            fsApps.forEach(fa => {
-              const key1 = String(fa.id || '').toLowerCase().trim();
-              const key2 = String(fa.email || '').toLowerCase().trim();
-              const key3 = String(fa.userId || '').toLowerCase().trim();
-              if ((key1 && !sheetKeys.has(key1)) && (key2 && !sheetKeys.has(key2)) && (key3 && !sheetKeys.has(key3))) {
-                apps.push(fa);
-              }
-            });
-          } catch (e) {}
-          return ensureUniqueKtaNumbers(apps);
+  async getKTAApplications(forceRefresh = false): Promise<any[]> {
+    const fetcher = async () => {
+      let sheetApps: any[] = [];
+      if (IS_API_VALID) {
+        try {
+          const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 15000 });
+          if (Array.isArray(response.data)) {
+            sheetApps = response.data;
+          }
+        } catch (e) {
+          console.warn('getKTAApplications API error:', e);
         }
-        return await firestoreService.getKTAApplications();
-      } catch (e) {
-        console.warn('getKTAApplications API error, falling back to Firestore:', (e as any)?.message || e);
-        return await firestoreService.getKTAApplications();
       }
-    }, 20000);
+
+      let fsApps: any[] = [];
+      try {
+        fsApps = await firestoreService.getKTAApplications();
+      } catch (e) {}
+
+      const apps = [...sheetApps];
+      const sheetKeys = new Set(
+        apps.map(a => String(a.id || a.email || a.userId || a.nomorKTA || a.ktaNumber || '').toLowerCase().trim()).filter(Boolean)
+      );
+
+      apps.forEach(a => {
+        const match = fsApps.find(fa => 
+          (fa.id && a.id && String(fa.id) === String(a.id)) ||
+          (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
+          (fa.userId && a.userId && String(fa.userId) === String(a.userId))
+        );
+        if (match) {
+          if (!a.photo && match.photo) a.photo = match.photo;
+          if (!a.status && match.status) a.status = match.status;
+          if (!a.statusPembayaran && match.statusPembayaran) a.statusPembayaran = match.statusPembayaran;
+          if (!a.nomorKTA && (match.nomorKTA || match.ktaNumber)) a.nomorKTA = match.nomorKTA || match.ktaNumber;
+        }
+      });
+
+      fsApps.forEach(fa => {
+        const key1 = String(fa.id || '').toLowerCase().trim();
+        const key2 = String(fa.email || '').toLowerCase().trim();
+        const key3 = String(fa.userId || '').toLowerCase().trim();
+        if ((!key1 || !sheetKeys.has(key1)) && (!key2 || !sheetKeys.has(key2)) && (!key3 || !sheetKeys.has(key3))) {
+          apps.push(fa);
+        }
+      });
+
+      const finalApps = ensureUniqueKtaNumbers(apps);
+      safeStorageSet('kta_applications', finalApps);
+      return finalApps;
+    };
+
+    if (forceRefresh) {
+      clearSheetsCache('ktaApplications');
+      return await fetcher();
+    }
+    return cachedFetch('ktaApplications', fetcher, 15000);
+  },
+
+  subscribeToKTAApplications(callback: (apps: any[]) => void): () => void {
+    // 1. Initial cached return
+    const cached = localStorage.getItem('kta_applications');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          callback(ensureUniqueKtaNumbers(parsed));
+        }
+      } catch (e) {}
+    }
+
+    // 2. Fetch fresh data immediately
+    this.getKTAApplications(true).then((freshApps) => {
+      if (freshApps && freshApps.length > 0) {
+        callback(freshApps);
+      }
+    }).catch(() => {});
+
+    // 3. Subscribe to Firestore
+    const unsubFs = firestoreService.subscribeToKTAApplications((apps) => {
+      const finalApps = ensureUniqueKtaNumbers(apps);
+      safeStorageSet('kta_applications', finalApps);
+      callback(finalApps);
+    });
+
+    // 4. Polling Google Sheets
+    let pollInterval: any = null;
+    if (IS_API_VALID) {
+      pollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          this.getKTAApplications(true).then((a) => {
+            if (a && a.length > 0) callback(a);
+          }).catch(() => {});
+        }
+      }, 25000);
+    }
+
+    const onFocus = () => {
+      this.getKTAApplications(true).then((a) => {
+        if (a && a.length > 0) callback(a);
+      }).catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      if (typeof unsubFs === 'function') unsubFs();
+      if (pollInterval) clearInterval(pollInterval);
+      window.removeEventListener('focus', onFocus);
+    };
   },
 
   async applyKTA(ktaData: any): Promise<any> {

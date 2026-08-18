@@ -1753,6 +1753,39 @@ export const firestoreService = {
     return () => {};
   },
 
+  subscribeToKTAApplications(callback: (apps: any[]) => void): () => void {
+    const cachedStr = localStorage.getItem('kta_applications');
+    if (cachedStr) {
+      try {
+        const parsed = JSON.parse(cachedStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          callback(ensureUniqueKtaNumbers(parsed));
+        }
+      } catch (e) {}
+    }
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const q = collection(db, 'kta_applications');
+        const unsub = onSnapshot(q, (snap) => {
+          if (!snap.empty) {
+            const rawApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const finalApps = ensureUniqueKtaNumbers(rawApps);
+            safeStorageSet('kta_applications', finalApps);
+            callback(finalApps);
+          }
+        }, (err) => {
+          this.checkQuotaError(err);
+          console.warn('[FIRESTORE] subscribeToKTAApplications snapshot error:', err?.message || err);
+        });
+        return safeUnsub(unsub);
+      } catch (e) {
+        console.warn('[FIRESTORE] subscribeToKTAApplications error:', e);
+      }
+    }
+    return () => {};
+  },
+
   // --- MATERI ---
   async getMateri(): Promise<Materi[]> {
     if (!this.getIsQuotaExceeded()) {
