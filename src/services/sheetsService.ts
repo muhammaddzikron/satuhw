@@ -8,7 +8,7 @@ import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan } from '../utils/trainingUtils';
-import { sortActivitiesNewestFirst } from '../utils/activityUtils';
+import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -1648,6 +1648,15 @@ export const sheetsService = {
   },
 
   async getContents(section?: string): Promise<Content[]> {
+    const isSectionMatch = (cSec: string | undefined, targetSec: string) => {
+      const c = (cSec || '').trim().toLowerCase();
+      const t = (targetSec || '').trim().toLowerCase();
+      if (t === 'galeri' || t === 'video' || t === 'gallery') {
+        return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
+      }
+      return c === t;
+    };
+
     if (IS_API_VALID) {
       try {
         const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
@@ -1660,7 +1669,7 @@ export const sheetsService = {
         if (apiData.length > 0) {
           const sanitized = apiData
             .map(c => {
-            if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+            if (isSectionMatch(c.section, 'galeri') && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
               return {
                 ...c,
                 field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
@@ -1724,7 +1733,7 @@ export const sheetsService = {
             }
             return c;
           });
-          return section ? sanitized.filter((c: any) => c.section === section) : sanitized;
+          return section ? sanitized.filter((c: any) => isSectionMatch(c.section, section)) : sanitized;
         }
       } catch (error) {
         console.warn('getContents API error, falling back to Firestore:', (error as any)?.message || error);
@@ -1732,10 +1741,117 @@ export const sheetsService = {
     }
     const fsContents = await firestoreService.getContents();
     if (fsContents && fsContents.length > 0) {
-      return section ? fsContents.filter((c: any) => c.section === section) : fsContents;
+      return section ? fsContents.filter((c: any) => isSectionMatch(c.section, section)) : fsContents;
     }
     const mockData = this.getMockContents();
-    return section ? mockData.filter((c: any) => c.section === section) : mockData;
+    return section ? mockData.filter((c: any) => isSectionMatch(c.section, section)) : mockData;
+  },
+
+  async getGalleryVideos(): Promise<any[]> {
+    const isVideoSection = (s: string | undefined) => {
+      const clean = (s || '').trim().toLowerCase();
+      return clean === 'galeri' || clean === 'video' || clean === 'videos' || clean === 'galeri_video' || clean === 'galeri-video' || clean === 'gallery' || clean === 'youtube';
+    };
+
+    const videoMap = new Map<string, any>();
+
+    // 1. Load from Contents
+    try {
+      const allContents = await this.getContents();
+      if (Array.isArray(allContents)) {
+        allContents.forEach((c: any) => {
+          const rawUrl = (c.field1 || c.videoUrl || c.link || c.url || '').toString().trim();
+          const rawTitle = (c.field2 || c.judul || c.title || c.nama || 'Video Hizbul Wathan').toString().trim();
+          const vId = extractYoutubeId(rawUrl) || extractYoutubeId(rawTitle);
+          if (isVideoSection(c.section) || vId) {
+            const finalUrl = rawUrl || (vId ? `https://www.youtube.com/watch?v=${vId}` : '');
+            const finalTitle = (rawTitle && rawTitle !== rawUrl) ? rawTitle : 'Video Hizbul Wathan';
+            const key = vId || finalUrl || c.id;
+            if (key && (finalUrl || vId)) {
+              videoMap.set(key, {
+                id: c.id || `video-${key}`,
+                section: 'galeri',
+                field1: finalUrl,
+                field2: finalTitle,
+                field3: c.field3 || 'Galeri HW',
+                field4: c.field4 || '',
+                field5: c.field5 || '',
+                videoId: vId,
+                title: finalTitle,
+                url: finalUrl,
+                source: 'galeri'
+              });
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error loading contents for gallery videos:', e);
+    }
+
+    // 2. Load from HW Activities
+    try {
+      const activities = await this.getActivities();
+      if (Array.isArray(activities)) {
+        activities.forEach((act: any) => {
+          const rawUrl = (act.videoUrl || act.linkVideo || act.youtubeUrl || act.linkYoutube || act.video || '').toString().trim();
+          const vId = extractYoutubeId(rawUrl);
+          if (vId) {
+            const finalTitle = act.namaKegiatan || act.judul || act.nama || 'Dokumentasi Kegiatan HW';
+            const finalUrl = rawUrl.startsWith('http') ? rawUrl : `https://www.youtube.com/watch?v=${vId}`;
+            const key = vId;
+            if (!videoMap.has(key)) {
+              videoMap.set(key, {
+                id: `act-vid-${act.id || key}`,
+                section: 'galeri',
+                field1: finalUrl,
+                field2: finalTitle,
+                field3: act.kategori || 'Kegiatan HW',
+                field4: act.tanggal || '',
+                field5: act.deskripsi || '',
+                videoId: vId,
+                title: finalTitle,
+                url: finalUrl,
+                source: 'kegiatan'
+              });
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error loading activities for gallery videos:', e);
+    }
+
+    // 3. Fallback defaults if empty
+    if (videoMap.size === 0) {
+      const defaults = [
+        {
+          id: 'gal-1',
+          section: 'galeri',
+          field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+          field2: 'Mars Gerakan Kepanduan Hizbul Wathan',
+          field3: 'Lagu Resmi HW',
+          videoId: 'kR2rXyNf9V8',
+          title: 'Mars Gerakan Kepanduan Hizbul Wathan',
+          url: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+          source: 'galeri'
+        },
+        {
+          id: 'gal-2',
+          section: 'galeri',
+          field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
+          field2: 'Profil Kwartir Wilayah HW Jawa Tengah',
+          field3: 'Profil HW Jateng',
+          videoId: 'mD03u6-T9u8',
+          title: 'Profil Kwartir Wilayah HW Jawa Tengah',
+          url: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
+          source: 'galeri'
+        }
+      ];
+      return defaults;
+    }
+
+    return Array.from(videoMap.values());
   },
 
   async saveContent(content: any): Promise<any> {

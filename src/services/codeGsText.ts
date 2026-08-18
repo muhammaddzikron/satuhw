@@ -1047,8 +1047,49 @@ function handleGetContents(section) {
   var sheet = getSheet('Contents');
   ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6']);
   var contents = getRowsAsObjects(sheet);
+
+  // Also include rows from Galeri / Gallery / Videos sheets if present
+  try {
+    var galSheet = getSheet('Galeri') || getSheet('Gallery') || getSheet('Videos') || getSheet('Video') || getSheet('GaleriVideo');
+    if (galSheet) {
+      var galRows = getRowsAsObjects(galSheet);
+      if (galRows && galRows.length > 0) {
+        galRows.forEach(function(g, idx) {
+          var gId = (g.id || 'gal-sheet-' + (idx + 1)).toString().trim();
+          var gUrl = (g.url || g.link || g.videourl || g.videoUrl || g.field1 || '').toString().trim();
+          var gTitle = (g.judul || g.title || g.nama || g.field2 || 'Video Hizbul Wathan').toString().trim();
+          if (gUrl || gTitle) {
+            var exists = contents.some(function(c) {
+              return (c.id && c.id.toString() === gId) || (c.field1 && c.field1.toString() === gUrl);
+            });
+            if (!exists) {
+              contents.push({
+                id: gId,
+                section: 'galeri',
+                type: 'list',
+                field1: gUrl,
+                field2: gTitle,
+                field3: (g.kategori || g.category || g.field3 || '').toString().trim(),
+                field4: '',
+                field5: (g.deskripsi || g.description || g.field5 || '').toString().trim(),
+                field6: ''
+              });
+            }
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
   if (section) {
-    contents = contents.filter(function(c) { return (c.section || '').toString().trim().toLowerCase() === section.toLowerCase(); });
+    var targetSec = section.toString().trim().toLowerCase();
+    contents = contents.filter(function(c) {
+      var cSec = (c.section || '').toString().trim().toLowerCase();
+      if (targetSec === 'galeri' || targetSec === 'video' || targetSec === 'gallery') {
+        return cSec === 'galeri' || cSec === 'video' || cSec === 'videos' || cSec === 'galeri_video' || cSec === 'galeri-video' || cSec === 'gallery' || cSec === 'youtube';
+      }
+      return cSec === targetSec;
+    });
   }
 
   // Enrich playlist items from Playlist sheet if present

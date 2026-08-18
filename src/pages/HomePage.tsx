@@ -57,7 +57,7 @@ import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 
 const sortPlaylistWithSahabatFirst = (list: Content[]): Content[] => {
@@ -392,8 +392,9 @@ export default function HomePage() {
     });
     const unsubContents = sheetsService.subscribeToContents((contents: Content[]) => {
       if (contents && contents.length > 0) {
-        const gal = contents.filter(c => c.section === 'galeri');
-        if (gal.length > 0) setGalleryItems(gal);
+        sheetsService.getGalleryVideos().then(vids => {
+          if (vids && vids.length > 0) setGalleryItems(vids);
+        }).catch(() => {});
         const pl = contents.filter(c => c.section === 'playlist');
         if (pl.length > 0) setPlaylistItems(sortPlaylistWithSahabatFirst(pl));
         const sm = contents.find(c => c.section === 'sosmed');
@@ -404,6 +405,10 @@ export default function HomePage() {
         if (rt?.field1) setRunningText(rt.field1);
       }
     });
+    // Also fetch all gallery videos on mount
+    sheetsService.getGalleryVideos().then(vids => {
+      if (vids && vids.length > 0) setGalleryItems(vids);
+    }).catch(() => {});
     const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
       if (sData && sData.trainingActivities !== undefined) {
         const acts = Array.isArray(sData.trainingActivities)
@@ -580,15 +585,9 @@ export default function HomePage() {
         ))
       ) : (
         galleryItems.map((item, i) => {
-          const videoUrl = item.field1 || '';
-          const videoTitle = item.field2 || 'Video HW';
-          let videoId = '';
-          try {
-            if (videoUrl.includes('v=')) videoId = videoUrl.split('v=')[1]?.split('&')[0];
-            else if (videoUrl.includes('youtu.be/')) videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
-            else videoId = videoUrl.split('/').pop() || '';
-          } catch (e) {}
-
+          const videoUrl = item.field1 || (item as any).url || '';
+          const videoTitle = item.field2 || (item as any).title || 'Video HW';
+          const videoId = (item as any).videoId || extractYoutubeId(videoUrl) || extractYoutubeId(videoTitle);
           const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400';
 
           return (

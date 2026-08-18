@@ -44,31 +44,27 @@ export const isParticipantOfActivity = (app: any, activity: any): boolean => {
 
 export const extractYoutubeId = (rawUrl: any): string => {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
-  const url = rawUrl.trim();
+  let url = rawUrl.trim();
   if (!url) return '';
-  if (url.includes('youtube.com/watch')) {
-    const match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-    if (match && match[1]) return match[1];
+
+  // Extract from iframe tag if passed
+  if (url.includes('<iframe') && url.includes('src=')) {
+    const srcMatch = url.match(/src=["']([^"']+)["']/);
+    if (srcMatch && srcMatch[1]) url = srcMatch[1];
   }
-  if (url.includes('youtu.be/')) {
-    const match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-    if (match && match[1]) return match[1];
+
+  // Regex covering watch?v=, youtu.be/, embed/, shorts/, live/, v/
+  const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+  const match = url.match(ytRegex);
+  if (match && match[1]) {
+    return match[1];
   }
-  if (url.includes('youtube.com/embed/')) {
-    const match = url.match(/embed\/([a-zA-Z0-9_-]{11})/);
-    if (match && match[1]) return match[1];
-  }
-  if (url.includes('youtube.com/shorts/')) {
-    const match = url.match(/shorts\/([a-zA-Z0-9_-]{11})/);
-    if (match && match[1]) return match[1];
-  }
-  if (url.includes('youtube.com/live/')) {
-    const match = url.match(/live\/([a-zA-Z0-9_-]{11})/);
-    if (match && match[1]) return match[1];
-  }
-  if (url.length === 11 && !url.includes('/') && !url.includes(' ') && !url.includes(':') && !url.includes('.')) {
+
+  // Fallback: check if plain 11-char ID is passed
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
     return url;
   }
+
   return '';
 };
 

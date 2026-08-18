@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId } from '../utils/activityUtils';
 import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey } from '../utils/trainingUtils';
 
 const getCurrentIndonesianDate = (): string => {
@@ -2363,19 +2363,51 @@ export default function AdminDashboard() {
       }
     });
 
+    const unsubContents = sheetsService.subscribeToContents((freshContents: Content[]) => {
+      if (Array.isArray(freshContents)) {
+        setContents(freshContents);
+        if (selectedContentSectionRef.current) {
+          const target = selectedContentSectionRef.current;
+          const isMatch = (cSec: string | undefined) => {
+            const c = (cSec || '').trim().toLowerCase();
+            const t = target.trim().toLowerCase();
+            if (t === 'galeri' || t === 'video' || t === 'gallery') {
+              return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
+            }
+            return c === t;
+          };
+          setContentList(freshContents.filter(c => isMatch(c.section)));
+        }
+      }
+    });
+
     return () => {
       unsubMembers();
       unsubCategories();
       unsubActivities();
       unsubApps();
       unsubTrainingApps();
+      unsubContents();
     };
   }, []);
 
+  const selectedContentSectionRef = React.useRef(selectedContentSection);
+  useEffect(() => {
+    selectedContentSectionRef.current = selectedContentSection;
+  }, [selectedContentSection]);
+
   const handleSelectSection = (section: string) => {
     setSelectedContentSection(section);
-    // Filter contents for this section
-    const sectionItems = contents.filter(c => c.section === section);
+    // Filter contents for this section with alias support
+    const isMatch = (cSec: string | undefined) => {
+      const c = (cSec || '').trim().toLowerCase();
+      const t = section.trim().toLowerCase();
+      if (t === 'galeri' || t === 'video' || t === 'gallery') {
+        return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
+      }
+      return c === t;
+    };
+    const sectionItems = contents.filter(c => isMatch(c.section));
     setContentList(sectionItems);
   };
 
@@ -4674,7 +4706,7 @@ export default function AdminDashboard() {
                               <div key={`section-content-${selectedContentSection}-${item.id || i}`} className="bg-gray-50 p-4 rounded-3xl border border-gray-100 flex items-center gap-4 group hover:bg-white hover:shadow-xl transition-all">
                                 {selectedContentSection === 'galeri' ? (
                                   <div className="w-20 h-14 rounded-xl bg-gray-200 overflow-hidden relative shrink-0">
-                                    <img src={`https://img.youtube.com/vi/${item.field1?.split('v=')[1]?.split('&')[0] || item.field1?.split('/').pop() || ''}/0.jpg`} 
+                                    <img src={`https://img.youtube.com/vi/${extractYoutubeId(item.field1 || (item as any).url || '') || '0'}/mqdefault.jpg`} 
                                          alt="Youtube" className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-white">
                                       <Youtube size={20} />
