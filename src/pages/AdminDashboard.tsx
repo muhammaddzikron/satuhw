@@ -221,6 +221,8 @@ import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
+import { TestManagementPanel } from '../components/training/TestManagementPanel';
+import { TestSubmissionViewerModal } from '../components/training/TestSubmissionViewerModal';
 export { KWARDA_QABILAH_JATENG };
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
@@ -930,6 +932,7 @@ export default function AdminDashboard() {
   const [gradeInput, setGradeInput] = useState('');
   const [remarkInput, setRemarkInput] = useState('');
   const [graduationStatusInput, setGraduationStatusInput] = useState('Lulus');
+  const [viewingTestApp, setViewingTestApp] = useState<any | null>(null);
   
   // Inputs for training settings (Type, Activity, Location, Date)
   const [newTypeInput, setNewTypeInput] = useState('');
@@ -951,7 +954,8 @@ export default function AdminDashboard() {
     biayaPelatihan: 'Rp 50.000',
     rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
     noWhatsappPanitia: '089688754000',
-    proposalUrl: ''
+    proposalUrl: '',
+    gambarUrl: ''
   });
 
   // Schedule Editing States
@@ -2193,7 +2197,18 @@ export default function AdminDashboard() {
       ? Math.round((submittedAssignedCount / totalAssignedTasks) * 100) 
       : attendancePercentage;
 
-    const finalPercentage = Math.round((attendancePercentage + assignmentPercentage) / 2);
+    const preTestScore = app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '' 
+      ? Number(app.preTestScore) 
+      : null;
+    const postTestScore = app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '' 
+      ? Number(app.postTestScore) 
+      : null;
+
+    // Calculate final grade factoring in Post Test if available
+    let finalPercentage = Math.round((attendancePercentage + assignmentPercentage) / 2);
+    if (postTestScore !== null) {
+      finalPercentage = Math.round((attendancePercentage * 0.3) + (assignmentPercentage * 0.3) + (postTestScore * 0.4));
+    }
 
     let calculatedStatus = 'Tidak Lulus';
     if (finalPercentage >= 80) {
@@ -2205,6 +2220,8 @@ export default function AdminDashboard() {
     return {
       attendancePercentage,
       assignmentPercentage,
+      preTestScore,
+      postTestScore,
       finalPercentage,
       calculatedStatus,
       totalSessions,
@@ -2218,7 +2235,9 @@ export default function AdminDashboard() {
     setSelectedTrainingApp(app);
     const calc = getCalculatedGrading(app);
     setGradeInput(app.nilai || `${calc.finalPercentage}%`);
-    setRemarkInput(app.remark || `Presensi: ${calc.attendancePercentage}% (${calc.attendedSessions}/${calc.totalSessions} Sesi), Tugas: ${calc.assignmentPercentage}% (${calc.submittedAssignedCount}/${calc.totalAssignedTasks} Tugas)`);
+    const preText = calc.preTestScore !== null ? `Pre-Test: ${calc.preTestScore}, ` : '';
+    const postText = calc.postTestScore !== null ? `Post-Test: ${calc.postTestScore}, ` : '';
+    setRemarkInput(app.remark || `${preText}${postText}Presensi: ${calc.attendancePercentage}% (${calc.attendedSessions}/${calc.totalSessions} Sesi), Tugas: ${calc.assignmentPercentage}% (${calc.submittedAssignedCount}/${calc.totalAssignedTasks} Tugas)`);
     setGraduationStatusInput(app.statusKelulusan || calc.calculatedStatus);
     setIsGradingModalOpen(true);
   };
@@ -7151,19 +7170,19 @@ export default function AdminDashboard() {
                 {/* 2. PRESENSI SUB-TAB */}
                 {trainingSubTab === 'presensi' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
+                    {/* Presensi Header & Program Filter */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
+                        <div className="flex items-center gap-1.5">
                           {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
                             <button
                               key={prog}
                               onClick={() => setSelectedPresensiProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                                 selectedPresensiProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
+                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                               }`}
                             >
                               {prog}
@@ -7173,23 +7192,23 @@ export default function AdminDashboard() {
                       </div>
                       
                       <div className="flex items-center gap-3">
-                        <div className="text-right border-r border-gray-100 pr-4 hidden sm:block">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Jumlah Peserta Disetujui</span>
-                          <span className="text-lg font-black text-hw-green">
+                        <div className="text-right border-r border-gray-100 pr-3 hidden sm:block">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Peserta Disetujui</span>
+                          <span className="text-sm font-black text-hw-green">
                             {trainingApps.filter(app => isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg)).length} Orang
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={exportTrainingAttendanceToExcel}
-                            className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                             title="Eksport Excel (CSV)"
                           >
                             <FileSpreadsheet size={14} /> Export Excel
                           </button>
                           <button
                             onClick={exportTrainingAttendanceToPDF}
-                            className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="px-3 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                             title="Eksport PDF"
                           >
                             <Download size={14} /> Export PDF
@@ -7337,30 +7356,14 @@ export default function AdminDashboard() {
                 {/* 3. PENUGASAN SUB-TAB */}
                 {trainingSubTab === 'penugasan' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => {
-                                setSelectedTugasProg(prog as any);
-                                setSelectedTugasMateriId('all'); // reset filter when level changes
-                              }}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedTugasProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    {/* PANEL PENGATURAN PRE TEST & POST TEST & BANK SOAL */}
+                    <TestManagementPanel
+                      settings={settings}
+                      onSaveSettings={async (updatedSettings) => {
+                        await sheetsService.saveSettings(updatedSettings);
+                        setSettings(updatedSettings);
+                      }}
+                    />
 
                     {/* Task Giving Button Panel */}
                     {(() => {
@@ -7386,13 +7389,34 @@ export default function AdminDashboard() {
 
                       return (
                         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-hw-green/10 flex items-center justify-center text-hw-green">
-                              <BookOpen size={18} />
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-hw-green/10 flex items-center justify-center text-hw-green">
+                                <BookOpen size={18} />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Panel Pemberian Tugas Kurikulum</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Pilih materi untuk memberikan/mengedit penugasan peserta</p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Panel Pemberian Tugas Kurikulum Jaya Melati</h3>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Pilih materi di bawah ini untuk memberikan/mengedit penugasan peserta</p>
+                            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Tingkat:</span>
+                              {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
+                                <button
+                                  key={prog}
+                                  onClick={() => {
+                                    setSelectedTugasProg(prog as any);
+                                    setSelectedTugasMateriId('all');
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                                    selectedTugasProg === prog 
+                                      ? 'bg-hw-green text-white border-hw-green shadow-xs' 
+                                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {prog}
+                                </button>
+                              ))}
                             </div>
                           </div>
 
@@ -7669,19 +7693,19 @@ export default function AdminDashboard() {
                 {/* 4. PENILAIAN & KELULUSAN SUB-TAB */}
                 {trainingSubTab === 'penilaian' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
+                    {/* Penilaian Header Toolbar & Program Filter */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
+                        <div className="flex items-center gap-1.5">
                           {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
                             <button
                               key={prog}
                               onClick={() => setSelectedGradeProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                                 selectedGradeProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
+                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                               }`}
                             >
                               {prog}
@@ -7693,14 +7717,14 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={exportTrainingGraduationToExcel}
-                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport Excel (CSV)"
                         >
                           <FileSpreadsheet size={14} /> Export Excel
                         </button>
                         <button
                           onClick={exportTrainingGraduationToPDF}
-                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport PDF"
                         >
                           <Download size={14} /> Export PDF
@@ -7724,13 +7748,16 @@ export default function AdminDashboard() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
-                          <table className="w-full text-left border-collapse min-w-[800px]">
+                          <table className="w-full text-left border-collapse min-w-[950px]">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                                 <th className="p-4 pl-6">Peserta</th>
-                                <th className="p-4">Nilai Akhir (Predikat)</th>
+                                <th className="p-4">Pre Test</th>
+                                <th className="p-4">Post Test</th>
+                                <th className="p-4">Nilai Akhir</th>
                                 <th className="p-4">Status Kelulusan</th>
-                                <th className="p-4">Catatan / Ulasan Pelatih</th>
+                                <th className="p-4">Lembar Pengerjaan & Tugas</th>
+                                <th className="p-4">Catatan Pelatih</th>
                                 <th className="p-4 text-right pr-6">Tindakan</th>
                               </tr>
                             </thead>
@@ -7757,9 +7784,38 @@ export default function AdminDashboard() {
                                       </div>
                                     </td>
 
+                                    {/* PRE TEST SCORE */}
+                                    <td className="p-4">
+                                      {app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '' ? (
+                                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-black uppercase border border-emerald-200 inline-flex items-center gap-1">
+                                          <Sparkles size={11} className="text-emerald-600" />
+                                          {app.preTestScore} / 100
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
+                                          Belum Tes
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* POST TEST SCORE */}
+                                    <td className="p-4">
+                                      {app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '' ? (
+                                        <span className="px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg text-xs font-black uppercase border border-teal-200 inline-flex items-center gap-1">
+                                          <CheckCircle2 size={11} className="text-teal-600" />
+                                          {app.postTestScore} / 100
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
+                                          Belum Tes
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* NILAI AKHIR */}
                                     <td className="p-4">
                                       <div className="space-y-1">
-                                        <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 rounded-lg text-xs font-black uppercase border border-yellow-100 inline-block">
+                                        <span className="px-2.5 py-1 bg-yellow-50 text-yellow-800 rounded-lg text-xs font-black uppercase border border-yellow-200 inline-block">
                                           {app.nilai || `${calc.finalPercentage}%`}
                                         </span>
                                         <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight leading-none pt-0.5">
@@ -7768,6 +7824,7 @@ export default function AdminDashboard() {
                                       </div>
                                     </td>
 
+                                    {/* STATUS KELULUSAN */}
                                     <td className="p-4">
                                       {app.statusKelulusan ? (
                                         <span className={cn(
@@ -7797,6 +7854,18 @@ export default function AdminDashboard() {
                                       )}
                                     </td>
 
+                                    {/* VIEW PENGERJAAN TUGAS */}
+                                    <td className="p-4">
+                                      <button
+                                        onClick={() => setViewingTestApp(app)}
+                                        className="px-3 py-1.5 bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 rounded-xl border border-gray-200 hover:border-emerald-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                                        title="Lihat Rincian Jawaban Pre Test, Post Test & Tugas Berkas"
+                                      >
+                                        <FileText size={13} className="text-emerald-700" />
+                                        View Pengerjaan Tugas
+                                      </button>
+                                    </td>
+
                                     <td className="p-4">
                                       {app.remark ? (
                                         <p className="text-[11px] text-gray-600 font-bold italic truncate max-w-xs" title={app.remark}>
@@ -7810,7 +7879,7 @@ export default function AdminDashboard() {
                                     <td className="p-4 text-right pr-6">
                                       <button
                                         onClick={() => handleOpenGradingModal(app)}
-                                        className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                                        className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                       >
                                         Beri Nilai & Kelulusan
                                       </button>
@@ -7829,19 +7898,19 @@ export default function AdminDashboard() {
                 {/* 5. CETAK PIAGAM SUB-TAB */}
                 {trainingSubTab === 'piagam' && (
                   <div className="space-y-6">
-                    {/* Level Selectors */}
-                    <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Tingkat Pelatihan</span>
-                        <div className="flex gap-2">
+                    {/* Piagam Header Toolbar & Program Filter */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
+                        <div className="flex items-center gap-1.5">
                           {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
                             <button
                               key={prog}
                               onClick={() => setSelectedPiagamProg(prog as any)}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                                 selectedPiagamProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green' 
-                                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100/50'
+                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
+                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                               }`}
                             >
                               {prog}
@@ -7853,14 +7922,14 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={exportValidatedCertificatesToExcel}
-                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport Excel (CSV)"
                         >
                           <FileSpreadsheet size={14} /> Export Excel
                         </button>
                         <button
                           onClick={exportValidatedCertificatesToPDF}
-                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport PDF"
                         >
                           <Download size={14} /> Export PDF
@@ -8000,7 +8069,8 @@ export default function AdminDashboard() {
                               biayaPelatihan: 'Rp 50.000',
                               rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                               noWhatsappPanitia: '089688754000',
-                              proposalUrl: ''
+                              proposalUrl: '',
+                              gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
                             });
                             setIsActivityModalOpen(true);
                           }}
@@ -8047,7 +8117,8 @@ export default function AdminDashboard() {
                                   biayaPelatihan: 'Rp 50.000',
                                   rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                                   noWhatsappPanitia: '089688754000',
-                                  proposalUrl: ''
+                                  proposalUrl: '',
+                                  gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
                                 });
                                 setIsActivityModalOpen(true);
                               }}
@@ -8057,16 +8128,44 @@ export default function AdminDashboard() {
                             </button>
                           </div>
                         ) : (
-                          allTrainingActivitiesList.map((act: any, idx: number) => (
-                            <div key={act.id || idx} className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all space-y-3">
+                          allTrainingActivitiesList.map((act: any, idx: number) => {
+                            const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl;
+                            const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
+
+                            return (
+                            <div key={act.id || idx} className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all space-y-3 overflow-hidden">
+                              {img && (
+                                <div className="relative h-36 sm:h-40 bg-gray-100 rounded-xl overflow-hidden -mx-4 -mt-4 mb-3 border-b border-gray-100">
+                                  <img 
+                                    src={getCorsSafeUrl(img, act.updatedAt || act.id) || img} 
+                                    alt={act.namaKegiatan} 
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                                    }}
+                                  />
+                                  <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/20">
+                                    {act.jenisPelatihan || 'Pelatihan'}
+                                  </div>
+                                  <span className={cn(
+                                    "absolute top-2.5 right-2.5 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs",
+                                    act.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                                  )}>
+                                    {act.status || 'Buka'}
+                                  </span>
+                                </div>
+                              )}
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <span className={cn(
-                                    "inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-1",
-                                    act.status === 'Buka' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                  )}>
-                                    {act.jenisPelatihan || 'Jaya Melati 1'} • {act.status === 'Buka' ? 'Pendaftaran Buka' : 'Tutup'}
-                                  </span>
+                                  {!img && (
+                                    <span className={cn(
+                                      "inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-1",
+                                      act.status === 'Buka' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                    )}>
+                                      {act.jenisPelatihan || 'Jaya Melati 1'} • {act.status === 'Buka' ? 'Pendaftaran Buka' : 'Tutup'}
+                                    </span>
+                                  )}
                                   <h6 className="text-xs font-black text-gray-800 font-display">{act.namaKegiatan}</h6>
                                   {(act.proposalUrl || act.proposal || act.linkProposal) && (
                                     <div className="mt-1.5">
@@ -8102,7 +8201,8 @@ export default function AdminDashboard() {
                                         biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
                                         rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
                                         noWhatsappPanitia: act.noWhatsappPanitia || '089688754000',
-                                        proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || ''
+                                        proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || '',
+                                        gambarUrl: act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl || ''
                                       });
                                       setIsActivityModalOpen(true);
                                     }}
@@ -8178,10 +8278,11 @@ export default function AdminDashboard() {
                                 )}
                               </div>
                             </div>
-                          ))
-                        )}
-                      </div>
+                          );
+                        })
+                      )}
                     </div>
+                  </div>
 
                     <div className="grid grid-cols-1 gap-6">
                       {/* JENIS PELATIHAN CARD */}
@@ -8697,24 +8798,24 @@ export default function AdminDashboard() {
           {/* ACTIVITY FORM MODAL */}
           <AnimatePresence>
             {isKegiatanModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col"
+                  className="bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col my-auto"
                 >
-                  <div className="p-5 bg-hw-dark text-white flex items-center justify-between">
+                  <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
                     <div>
                       <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Pusat Data Kegiatan</span>
                       <h3 className="text-sm font-black font-display">{editingKegiatan ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}</h3>
                     </div>
-                    <button onClick={() => setIsKegiatanModalOpen(false)} className="p-2 text-white/70 hover:text-white rounded-full cursor-pointer">
+                    <button onClick={() => setIsKegiatanModalOpen(false)} className="p-1.5 text-white/70 hover:text-white rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                   </div>
 
-                  <form onSubmit={handleSaveActivity} className="p-6 overflow-y-auto space-y-4 flex-1">
+                  <form onSubmit={handleSaveActivity} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 overscroll-contain">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Nama Kegiatan *</label>
                       <input 
@@ -8727,7 +8828,7 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Kategori</label>
                         <select
@@ -8757,7 +8858,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Tanggal Pelaksanaan</label>
                         <input 
@@ -8780,7 +8881,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">Infaq / Biaya</label>
                         <input 
@@ -10586,9 +10687,18 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-2 gap-2 text-[11px] text-emerald-700">
                           <div>• Presensi: <span className="font-extrabold text-emerald-900">{calc.attendancePercentage}%</span> <span className="text-[9px] text-emerald-600">({calc.attendedSessions}/{calc.totalSessions})</span></div>
                           <div>• Penugasan: <span className="font-extrabold text-emerald-900">{calc.assignmentPercentage}%</span> <span className="text-[9px] text-emerald-600">({calc.submittedAssignedCount}/{calc.totalAssignedTasks})</span></div>
+                          <div>• Pre Test: <span className="font-extrabold text-emerald-900">{selectedTrainingApp.preTestScore !== undefined && selectedTrainingApp.preTestScore !== null ? `${selectedTrainingApp.preTestScore}/100` : 'Belum Tes'}</span></div>
+                          <div>• Post Test: <span className="font-extrabold text-emerald-900">{selectedTrainingApp.postTestScore !== undefined && selectedTrainingApp.postTestScore !== null ? `${selectedTrainingApp.postTestScore}/100` : 'Belum Tes'}</span></div>
                         </div>
                         <div className="flex justify-between items-center pt-1.5 border-t border-emerald-100/50 text-[11px] font-bold">
                           <div>Rata-rata Nilai Capaian: <span className="font-black text-emerald-950 text-sm">{calc.finalPercentage}%</span></div>
+                          <button
+                            type="button"
+                            onClick={() => setViewingTestApp(selectedTrainingApp)}
+                            className="text-[10px] text-emerald-800 underline font-bold hover:text-emerald-950 cursor-pointer"
+                          >
+                            Lihat Lembar Jawaban & Berkas →
+                          </button>
                         </div>
                       </div>
                     );
@@ -12614,40 +12724,53 @@ export default function AdminDashboard() {
 
         {/* MODAL KEGIATAN PELATIHAN */}
         {isActivityModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-gray-100 shadow-2xl animate-fade-in">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
-                  {editingActivityId ? 'Edit Kegiatan Pelatihan' : 'Tambah Kegiatan Pelatihan Baru'}
-                </h3>
+          <div className="fixed inset-0 bg-black/65 backdrop-blur-xs z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] my-auto flex flex-col border border-gray-100 shadow-2xl animate-fade-in overflow-hidden relative">
+              {/* Modal Sticky Header */}
+              <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 bg-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-hw-green/10 text-hw-green flex items-center justify-center font-black">
+                    <BookOpen size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
+                      {editingActivityId ? 'Edit Kegiatan Pelatihan' : 'Tambah Kegiatan Pelatihan Baru'}
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                      Pengaturan informasi & kepesertaan kegiatan pelatihan
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg cursor-pointer"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all cursor-pointer"
+                  title="Tutup Formulir"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs font-semibold">
+              {/* Modal Scrollable Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs font-semibold flex-1 overscroll-contain">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nama Kegiatan Pelatihan</label>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Nama Kegiatan Pelatihan</label>
                   <input
                     type="text"
-                    placeholder="Contoh: Pelatihan Jaya Melati 1/2 HW Jateng"
+                    placeholder="Contoh: Pelatihan Jaya Melati 1 HW Jateng"
                     value={activityForm.namaKegiatan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, namaKegiatan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Jenis Pelatihan</label>
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Jenis Pelatihan</label>
                     <select
                       value={activityForm.jenisPelatihan || 'Jaya Melati 1'}
                       onChange={(e) => setActivityForm(prev => ({ ...prev, jenisPelatihan: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-bold text-gray-800"
                     >
                       {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1']).map((t: string) => (
                         <option key={t} value={t}>{t}</option>
@@ -12656,11 +12779,11 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Status Pendaftaran</label>
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Status Pendaftaran</label>
                     <select
                       value={activityForm.status || 'Buka'}
                       onChange={(e) => setActivityForm(prev => ({ ...prev, status: e.target.value as any }))}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-bold text-gray-800"
                     >
                       <option value="Buka">Buka Pendaftaran</option>
                       <option value="Tutup">Tutup Pendaftaran</option>
@@ -12668,64 +12791,68 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tempat / Lokasi Pelaksanaan</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Pusdiklat HW Jateng / Gedung Dakwah Muhammadiyah Jateng"
-                    value={activityForm.lokasiPelatihan || ''}
-                    onChange={(e) => setActivityForm(prev => ({ ...prev, lokasiPelatihan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Tempat / Lokasi Pelaksanaan</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Pusdiklat HW Jateng"
+                      value={activityForm.lokasiPelatihan || ''}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, lokasiPelatihan: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Waktu / Tanggal Pelaksanaan</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 12-14 Juli 2026"
+                      value={activityForm.tanggalPelatihan || ''}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, tanggalPelatihan: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Biaya Pelatihan</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Rp 150.000"
+                      value={activityForm.biayaPelatihan || ''}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, biayaPelatihan: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Nomor WA Panitia (Konfirmasi)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 089688754000"
+                      value={activityForm.noWhatsappPanitia || ''}
+                      onChange={(e) => setActivityForm(prev => ({ ...prev, noWhatsappPanitia: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Waktu / Tanggal Pelaksanaan</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: 12-14 Juli 2026"
-                    value={activityForm.tanggalPelatihan || ''}
-                    onChange={(e) => setActivityForm(prev => ({ ...prev, tanggalPelatihan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Biaya Pelatihan</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Rp 150.000"
-                    value={activityForm.biayaPelatihan || ''}
-                    onChange={(e) => setActivityForm(prev => ({ ...prev, biayaPelatihan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Rekening Pembiayaan / Pembayaran</label>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Rekening Pembiayaan / Pembayaran</label>
                   <input
                     type="text"
                     placeholder="Contoh: Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
                     value={activityForm.rekeningPembiayaan || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, rekeningPembiayaan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Nomor WhatsApp Panitia (Konfirmasi Transfer)</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: 089688754000"
-                    value={activityForm.noWhatsappPanitia || ''}
-                    onChange={(e) => setActivityForm(prev => ({ ...prev, noWhatsappPanitia: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Link / File Proposal Kegiatan</label>
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Link / File Proposal Kegiatan</label>
                     <label className="text-[10px] font-bold text-sky-700 hover:text-sky-900 cursor-pointer underline flex items-center gap-1">
                       <Upload size={10} />
                       Unggah File
@@ -12752,7 +12879,7 @@ export default function AdminDashboard() {
                     placeholder="Contoh: https://drive.google.com/file/d/... atau upload PDF"
                     value={activityForm.proposalUrl || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, proposalUrl: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
                   />
                   {activityForm.proposalUrl && activityForm.proposalUrl.startsWith('data:') && (
                     <div className="flex items-center justify-between bg-emerald-100/80 text-emerald-800 text-[10px] px-2.5 py-1 rounded-lg border border-emerald-300 font-bold">
@@ -12770,13 +12897,66 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Deskripsi Kegiatan Singkat</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                      Thumbnail / Poster Pelatihan (URL atau Unggah File)
+                    </label>
+                    <label className="text-[10px] font-bold text-hw-green hover:underline cursor-pointer flex items-center gap-1">
+                      <Upload size={10} />
+                      Unggah Poster
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            handleDocumentFileUpload(
+                              f,
+                              base64 => setActivityForm(prev => ({ ...prev, gambarUrl: base64 })),
+                              err => alert(err)
+                            );
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Contoh: https://... atau unggah foto poster/banner"
+                    value={activityForm.gambarUrl || ''}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, gambarUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 text-xs font-semibold text-gray-800"
+                  />
+                  {activityForm.gambarUrl && (
+                    <div className="relative mt-2 rounded-2xl overflow-hidden border border-gray-200 h-36 w-full bg-gray-100 flex items-center justify-center">
+                      <img 
+                        src={activityForm.gambarUrl} 
+                        alt="Pratinjau Poster Pelatihan" 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setActivityForm(prev => ({ ...prev, gambarUrl: '' }))}
+                        className="absolute top-2 right-2 px-2.5 py-1 bg-rose-600/90 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer shadow-xs backdrop-blur-xs transition-colors"
+                      >
+                        Hapus Gambar
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[9px] text-gray-400 font-medium">Link gambar URL atau upload foto poster kegiatan pelatihan yang akan tampil di jenis pelatihan dan beranda.</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Deskripsi Kegiatan Singkat</label>
                   <textarea
                     rows={2}
                     placeholder="Keterangan singkat kegiatan..."
                     value={activityForm.deskripsi || ''}
                     onChange={(e) => setActivityForm(prev => ({ ...prev, deskripsi: e.target.value }))}
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none text-xs"
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-hw-green/20 resize-none text-xs text-gray-800"
                   />
                 </div>
 
@@ -13032,11 +13212,12 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              {/* Modal Sticky Footer */}
+              <div className="flex items-center justify-end gap-2.5 px-5 sm:px-6 py-3.5 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold cursor-pointer"
+                  className="px-4 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl font-bold text-xs cursor-pointer transition-all shadow-2xs"
                 >
                   Batal
                 </button>
@@ -13118,9 +13299,10 @@ export default function AdminDashboard() {
                       setLoading(false);
                     }
                   }}
-                  className="px-5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer shadow-md shadow-emerald-900/10 transition-all flex items-center gap-1.5"
                 >
-                  {editingActivityId ? 'Simpan Perubahan' : 'Tambah Kegiatan'}
+                  <CheckCircle2 size={14} />
+                  <span>{editingActivityId ? 'Simpan Perubahan' : 'Tambah Kegiatan'}</span>
                 </button>
               </div>
             </div>
@@ -13141,6 +13323,14 @@ export default function AdminDashboard() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Test Submission Viewer Modal */}
+        <TestSubmissionViewerModal
+          isOpen={!!viewingTestApp}
+          onClose={() => setViewingTestApp(null)}
+          application={viewingTestApp}
+          questions={settings?.trainingQuestions}
+        />
 
         {/* Toast Notification Banner */}
         <AnimatePresence>

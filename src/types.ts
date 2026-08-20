@@ -114,6 +114,11 @@ export interface TrainingActivity {
   youtubeUrl?: string;
   videoUrl?: string;
   gambarUrl?: string;
+  imageUrl?: string;
+  gambar?: string;
+  posterUrl?: string;
+  thumbnailUrl?: string;
+  coverImage?: string;
   penyelenggara?: string;
   kuota?: string;
   kategori?: string;

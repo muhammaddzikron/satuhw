@@ -1345,12 +1345,40 @@ export default function HomePage() {
               const loc = act.lokasiPelatihan || act.lokasi || act.location || 'Pusdiklat HW Jateng';
               const date = act.tanggalPelatihan || act.tanggal || act.startDate || 'Jadwal Buka';
               const tingkatan = act.jenisPelatihan || act.tingkatan || 'Jaya Melati';
+              const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl;
+              const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
 
               return (
-                <div key={act.id || idx} className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-xs hover:border-emerald-300 transition-all space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-1.5">
+                <div key={act.id || idx} className="bg-white rounded-2xl p-3.5 border border-emerald-100 shadow-xs hover:border-emerald-300 transition-all space-y-2.5">
+                  {img && (
+                    <div className="h-32 w-full rounded-xl overflow-hidden bg-gray-100 relative">
+                      <img 
+                        src={getCorsSafeUrl(img, act.id) || img} 
+                        alt={title} 
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover" 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                        }}
+                      />
+                      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
+                        {tingkatan}
+                      </div>
+                      {act.status && (
+                        <div className={cn(
+                          "absolute top-2 right-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border shadow-xs",
+                          act.status === 'Buka' ? "bg-emerald-500 text-white border-emerald-400" : "bg-gray-800/80 text-white border-gray-600"
+                        )}>
+                          {act.status}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {!img && (
+                      <div className="flex items-center gap-1.5 mb-1">
                         <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
                           {tingkatan}
                         </span>
@@ -1366,10 +1394,10 @@ export default function HomePage() {
                           </span>
                         )}
                       </div>
-                      <h5 className="text-sm font-black text-gray-800 leading-snug font-display line-clamp-2">
-                        {title}
-                      </h5>
-                    </div>
+                    )}
+                    <h5 className="text-sm font-black text-gray-800 leading-snug font-display line-clamp-2">
+                      {title}
+                    </h5>
                   </div>
 
                   {act.deskripsi && (
@@ -1800,14 +1828,46 @@ export default function HomePage() {
                       const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
                       const loc = act.lokasiPelatihan || 'Pusdiklat HW Jateng';
                       const date = act.tanggalPelatihan || 'Jadwal Aktif';
+                      const tingkatan = act.jenisPelatihan || act.tingkatan || 'Jaya Melati';
+                      const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl;
+                      const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
 
                       return (
-                        <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs">
+                        <div key={act.id || idx} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 hover:border-amber-300 hover:bg-white transition-all shadow-xs overflow-hidden">
+                          {img && (
+                            <div className="h-36 w-full rounded-xl overflow-hidden bg-gray-100 relative -mt-1">
+                              <img 
+                                src={getCorsSafeUrl(img, act.id) || img} 
+                                alt={title} 
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover" 
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                                }}
+                              />
+                              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
+                                {tingkatan}
+                              </div>
+                              {act.status && (
+                                <div className={cn(
+                                  "absolute top-2 right-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border shadow-xs",
+                                  act.status === 'Buka' ? "bg-emerald-500 text-white border-emerald-400" : "bg-gray-800/80 text-white border-gray-600"
+                                )}>
+                                  {act.status}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <div className="flex items-start justify-between gap-2">
                             <div className="space-y-0.5">
-                              <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
-                                {act.jenisPelatihan || act.tingkatan || 'Jaya Melati'}
-                              </span>
+                              {!img && (
+                                <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
+                                  {tingkatan}
+                                </span>
+                              )}
                               <h4 className="text-sm font-black text-gray-800 leading-snug font-display">{title}</h4>
                             </div>
                           </div>

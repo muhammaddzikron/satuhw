@@ -1760,6 +1760,20 @@ export const sheetsService = {
     return { success: true };
   },
 
+  async submitTestSubmission(id: string, submission: any): Promise<any> {
+    if (IS_API_VALID) {
+      this.post({ 
+        action: 'submitTestSubmission', 
+        id, 
+        testType: submission.testType,
+        score: submission.score,
+        data: typeof submission === 'string' ? submission : JSON.stringify(submission)
+      }).catch(() => {});
+    }
+    const updated = await firestoreService.submitTestSubmission(id, submission);
+    return { success: true, application: updated };
+  },
+
   async updateGrade(id: string, nilai: any): Promise<any> {
     const isObj = nilai && typeof nilai === 'object';
     const gradeStr = isObj ? (nilai.grade || '') : String(nilai || '');

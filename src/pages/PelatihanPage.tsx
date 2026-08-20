@@ -37,7 +37,13 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
-import { getCorsSafeUrl } from '../lib/utils';
+import { getCorsSafeUrl, getDriveDirectLink, cn } from '../lib/utils';
+import { ParticipantTestModal } from '../components/training/ParticipantTestModal';
+import { 
+  DEFAULT_PRE_TEST_SETTINGS, 
+  DEFAULT_POST_TEST_SETTINGS, 
+  isTestCurrentlyOpen 
+} from '../data/trainingQuestions';
 
 export interface TrainingProgram {
   id: 'Jati 1' | 'Jati 2' | 'Jari 1';
@@ -211,6 +217,18 @@ export interface TrainingActivityItem {
   deskripsi?: string;
   status?: 'Buka' | 'Tutup' | string;
   tataTertib?: string[];
+  gambarUrl?: string;
+  imageUrl?: string;
+  gambar?: string;
+  posterUrl?: string;
+  thumbnailUrl?: string;
+  coverImage?: string;
+  pelatih?: string | string[];
+  asistenPelatih?: string | string[];
+  biayaPelatihan?: string;
+  rekeningPembiayaan?: string;
+  noWhatsappPanitia?: string;
+  proposalUrl?: string;
 }
 
 export const DEFAULT_TRAINING_ACTIVITIES: TrainingActivityItem[] = [
@@ -274,6 +292,7 @@ export default function PelatihanPage() {
   const [selectedActivity, setSelectedActivity] = useState<TrainingActivityItem | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<'Jati 1' | 'Jati 2' | 'Jari 1'>('Jati 1');
   const [perspective, setPerspective] = useState<'peserta' | 'admin'>('peserta');
+  const [viewOtherTrainings, setViewOtherTrainings] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<any[]>([]);
@@ -303,6 +322,10 @@ export default function PelatihanPage() {
   const [activeEditSession, setActiveEditSession] = useState<string | null>(null);
   const [savingAttendance, setSavingAttendance] = useState<Record<string, boolean>>({});
 
+  // Pre Test & Post Test states
+  const [activeTestModal, setActiveTestModal] = useState<'pre_test' | 'post_test' | null>(null);
+  const [trainingSettings, setTrainingSettings] = useState<any>(null);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -315,6 +338,10 @@ export default function PelatihanPage() {
           sheetsService.getSettings(),
           sheetsService.getActivities()
         ]);
+
+        if (settingsData) {
+          setTrainingSettings(settingsData);
+        }
 
         if (settingsData?.assignedTasks) {
           const parsed = Array.isArray(settingsData.assignedTasks) 
@@ -347,6 +374,9 @@ export default function PelatihanPage() {
       }
 
       const unsubSettings = sheetsService.subscribeToSettings((settingsData: any) => {
+        if (settingsData) {
+          setTrainingSettings(settingsData);
+        }
         if (settingsData && settingsData.trainingActivities !== undefined) {
           const acts = (Array.isArray(settingsData.trainingActivities)
             ? settingsData.trainingActivities
@@ -583,6 +613,13 @@ export default function PelatihanPage() {
       }
     }
   }, [selectedActivity, applications, perspective, user]);
+
+  // Auto-open active participant dashboard if user is approved and not explicitly browsing other trainings
+  useEffect(() => {
+    if (perspective === 'peserta' && approvedUserApps.length > 0 && !selectedActivity && !viewOtherTrainings) {
+      openApprovedPortal(approvedUserApps[0], 'beranda');
+    }
+  }, [approvedUserApps, selectedActivity, viewOtherTrainings, perspective]);
 
   // Helper for attendance status
   const getAttendanceStatus = (attendanceMap: any, sesId: string): string => {
@@ -1044,321 +1081,343 @@ export default function PelatihanPage() {
               </div>
             );
           })()}
-          {!selectedActivity ? (
+
+          {(!selectedActivity || viewOtherTrainings) ? (
             /* --------------------------------------------------------------------- */
-            /* MODE A: DAFTAR KEGIATAN PELATIHAN HW JATENG (MAIN DEFAULT VIEW)       */
+            /* MODE A: DAFTAR KEGIATAN PELATIHAN YANG MASIH DIBUKA                   */
             /* --------------------------------------------------------------------- */
             <div className="space-y-5 animate-fade-in">
-              {/* Approved Participant Quick Access Banner */}
+              {/* Back to Active Training Portal Banner (if registered participant is browsing other trainings) */}
               {approvedUserApps.length > 0 && (
-                <div className="bg-gradient-to-br from-emerald-800 via-hw-green to-teal-800 text-white p-6 rounded-[2rem] shadow-md border border-emerald-400/30 space-y-4 relative overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/40 pb-4">
-                    <div className="space-y-1">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md text-amber-300 rounded-full text-[10px] font-black uppercase tracking-wider">
-                        <Sparkles size={13} className="text-amber-300" /> PESERTA TERVERIFIKASI & DISETUJUI
-                      </span>
-                      <h3 className="font-display font-black text-white text-lg leading-tight">
-                        Fitur & Portal Peserta Pelatihan Anda
-                      </h3>
-                      <p className="text-xs text-emerald-100 font-medium">
-                        Selamat! Status pendaftaran Anda ({approvedUserApps.map(a => a.pelatihanAkanDiikuti || 'Jati 1').join(', ')}) telah disetujui Admin. Akses cepat fitur peserta pelatihan di bawah ini:
-                      </p>
-                    </div>
+                <div className="bg-gradient-to-r from-emerald-800 via-hw-green to-teal-800 text-white p-4 sm:p-5 rounded-[2rem] shadow-md border border-emerald-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-white/20 backdrop-blur-md text-amber-300 rounded-full text-[10px] font-black uppercase tracking-wider">
+                      <CheckCircle2 size={12} className="text-amber-300" /> PESERTA AKTIF TERDAFTAR
+                    </span>
+                    <h4 className="font-display font-black text-white text-sm sm:text-base">
+                      Anda Terdaftar di: {approvedUserApps.map(a => a.pelatihanAkanDiikuti || 'Pelatihan HW').join(', ')}
+                    </h4>
+                    <p className="text-[11px] text-emerald-100 font-medium">
+                      Akses seluruh panel presensi, materi modul, tugas mandiri, dan piagam kelulusan Anda di Dasbor Pelatihan.
+                    </p>
                   </div>
-
-                  {/* Quick Access Feature Buttons */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
-                    <button
-                      onClick={() => openApprovedPortal(approvedUserApps[0], 'beranda')}
-                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-teal-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
-                        <Info size={16} />
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-wider">Beranda</div>
-                      <div className="text-[10px] text-emerald-100">Info & Rules</div>
-                    </button>
-
-                    <button
-                      onClick={() => openApprovedPortal(approvedUserApps[0], 'materi')}
-                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
-                        <BookOpen size={16} />
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-wider">Materi</div>
-                      <div className="text-[10px] text-emerald-100">Modul & PDF</div>
-                    </button>
-
-                    <button
-                      onClick={() => openApprovedPortal(approvedUserApps[0], 'sesi')}
-                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-emerald-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
-                        <CheckCircle2 size={16} />
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-wider">Absen</div>
-                      <div className="text-[10px] text-emerald-100">Presensi Sesi</div>
-                    </button>
-
-                    <button
-                      onClick={() => openApprovedPortal(approvedUserApps[0], 'tugas')}
-                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-blue-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
-                        <FileText size={16} />
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-wider">Tugas</div>
-                      <div className="text-[10px] text-emerald-100">Upload Tugas</div>
-                    </button>
-
-                    <button
-                      onClick={() => openApprovedPortal(approvedUserApps[0], 'piagam')}
-                      className="p-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-purple-400 text-emerald-950 flex items-center justify-center font-black mb-2 group-hover:scale-110 transition-transform">
-                        <Award size={16} />
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-wider">Piagam</div>
-                      <div className="text-[10px] text-emerald-100">E-Sertifikat</div>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setViewOtherTrainings(false);
+                      openApprovedPortal(approvedUserApps[0], 'beranda');
+                    }}
+                    className="px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:scale-[1.02] cursor-pointer self-start sm:self-center shrink-0 flex items-center gap-1.5"
+                  >
+                    <span>Buka Dasbor Pelatihan Saya</span>
+                    <ChevronRight size={15} />
+                  </button>
                 </div>
               )}
+
               <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <Calendar className="text-hw-green" size={20} />
                       <h3 className="font-display font-black text-gray-800 text-base uppercase tracking-wider">
-                        DAFTAR KEGIATAN PELATIHAN HW JATENG
+                        {approvedUserApps.length > 0 ? 'JADWAL PELATIHAN LAIN YANG MASIH DIBUKA' : 'INFORMASI & JADWAL PELATIHAN HW JATENG'}
                       </h3>
                     </div>
                     <p className="text-xs text-gray-400 mt-1 font-medium">
-                      Pilih kegiatan pelatihan resmi yang dibuat oleh Admin untuk mendaftar atau membuka portal kebutuhan pelatihan Anda.
+                      {approvedUserApps.length > 0 
+                        ? 'Daftar jenis kegiatan pelatihan resmi HW Jawa Tengah yang saat ini membuka pendaftaran peserta baru.'
+                        : 'Berikut informasi jenis pelatihan resmi HW Jawa Tengah yang sedang membuka pendaftaran. Silakan pilih kegiatan untuk mendaftar.'}
                     </p>
                   </div>
                   <span className="text-[10px] font-black bg-hw-green/10 text-hw-green px-3 py-1.5 rounded-full uppercase self-start sm:self-center">
-                    {trainingActivities.length} Kegiatan Aktif
+                    {trainingActivities.filter(act => act.status !== 'Tutup').length} Pelatihan Dibuka
                   </span>
                 </div>
 
-                {/* List of Training Activities */}
+                {/* List of Open Training Activities */}
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-12 space-y-3">
                     <Loader2 className="animate-spin text-hw-green" size={28} />
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Memuat kegiatan pelatihan...</p>
                   </div>
-                ) : trainingActivities.length > 0 ? (
+                ) : trainingActivities.filter(act => act.status !== 'Tutup').length > 0 ? (
                   <div className="grid grid-cols-1 gap-4">
-                    {trainingActivities.map((act) => {
-                      const { isVerified, userApplication } = isUserVerifiedForActivity(act.jenisPelatihan);
-                      const isClosed = act.status === 'Tutup';
+                    {trainingActivities
+                      .filter(act => act.status !== 'Tutup')
+                      .map((act) => {
+                        const { isVerified, userApplication } = isUserVerifiedForActivity(act.jenisPelatihan);
+                        const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl;
+                        const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
 
-                      return (
-                        <div 
-                          key={act.id}
-                          className={`p-5 rounded-[2rem] border transition-all space-y-3.5 relative overflow-hidden ${
-                            isVerified 
-                              ? 'bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50 border-emerald-200 shadow-md' 
-                              : 'bg-white hover:bg-gray-50/80 border-gray-150/80 shadow-xs'
-                          }`}
-                        >
-                          {/* Card Header Tag */}
-                          <div className="flex items-start justify-between gap-3 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-700 text-white shadow-xs">
-                                {act.jenisPelatihan || 'Pelatihan Jaya Melati'}
-                              </span>
-                              {isClosed ? (
-                                <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 uppercase tracking-wider">
-                                  Tutup Pendaftaran
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                        return (
+                          <div 
+                            key={act.id}
+                            className={`p-5 rounded-[2rem] border transition-all space-y-3.5 relative overflow-hidden ${
+                              isVerified 
+                                ? 'bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50 border-emerald-200 shadow-md' 
+                                : 'bg-white hover:bg-gray-50/80 border-gray-150/80 shadow-xs'
+                            }`}
+                          >
+                            {/* Thumbnail / Poster (Same size as Kegiatan) */}
+                            {img && (
+                              <div className="h-44 sm:h-52 w-full rounded-2xl overflow-hidden bg-gray-100 relative -mt-1 shadow-inner">
+                                <img 
+                                  src={getCorsSafeUrl(img, act.id) || img} 
+                                  alt={act.namaKegiatan} 
+                                  loading="lazy"
+                                  decoding="async"
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover" 
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                                  }}
+                                />
+                                <div className="absolute top-3 left-3 bg-black/65 backdrop-blur-md text-white text-[9.5px] font-black uppercase tracking-widest px-3 py-1 rounded-xl border border-white/20 shadow-xs">
+                                  {act.jenisPelatihan || 'Pelatihan HW'}
+                                </div>
+                                <span className="absolute top-3 right-3 text-[9.5px] font-black uppercase tracking-wider px-3 py-1 rounded-xl shadow-md backdrop-blur-xs bg-emerald-600 text-white">
                                   Pendaftaran Buka
                                 </span>
+                              </div>
+                            )}
+
+                            {/* Card Header Tag (if no thumbnail) */}
+                            {!img && (
+                              <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-700 text-white shadow-xs">
+                                    {act.jenisPelatihan || 'Pelatihan Jaya Melati'}
+                                  </span>
+                                  <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                                    Pendaftaran Buka
+                                  </span>
+                                </div>
+
+                                {isVerified && (
+                                  <span className="text-[9.5px] font-black bg-emerald-500 text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1 animate-pulse">
+                                    <CheckCircle2 size={12} /> Peserta Terverifikasi
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {img && isVerified && (
+                              <div className="flex items-center justify-end">
+                                <span className="text-[9.5px] font-black bg-emerald-500 text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1 animate-pulse">
+                                  <CheckCircle2 size={12} /> Peserta Terverifikasi
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Activity Title */}
+                            <div>
+                              <h4 className="font-display font-black text-gray-850 text-base leading-snug">
+                                {act.namaKegiatan}
+                              </h4>
+                              {act.deskripsi && (
+                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                  {act.deskripsi}
+                                </p>
                               )}
                             </div>
 
-                            {/* Status Verification Badge on Activity Card */}
-                            {isVerified && (
-                              <span className="text-[9.5px] font-black bg-emerald-500 text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1 animate-pulse">
-                                <CheckCircle2 size={12} /> Peserta Terverifikasi
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Activity Title */}
-                          <div>
-                            <h4 className="font-display font-black text-gray-850 text-base leading-snug">
-                              {act.namaKegiatan}
-                            </h4>
-                            {act.deskripsi && (
-                              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                {act.deskripsi}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Location, Date, Cost & Account Metadata */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 font-medium">
-                            <div className="flex items-center gap-2 bg-gray-50/80 px-3 py-2 rounded-xl border border-gray-100">
-                              <MapPin size={14} className="text-hw-green shrink-0" />
-                              <span className="truncate">{act.lokasiPelatihan || 'Lokasi Pusdiklat HW'}</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-gray-50/80 px-3 py-2 rounded-xl border border-gray-100">
-                              <Calendar size={14} className="text-hw-green shrink-0" />
-                              <span className="truncate">{act.tanggalPelatihan || 'Jadwal Reguler Kwarwil HW'}</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
-                              <span className="text-xs font-bold">💰 Biaya:</span>
-                              <span className="font-extrabold text-emerald-950">{act.biayaPelatihan || 'Rp 50.000'}</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
-                              <span className="text-xs font-bold">🏦 Rekening:</span>
-                              <span className="truncate text-[11px] font-mono">{act.rekeningPembiayaan || 'Bank BSI 7307427448'}</span>
-                            </div>
-                          </div>
-
-                          {/* Status & Tagihan Details for Member */}
-                          {userApplication && !isVerified && (
-                            <div className="bg-amber-50/90 p-4 rounded-2xl border border-amber-200/80 text-xs text-amber-900 space-y-2.5 shadow-xs">
-                              <div className="flex items-center justify-between">
-                                <span className="font-black text-[10px] uppercase tracking-wider text-amber-800 flex items-center gap-1">
-                                  <CreditCard size={13} className="text-amber-700" />
-                                  <span>Tagihan & Status Pendaftaran Anda</span>
-                                </span>
-                                <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                                  userApplication.status === 'pending' ? 'bg-amber-200 text-amber-900 border border-amber-300' : 'bg-red-200 text-red-900'
-                                }`}>
-                                  {userApplication.status === 'pending' ? 'Menunggu Verifikasi Admin' : 'Ditolak'}
-                                </span>
+                            {/* Location, Date, Cost & Account Metadata */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 font-medium">
+                              <div className="flex items-center gap-2 bg-gray-50/80 px-3 py-2 rounded-xl border border-gray-100">
+                                <MapPin size={14} className="text-hw-green shrink-0" />
+                                <span className="truncate">{act.lokasiPelatihan || 'Lokasi Pusdiklat HW'}</span>
                               </div>
-                              <p className="text-[11px] text-amber-800 leading-relaxed">
-                                Pendaftaran dikirim pada <strong>{new Date(userApplication.tanggalAjuan || Date.now()).toLocaleDateString('id-ID')}</strong>. Silahkan lakukan transfer pembiayaan untuk memverifikasi kepesertaan Anda:
-                              </p>
-                              
-                              <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-1 text-gray-800">
-                                <div className="flex justify-between text-[11px]">
-                                  <span className="text-gray-500 font-medium">Biaya Pelatihan:</span>
-                                  <span className="font-black text-emerald-700">{userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}</span>
+                              <div className="flex items-center gap-2 bg-gray-50/80 px-3 py-2 rounded-xl border border-gray-100">
+                                <Calendar size={14} className="text-hw-green shrink-0" />
+                                <span className="truncate">{act.tanggalPelatihan || 'Jadwal Reguler Kwarwil HW'}</span>
+                              </div>
+                              <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
+                                <span className="text-xs font-bold">💰 Biaya:</span>
+                                <span className="font-extrabold text-emerald-950">{act.biayaPelatihan || 'Rp 50.000'}</span>
+                              </div>
+                              <div className="flex items-center gap-2 bg-emerald-50/60 px-3 py-2 rounded-xl border border-emerald-100 text-emerald-900">
+                                <span className="text-xs font-bold">🏦 Rekening:</span>
+                                <span className="truncate text-[11px] font-mono">{act.rekeningPembiayaan || 'Bank BSI 7307427448'}</span>
+                              </div>
+                            </div>
+
+                            {/* Status & Tagihan Details for Member */}
+                            {userApplication && !isVerified && (
+                              <div className="bg-amber-50/90 p-4 rounded-2xl border border-amber-200/80 text-xs text-amber-900 space-y-2.5 shadow-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-black text-[10px] uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                                    <CreditCard size={13} className="text-amber-700" />
+                                    <span>Tagihan & Status Pendaftaran Anda</span>
+                                  </span>
+                                  <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                    userApplication.status === 'pending' ? 'bg-amber-200 text-amber-900 border border-amber-300' : 'bg-red-200 text-red-900'
+                                  }`}>
+                                    {userApplication.status === 'pending' ? 'Menunggu Verifikasi Admin' : 'Ditolak'}
+                                  </span>
                                 </div>
-                                <div className="flex justify-between text-[11px] pt-1 border-t border-gray-100">
-                                  <span className="text-gray-500 font-medium">Rekening Tujuan:</span>
-                                  <span className="font-bold text-gray-900 text-right">{userApplication.rekeningPembiayaan || act.rekeningPembiayaan || 'Bank BSI 7307427448 a.n. Kwarwil HW Jateng'}</span>
+                                <p className="text-[11px] text-amber-800 leading-relaxed">
+                                  Pendaftaran dikirim pada <strong>{new Date(userApplication.tanggalAjuan || Date.now()).toLocaleDateString('id-ID')}</strong>. Silahkan lakukan transfer pembiayaan untuk memverifikasi kepesertaan Anda:
+                                </p>
+                                
+                                <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-1 text-gray-800">
+                                  <div className="flex justify-between text-[11px]">
+                                    <span className="text-gray-500 font-medium">Biaya Pelatihan:</span>
+                                    <span className="font-black text-emerald-700">{userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}</span>
+                                  </div>
+                                  <div className="flex justify-between text-[11px] pt-1 border-t border-gray-100">
+                                    <span className="text-gray-500 font-medium">Rekening Tujuan:</span>
+                                    <span className="font-bold text-gray-900 text-right">{userApplication.rekeningPembiayaan || act.rekeningPembiayaan || 'Bank BSI 7307427448 a.n. Kwarwil HW Jateng'}</span>
+                                  </div>
                                 </div>
+
+                                <a
+                                  href={`https://wa.me/${String(userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Assalamu'alaikum Panitia, saya ${userApplication.nama || user?.namaLengkap} telah mendaftar pelatihan ${act.namaKegiatan}. Berikut bukti konfirmasi transfer pembiayaan (${userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}). Mohon konfirmasinya. Terima kasih.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+                                >
+                                  <MessageCircle size={15} />
+                                  <span>Konfirmasi Transfer via WhatsApp Panitia ({userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000'})</span>
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
+                              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                {isVerified ? 'Akses Kebutuhan Pelatihan Terbuka' : 'Syarat & Formulir Pendaftaran'}
                               </div>
 
-                              <a
-                                href={`https://wa.me/${String(userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Assalamu'alaikum Panitia, saya ${userApplication.nama || user?.namaLengkap} telah mendaftar pelatihan ${act.namaKegiatan}. Berikut bukti konfirmasi transfer pembiayaan (${userApplication.biayaPelatihan || act.biayaPelatihan || 'Rp 50.000'}). Mohon konfirmasinya. Terima kasih.`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
-                              >
-                                <MessageCircle size={15} />
-                                <span>Konfirmasi Transfer via WhatsApp Panitia ({userApplication.noWhatsappPanitia || act.noWhatsappPanitia || '089688754000'})</span>
-                              </a>
-                            </div>
-                          )}
-
-                          {/* Action Buttons */}
-                          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                              {isVerified ? 'Akses Kebutuhan Pelatihan Terbuka' : 'Syarat & Formulir Pendaftaran'}
-                            </div>
-
-                            <div className="flex gap-2">
-                              {isVerified ? (
-                                <button
-                                  onClick={() => {
-                                    setSelectedActivity(act);
-                                    if (['Jati 1', 'Jati 2', 'Jari 1'].includes(act.jenisPelatihan)) {
-                                      setSelectedLevel(act.jenisPelatihan as any);
-                                    }
-                                    setActiveTab('beranda');
-                                  }}
-                                  className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center gap-2 uppercase tracking-wider transition-all shadow-md hover:scale-[1.02] cursor-pointer"
-                                >
-                                  <span>Buka Portal Pelatihan Saya</span>
-                                  <ChevronRight size={16} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => navigate('/daftar-pelatihan', { state: { activity: act } })}
-                                  disabled={isClosed}
-                                  className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-1.5 uppercase tracking-wider transition-all ${
-                                    isClosed
-                                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                      : 'bg-hw-green hover:bg-emerald-700 text-white shadow-xs hover:scale-[1.02] cursor-pointer'
-                                  }`}
-                                >
-                                  <span>Daftar Kegiatan Ini</span>
-                                  <ChevronRight size={14} />
-                                </button>
-                              )}
+                              <div className="flex gap-2">
+                                {isVerified ? (
+                                  <button
+                                    onClick={() => {
+                                      setViewOtherTrainings(false);
+                                      setSelectedActivity(act);
+                                      if (['Jati 1', 'Jati 2', 'Jari 1'].includes(act.jenisPelatihan)) {
+                                        setSelectedLevel(act.jenisPelatihan as any);
+                                      }
+                                      setActiveTab('beranda');
+                                    }}
+                                    className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center gap-2 uppercase tracking-wider transition-all shadow-md hover:scale-[1.02] cursor-pointer"
+                                  >
+                                    <span>Buka Dasbor Pelatihan Saya</span>
+                                    <ChevronRight size={16} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => navigate('/daftar-pelatihan', { state: { activity: act } })}
+                                    className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 uppercase tracking-wider transition-all shadow-xs hover:scale-[1.02] cursor-pointer"
+                                  >
+                                    <span>Daftar Kegiatan Ini</span>
+                                    <ChevronRight size={14} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 ) : (
                   <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
                     <GraduationCap className="mx-auto text-gray-400" size={32} />
-                    <p className="text-xs text-gray-600 font-bold">Belum ada kegiatan pelatihan aktif yang terdaftar.</p>
-                    <p className="text-[10px] text-gray-400">Pengurus HW Jateng akan mengumumkan jadwal kegiatan pelatihan terbaru di sini.</p>
-                    <button
-                      onClick={() => navigate('/daftar-pelatihan')}
-                      className="mt-2 inline-flex items-center gap-1 bg-hw-green text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors"
-                    >
-                      Formulir Pendaftaran Umum
-                    </button>
+                    <p className="text-xs text-gray-600 font-bold">Saat ini belum ada jadwal pelatihan baru yang sedang dibuka.</p>
+                    <p className="text-[10px] text-gray-400">Pengurus HW Jateng akan mengumumkan jadwal kegiatan pelatihan berikutnya di portal ini.</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
             /* --------------------------------------------------------------------- */
-            /* MODE B: PORTAL KEBUTUHAN PELATIHAN (WHEN A VERIFIED ACTIVITY IS OPENED)*/
+            /* MODE B: DASBOR PELATIHAN PESERTA AKTIF (PANEL PRESENSI, TUGAS, DLL)  */
             /* --------------------------------------------------------------------- */
             <div className="space-y-6 animate-fade-in">
-              {/* Back to Activity List Header */}
-              <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-emerald-100 shadow-xs">
-                <button
-                  onClick={() => setSelectedActivity(null)}
-                  className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-                >
-                  <ArrowLeft size={16} />
-                  <span>Daftar Kegiatan Pelatihan</span>
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black bg-emerald-500 text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Peserta Terverifikasi
-                  </span>
-                </div>
-              </div>
-
-              {/* Verified Activity Header Summary */}
-              <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-2 text-left">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-700 text-white">
-                    {selectedActivity.jenisPelatihan || selectedLevel}
-                  </span>
-                  {userApp?.statusKelulusan === 'Lulus' && (
-                    <span className="text-[10px] font-black bg-amber-500 text-white px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles size={12} /> LULUS PELATIHAN 🎉
+              {/* Participant Dashboard Top Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-emerald-100 shadow-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {approvedUserApps.length > 1 ? (
+                    <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-xl">
+                      {approvedUserApps.map((app: any) => {
+                        const isThisSelected = selectedActivity?.jenisPelatihan === app.pelatihanAkanDiikuti || selectedLevel === app.pelatihanAkanDiikuti;
+                        return (
+                          <button
+                            key={app.id}
+                            onClick={() => openApprovedPortal(app, activeTab)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              isThisSelected
+                                ? 'bg-hw-green text-white shadow-xs'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            {app.pelatihanAkanDiikuti || 'Pelatihan'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-black bg-emerald-500 text-white px-3 py-1.5 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
+                      <CheckCircle2 size={13} /> Peserta Aktif Terverifikasi
                     </span>
                   )}
                 </div>
-                <h3 className="font-display font-black text-gray-800 text-lg">
-                  {selectedActivity.namaKegiatan}
-                </h3>
-                <p className="text-xs text-gray-500">
-                  {selectedActivity.lokasiPelatihan || 'Pusdiklat HW'} • {selectedActivity.tanggalPelatihan || 'Jadwal Pelatihan'}
-                </p>
+
+                <button
+                  onClick={() => {
+                    setViewOtherTrainings(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-emerald-50 hover:text-emerald-800 text-gray-700 text-xs font-black uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all cursor-pointer self-start sm:self-center border border-gray-200"
+                >
+                  <Calendar size={15} className="text-hw-green" />
+                  <span>Jadwal Pelatihan Lain yang Dibuka</span>
+                </button>
               </div>
+
+              {/* Verified Activity Header Summary */}
+              {(() => {
+                const rawImg = selectedActivity.gambarUrl || selectedActivity.imageUrl || selectedActivity.gambar || selectedActivity.posterUrl || selectedActivity.coverImage || selectedActivity.thumbnailUrl;
+                const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
+
+                return (
+                  <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-3 text-left overflow-hidden relative">
+                    {img && (
+                      <div className="h-36 sm:h-44 w-full rounded-2xl overflow-hidden bg-gray-100 relative -mt-1 shadow-inner">
+                        <img 
+                          src={getCorsSafeUrl(img, selectedActivity.id) || img} 
+                          alt={selectedActivity.namaKegiatan} 
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                          }}
+                        />
+                        <div className="absolute top-3 left-3 bg-black/65 backdrop-blur-md text-white text-[9.5px] font-black uppercase tracking-widest px-3 py-1 rounded-xl border border-white/20 shadow-xs">
+                          {selectedActivity.jenisPelatihan || selectedLevel}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-700 text-white">
+                        {selectedActivity.jenisPelatihan || selectedLevel}
+                      </span>
+                      {userApp?.statusKelulusan === 'Lulus' && (
+                        <span className="text-[10px] font-black bg-amber-500 text-white px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                          <Sparkles size={12} /> LULUS PELATIHAN 🎉
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-display font-black text-gray-800 text-lg sm:text-xl">
+                      {selectedActivity.namaKegiatan}
+                    </h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      {selectedActivity.lokasiPelatihan || 'Pusdiklat HW'} • {selectedActivity.tanggalPelatihan || 'Jadwal Pelatihan'}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Portal Navigation Tabs: Beranda, Materi, Sesi & Absen, Tugas, Piagam */}
               <div className="space-y-2">
@@ -1689,8 +1748,181 @@ export default function PelatihanPage() {
                 {/* 4. TUGAS TIM PELATIH TAB */}
                 {activeTab === 'tugas' && (() => {
                   const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
+                  const preSettings = trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
+                  const postSettings = trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
+
+                  const isPreOpen = isTestCurrentlyOpen(preSettings);
+                  const isPostOpen = isTestCurrentlyOpen(postSettings);
+
+                  const hasDonePre = userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '');
+                  const hasDonePost = userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '');
+
                   return (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 text-left">
+                      
+                      {/* PENUGASAN UTAMA: PRE TEST & POST TEST */}
+                      <div className="bg-gradient-to-br from-emerald-800 via-hw-green to-teal-900 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+                              <Sparkles size={20} className="text-amber-300" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-white/10 px-2 py-0.5 rounded-full">
+                                Evaluasi Akademik & Kemuhammadiyahan
+                              </span>
+                              <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-wide">
+                                Penugasan Wajib: Pre Test & Post Test Pelatihan
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                          
+                          {/* PRE TEST CARD */}
+                          <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-emerald-100 flex flex-col justify-between space-y-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                                  1. Pre Test (Awal)
+                                </span>
+                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                  hasDonePre 
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    : isPreOpen 
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
+                                      : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {hasDonePre ? 'Sudah Dikerjakan ✓' : isPreOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                </span>
+                              </div>
+
+                              <h4 className="text-sm font-black text-gray-800">
+                                {preSettings.title || 'Pre Test Kepanduan Hizbul Wathan'}
+                              </h4>
+                              <p className="text-[11px] text-gray-500 line-clamp-2">
+                                {preSettings.description || 'Tes awal untuk mengukur pemahaman materi dasar Kepanduan Hizbul Wathan dan Kemuhammadiyahan.'}
+                              </p>
+
+                              <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
+                                <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                                  <Clock size={12} /> Durasi: {preSettings.durationMinutes || 60} Menit • 50 Butir Soal
+                                </div>
+                                <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
+                                  <Calendar size={11} /> 
+                                  Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* PRE TEST ACTION & SCORE */}
+                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
+                              {hasDonePre ? (
+                                <>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Pre Test:</span>
+                                    <div className="text-xl font-black text-emerald-700 font-display">
+                                      {userApp.preTestScore} / 100
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => setActiveTestModal('pre_test')}
+                                    className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black uppercase tracking-wider border border-emerald-200 transition-all cursor-pointer"
+                                  >
+                                    Tinjau Lembar Hasil
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => setActiveTestModal('pre_test')}
+                                  disabled={!isPreOpen}
+                                  className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    isPreOpen
+                                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01]'
+                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <ClipboardList size={15} />
+                                  {isPreOpen ? 'Mulai Kerjakan Pre Test' : 'Akses Pre Test Belum Dibuka'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* POST TEST CARD */}
+                          <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-teal-100 flex flex-col justify-between space-y-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
+                                  2. Post Test (Akhir)
+                                </span>
+                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                  hasDonePost 
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    : isPostOpen 
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
+                                      : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {hasDonePost ? 'Sudah Dikerjakan ✓' : isPostOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                </span>
+                              </div>
+
+                              <h4 className="text-sm font-black text-gray-800">
+                                {postSettings.title || 'Post Test Kelulusan Pelatihan HW'}
+                              </h4>
+                              <p className="text-[11px] text-gray-500 line-clamp-2">
+                                {postSettings.description || 'Evaluasi akhir materi pelatihan Jaya Melati untuk syarat kelulusan dan penerbitan sertifikat piagam.'}
+                              </p>
+
+                              <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
+                                <div className="flex items-center gap-1.5 text-teal-800 font-bold">
+                                  <Clock size={12} /> Durasi: {postSettings.durationMinutes || 60} Menit • 50 Butir Soal
+                                </div>
+                                <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
+                                  <Calendar size={11} /> 
+                                  Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* POST TEST ACTION & SCORE */}
+                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
+                              {hasDonePost ? (
+                                <>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Post Test:</span>
+                                    <div className="text-xl font-black text-teal-700 font-display">
+                                      {userApp.postTestScore} / 100
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => setActiveTestModal('post_test')}
+                                    className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-black uppercase tracking-wider border border-teal-200 transition-all cursor-pointer"
+                                  >
+                                    Tinjau Lembar Hasil
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => setActiveTestModal('post_test')}
+                                  disabled={!isPostOpen}
+                                  className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    isPostOpen
+                                      ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01]'
+                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <ClipboardList size={15} />
+                                  {isPostOpen ? 'Mulai Kerjakan Post Test' : 'Akses Post Test Belum Dibuka'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+
                       {/* Standard Syllabus Assignments */}
                       <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
                         <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
@@ -2225,6 +2457,25 @@ export default function PelatihanPage() {
           </motion.div>
         </div>
       )}
+
+      {/* PARTICIPANT PRE TEST / POST TEST MODAL */}
+      <ParticipantTestModal
+        isOpen={activeTestModal !== null}
+        onClose={() => setActiveTestModal(null)}
+        testType={activeTestModal || 'pre_test'}
+        userApplication={userApp}
+        settings={trainingSettings}
+        onTestSubmitted={async (res) => {
+          // Update userApp state optimistically and reload data
+          setUserApp((prev: any) => prev ? {
+            ...prev,
+            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}Score`]: res.score,
+            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}Data`]: JSON.stringify(res),
+            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}SubmittedAt`]: res.submittedAt,
+          } : prev);
+          await loadData();
+        }}
+      />
     </div>
   );
 }

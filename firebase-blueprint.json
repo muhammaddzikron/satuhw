@@ -111,7 +111,13 @@
         "remark": { "type": "string" },
         "statusKelulusan": { "type": "string" },
         "lokasiPelatihan": { "type": "string" },
-        "tanggalPelatihan": { "type": "string" }
+        "tanggalPelatihan": { "type": "string" },
+        "preTestScore": { "type": "number" },
+        "preTestData": { "type": "string" },
+        "preTestSubmittedAt": { "type": "string" },
+        "postTestScore": { "type": "number" },
+        "postTestData": { "type": "string" },
+        "postTestSubmittedAt": { "type": "string" }
       },
       "required": ["id", "nama"]
     },

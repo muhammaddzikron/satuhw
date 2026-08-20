@@ -2392,12 +2392,15 @@ export const firestoreService = {
     };
   },
 
-  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string, remarkStr?: string, statusKelulusanStr?: string): Promise<any> {
+  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string, remarkStr?: string, statusKelulusanStr?: string, extraUpdates?: any): Promise<any> {
     const updates: any = {};
     if (tugasStr !== undefined) updates.tugas = tugasStr;
     if (nilaiStr !== undefined) updates.nilai = nilaiStr;
     if (remarkStr !== undefined) updates.remark = remarkStr;
     if (statusKelulusanStr !== undefined) updates.statusKelulusan = statusKelulusanStr;
+    if (extraUpdates && typeof extraUpdates === 'object') {
+      Object.assign(updates, extraUpdates);
+    }
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -2438,6 +2441,40 @@ export const firestoreService = {
           console.warn('Syncing member grade warning:', syncErr);
         }
       }
+    }
+    window.dispatchEvent(new Event('training_applications_updated'));
+    return updatedApp;
+  },
+
+  async submitTestSubmission(id: string, submission: any): Promise<any> {
+    const isPre = submission.testType === 'pre_test';
+    const updates: any = {};
+    if (isPre) {
+      updates.preTestScore = submission.score;
+      updates.preTestData = typeof submission === 'string' ? submission : JSON.stringify(submission);
+      updates.preTestSubmittedAt = submission.submittedAt || new Date().toISOString();
+    } else {
+      updates.postTestScore = submission.score;
+      updates.postTestData = typeof submission === 'string' ? submission : JSON.stringify(submission);
+      updates.postTestSubmittedAt = submission.submittedAt || new Date().toISOString();
+    }
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+      } catch (err) {
+        this.checkQuotaError(err);
+        if (!this.getIsQuotaExceeded()) console.error('Firestore submitTestSubmission error:', err);
+      }
+    }
+
+    const list = await this.getTrainingApplications();
+    const idx = list.findIndex(t => t.id === id);
+    let updatedApp = list[idx];
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...updates };
+      updatedApp = list[idx];
+      safeStorageSet('training_applications', list);
     }
     window.dispatchEvent(new Event('training_applications_updated'));
     return updatedApp;
