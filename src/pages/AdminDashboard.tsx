@@ -8793,12 +8793,12 @@ export default function AdminDashboard() {
           {/* ACTIVITY FORM MODAL */}
           <AnimatePresence>
             {isKegiatanModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 py-6 sm:py-10 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col my-auto"
+                  className="bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-lg w-full overflow-hidden max-h-[calc(100dvh-3rem)] sm:max-h-[85vh] flex flex-col my-auto"
                 >
                   <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
                     <div>
@@ -12719,8 +12719,8 @@ export default function AdminDashboard() {
 
         {/* MODAL KEGIATAN PELATIHAN */}
         {isActivityModalOpen && (
-          <div className="fixed inset-0 bg-black/65 backdrop-blur-xs z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto">
-            <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] my-auto flex flex-col border border-gray-100 shadow-2xl animate-fade-in overflow-hidden relative">
+          <div className="fixed inset-0 bg-black/65 backdrop-blur-xs z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 py-6 sm:py-10 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-xl w-full max-h-[calc(100dvh-3rem)] sm:max-h-[85vh] my-auto flex flex-col border border-gray-100 shadow-2xl animate-fade-in overflow-hidden relative">
               {/* Modal Sticky Header */}
               <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 bg-white shrink-0">
                 <div className="flex items-center gap-2.5">

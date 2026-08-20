@@ -299,7 +299,7 @@ export default function PelatihanPage() {
   const [userApp, setUserApp] = useState<any | null>(null);
   
   // Tab within verified participant portal
-  const [activeTab, setActiveTab] = useState<'beranda' | 'materi' | 'sesi' | 'tugas' | 'piagam'>('beranda');
+  const [activeTab, setActiveTab] = useState<'materi' | 'presensi' | 'tugas' | 'piagam'>('materi');
   const [materiList, setMateriList] = useState<any[]>([]);
   const [loadingMateri, setLoadingMateri] = useState(false);
   
@@ -543,7 +543,7 @@ export default function PelatihanPage() {
     );
   }) : [];
 
-  const openApprovedPortal = (app: any, targetTab: 'beranda' | 'materi' | 'sesi' | 'tugas' | 'piagam' = 'materi') => {
+  const openApprovedPortal = (app: any, targetTab: 'materi' | 'presensi' | 'tugas' | 'piagam' = 'materi') => {
     const normLevel = normalizeLevelCode(app?.pelatihanAkanDiikuti);
     const matchedAct = trainingActivities.find(act => normalizeLevelCode(act.jenisPelatihan) === normLevel) || {
       id: app?.id || 'act-approved',
@@ -617,7 +617,7 @@ export default function PelatihanPage() {
   // Auto-open active participant dashboard if user is approved and not explicitly browsing other trainings
   useEffect(() => {
     if (perspective === 'peserta' && approvedUserApps.length > 0 && !selectedActivity && !viewOtherTrainings) {
-      openApprovedPortal(approvedUserApps[0], 'beranda');
+      openApprovedPortal(approvedUserApps[0], 'materi');
     }
   }, [approvedUserApps, selectedActivity, viewOtherTrainings, perspective]);
 
@@ -1104,7 +1104,7 @@ export default function PelatihanPage() {
                   <button
                     onClick={() => {
                       setViewOtherTrainings(false);
-                      openApprovedPortal(approvedUserApps[0], 'beranda');
+                      openApprovedPortal(approvedUserApps[0], 'materi');
                     }}
                     className="px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:scale-[1.02] cursor-pointer self-start sm:self-center shrink-0 flex items-center gap-1.5"
                   >
@@ -1419,818 +1419,893 @@ export default function PelatihanPage() {
                 );
               })()}
 
-              {/* Portal Navigation Tabs: Beranda, Materi, Sesi & Absen, Tugas, Piagam */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Menu & Fitur Portal Peserta
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                    Pilih Fitur Pelatihan
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                  {[
-                    { id: 'beranda', title: 'Beranda', sub: 'Info & Rules', icon: Info, color: 'bg-teal-500' },
-                    { id: 'materi', title: 'Materi', sub: 'Modul & PDF', icon: BookOpen, color: 'bg-amber-500' },
-                    { id: 'sesi', title: 'Absen', sub: 'Presensi Sesi', icon: CheckCircle2, color: 'bg-emerald-500' },
-                    { id: 'tugas', title: 'Tugas', sub: 'Upload Tugas', icon: FileText, color: 'bg-blue-500' },
-                    { id: 'piagam', title: 'Piagam', sub: 'E-Sertifikat', icon: Award, color: 'bg-purple-500' }
-                  ].map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer shadow-xs flex flex-col justify-between group ${
-                          isActive
-                            ? 'bg-gradient-to-br from-emerald-800 via-hw-green to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-md scale-[1.02]'
-                            : 'bg-white hover:bg-emerald-50/50 text-gray-800 border-gray-200 hover:border-emerald-300 hover:scale-[1.01]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black transition-transform group-hover:scale-110 ${
-                            isActive ? 'bg-white text-emerald-950 shadow-xs' : `${tab.color} text-white`
-                          }`}>
-                            <Icon size={16} />
-                          </div>
-                          {isActive && (
-                            <span className="text-[9px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-md">
-                              Aktif
-                            </span>
-                          )}
-                        </div>
-                        <div>
-                          <div className={`text-xs font-black uppercase tracking-wider ${isActive ? 'text-white' : 'text-gray-800'}`}>
-                            {tab.title}
-                          </div>
-                          <div className={`text-[10px] font-medium ${isActive ? 'text-emerald-100' : 'text-gray-400'}`}>
-                            {tab.sub}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Portal Navigation Tabs: 4 Pure Participant Menus */}
+              {(() => {
+                const attendanceMap = parseAttendance(userApp);
+                const totalCurriculumSessions = program.sessions.length;
+                const attendedSessionsCount = program.sessions.filter((ses) => {
+                  const st = getAttendanceStatus(attendanceMap, ses.id);
+                  return st === 'hadir';
+                }).length;
+                const attendancePercentage = totalCurriculumSessions > 0 
+                  ? Math.round((attendedSessionsCount / totalCurriculumSessions) * 100) 
+                  : 0;
+                const isPiagamValidated = userApp && (userApp.statusKelulusan === 'Lulus' || userApp.validasiPiagam === true);
 
-              {/* TAB CONTENTS */}
-              <div className="min-h-[300px]">
-                {/* 1. BERANDA & TATA TERTIB TAB */}
-                {activeTab === 'beranda' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
-                    {/* Activity Overview */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                      <div className="flex items-center gap-2">
-                        <ScrollText className="text-hw-green" size={18} />
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Penjelasan Kegiatan Pelatihan
-                        </h4>
-                      </div>
-                      <p className="text-xs text-gray-600 leading-relaxed">
-                        {selectedActivity.deskripsi || program.description}
-                      </p>
-                    </div>
-
-                    {/* Tata Tertib Peserta Pelatihan */}
-                    <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Shield className="text-emerald-600" size={18} />
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Tata Tertib Peserta Pelatihan HW Jateng
-                        </h4>
-                      </div>
-                      <p className="text-[11px] text-gray-500">
-                        Seluruh peserta wajib memahami dan mematuhi seluruh tata tertib pelaksanaan kegiatan selama pelatihan berlangsung:
-                      </p>
-                      <ul className="space-y-2.5 pt-1">
-                        {(selectedActivity.tataTertib || [
-                          'Kedisiplinan & Ketepatan Waktu: Peserta wajib hadir 15 menit sebelum setiap sesi materi dimulai.',
-                          'Ketertiban Pakaian: Mengenakan seragam resmi Hizbul Wathan lengkap dengan atribut kelengkapan.',
-                          'Presensi Sesi Mandiri: Peserta wajib melakukan presensi pada setiap sesi materi yang diselenggarakan.',
-                          'Pengerjaan Tugas: Mengikuti seluruh rangkaian kegiatan dan mengumpulkan semua penugasan yang dibuat oleh Tim Pelatih.',
-                          'Adab Kepanduan: Menjaga adab Islami, sopan santun, serta saling menghormati sesama peserta dan pelatih.',
-                          'Ketentuan Kelulusan & Piagam: Piagam kelulusan hanya dapat didownload oleh peserta yang berstatus LULUS setelah dievaluasi oleh Tim Pelatih.'
-                        ]).map((rule, idx) => (
-                          <li key={idx} className="flex gap-2.5 text-xs text-gray-700 bg-emerald-50/40 p-3 rounded-2xl border border-emerald-100/60 leading-relaxed">
-                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                              {idx + 1}
-                            </span>
-                            <span>{rule}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* User Participant Status Card */}
-                    {userApp && (
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Informasi Kepesertaan Anda
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                          <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-1">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">Nama Peserta</span>
-                            <p className="font-bold text-gray-800">{userApp.nama || user?.namaLengkap}</p>
-                          </div>
-                          <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-1">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">Asal Kwarda / Qabilah</span>
-                            <p className="font-bold text-gray-800">{userApp.asalDaerah || 'Jawa Tengah'}</p>
-                          </div>
-                          <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-1">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">Status Kelulusan</span>
-                            <p className={`font-black ${userApp.statusKelulusan === 'Lulus' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                              {userApp.statusKelulusan || 'Proses Pelatihan'}
-                            </p>
-                          </div>
-                          <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-1">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">Nilai Evaluasi Pelatih</span>
-                            <p className="font-black text-gray-800">{userApp.nilai || 'Belum Dinilai'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {/* 2. MATERI PELATIHAN TAB */}
-                {activeTab === 'materi' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Materi & Modul Pembelajaran Jaya Melati 1 (Jati 1)
-                        </h4>
-                        <span className="text-[9px] font-black bg-hw-green/10 text-hw-green px-2.5 py-1 rounded-md uppercase">
-                          {materiList.length} Berkas
+                return (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Menu & Fitur Portal Peserta Pelatihan
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                          4 Menu Pelatihan
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        Unduh berkas materi, slide presentasi, dan panduan kurikulum pelatihan Jaya Melati 1 yang diunggah oleh Tim Pelatih.
-                      </p>
-                    </div>
-
-                    {loadingMateri ? (
-                      <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                        <Loader2 className="animate-spin text-hw-green" size={24} />
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest animate-pulse">Memuat berkas materi Jati 1...</p>
-                      </div>
-                    ) : materiList.length === 0 ? (
-                      <div className="bg-white p-8 rounded-3xl border border-gray-100 text-center text-gray-400 shadow-sm">
-                        <FileText size={28} className="mx-auto text-gray-300 mb-2" />
-                        <p className="text-xs font-bold">Belum ada materi penunjang Jaya Melati 1 yang diunggah.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-3">
-                        {materiList.map((item, index) => (
-                          <div
-                            key={`materi-item-${item.id}-${index}`}
-                            className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 hover:shadow-sm transition-all flex items-center gap-4 text-left"
-                          >
-                            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
-                              <img 
-                                src={getCorsSafeUrl(item.coverImage, item.updatedAt || item.id) || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
-                                alt={item.judul} 
-                                className="w-full h-full object-cover" 
-                              />
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <h5 className="font-display font-bold text-gray-800 text-xs leading-tight break-words">
-                                {item.judul}
-                              </h5>
-                              <p className="text-gray-400 text-[10px] font-medium mt-1">
-                                Tanggal: {item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : '-'}
-                              </p>
-                            </div>
-
-                            <div className="shrink-0 ml-auto">
-                              {item.driveUrl && (
-                                <a 
-                                  href={item.driveUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 px-3 py-2 bg-hw-green/10 text-hw-green hover:bg-hw-green hover:text-white rounded-xl transition-all font-black text-xs uppercase"
-                                  title="Unduh Berkas Materi"
-                                >
-                                  <Download size={14} />
-                                  <span>Unduh</span>
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {/* 3. SESI & ABSEN TAB */}
-                {activeTab === 'sesi' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Sesi Materi & Presensi Kehadiran Jaya Melati 1 (Jati 1)
-                        </h4>
-                        <span className="text-[9px] font-black bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md uppercase">
-                          {program.sessions.length} Sesi
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400">
-                        Lakukan presensi kehadiran mandiri pada setiap sesi materi pelatihan Jaya Melati 1 (Jati 1) yang diselenggarakan.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {program.sessions.map((ses) => {
-                        const attendanceMap = parseAttendance(userApp);
-                        const status = getAttendanceStatus(attendanceMap, ses.id);
-                        const timestamp = getAttendanceTimestamp(attendanceMap, ses.id);
-                        const isEditing = activeEditSession === ses.id;
-                        
-                        return (
-                          <div key={ses.id} className="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-xs flex flex-col gap-3 text-left">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md">
-                                  {ses.id}
-                                </span>
-                                <h5 className="text-xs font-black text-gray-800 mt-1">{ses.title}</h5>
-                                <p className="text-[11px] text-gray-500 leading-normal">{ses.description}</p>
-                              </div>
-                              
-                              <div className="shrink-0 pt-1 flex items-center gap-1.5">
-                                {status === 'hadir' ? (
-                                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white uppercase flex items-center gap-1">
-                                    <Check size={12} /> Hadir
-                                  </span>
-                                ) : status === 'izin' ? (
-                                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-500 text-white uppercase">
-                                    Izin
-                                  </span>
-                                ) : status === 'absen' ? (
-                                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500 text-white uppercase">
-                                    Absen
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gray-100 text-gray-400 uppercase">
-                                    Belum Presensi
-                                  </span>
-                                )}
-
-                                {!isEditing && (
-                                  <button
-                                    onClick={() => setActiveEditSession(ses.id)}
-                                    className="p-1.5 text-gray-400 hover:text-hw-green hover:bg-gray-100 rounded-lg transition-all"
-                                    title="Isi / Ubah Presensi"
-                                  >
-                                    <Pencil size={12} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {timestamp && (
-                              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg w-max font-bold font-sans">
-                                <Clock size={11} className="text-gray-400" />
-                                <span>Presensi Tercatat: {timestamp}</span>
-                              </div>
-                            )}
-
-                            {isEditing && (
-                              <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex flex-col gap-2">
-                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
-                                  Pilih Status Presensi Sesi Ini:
-                                </span>
-                                <div className="grid grid-cols-4 gap-2">
-                                  <button
-                                    disabled={savingAttendance[ses.id]}
-                                    onClick={() => handleUserSubmitAttendance(ses.id, 'hadir')}
-                                    className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1 cursor-pointer"
-                                  >
-                                    {savingAttendance[ses.id] ? <Loader2 size={12} className="animate-spin" /> : 'Hadir ✓'}
-                                  </button>
-
-                                  <button
-                                    disabled={savingAttendance[ses.id]}
-                                    onClick={() => handleUserSubmitAttendance(ses.id, 'izin')}
-                                    className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1 cursor-pointer"
-                                  >
-                                    Izin
-                                  </button>
-
-                                  <button
-                                    disabled={savingAttendance[ses.id]}
-                                    onClick={() => handleUserSubmitAttendance(ses.id, 'absen')}
-                                    className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-1 cursor-pointer"
-                                  >
-                                    Tidak Hadir
-                                  </button>
-
-                                  <button
-                                    onClick={() => setActiveEditSession(null)}
-                                    className="py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    Batal
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* 4. TUGAS TIM PELATIH TAB */}
-                {activeTab === 'tugas' && (() => {
-                  const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
-                  const preSettings = trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
-                  const postSettings = trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
-
-                  const isPreOpen = isTestCurrentlyOpen(preSettings);
-                  const isPostOpen = isTestCurrentlyOpen(postSettings);
-
-                  const hasDonePre = userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '');
-                  const hasDonePost = userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '');
-
-                  return (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 text-left">
-                      
-                      {/* PENUGASAN UTAMA: PRE TEST & POST TEST */}
-                      <div className="bg-gradient-to-br from-emerald-800 via-hw-green to-teal-900 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-                              <Sparkles size={20} className="text-amber-300" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-white/10 px-2 py-0.5 rounded-full">
-                                Evaluasi Akademik & Kemuhammadiyahan
-                              </span>
-                              <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-wide">
-                                Penugasan Wajib: Pre Test & Post Test Pelatihan
-                              </h3>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                          
-                          {/* PRE TEST CARD */}
-                          <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-emerald-100 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-                                  1. Pre Test (Awal)
-                                </span>
-                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                                  hasDonePre 
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                    : isPreOpen 
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
-                                      : 'bg-gray-100 text-gray-500'
-                                }`}>
-                                  {hasDonePre ? 'Sudah Dikerjakan ✓' : isPreOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
-                                </span>
-                              </div>
-
-                              <h4 className="text-sm font-black text-gray-800">
-                                {preSettings.title || 'Pre Test Kepanduan Hizbul Wathan'}
-                              </h4>
-                              <p className="text-[11px] text-gray-500 line-clamp-2">
-                                {preSettings.description || 'Tes awal untuk mengukur pemahaman materi dasar Kepanduan Hizbul Wathan dan Kemuhammadiyahan.'}
-                              </p>
-
-                              <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
-                                <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
-                                  <Clock size={12} /> Durasi: {preSettings.durationMinutes || 60} Menit • 50 Butir Soal
-                                </div>
-                                <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
-                                  <Calendar size={11} /> 
-                                  Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* PRE TEST ACTION & SCORE */}
-                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
-                              {hasDonePre ? (
-                                <>
-                                  <div>
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Pre Test:</span>
-                                    <div className="text-xl font-black text-emerald-700 font-display">
-                                      {userApp.preTestScore} / 100
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => setActiveTestModal('pre_test')}
-                                    className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black uppercase tracking-wider border border-emerald-200 transition-all cursor-pointer"
-                                  >
-                                    Tinjau Lembar Hasil
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => setActiveTestModal('pre_test')}
-                                  disabled={!isPreOpen}
-                                  className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                    isPreOpen
-                                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01]'
-                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                >
-                                  <ClipboardList size={15} />
-                                  {isPreOpen ? 'Mulai Kerjakan Pre Test' : 'Akses Pre Test Belum Dibuka'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* POST TEST CARD */}
-                          <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-teal-100 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
-                                  2. Post Test (Akhir)
-                                </span>
-                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                                  hasDonePost 
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                    : isPostOpen 
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
-                                      : 'bg-gray-100 text-gray-500'
-                                }`}>
-                                  {hasDonePost ? 'Sudah Dikerjakan ✓' : isPostOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
-                                </span>
-                              </div>
-
-                              <h4 className="text-sm font-black text-gray-800">
-                                {postSettings.title || 'Post Test Kelulusan Pelatihan HW'}
-                              </h4>
-                              <p className="text-[11px] text-gray-500 line-clamp-2">
-                                {postSettings.description || 'Evaluasi akhir materi pelatihan Jaya Melati untuk syarat kelulusan dan penerbitan sertifikat piagam.'}
-                              </p>
-
-                              <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
-                                <div className="flex items-center gap-1.5 text-teal-800 font-bold">
-                                  <Clock size={12} /> Durasi: {postSettings.durationMinutes || 60} Menit • 50 Butir Soal
-                                </div>
-                                <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
-                                  <Calendar size={11} /> 
-                                  Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* POST TEST ACTION & SCORE */}
-                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
-                              {hasDonePost ? (
-                                <>
-                                  <div>
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Post Test:</span>
-                                    <div className="text-xl font-black text-teal-700 font-display">
-                                      {userApp.postTestScore} / 100
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => setActiveTestModal('post_test')}
-                                    className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-black uppercase tracking-wider border border-teal-200 transition-all cursor-pointer"
-                                  >
-                                    Tinjau Lembar Hasil
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => setActiveTestModal('post_test')}
-                                  disabled={!isPostOpen}
-                                  className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                    isPostOpen
-                                      ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01]'
-                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                >
-                                  <ClipboardList size={15} />
-                                  {isPostOpen ? 'Mulai Kerjakan Post Test' : 'Akses Post Test Belum Dibuka'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-
-                      {/* Standard Syllabus Assignments */}
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Daftar Penugasan Wajib Pelatihan
-                        </h4>
-                        <div className="space-y-2.5">
-                          {program.assignments.map((asg) => (
-                            <div key={asg.id} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-1">
-                              <h5 className="text-xs font-black text-gray-800 flex items-center gap-1.5">
-                                <FileText size={14} className="text-hw-green" /> {asg.title}
-                              </h5>
-                              <p className="text-[11px] text-gray-500 leading-normal">{asg.description}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Coach Special Assignments */}
-                      {myTasks.length > 0 && (
-                        <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
-                          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider font-display">
-                            Tugas Tambahan dari Tim Pelatih
-                          </h4>
-                          <div className="space-y-2.5">
-                            {myTasks.map((t) => {
-                              const tasksList = parseTasks(userApp);
-                              const isSubmitted = tasksList.some((sub: any) => String(sub.materiId) === String(t.materiId) || sub.title === `Tugas: ${t.materiJudul}`);
-
-                              return (
-                                <div key={t.materiId} className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase">
-                                      Tugas Pelatih
-                                    </span>
-                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                                      isSubmitted ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-800'
-                                    }`}>
-                                      {isSubmitted ? 'Sudah Dikirim ✓' : 'Belum Dikirim'}
-                                    </span>
-                                  </div>
-                                  <h5 className="text-xs font-black text-gray-800">{t.materiJudul}</h5>
-                                  <p className="text-[11px] text-gray-600 bg-white p-2.5 rounded-xl border border-emerald-100">
-                                    {t.instruksi || 'Silakan kerjakan tugas sesuai arahan pelatih.'}
-                                  </p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Submission Form */}
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                          Formulir Pengumpulan Tugas Peserta
-                        </h4>
-                        <form onSubmit={handleUserSubmitTask} className="space-y-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-500 ml-1">Pilih Tugas yang Dikumpulkan</label>
-                            <select 
-                              value={taskTitle || ''}
-                              onChange={(e) => setTaskTitle(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800"
-                              required
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {[
+                          { id: 'materi', title: '1. Materi Pelatihan', sub: 'Modul & PDF Ajar', icon: BookOpen, color: 'bg-emerald-600' },
+                          { id: 'presensi', title: '2. Presensi', sub: `Kurikulum (${attendancePercentage}%)`, icon: CheckCircle2, color: 'bg-teal-600' },
+                          { id: 'tugas', title: '3. Penugasan', sub: 'Pre/Post Test & Pelatih', icon: FileText, color: 'bg-blue-600' },
+                          { id: 'piagam', title: '4. Piagam Pelatihan', sub: isPiagamValidated ? 'Sudah Terbit ✓' : 'Menunggu Validasi', icon: Award, color: 'bg-amber-600' }
+                        ].map((tab) => {
+                          const Icon = tab.icon;
+                          const isActive = activeTab === tab.id;
+                          return (
+                            <button
+                              key={tab.id}
+                              onClick={() => setActiveTab(tab.id as any)}
+                              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer shadow-xs flex flex-col justify-between group ${
+                                isActive
+                                  ? 'bg-gradient-to-br from-emerald-800 via-hw-green to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-md scale-[1.02]'
+                                  : 'bg-white hover:bg-emerald-50/50 text-gray-800 border-gray-200 hover:border-emerald-300 hover:scale-[1.01]'
+                              }`}
                             >
-                              <option value="">-- Pilih Penugasan --</option>
-                              <optgroup label="Tugas Wajib Silabus">
-                                {program.assignments.map(asg => (
-                                  <option key={asg.id} value={asg.title}>{asg.title}</option>
-                                ))}
-                              </optgroup>
-                              {myTasks.length > 0 && (
-                                <optgroup label="Tugas Khusus dari Pelatih">
-                                  {myTasks.map(t => (
-                                    <option key={t.materiId} value={`Tugas: ${t.materiJudul}`}>[PELATIH] {t.materiJudul}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              <optgroup label="Lainnya">
-                                <option value="Tugas Proyek Lapangan Qabilah">Tugas Proyek Lapangan Qabilah</option>
-                              </optgroup>
-                            </select>
-                          </div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black transition-transform group-hover:scale-110 ${
+                                  isActive ? 'bg-white text-emerald-950 shadow-xs' : `${tab.color} text-white`
+                                }`}>
+                                  <Icon size={16} />
+                                </div>
+                                {isActive && (
+                                  <span className="text-[9px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-md">
+                                    Aktif
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <div className={`text-xs font-black uppercase tracking-wider ${isActive ? 'text-white' : 'text-gray-800'}`}>
+                                  {tab.title}
+                                </div>
+                                <div className={`text-[10px] font-medium ${isActive ? 'text-emerald-100' : 'text-gray-400'}`}>
+                                  {tab.sub}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Google Drive Tugas</label>
-                            <input 
-                              type="url" 
-                              placeholder="https://drive.google.com/file/d/... atau link tugas"
-                              value={taskLink || ''}
-                              onChange={(e) => setTaskLink(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium"
-                              required
-                            />
-                            <p className="text-[9px] text-gray-400 font-medium ml-1">
-                              *Pastikan link Google Drive atau berkas Anda dapat diakses (Akses Publik / Siapa saja pemilik link).
+                    {/* TAB CONTENTS */}
+                    <div className="min-h-[300px]">
+                      
+                      {/* 1. MATERI PELATIHAN TAB */}
+                      {activeTab === 'materi' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
+                          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                Materi & Modul Pembelajaran {selectedActivity.jenisPelatihan || selectedLevel}
+                              </h4>
+                              <span className="text-[9px] font-black bg-hw-green/10 text-hw-green px-2.5 py-1 rounded-md uppercase">
+                                {materiList.length} Berkas
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400">
+                              Unduh berkas materi, slide presentasi, dan buku panduan kurikulum resmi yang disediakan oleh Tim Pelatih Hizbul Wathan.
                             </p>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-500 ml-1">Pesan / Catatan untuk Tim Pelatih (Opsional)</label>
-                            <textarea 
-                              rows={3}
-                              placeholder="Tuliskan catatan, ringkasan, atau pesan terkait tugas Anda..."
-                              value={taskMessage || ''}
-                              onChange={(e) => setTaskMessage(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl p-3 text-xs text-gray-800 font-medium resize-none outline-none"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={submittingTask}
-                            className="w-full bg-hw-green hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-xl shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            {submittingTask ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" /> Mengirim Tugas...
-                              </>
-                            ) : (
-                              'Kumpulkan Penugasan'
-                            )}
-                          </button>
-                        </form>
-                      </div>
-
-                      {/* Submitted Assignment History */}
-                      {userApp && (
-                        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                            Riwayat Penugasan Terkirim ({parseTasks(userApp).length})
-                          </h4>
-                          {parseTasks(userApp).length === 0 ? (
-                            <p className="text-xs text-gray-400 italic py-2 text-center">Belum ada tugas yang dikumpulkan.</p>
+                          {loadingMateri ? (
+                            <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                              <Loader2 className="animate-spin text-hw-green" size={24} />
+                              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest animate-pulse">Memuat berkas materi...</p>
+                            </div>
+                          ) : materiList.length === 0 ? (
+                            <div className="bg-white p-8 rounded-3xl border border-gray-100 text-center text-gray-400 shadow-sm">
+                              <FileText size={28} className="mx-auto text-gray-300 mb-2" />
+                              <p className="text-xs font-bold">Belum ada berkas materi tambahan yang diunggah untuk tingkat ini.</p>
+                            </div>
                           ) : (
-                            <div className="space-y-2.5">
-                              {parseTasks(userApp).map((t: any, idx: number) => (
-                                <div key={idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex flex-col gap-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div>
-                                      <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
-                                      <p className="text-[10px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
-                                    </div>
-                                    <a 
-                                      href={t.link} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
-                                      className="text-hw-green hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shrink-0"
-                                    >
-                                      Buka Link <ExternalLink size={12} />
-                                    </a>
+                            <div className="grid grid-cols-1 gap-3">
+                              {materiList.map((item, index) => (
+                                <div
+                                  key={`materi-item-${item.id}-${index}`}
+                                  className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 hover:shadow-sm transition-all flex items-center gap-4 text-left"
+                                >
+                                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
+                                    <img 
+                                      src={getCorsSafeUrl(item.coverImage, item.updatedAt || item.id) || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'} 
+                                      alt={item.judul} 
+                                      className="w-full h-full object-cover" 
+                                    />
                                   </div>
-                                  {(t.pesan || t.message) && (
-                                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 text-[11px] text-gray-600 font-medium">
-                                      <span className="font-extrabold text-hw-green text-[9px] uppercase tracking-wider block mb-0.5">Pesan / Catatan:</span>
-                                      {t.pesan || t.message}
-                                    </div>
-                                  )}
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <h5 className="font-display font-bold text-gray-800 text-xs leading-tight break-words">
+                                      {item.judul}
+                                    </h5>
+                                    <p className="text-gray-400 text-[10px] font-medium mt-1">
+                                      Tanggal: {item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : '-'}
+                                    </p>
+                                  </div>
+
+                                  <div className="shrink-0 ml-auto">
+                                    {item.driveUrl && (
+                                      <a 
+                                        href={item.driveUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-hw-green/10 text-hw-green hover:bg-hw-green hover:text-white rounded-xl transition-all font-black text-xs uppercase"
+                                        title="Unduh Berkas Materi"
+                                      >
+                                        <Download size={14} />
+                                        <span>Unduh</span>
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
                           )}
-                        </div>
-                      )}
 
-                      {/* Trainer Review & Grade Card */}
-                      {userApp && (userApp.nilai || userApp.remark || userApp.statusKelulusan) && (
-                        <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 p-5 rounded-3xl border border-amber-200/80 shadow-sm space-y-3">
-                          <div className="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
+                          {/* Ringkasan Informasi & Tata Tertib Pelatihan */}
+                          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
                             <div className="flex items-center gap-2">
-                              <Award className="text-amber-600" size={18} />
-                              <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider font-display">
-                                Hasil Penilaian & Ulasan Tim Pelatih
+                              <ScrollText className="text-hw-green" size={18} />
+                              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                Deskripsi & Panduan Pelatihan
                               </h4>
                             </div>
-                            {userApp.statusKelulusan && (
-                              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                                userApp.statusKelulusan === 'Lulus' 
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
-                                  : userApp.statusKelulusan === 'Lulus Bersyarat'
-                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                    : 'bg-rose-100 text-rose-800 border-rose-300'
-                              }`}>
-                                {userApp.statusKelulusan}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                            {userApp.nilai && (
-                              <div className="bg-white/80 p-3 rounded-2xl border border-amber-100">
-                                <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block">Nilai Akhir / Predikat:</span>
-                                <span className="text-base font-black text-amber-950">{userApp.nilai}</span>
-                              </div>
-                            )}
-                            {userApp.remark && (
-                              <div className="bg-white/80 p-3 rounded-2xl border border-amber-100 sm:col-span-2">
-                                <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block mb-1">Catatan & Ulasan Tim Pelatih:</span>
-                                <p className="text-xs text-gray-800 font-medium italic leading-relaxed">
-                                  "{userApp.remark}"
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })()}
-
-                {/* 5. PIAGAM DIGITAL TAB */}
-                {activeTab === 'piagam' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                    {userApp && userApp.statusKelulusan === 'Lulus' ? (
-                      /* ACTIVE CERTIFICATE FOR PASSED PARTICIPANTS */
-                      <div className="space-y-4">
-                        <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm text-left">
-                          <div className="flex items-center gap-2 text-emerald-600 mb-1">
-                            <Sparkles size={18} />
-                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                              Piagam Keikutsertaan & Kelulusan Resmi
-                            </h4>
-                          </div>
-                          <p className="text-xs text-gray-500 leading-relaxed">
-                            Selamat! Anda telah dinyatakan LULUS pada kegiatan pelatihan ini. Piagam digital resmi ini terbit dengan validasi Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah.
-                          </p>
-                        </div>
-
-                        {/* Certificate View Graphic */}
-                        <div className="bg-amber-50/80 border-2 border-amber-300 rounded-3xl p-6 relative overflow-hidden shadow-lg flex flex-col items-center justify-center text-center space-y-4 font-serif">
-                          <div className="absolute inset-2 border-2 border-dashed border-amber-400/40 rounded-[1.2rem] pointer-events-none" />
-
-                          <img 
-                            src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" 
-                            alt="Logo HW" 
-                            className="h-16 w-auto drop-shadow-md relative z-10"
-                          />
-
-                          <div className="space-y-1 relative z-10 font-sans">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-amber-900">
-                              PIAGAM PENGHARGAAN
-                            </h3>
-                            <p className="text-[9px] text-amber-800 font-bold tracking-wider">
-                              Nomor: HW-JATENG/{selectedLevel.toUpperCase()}/{userApp.id.toUpperCase()}/{new Date().getFullYear()}
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                              {selectedActivity.deskripsi || program.description}
                             </p>
                           </div>
+                        </motion.div>
+                      )}
 
-                          <div className="space-y-1 relative z-10">
-                            <p className="text-xs text-gray-600 italic">Diberikan Kepada Peserta:</p>
-                            <h4 className="text-lg font-black text-gray-900 uppercase tracking-wide border-b-2 border-amber-400 pb-1 px-8 inline-block font-sans">
-                              {userApp.nama || user?.namaLengkap}
-                            </h4>
-                          </div>
+                      {/* 2. PRESENSI SESUAI MATERI KURIKULUM TAB */}
+                      {activeTab === 'presensi' && (() => {
+                        const izinCount = program.sessions.filter(ses => getAttendanceStatus(attendanceMap, ses.id) === 'izin').length;
+                        const absenCount = program.sessions.filter(ses => getAttendanceStatus(attendanceMap, ses.id) === 'absen').length;
+                        const belumCount = totalCurriculumSessions - (attendedSessionsCount + izinCount + absenCount);
 
-                          <p className="text-xs text-gray-700 leading-relaxed max-w-md px-2 italic font-sans">
-                            Atas ketekunan, partisipasi aktif, dan kelulusan pada kegiatan pelatihan resmi <strong className="not-italic text-amber-900">{selectedActivity.namaKegiatan}</strong> yang diselenggarakan oleh Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah dengan Nilai Evaluasi: <strong className="not-italic text-amber-900">{userApp.nilai || 'A'}</strong>.
-                          </p>
-
-                          <div className="grid grid-cols-2 gap-8 pt-4 w-full text-[9px] font-sans text-gray-700 relative z-10">
-                            <div className="space-y-3">
-                              <p className="leading-none">Ketua Kwarwil HW Jateng,</p>
-                              <div className="h-6 flex items-center justify-center">
-                                <span className="text-[9px] text-emerald-700 font-black tracking-widest border border-emerald-500/30 px-2 py-0.5 rounded uppercase">Taufiq ✓</span>
+                        return (
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 text-left">
+                            
+                            {/* Rekap Persentase & Otomatisasi Sync Ke Dashboard Admin / Pelatih */}
+                            <div className="bg-gradient-to-br from-teal-900 via-emerald-800 to-teal-950 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-white/10 px-2.5 py-0.5 rounded-full">
+                                    Presensi Real-Time Tersinkronisasi
+                                  </span>
+                                  <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-wide mt-1">
+                                    Rekap Presensi Materi Kurikulum
+                                  </h3>
+                                </div>
+                                <div className="bg-white/15 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-center sm:text-right shrink-0">
+                                  <span className="text-[10px] text-emerald-200 uppercase font-black tracking-wider block">Persentase Kehadiran</span>
+                                  <span className="text-2xl font-black text-amber-300 font-display">{attendancePercentage}%</span>
+                                </div>
                               </div>
-                              <p className="font-bold underline uppercase">Taufiq</p>
-                            </div>
-                            <div className="space-y-3">
-                              <p className="leading-none">Sekretaris Kwarwil HW Jateng,</p>
-                              <div className="h-6 flex items-center justify-center">
-                                <span className="text-[9px] text-emerald-700 font-black tracking-widest border border-emerald-500/30 px-2 py-0.5 rounded uppercase font-mono">Dzikron ✓</span>
-                              </div>
-                              <p className="font-bold underline uppercase">M. Dzikron</p>
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Download Certificate Action */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => window.print()}
-                            className="bg-hw-green hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-3.5 px-6 rounded-2xl flex-1 shadow-md hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            <Download size={16} /> Cetak / Unduh Piagam Digital
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* LOCKED PIAGAM NOTICE IF NOT PASSED YET */
-                      <div className="bg-gray-50 p-8 rounded-3xl border border-gray-200 text-center space-y-3 py-12">
-                        <Lock size={32} className="mx-auto text-amber-500" />
-                        <h5 className="text-sm font-black text-gray-800">
-                          Piagam Belum Dapat Didownload
-                        </h5>
-                        <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
-                          Piagam ikutserta kegiatan pelatihan baru akan dapat didownload jika status kepesertaan Anda telah dalam status <strong>LULUS</strong> setelah mengikuti seluruh materi, melengkapi presensi sesi, dan menyelesaikan tugas dari Tim Pelatih.
-                        </p>
-                        {userApp && (
-                          <div className="pt-2">
-                            <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-800 px-3 py-1 rounded-full">
-                              Status Kepesertaan Saat Ini: {userApp.statusKelulusan || 'Sedang Pelatihan'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </div>
+                              {/* Progress bar */}
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between text-[11px] font-bold text-emerald-100">
+                                  <span>Tingkat Partisipasi Sesi</span>
+                                  <span>{attendedSessionsCount} dari {totalCurriculumSessions} Sesi Hadir</span>
+                                </div>
+                                <div className="w-full bg-black/30 rounded-full h-3.5 p-0.5 border border-white/20 overflow-hidden">
+                                  <div 
+                                    className="bg-gradient-to-r from-amber-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm"
+                                    style={{ width: `${Math.min(100, Math.max(0, attendancePercentage))}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Grid Stat Presensi */}
+                              <div className="grid grid-cols-4 gap-2 pt-1 text-center">
+                                <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                                  <span className="text-[9px] font-bold uppercase text-emerald-200 block">Hadir</span>
+                                  <span className="text-sm font-black text-white">{attendedSessionsCount}</span>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                                  <span className="text-[9px] font-bold uppercase text-blue-200 block">Izin</span>
+                                  <span className="text-sm font-black text-white">{izinCount}</span>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                                  <span className="text-[9px] font-bold uppercase text-red-200 block">Tidak Hadir</span>
+                                  <span className="text-sm font-black text-white">{absenCount}</span>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                                  <span className="text-[9px] font-bold uppercase text-gray-300 block">Belum Isi</span>
+                                  <span className="text-sm font-black text-white">{belumCount}</span>
+                                </div>
+                              </div>
+
+                              {/* Highlight Real-time notice */}
+                              <div className="bg-black/20 p-3 rounded-2xl border border-white/15 text-[11px] text-emerald-100 flex items-start gap-2 leading-relaxed">
+                                <Sparkles size={16} className="text-amber-300 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong>Otomatis Terekap:</strong> Setiap kali Anda mengisi presensi pada sesi di bawah ini, data presensi dan persentasenya akan <strong>langsung terakumulasi dan muncul di dasbor Admin, Tim Pelatih, dan Asisten Pelatih</strong> untuk evaluasi kelulusan.
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Daftar Sesi Materi Kurikulum */}
+                            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                  Daftar Sesi Materi Kurikulum ({program.sessions.length} Sesi)
+                                </h4>
+                                <span className="text-[9px] font-black bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md uppercase">
+                                  Silabus Lengkap
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-400">
+                                Klik tombol status pada sesi materi yang sedang atau telah Anda ikuti untuk merekam presensi kehadiran mandiri.
+                              </p>
+                            </div>
+
+                            <div className="space-y-3">
+                              {program.sessions.map((ses) => {
+                                const status = getAttendanceStatus(attendanceMap, ses.id);
+                                const timestamp = getAttendanceTimestamp(attendanceMap, ses.id);
+                                const isEditing = activeEditSession === ses.id;
+                                
+                                return (
+                                  <div key={ses.id} className="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-xs flex flex-col gap-3 text-left">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="space-y-1">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md">
+                                          {ses.id}
+                                        </span>
+                                        <h5 className="text-xs font-black text-gray-800 mt-1">{ses.title}</h5>
+                                        <p className="text-[11px] text-gray-500 leading-normal">{ses.description}</p>
+                                      </div>
+                                      
+                                      <div className="shrink-0 pt-1 flex items-center gap-1.5">
+                                        {status === 'hadir' ? (
+                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white uppercase flex items-center gap-1">
+                                            <Check size={12} /> Hadir
+                                          </span>
+                                        ) : status === 'izin' ? (
+                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-500 text-white uppercase">
+                                            Izin
+                                          </span>
+                                        ) : status === 'absen' ? (
+                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500 text-white uppercase">
+                                            Tidak Hadir
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gray-100 text-gray-400 uppercase">
+                                            Belum Presensi
+                                          </span>
+                                        )}
+
+                                        {!isEditing && (
+                                          <button
+                                            onClick={() => setActiveEditSession(ses.id)}
+                                            className="p-1.5 text-gray-400 hover:text-hw-green hover:bg-gray-100 rounded-lg transition-all"
+                                            title="Isi / Ubah Presensi"
+                                          >
+                                            <Pencil size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {timestamp && (
+                                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg w-max font-bold font-sans">
+                                        <Clock size={11} className="text-gray-400" />
+                                        <span>Presensi Tercatat: {timestamp}</span>
+                                      </div>
+                                    )}
+
+                                    {isEditing && (
+                                      <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex flex-col gap-2">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                                          Pilih Status Presensi Sesi Ini:
+                                        </span>
+                                        <div className="grid grid-cols-4 gap-2">
+                                          <button
+                                            disabled={savingAttendance[ses.id]}
+                                            onClick={() => handleUserSubmitAttendance(ses.id, 'hadir')}
+                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                          >
+                                            {savingAttendance[ses.id] ? <Loader2 size={12} className="animate-spin" /> : 'Hadir ✓'}
+                                          </button>
+
+                                          <button
+                                            disabled={savingAttendance[ses.id]}
+                                            onClick={() => handleUserSubmitAttendance(ses.id, 'izin')}
+                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                          >
+                                            Izin
+                                          </button>
+
+                                          <button
+                                            disabled={savingAttendance[ses.id]}
+                                            onClick={() => handleUserSubmitAttendance(ses.id, 'absen')}
+                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                          >
+                                            Tidak Hadir
+                                          </button>
+
+                                          <button
+                                            onClick={() => setActiveEditSession(null)}
+                                            className="py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                                          >
+                                            Batal
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+
+                      {/* 3. PENUGASAN (PRE-TEST, POST-TEST & TUGAS TAMBAHAN DARI PELATIH) TAB */}
+                      {activeTab === 'tugas' && (() => {
+                        const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
+                        const preSettings = trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
+                        const postSettings = trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
+
+                        const isPreOpen = isTestCurrentlyOpen(preSettings);
+                        const isPostOpen = isTestCurrentlyOpen(postSettings);
+
+                        const hasDonePre = userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '');
+                        const hasDonePost = userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '');
+
+                        return (
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 text-left">
+                            
+                            {/* PENUGASAN UTAMA: PRE TEST & POST TEST */}
+                            <div className="bg-gradient-to-br from-emerald-800 via-hw-green to-teal-900 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+                                    <Sparkles size={20} className="text-amber-300" />
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-white/10 px-2 py-0.5 rounded-full">
+                                      Evaluasi Akademik & Kemuhammadiyahan
+                                    </span>
+                                    <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-wide">
+                                      Penugasan Wajib: Pre Test & Post Test
+                                    </h3>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                                
+                                {/* PRE TEST CARD */}
+                                <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-emerald-100 flex flex-col justify-between space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                                        1. Pre Test (Awal)
+                                      </span>
+                                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                        hasDonePre 
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                          : isPreOpen 
+                                            ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
+                                            : 'bg-gray-100 text-gray-500'
+                                      }`}>
+                                        {hasDonePre ? 'Sudah Dikerjakan ✓' : isPreOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                      </span>
+                                    </div>
+
+                                    <h4 className="text-sm font-black text-gray-800">
+                                      {preSettings.title || 'Pre Test Kepanduan Hizbul Wathan'}
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 line-clamp-2">
+                                      {preSettings.description || 'Tes awal untuk mengukur pemahaman materi dasar Kepanduan Hizbul Wathan dan Kemuhammadiyahan.'}
+                                    </p>
+
+                                    <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
+                                      <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                                        <Clock size={12} /> Durasi: {preSettings.durationMinutes || 60} Menit • 50 Butir Soal
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
+                                        <Calendar size={11} /> 
+                                        Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* PRE TEST ACTION & SCORE */}
+                                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
+                                    {hasDonePre ? (
+                                      <>
+                                        <div>
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Pre Test:</span>
+                                          <div className="text-xl font-black text-emerald-700 font-display">
+                                            {userApp.preTestScore} / 100
+                                          </div>
+                                        </div>
+                                        <button
+                                          onClick={() => setActiveTestModal('pre_test')}
+                                          className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black uppercase tracking-wider border border-emerald-200 transition-all cursor-pointer"
+                                        >
+                                          Tinjau Lembar Hasil
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={() => setActiveTestModal('pre_test')}
+                                        disabled={!isPreOpen}
+                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                          isPreOpen
+                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01]'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <ClipboardList size={15} />
+                                        {isPreOpen ? 'Mulai Kerjakan Pre Test' : 'Akses Pre Test Belum Dibuka'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* POST TEST CARD */}
+                                <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-teal-100 flex flex-col justify-between space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
+                                        2. Post Test (Akhir)
+                                      </span>
+                                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                        hasDonePost 
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                          : isPostOpen 
+                                            ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
+                                            : 'bg-gray-100 text-gray-500'
+                                      }`}>
+                                        {hasDonePost ? 'Sudah Dikerjakan ✓' : isPostOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                      </span>
+                                    </div>
+
+                                    <h4 className="text-sm font-black text-gray-800">
+                                      {postSettings.title || 'Post Test Kelulusan Pelatihan HW'}
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 line-clamp-2">
+                                      {postSettings.description || 'Evaluasi akhir materi pelatihan Jaya Melati untuk syarat kelulusan dan penerbitan sertifikat piagam.'}
+                                    </p>
+
+                                    <div className="bg-gray-50 p-2.5 rounded-xl text-[11px] text-gray-600 space-y-1 font-medium border border-gray-150">
+                                      <div className="flex items-center gap-1.5 text-teal-800 font-bold">
+                                        <Clock size={12} /> Durasi: {postSettings.durationMinutes || 60} Menit • 50 Butir Soal
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
+                                        <Calendar size={11} /> 
+                                        Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* POST TEST ACTION & SCORE */}
+                                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3">
+                                    {hasDonePost ? (
+                                      <>
+                                        <div>
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Post Test:</span>
+                                          <div className="text-xl font-black text-teal-700 font-display">
+                                            {userApp.postTestScore} / 100
+                                          </div>
+                                        </div>
+                                        <button
+                                          onClick={() => setActiveTestModal('post_test')}
+                                          className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-black uppercase tracking-wider border border-teal-200 transition-all cursor-pointer"
+                                        >
+                                          Tinjau Lembar Hasil
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={() => setActiveTestModal('post_test')}
+                                        disabled={!isPostOpen}
+                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                          isPostOpen
+                                            ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01]'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <ClipboardList size={15} />
+                                        {isPostOpen ? 'Mulai Kerjakan Post Test' : 'Akses Post Test Belum Dibuka'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                              </div>
+                            </div>
+
+                            {/* TUGAS TAMBAHAN DARI TIM PELATIH */}
+                            {myTasks.length > 0 && (
+                              <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider font-display">
+                                    Tugas Tambahan dari Tim Pelatih
+                                  </h4>
+                                  <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md uppercase">
+                                    {myTasks.length} Tugas Pelatih
+                                  </span>
+                                </div>
+                                <div className="space-y-2.5">
+                                  {myTasks.map((t) => {
+                                    const tasksList = parseTasks(userApp);
+                                    const isSubmitted = tasksList.some((sub: any) => String(sub.materiId) === String(t.materiId) || sub.title === `Tugas: ${t.materiJudul}`);
+
+                                    return (
+                                      <div key={t.materiId} className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase">
+                                            Instruksi Khusus Pelatih
+                                          </span>
+                                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                            isSubmitted ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-800'
+                                          }`}>
+                                            {isSubmitted ? 'Sudah Dikirim ✓' : 'Belum Dikirim'}
+                                          </span>
+                                        </div>
+                                        <h5 className="text-xs font-black text-gray-800">{t.materiJudul}</h5>
+                                        <p className="text-[11px] text-gray-600 bg-white p-2.5 rounded-xl border border-emerald-100">
+                                          {t.instruksi || 'Silakan kerjakan tugas sesuai arahan pelatih.'}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Standard Syllabus Assignments */}
+                            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                Penugasan Silabus Kurikulum
+                              </h4>
+                              <div className="space-y-2.5">
+                                {program.assignments.map((asg) => (
+                                  <div key={asg.id} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-1">
+                                    <h5 className="text-xs font-black text-gray-800 flex items-center gap-1.5">
+                                      <FileText size={14} className="text-hw-green" /> {asg.title}
+                                    </h5>
+                                    <p className="text-[11px] text-gray-500 leading-normal">{asg.description}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Submission Form */}
+                            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                Formulir Pengumpulan Tugas Peserta
+                              </h4>
+                              <form onSubmit={handleUserSubmitTask} className="space-y-3">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-gray-500 ml-1">Pilih Tugas yang Dikumpulkan</label>
+                                  <select 
+                                    value={taskTitle || ''}
+                                    onChange={(e) => setTaskTitle(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800"
+                                    required
+                                  >
+                                    <option value="">-- Pilih Penugasan --</option>
+                                    {myTasks.length > 0 && (
+                                      <optgroup label="Tugas Khusus dari Pelatih">
+                                        {myTasks.map(t => (
+                                          <option key={t.materiId} value={`Tugas: ${t.materiJudul}`}>[PELATIH] {t.materiJudul}</option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    <optgroup label="Tugas Wajib Silabus">
+                                      {program.assignments.map(asg => (
+                                        <option key={asg.id} value={asg.title}>{asg.title}</option>
+                                      ))}
+                                    </optgroup>
+                                    <optgroup label="Lainnya">
+                                      <option value="Tugas Proyek Lapangan Qabilah">Tugas Proyek Lapangan Qabilah</option>
+                                    </optgroup>
+                                  </select>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Google Drive Tugas</label>
+                                  <input 
+                                    type="url" 
+                                    placeholder="https://drive.google.com/file/d/... atau link tugas"
+                                    value={taskLink || ''}
+                                    onChange={(e) => setTaskLink(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium"
+                                    required
+                                  />
+                                  <p className="text-[9px] text-gray-400 font-medium ml-1">
+                                    *Pastikan link Google Drive atau berkas Anda dapat diakses oleh Tim Pelatih (Akses Publik / Siapa saja pemilik link).
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-gray-500 ml-1">Pesan / Catatan untuk Tim Pelatih (Opsional)</label>
+                                  <textarea 
+                                    rows={3}
+                                    placeholder="Tuliskan catatan, ringkasan, atau pesan terkait tugas Anda..."
+                                    value={taskMessage || ''}
+                                    onChange={(e) => setTaskMessage(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl p-3 text-xs text-gray-800 font-medium resize-none outline-none"
+                                  />
+                                </div>
+
+                                <button
+                                  type="submit"
+                                  disabled={submittingTask}
+                                  className="w-full bg-hw-green hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-xl shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                  {submittingTask ? (
+                                    <>
+                                      <Loader2 size={14} className="animate-spin" /> Mengirim Tugas...
+                                    </>
+                                  ) : (
+                                    'Kumpulkan Penugasan'
+                                  )}
+                                </button>
+                              </form>
+                            </div>
+
+                            {/* Submitted Assignment History */}
+                            {userApp && (
+                              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                  Riwayat Penugasan Terkirim ({parseTasks(userApp).length})
+                                </h4>
+                                {parseTasks(userApp).length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic py-2 text-center">Belum ada tugas yang dikumpulkan.</p>
+                                ) : (
+                                  <div className="space-y-2.5">
+                                    {parseTasks(userApp).map((t: any, idx: number) => (
+                                      <div key={idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex flex-col gap-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div>
+                                            <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
+                                            <p className="text-[10px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                                          </div>
+                                          <a 
+                                            href={t.link} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-hw-green hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shrink-0"
+                                          >
+                                            Buka Link <ExternalLink size={12} />
+                                          </a>
+                                        </div>
+                                        {(t.pesan || t.message) && (
+                                          <div className="bg-white p-2.5 rounded-xl border border-gray-200 text-[11px] text-gray-600 font-medium">
+                                            <span className="font-extrabold text-hw-green text-[9px] uppercase tracking-wider block mb-0.5">Pesan / Catatan:</span>
+                                            {t.pesan || t.message}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Trainer Review & Grade Card */}
+                            {userApp && (userApp.nilai || userApp.remark || userApp.statusKelulusan) && (
+                              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 p-5 rounded-3xl border border-amber-200/80 shadow-sm space-y-3">
+                                <div className="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <Award className="text-amber-600" size={18} />
+                                    <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider font-display">
+                                      Hasil Penilaian & Ulasan Tim Pelatih
+                                    </h4>
+                                  </div>
+                                  {userApp.statusKelulusan && (
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                      userApp.statusKelulusan === 'Lulus' 
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                                        : userApp.statusKelulusan === 'Lulus Bersyarat'
+                                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                          : 'bg-rose-100 text-rose-800 border-rose-300'
+                                    }`}>
+                                      {userApp.statusKelulusan}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                  {userApp.nilai && (
+                                    <div className="bg-white/80 p-3 rounded-2xl border border-amber-100">
+                                      <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block">Nilai Akhir / Predikat:</span>
+                                      <span className="text-base font-black text-amber-950">{userApp.nilai}</span>
+                                    </div>
+                                  )}
+                                  {userApp.remark && (
+                                    <div className="bg-white/80 p-3 rounded-2xl border border-amber-100 sm:col-span-2">
+                                      <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider block mb-1">Catatan & Ulasan Tim Pelatih:</span>
+                                      <p className="text-xs text-gray-800 font-medium italic leading-relaxed">
+                                        "{userApp.remark}"
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })()}
+
+                      {/* 4. PIAGAM PELATIHAN (JIKA SUDAH DIVALIDASI OLEH ADMIN) TAB */}
+                      {activeTab === 'piagam' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                          {isPiagamValidated ? (
+                            /* ACTIVE CERTIFICATE FOR VALIDATED PARTICIPANTS */
+                            <div className="space-y-4">
+                              <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm text-left">
+                                <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                                  <Sparkles size={18} />
+                                  <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                    Piagam Keikutsertaan & Kelulusan Resmi Terverifikasi
+                                  </h4>
+                                </div>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                  Selamat! Status kepesertaan Anda telah divalidasi dan dinyatakan <strong>LULUS</strong> oleh Tim Pelatih & Admin Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah.
+                                </p>
+                              </div>
+
+                              {/* Certificate View Graphic */}
+                              <div className="bg-amber-50/80 border-2 border-amber-300 rounded-3xl p-6 relative overflow-hidden shadow-lg flex flex-col items-center justify-center text-center space-y-4 font-serif">
+                                <div className="absolute inset-2 border-2 border-dashed border-amber-400/40 rounded-[1.2rem] pointer-events-none" />
+
+                                <img 
+                                  src="https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png" 
+                                  alt="Logo HW" 
+                                  className="h-16 w-auto drop-shadow-md relative z-10" 
+                                />
+
+                                <div className="space-y-1 relative z-10 font-sans">
+                                  <h3 className="text-sm font-black uppercase tracking-widest text-amber-900">
+                                    PIAGAM PENGHARGAAN
+                                  </h3>
+                                  <p className="text-[9px] text-amber-800 font-bold tracking-wider">
+                                    Nomor: HW-JATENG/{selectedLevel.toUpperCase()}/{userApp.id.toUpperCase()}/{new Date().getFullYear()}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1 relative z-10">
+                                  <p className="text-xs text-gray-600 italic">Diberikan Kepada Peserta:</p>
+                                  <h4 className="text-lg font-black text-gray-900 uppercase tracking-wide border-b-2 border-amber-400 pb-1 px-8 inline-block font-sans">
+                                    {userApp.nama || user?.namaLengkap}
+                                  </h4>
+                                </div>
+
+                                <p className="text-xs text-gray-700 leading-relaxed max-w-md px-2 italic font-sans">
+                                  Atas ketekunan, partisipasi aktif, dan kelulusan pada kegiatan pelatihan resmi <strong className="not-italic text-amber-900">{selectedActivity.namaKegiatan}</strong> yang diselenggarakan oleh Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah dengan Nilai Evaluasi: <strong className="not-italic text-amber-900">{userApp.nilai || 'A'}</strong>.
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-8 pt-4 w-full text-[9px] font-sans text-gray-700 relative z-10">
+                                  <div className="space-y-3">
+                                    <p className="leading-none">Ketua Kwarwil HW Jateng,</p>
+                                    <div className="h-6 flex items-center justify-center">
+                                      <span className="text-[9px] text-emerald-700 font-black tracking-widest border border-emerald-500/30 px-2 py-0.5 rounded uppercase">Taufiq ✓</span>
+                                    </div>
+                                    <p className="font-bold underline uppercase">Taufiq</p>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <p className="leading-none">Sekretaris Kwarwil HW Jateng,</p>
+                                    <div className="h-6 flex items-center justify-center">
+                                      <span className="text-[9px] text-emerald-700 font-black tracking-widest border border-emerald-500/30 px-2 py-0.5 rounded uppercase font-mono">Dzikron ✓</span>
+                                    </div>
+                                    <p className="font-bold underline uppercase">M. Dzikron</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Download Certificate Action */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => window.print()}
+                                  className="bg-hw-green hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-3.5 px-6 rounded-2xl flex-1 shadow-md hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                  <Download size={16} /> Cetak / Unduh Piagam Digital
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* LOCKED PIAGAM NOTICE IF NOT VALIDATED BY ADMIN YET */
+                            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-center space-y-4 py-10">
+                              <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
+                                <Lock size={28} className="text-amber-600" />
+                              </div>
+                              <div className="space-y-1 max-w-md mx-auto">
+                                <h5 className="text-sm font-black text-gray-800">
+                                  Piagam Pelatihan Menunggu Validasi Admin
+                                </h5>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                  Piagam kelulusan resmi hanya dapat diunduh jika status kepesertaan Anda telah <strong>divalidasi dan dinyatakan LULUS</strong> oleh Tim Pelatih & Admin Kwartir Wilayah HW Jawa Tengah setelah menyelesaikan seluruh rangkaian materi kurikulum, presensi, pre-test, post-test, dan penugasan.
+                                </p>
+                              </div>
+
+                              {/* Checklist Persyaratan Kelulusan */}
+                              <div className="max-w-md mx-auto bg-gray-50 rounded-2xl p-4 border border-gray-150 text-left space-y-2.5 text-xs">
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider block">
+                                  Status Persyaratan Kelulusan:
+                                </span>
+                                
+                                <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-100">
+                                  <span className="text-gray-700 font-medium">1. Presensi Kurikulum ({attendancePercentage}%)</span>
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                    attendancePercentage >= 80 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {attendedSessionsCount}/{totalCurriculumSessions} Sesi
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-100">
+                                  <span className="text-gray-700 font-medium">2. Penugasan Pre Test</span>
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                    userApp?.preTestScore !== undefined && userApp?.preTestScore !== null && userApp?.preTestScore !== ''
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {userApp?.preTestScore !== undefined && userApp?.preTestScore !== null && userApp?.preTestScore !== ''
+                                      ? `Selesai (${userApp.preTestScore})`
+                                      : 'Belum Selesai'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-100">
+                                  <span className="text-gray-700 font-medium">3. Penugasan Post Test</span>
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                    userApp?.postTestScore !== undefined && userApp?.postTestScore !== null && userApp?.postTestScore !== ''
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {userApp?.postTestScore !== undefined && userApp?.postTestScore !== null && userApp?.postTestScore !== ''
+                                      ? `Selesai (${userApp.postTestScore})`
+                                      : 'Belum Selesai'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-100">
+                                  <span className="text-gray-700 font-medium">4. Validasi Kelulusan Admin</span>
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                    userApp?.statusKelulusan === 'Lulus'
+                                      ? 'bg-emerald-500 text-white'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {userApp?.statusKelulusan || 'Sedang Proses'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -2255,16 +2330,25 @@ export default function PelatihanPage() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          {/* Search Bar Peserta Pelatihan */}
+          <div className="relative w-full">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Cari pendaftar nama, email, kwarda..." 
+              placeholder="Cari data peserta pelatihan berdasarkan nama, email, kwarda, jenis pelatihan..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-9 py-3 text-xs placeholder-gray-400 shadow-xs"
+              className="w-full bg-white border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl pl-11 pr-10 py-3.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-xs transition-all"
             />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {/* Applicant List for Admin */}
