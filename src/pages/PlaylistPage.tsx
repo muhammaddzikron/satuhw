@@ -30,13 +30,22 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Database
+  Database,
+  HardDrive,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { useAuthStore } from '../store/useAuthStore';
-import { formatAudioUrl } from '../utils/audioUtils';
+import { 
+  formatAudioUrl, 
+  isGoogleDriveUrl, 
+  extractGoogleDriveFileId, 
+  getGoogleDriveAudioCandidates, 
+  getGoogleDriveWebUrl, 
+  getAudioDownloadUrl 
+} from '../utils/audioUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { copyToClipboard } from '../lib/utils';
 
@@ -234,6 +243,17 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
   const [isSavingSong, setIsSavingSong] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Audio Playback & Google Drive candidate state
+  const [audioErrorNotice, setAudioErrorNotice] = useState<string | null>(null);
+  const driveCandidatesRef = useRef<string[]>([]);
+  const driveCandidateIndexRef = useRef<number>(0);
+  const [activeStreamUrl, setActiveStreamUrl] = useState<string>('');
+
+  // Modal Audio Preview State
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch playlist data
@@ -350,13 +370,25 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
     setIsPlayerModalOpen(false);
   };
 
-  // Audio source change listener
+  // Audio source change listener with Google Drive candidates support
   useEffect(() => {
     if (currentTrackIndex !== null && audioRef.current && tracks[currentTrackIndex]) {
       const track = tracks[currentTrackIndex];
-      const streamUrl = formatAudioUrl(track.audioUrl, track.raw?.updatedAt || track.id);
+      setAudioErrorNotice(null);
+
+      // Determine candidate streaming URLs for Google Drive or direct MP3
+      const isDrive = isGoogleDriveUrl(track.audioUrl);
+      const candidates = isDrive 
+        ? getGoogleDriveAudioCandidates(track.audioUrl) 
+        : [formatAudioUrl(track.audioUrl, track.raw?.updatedAt || track.id)];
       
-      audioRef.current.src = streamUrl;
+      driveCandidatesRef.current = candidates;
+      driveCandidateIndexRef.current = 0;
+
+      const initialUrl = candidates[0];
+      setActiveStreamUrl(initialUrl);
+
+      audioRef.current.src = initialUrl;
       audioRef.current.load();
       
       const playPromise = audioRef.current.play();
@@ -364,14 +396,45 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
         playPromise
           .then(() => {
             setIsPlaying(true);
+            setAudioErrorNotice(null);
           })
           .catch(err => {
-            console.warn('Playback initiation warning:', err);
-            setIsPlaying(false);
+            console.warn('Playback initiation notice:', err);
+            // Will fallback through onError if stream fails
           });
       }
     }
   }, [currentTrackIndex, tracks]);
+
+  // Handle stream error with automated candidate cycling for Google Drive
+  const handleAudioError = () => {
+    const candidates = driveCandidatesRef.current;
+    const nextIdx = driveCandidateIndexRef.current + 1;
+
+    if (candidates && nextIdx < candidates.length && audioRef.current) {
+      driveCandidateIndexRef.current = nextIdx;
+      const fallbackUrl = candidates[nextIdx];
+      setActiveStreamUrl(fallbackUrl);
+      audioRef.current.src = fallbackUrl;
+      audioRef.current.load();
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        setAudioErrorNotice(null);
+      }).catch(() => {
+        // Will continue to next candidate on next error event
+      });
+      return;
+    }
+
+    setIsPlaying(false);
+    if (currentTrack && isGoogleDriveUrl(currentTrack.audioUrl)) {
+      setAudioErrorNotice(
+        'Lagu Google Drive ini tidak dapat diputar. Pastikan opsi Berbagi di Google Drive diset ke "Siapa saja yang memiliki link" (Anyone with the link).'
+      );
+    } else {
+      setAudioErrorNotice('File audio tidak dapat dimuat atau format tidak didukung.');
+    }
+  };
 
   // Play next track logic
   const handleNextTrack = useCallback(() => {
@@ -461,9 +524,9 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
     setTimeout(() => setCopiedLyrics(false), 2000);
   };
 
-  // Download audio
+  // Download audio with direct Google Drive export support
   const handleDownload = (track: any) => {
-    const downloadUrl = formatAudioUrl(track.audioUrl, track.raw?.updatedAt || track.id);
+    const downloadUrl = getAudioDownloadUrl(track.audioUrl, track.title);
     if (!downloadUrl) return;
     const a = document.createElement('a');
     a.href = downloadUrl;
@@ -474,9 +537,40 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
     document.body.removeChild(a);
   };
 
+  // Preview Audio in Modal
+  const handleTogglePreviewAudio = () => {
+    if (!songFormData.audioUrl.trim()) return;
+    if (isPreviewPlaying) {
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+      }
+      setIsPreviewPlaying(false);
+    } else {
+      const streamUrl = formatAudioUrl(songFormData.audioUrl.trim());
+      setPreviewError(null);
+      if (previewAudioRef.current) {
+        previewAudioRef.current.src = streamUrl;
+        previewAudioRef.current.load();
+        previewAudioRef.current.play().then(() => {
+          setIsPreviewPlaying(true);
+        }).catch(err => {
+          console.warn('Preview error:', err);
+          setPreviewError('Gagal memutar audio preview. Pastikan link Google Drive diset publik ("Siapa saja yang memiliki link").');
+          setIsPreviewPlaying(false);
+        });
+      }
+    }
+  };
+
   // Open Edit / Add Song modal
   const handleOpenEditModal = (track?: any) => {
     setSaveFeedback(null);
+    setPreviewError(null);
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+    }
+    setIsPreviewPlaying(false);
+
     if (track) {
       setEditingTrack(track);
       setSongFormData({
@@ -1015,12 +1109,41 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   <h3 className="text-lg sm:text-xl font-display font-black text-white leading-snug break-words">
                     {currentTrack.title}
                   </h3>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
-                    <Sparkles size={12} className="text-amber-400 shrink-0" />
-                    <span>Cipt:</span>
-                    <span className="text-white">{currentTrack.creator}</span>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                      <Sparkles size={12} className="text-amber-400 shrink-0" />
+                      <span>Cipt:</span>
+                      <span className="text-white">{currentTrack.creator}</span>
+                    </div>
+
+                    {isGoogleDriveUrl(currentTrack.audioUrl) && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-300 text-[10px] font-bold">
+                        <HardDrive size={10} className="shrink-0" />
+                        <span>Google Drive MP3</span>
+                      </span>
+                    )}
                   </div>
                 </div>
+
+                {/* Stream Error Notice if file permissions or format fails */}
+                {audioErrorNotice && (
+                  <div className="mt-3 mx-4 p-3 bg-rose-950/80 border border-rose-500/50 rounded-2xl text-left space-y-2">
+                    <div className="flex items-start gap-2 text-rose-300 text-xs font-bold">
+                      <AlertCircle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+                      <p className="leading-snug">{audioErrorNotice}</p>
+                    </div>
+                    {isGoogleDriveUrl(currentTrack.audioUrl) && (
+                      <a
+                        href={getGoogleDriveWebUrl(currentTrack.audioUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 underline"
+                      >
+                        Buka & Cek Akses di Google Drive &rarr;
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Progress Seek Bar */}
@@ -1411,21 +1534,71 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   />
                 </div>
 
-                {/* Audio URL */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                    <Radio size={13} className="text-emerald-600" />
-                    Link File Audio (MP3 URL / Google Drive) *
-                  </label>
+                {/* Audio URL with Google Drive Detection & Test Player */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <Radio size={13} className="text-emerald-600" />
+                      Link File Audio (MP3 URL / Google Drive) *
+                    </label>
+                    {songFormData.audioUrl.trim() && (
+                      <button
+                        type="button"
+                        onClick={handleTogglePreviewAudio}
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          isPreviewPlaying 
+                            ? 'bg-rose-500 text-white animate-pulse' 
+                            : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                        }`}
+                        title="Uji putar audio sebelum disimpan"
+                      >
+                        {isPreviewPlaying ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+                        <span>{isPreviewPlaying ? 'Hentikan Preview' : 'Uji Putar Audio'}</span>
+                      </button>
+                    )}
+                  </div>
                   <input 
                     type="text"
                     required
                     value={songFormData.audioUrl || ''}
-                    onChange={(e) => setSongFormData({ ...songFormData, audioUrl: e.target.value })}
-                    placeholder="https://hwjateng.org/musik/... atau link direct mp3"
+                    onChange={(e) => {
+                      setSongFormData({ ...songFormData, audioUrl: e.target.value });
+                      setPreviewError(null);
+                    }}
+                    placeholder="https://drive.google.com/file/d/... atau link direct mp3"
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all font-mono"
                   />
+
+                  {/* Google Drive Detection Indicator */}
+                  {isGoogleDriveUrl(songFormData.audioUrl) && (
+                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-800 font-black">
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                        <span>✓ Link Google Drive Terdeteksi (File ID: {extractGoogleDriveFileId(songFormData.audioUrl)})</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
+                        Sistem otomatis mengonversi link Google Drive menjadi stream audio MP3. Pastikan izin berbagi file di Google Drive Anda diatur ke <strong>&quot;Siapa saja yang memiliki link&quot; (Anyone with the link)</strong>.
+                      </p>
+                    </div>
+                  )}
+
+                  {previewError && (
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-bold flex items-center gap-2">
+                      <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                      <span>{previewError}</span>
+                    </div>
+                  )}
                 </div>
+
+                {/* Hidden Audio Element for Modal Preview */}
+                <audio 
+                  ref={previewAudioRef}
+                  onEnded={() => setIsPreviewPlaying(false)}
+                  onError={() => {
+                    setIsPreviewPlaying(false);
+                    setPreviewError('Gagal memutar audio preview. Pastikan file Google Drive berstatus publik ("Siapa saja yang memiliki link").');
+                  }}
+                />
 
                 {/* Lirik Lagu Multi-line Textarea */}
                 <div className="space-y-1.5">
@@ -1503,11 +1676,12 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
           }
         }}
         onEnded={handleAudioEnded}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onError={() => {
-          setIsPlaying(false);
+        onPlay={() => {
+          setIsPlaying(true);
+          setAudioErrorNotice(null);
         }}
+        onPause={() => setIsPlaying(false)}
+        onError={handleAudioError}
       />
     </div>
   );

@@ -787,13 +787,13 @@ export default function PelatihanPage() {
   };
 
   const filteredApps = applications.filter(app => {
-    const matchesLevel = (app.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '') === selectedLevel.toLowerCase().replace(/\s+/g, '');
     const matchesQuery = !searchQuery ? true : (
       (app.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (app.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (app.asalDaerah || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (app.asalDaerah || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (app.pelatihanAkanDiikuti || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
-    return matchesLevel && matchesQuery;
+    return matchesQuery;
   });
 
   const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';
@@ -2007,26 +2007,6 @@ export default function PelatihanPage() {
         /* MODE ADMIN: KELOLA DATABASE PELATIHAN & GRADING                          */
         /* ========================================================================= */
         <div className="space-y-6 animate-fade-in">
-          {/* Level Switcher for Admin */}
-          <div className="grid grid-cols-3 bg-white p-1.5 rounded-3xl border border-gray-100 shadow-sm">
-            {TRAINING_PROGRAMS.map((prog) => (
-              <button
-                key={prog.id}
-                onClick={() => setSelectedLevel(prog.id)}
-                className={`py-3 px-1 rounded-2xl text-xs font-black transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
-                  selectedLevel === prog.id
-                    ? 'bg-hw-green text-white shadow-md'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                }`}
-              >
-                <span className="text-xs font-black">{prog.title}</span>
-                <span className={`text-[8px] tracking-wide ${selectedLevel === prog.id ? 'text-emerald-100' : 'text-gray-400'}`}>
-                  {prog.subtitle}
-                </span>
-              </button>
-            ))}
-          </div>
-
           {/* Admin Stats Header */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-left">

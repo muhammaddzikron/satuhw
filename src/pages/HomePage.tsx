@@ -59,6 +59,7 @@ import { Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
+import { formatAudioUrl } from '../utils/audioUtils';
 
 const sortPlaylistWithSahabatFirst = (list: Content[]): Content[] => {
   const seen = new Set<string>();
@@ -500,15 +501,7 @@ export default function HomePage() {
 
   const getDriveStreamUrl = (url: string) => {
     if (!url) return '';
-    if (url.includes('drive.google.com')) {
-      // Extract ID from /d/ID/ or id=ID or open?id=ID
-      const match = url.match(/\/d\/(.+?)(\/|$|\?|#)/) || url.match(/[?&]id=(.+?)(&|$|#)/);
-      if (match && match[1]) {
-        // docs.google.com/uc?id= is often more reliable for audio hotlinking
-        return `https://docs.google.com/uc?id=${match[1]}&export=download`;
-      }
-    }
-    return url;
+    return formatAudioUrl(url);
   };
 
   const handlePlayTrack = (index: number) => {
