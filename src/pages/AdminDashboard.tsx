@@ -6798,10 +6798,10 @@ export default function AdminDashboard() {
                   <div className="space-y-4">
                     {/* Search & Filter Bar */}
                     <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4 w-full box-border">
-                      {/* Top Row: Wide & Prominent Search Input & Kegiatan Pelatihan Selector */}
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+                      {/* Top Row: Full-width Search Input */}
+                      <div className="w-full">
                         {/* Search Query Input */}
-                        <div className="relative lg:col-span-7 w-full">
+                        <div className="relative w-full">
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                           <input 
                             type="text" 
@@ -6820,64 +6820,6 @@ export default function AdminDashboard() {
                               <X size={14} />
                             </button>
                           )}
-                        </div>
-
-                        {/* Filter Jenis & Kegiatan Pelatihan (Memuat Jenis Pelatihan dari Kelola Jenis Pelatihan & Kegiatan Pelatihan Aktif) */}
-                        <div className="relative lg:col-span-5 w-full">
-                          <select
-                            value={trainingFilterActivity || 'Semua'}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setTrainingFilterActivity(val);
-                              setTrainingPage(1);
-                              if (val !== 'Semua') {
-                                let progMatch = 'Jaya Melati 1';
-                                if (val.startsWith('jenis:')) {
-                                  progMatch = val.replace('jenis:', '').trim();
-                                } else {
-                                  const selAct = allTrainingActivitiesList.find((a: any) => String(a.id) === val || a.namaKegiatan === val);
-                                  if (selAct && (selAct.jenisPelatihan || selAct.namaKegiatan)) {
-                                    progMatch = selAct.jenisPelatihan || selAct.namaKegiatan;
-                                  }
-                                }
-                                const normalizedProg = progMatch.includes('Jaya Matahari 2') ? 'Jaya Matahari 2'
-                                  : progMatch.includes('Jaya Matahari 1') ? 'Jaya Matahari 1'
-                                  : progMatch.includes('Jaya Melati 2') ? 'Jaya Melati 2'
-                                  : progMatch.includes('Jati 2') ? 'Jati 2'
-                                  : progMatch.includes('Jari 1') ? 'Jari 1'
-                                  : progMatch.includes('Jari 2') ? 'Jari 2'
-                                  : 'Jaya Melati 1';
-                                setSelectedPresensiProg(normalizedProg as any);
-                                setSelectedTugasProg(normalizedProg as any);
-                                setSelectedGradeProg(normalizedProg as any);
-                                setSelectedPiagamProg(normalizedProg as any);
-                              }
-                            }}
-                            className="w-full h-full min-h-[48px] bg-emerald-50/90 border border-emerald-200 text-emerald-950 rounded-2xl py-3 px-4 font-bold text-xs sm:text-sm outline-none focus:ring-3 focus:ring-emerald-400/30 cursor-pointer shadow-2xs truncate"
-                          >
-                            <option value="Semua">🏅 Semua Jenis & Kegiatan Pelatihan</option>
-                            <optgroup label="🏷️ KELOMPOK JENIS PELATIHAN (Kelola Jenis Pelatihan)">
-                              {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string, idx: number) => (
-                                <option key={`sub-type-${idx}`} value={`jenis:${typ}`}>
-                                  🏅 Jenis Pelatihan: {typ}
-                                </option>
-                              ))}
-                            </optgroup>
-                            {allTrainingActivitiesList.length > 0 && (
-                              <optgroup label="📍 KEGIATAN PELATIHAN AKTIF">
-                                {[...allTrainingActivitiesList].reverse().map((act: any, idx: number) => {
-                                  const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
-                                  const loc = act.lokasiPelatihan || act.lokasi || 'Lokasi -';
-                                  const dt = act.tanggalPelatihan || act.tanggal || 'Tanggal -';
-                                  return (
-                                    <option key={act.id || `sub-act-${idx}`} value={act.id || title}>
-                                      📍 {title} • {loc} (📅 {dt})
-                                    </option>
-                                  );
-                                })}
-                              </optgroup>
-                            )}
-                          </select>
                         </div>
                       </div>
 
