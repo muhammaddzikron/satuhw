@@ -1327,6 +1327,90 @@ export default function HomePage() {
         )}
       </section>
 
+      {/* Real-time Pelatihan Terbaru (Maksimal 2 Jenis Pelatihan yang dibuat Admin) - Placed directly above Fitur Tambahan */}
+      {activeTrainings && activeTrainings.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <GraduationCap size={18} className="text-emerald-600" />
+              <h3 className="font-display font-bold text-gray-800">
+                Pelatihan HW Jateng (Pilihan)
+              </h3>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setShowTrainingModal(true)}
+              className="text-[10px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-0.5 cursor-pointer"
+            >
+              Lihat Semua {activeTrainings.length > 2 ? `(${activeTrainings.length})` : ''} <ChevronRight size={12} />
+            </button>
+          </div>
+
+          <div className="space-y-2.5">
+            {activeTrainings.slice(0, 2).map((act: any, idx: number) => {
+              const title = act.namaKegiatan || act.jenisPelatihan || `Pelatihan HW ${idx + 1}`;
+              const loc = act.lokasiPelatihan || act.lokasi || act.location || 'Pusdiklat HW Jateng';
+              const date = act.tanggalPelatihan || act.tanggal || act.startDate || 'Jadwal Buka';
+              const tingkatan = act.jenisPelatihan || act.tingkatan || 'Jaya Melati';
+
+              return (
+                <div key={act.id || idx} className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-xs hover:border-emerald-300 transition-all space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 font-black text-[9px] rounded-md uppercase tracking-wider">
+                          {tingkatan}
+                        </span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md">
+                          Pelatihan Admin
+                        </span>
+                        {act.status && (
+                          <span className={cn(
+                            "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md",
+                            act.status === 'Buka' ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-700"
+                          )}>
+                            {act.status}
+                          </span>
+                        )}
+                      </div>
+                      <h5 className="text-sm font-black text-gray-800 leading-snug font-display line-clamp-2">
+                        {title}
+                      </h5>
+                    </div>
+                  </div>
+
+                  {act.deskripsi && (
+                    <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
+                      {act.deskripsi}
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-gray-600 bg-gray-50 p-2.5 rounded-xl">
+                    <div className="flex items-center gap-1 truncate">
+                      <MapPin size={12} className="text-amber-600 shrink-0" />
+                      <span className="truncate">{loc}</span>
+                    </div>
+                    <div className="flex items-center gap-1 truncate">
+                      <Calendar size={12} className="text-emerald-600 shrink-0" />
+                      <span className="truncate">{date}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTrainingForRegistration(act)}
+                    className="w-full py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+                  >
+                    <GraduationCap size={15} />
+                    Daftar Pelatihan Ini <ChevronRight size={13} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Tools Section */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">

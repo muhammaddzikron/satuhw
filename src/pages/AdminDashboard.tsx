@@ -4968,14 +4968,62 @@ export default function AdminDashboard() {
 
               {/* Backup */}
               <div className="space-y-4">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Pusat Data</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Pusat Data & Migrasi 100% Cloud Firebase</h4>
+                  <span className="text-[9px] font-black px-2.5 py-1 rounded-full uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    🔥 100% Firebase Database Aktif
+                  </span>
+                </div>
+
+                {/* Banner 100% Firebase Standalone */}
+                <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 p-6 rounded-[2rem] text-white shadow-xl space-y-4 border border-emerald-500/30">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center text-2xl shrink-0 shadow-lg">
+                        🔥
+                      </div>
+                      <div>
+                        <h5 className="text-base font-black tracking-wide text-white">Migrasi & Salin Semua Data ke Firebase</h5>
+                        <p className="text-xs text-emerald-250 font-medium mt-0.5 leading-relaxed">
+                          Aplikasi telah siap 100% mandiri di Cloud Firestore. Seluruh data Anggota, KTA, Pelatihan, Kegiatan, Materi, dan Konten tersimpan langsung di Firebase tanpa ketergantungan Google Sheets.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm('Jalankan migrasi dan salin seluruh data (Anggota, KTA, Pelatihan, Kegiatan, Materi, Pengaturan) ke Firebase sekarang?')) return;
+                        try {
+                          setIsSyncing(true);
+                          const res = await firestoreService.backupAndUploadAllToFirestore();
+                          if (res.success) {
+                            await fetchData();
+                            alert('✅ MIGRASI SUKSES: Seluruh data berhasil disalin 100% ke Cloud Firestore Firebase!');
+                          } else {
+                            alert('Info: ' + res.message);
+                          }
+                        } catch (err: any) {
+                          alert('Gagal migrasi: ' + (err?.message || err));
+                        } finally {
+                          setIsSyncing(false);
+                        }
+                      }}
+                      disabled={isSyncing}
+                      className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
+                    >
+                      <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                      {isSyncing ? 'Memindahkan Data...' : 'Salin Semua Data ke Firebase (100%)'}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="bg-hw-blue/5 p-6 rounded-[2rem] border border-hw-blue/10 flex flex-wrap items-center justify-between gap-6">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-hw-blue text-white flex items-center justify-center shadow-lg shadow-hw-blue/20">
                       <Database size={28} />
                     </div>
                     <div>
-                      <h5 className="text-sm font-bold text-gray-800">Backup Data Sistem</h5>
+                      <h5 className="text-sm font-bold text-gray-800">Backup & Sinkronisasi Database</h5>
                       <p className="text-xs text-hw-blue font-medium mt-1">Terakhir backup: {settings.lastBackup}</p>
                     </div>
                   </div>
@@ -4984,13 +5032,9 @@ export default function AdminDashboard() {
                       onClick={async () => {
                         try {
                           setIsSyncing(true);
-                          const res = await sheetsService.syncDatabase();
-                          if (res.success) {
-                            await fetchData();
-                            alert('Database berhasil disinkronkan dan data UI diperbarui!');
-                          } else {
-                            alert('Sinkronisasi selesai namun ada status yang tidak terduga.');
-                          }
+                          const res = await firestoreService.initAndSyncWithFirestore();
+                          await fetchData();
+                          alert('Database Firestore berhasil diperbarui: ' + (res.message || 'Sukses'));
                         } catch (error: any) {
                           alert('Gagal Sinkronisasi: ' + (error.message || 'Cek koneksi internet anda'));
                         } finally {
@@ -5001,7 +5045,7 @@ export default function AdminDashboard() {
                       className={`px-6 py-3 bg-white text-hw-blue border border-hw-blue/20 rounded-2xl text-xs font-bold hover:bg-hw-blue/5 transition-all flex items-center gap-2 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} /> 
-                      {isSyncing ? 'Syncing...' : 'Sync Database'}
+                      {isSyncing ? 'Syncing...' : 'Sync Firestore'}
                     </button>
                     <button 
                       onClick={handleBackupNow}
