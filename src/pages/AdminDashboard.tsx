@@ -3647,9 +3647,7 @@ export default function AdminDashboard() {
 
   // 3. Export Data Presensi Pelatihan
   const exportTrainingAttendanceToExcel = () => {
-    const targetKey = getNormalizedLevelKey(selectedPresensiProg);
-    const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
-    const sessionList = prog ? prog.sessions : [];
+    const sessionList = TRAINING_PROGRAMS[0]?.sessions || [];
     const sessions = sessionList.map(s => s.id);
 
     const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
@@ -3657,7 +3655,7 @@ export default function AdminDashboard() {
       const name = (app?.nama || app?.namaLengkap || '').trim();
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+      return isApprovedParticipant(app);
     });
 
     const sessionHeaders = sessionList.map(s => `${s.id} (${s.title})`);
@@ -3692,7 +3690,7 @@ export default function AdminDashboard() {
         idx + 1,
         app.nama || app.namaLengkap || '-',
         dispNbm,
-        selectedPresensiProg,
+        app.pelatihanAkanDiikuti || app.jenisPelatihan || 'Pelatihan HW',
         app.asalDaerah || '-',
         app.qabilah || '-',
         ...sessionStatuses,
@@ -3711,8 +3709,7 @@ export default function AdminDashboard() {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedPresensiProg.replace(/\s+/g, '_');
-    link.setAttribute("download", `Data_Presensi_Pelatihan_${progSuffix}_${dateStr}.csv`);
+    link.setAttribute("download", `Data_Presensi_Pelatihan_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -3720,9 +3717,7 @@ export default function AdminDashboard() {
   };
 
   const exportTrainingAttendanceToPDF = () => {
-    const targetKey = getNormalizedLevelKey(selectedPresensiProg);
-    const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
-    const sessionList = prog ? prog.sessions : [];
+    const sessionList = TRAINING_PROGRAMS[0]?.sessions || [];
     const sessions = sessionList.map(s => s.id);
 
     const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
@@ -3730,11 +3725,11 @@ export default function AdminDashboard() {
       const name = (app?.nama || app?.namaLengkap || '').trim();
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+      return isApprovedParticipant(app);
     });
 
     const doc = new jsPDF() as any;
-    const headers = [['No', 'Nama Peserta', 'Asal Daerah / Qabilah', 'Jumlah Hadir', 'Total Sesi', '% Kehadiran']];
+    const headers = [['No', 'Nama Peserta', 'Pelatihan', 'Asal Daerah / Qabilah', 'Jumlah Hadir', 'Total Sesi', '% Kehadiran']];
     const data = enrolled.map((app, idx) => {
       let attObj: Record<string, any> = {};
       if (app.kehadiran) {
@@ -3747,6 +3742,7 @@ export default function AdminDashboard() {
       return [
         idx + 1,
         app.nama || app.namaLengkap || '-',
+        app.pelatihanAkanDiikuti || app.jenisPelatihan || 'Pelatihan HW',
         `${app.asalDaerah || '-'}${app.qabilah ? ` (${app.qabilah})` : ''}`,
         attendedSessions,
         totalSessions,
@@ -3755,10 +3751,10 @@ export default function AdminDashboard() {
     });
 
     doc.setFontSize(14);
-    doc.text(`REKAPITULASI PRESENSI PELATIHAN ${selectedPresensiProg.toUpperCase()}`, 14, 15);
+    doc.text(`REKAPITULASI PRESENSI PELATIHAN HW JATENG`, 14, 15);
     doc.setFontSize(9);
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
-    doc.text(`Tingkat Pelatihan: ${selectedPresensiProg} | Total Peserta: ${enrolled.length} Orang | Jumlah Sesi Kurikulum: ${sessions.length}`, 14, 26);
+    doc.text(`Total Peserta: ${enrolled.length} Orang | Jumlah Sesi Kurikulum: ${sessions.length}`, 14, 26);
 
     autoTable(doc, {
       head: headers,
@@ -3770,8 +3766,7 @@ export default function AdminDashboard() {
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedPresensiProg.replace(/\s+/g, '_');
-    doc.save(`Rekap_Presensi_Pelatihan_${progSuffix}_${dateStr}.pdf`);
+    doc.save(`Rekap_Presensi_Pelatihan_${dateStr}.pdf`);
   };
 
   // 4. Export Data Kelulusan Pelatihan
@@ -6706,121 +6701,128 @@ export default function AdminDashboard() {
                 {trainingSubTab === 'peserta' && (
                   <div className="space-y-4">
                     {/* Search & Filter Bar */}
-                    <div className="flex flex-col lg:flex-row gap-3 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm items-stretch lg:items-center">
-                      {/* Search Query Input */}
-                      <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input 
-                          type="text" 
-                          placeholder="Cari berdasarkan nama, WhatsApp, asal daerah..." 
-                          value={trainingSearchQuery || ''}
-                          onChange={(e) => setTrainingSearchQuery(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold"
-                        />
-                        {trainingSearchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setTrainingSearchQuery('')}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3.5">
+                      {/* Top Row: Wide Search Input & Kegiatan Pelatihan Selector */}
+                      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                        {/* Search Query Input */}
+                        <div className="relative flex-1 min-w-[240px]">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Cari nama peserta, nomor WA, NBM, atau asal daerah..." 
+                            value={trainingSearchQuery || ''}
+                            onChange={(e) => setTrainingSearchQuery(e.target.value)}
+                            className="w-full bg-gray-50/80 border border-gray-200 focus:border-hw-green/50 rounded-2xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium"
+                          />
+                          {trainingSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setTrainingSearchQuery('')}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                              title="Hapus pencarian"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Filter Jenis & Kegiatan Pelatihan (Memuat Tempat Pelaksanaan & Tanggal, Terbaru di Atas) */}
+                        <div className="relative w-full md:w-auto md:min-w-[280px] md:max-w-md shrink-0">
+                          <select
+                            value={trainingFilterActivity || 'Semua'}
+                            onChange={(e) => setTrainingFilterActivity(e.target.value)}
+                            className="w-full bg-emerald-50/80 border border-emerald-200 text-emerald-950 rounded-2xl py-3 px-4 font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
                           >
-                            <X size={16} />
-                          </button>
-                        )}
+                            <option value="Semua">🏅 Semua Jenis & Kegiatan Pelatihan</option>
+                            {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
+                              const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
+                              const loc = act.lokasiPelatihan || 'Lokasi -';
+                              const dt = act.tanggalPelatihan || 'Tanggal -';
+                              return (
+                                <option key={act.id || idx} value={act.id || title}>
+                                  {title} • 📍 {loc} (📅 {dt})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
                       </div>
 
-                      {/* Filter Jenis & Kegiatan Pelatihan (Memuat Tempat Pelaksanaan & Tanggal, Terbaru di Atas) */}
-                      <div className="relative min-w-[260px] shrink-0">
-                        <select
-                          value={trainingFilterActivity || 'Semua'}
-                          onChange={(e) => setTrainingFilterActivity(e.target.value)}
-                          className="w-full bg-emerald-50/70 border border-emerald-200 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-extrabold text-xs outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
-                        >
-                          <option value="Semua">🏅 Semua Jenis & Kegiatan Pelatihan</option>
-                          {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
-                            const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
-                            const loc = act.lokasiPelatihan || 'Lokasi -';
-                            const dt = act.tanggalPelatihan || 'Tanggal -';
-                            return (
-                              <option key={act.id || idx} value={act.id || title}>
-                                {title} • 📍 {loc} (📅 {dt})
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
+                      {/* Bottom Row: Status Filter Tabs & Action Buttons */}
+                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-2 border-t border-gray-100/80">
+                        {/* Filter Status Pendaftaran */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+                          {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
+                            <button
+                              key={st}
+                              onClick={() => setTrainingFilterStatus(st)}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                                trainingFilterStatus === st 
+                                ? 'bg-hw-dark text-white border-hw-dark shadow-xs' 
+                                : 'bg-gray-50/80 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                              }`}
+                            >
+                              {st === 'pending' ? 'Menunggu' : st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Semua Status'}
+                            </button>
+                          ))}
+                        </div>
 
-                      {/* Filter Status Pendaftaran */}
-                      <div className="flex gap-1.5 overflow-x-auto shrink-0">
-                        {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <button
-                            key={st}
-                            onClick={() => setTrainingFilterStatus(st)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border ${
-                              trainingFilterStatus === st 
-                              ? 'bg-hw-dark text-white border-hw-dark' 
-                              : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
-                            }`}
+                            onClick={exportTrainingParticipantsToExcel}
+                            className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Eksport Excel (CSV)"
                           >
-                            {st === 'pending' ? 'Menunggu' : st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Semua Status'}
+                            <FileSpreadsheet size={14} /> Export Excel
                           </button>
-                        ))}
-                      </div>
+                          <button
+                            onClick={exportTrainingParticipantsToPDF}
+                            className="px-3.5 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Eksport PDF"
+                          >
+                            <Download size={14} /> Export PDF
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAddParticipantSelectedMemberId('');
+                              setAddParticipantSearchQuery('');
+                              setAddParticipantMode('select');
 
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 shrink-0 self-start lg:self-center">
-                        <button
-                          onClick={exportTrainingParticipantsToExcel}
-                          className="px-3.5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                          title="Eksport Excel (CSV)"
-                        >
-                          <FileSpreadsheet size={14} /> Export Excel
-                        </button>
-                        <button
-                          onClick={exportTrainingParticipantsToPDF}
-                          className="px-3.5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                          title="Eksport PDF"
-                        >
-                          <Download size={14} /> Export PDF
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAddParticipantSelectedMemberId('');
-                            setAddParticipantSearchQuery('');
-                            setAddParticipantMode('select');
+                              // Auto-detect training program, location, date, and fee from active activities/settings
+                              const activeActs = settings.trainingActivities || [];
+                              const firstAct = activeActs.find((a: any) => a.status !== 'Tutup') || activeActs[0];
 
-                            // Auto-detect training program, location, date, and fee from active activities/settings
-                            const activeActs = settings.trainingActivities || [];
-                            const firstAct = activeActs.find((a: any) => a.status !== 'Tutup') || activeActs[0];
+                              const prefillTraining = firstAct?.namaKegiatan || firstAct?.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1';
+                              const prefillLocation = firstAct?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng';
+                              const prefillDate = firstAct?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler';
+                              const prefillBiaya = firstAct?.biayaPelatihan || 'Rp 50.000';
+                              const prefillRekening = firstAct?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
 
-                            const prefillTraining = firstAct?.namaKegiatan || firstAct?.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1';
-                            const prefillLocation = firstAct?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng';
-                            const prefillDate = firstAct?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler';
-                            const prefillBiaya = firstAct?.biayaPelatihan || 'Rp 50.000';
-                            const prefillRekening = firstAct?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+                              setAddParticipantLokasi(prefillLocation);
+                              setAddParticipantTanggal(prefillDate);
 
-                            setAddParticipantLokasi(prefillLocation);
-                            setAddParticipantTanggal(prefillDate);
+                              setAddParticipantForm({
+                                nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
+                                jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
+                                pelatihanAkanDiikuti: prefillTraining,
+                                pelatihGolongan: 'Tunas Athfal',
+                                golonganAnggota: 'Pengenal',
+                                lokasiPelatihan: prefillLocation,
+                                tanggalPelatihan: prefillDate,
+                                biayaPelatihan: prefillBiaya,
+                                rekeningPembiayaan: prefillRekening,
+                                status: 'approved',
+                                statusPembayaran: 'Lunas'
+                              });
 
-                            setAddParticipantForm({
-                              nama: '', nbm: '', email: '', noWa: '', tempatLahir: '', tanggalLahir: '',
-                              jenisKelamin: 'L', asalDaerah: '', qabilah: '', pendidikan: '', photo: '',
-                              pelatihanAkanDiikuti: prefillTraining,
-                              pelatihGolongan: 'Tunas Athfal',
-                              golonganAnggota: 'Pengenal',
-                              lokasiPelatihan: prefillLocation,
-                              tanggalPelatihan: prefillDate,
-                              biayaPelatihan: prefillBiaya,
-                              rekeningPembiayaan: prefillRekening,
-                              status: 'approved',
-                              statusPembayaran: 'Lunas'
-                            });
-
-                            setIsAddParticipantModalOpen(true);
-                          }}
-                          className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <UserPlus size={14} /> Tambah Peserta
-                        </button>
+                              setIsAddParticipantModalOpen(true);
+                            }}
+                            className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <UserPlus size={14} /> Tambah Peserta
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -7170,32 +7172,27 @@ export default function AdminDashboard() {
                 {/* 2. PRESENSI SUB-TAB */}
                 {trainingSubTab === 'presensi' && (
                   <div className="space-y-6">
-                    {/* Presensi Header & Program Filter */}
+                    {/* Presensi Header */}
                     <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
-                        <div className="flex items-center gap-1.5">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedPresensiProg(prog as any)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedPresensiProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
-                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
+                        <div className="w-9 h-9 rounded-xl bg-hw-green/10 text-hw-green flex items-center justify-center font-black">
+                          <CheckCircle2 size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                            Presensi Kehadiran Pelatihan
+                          </h4>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                            Rekapitulasi absensi sesi materi peserta pelatihan HW Jateng
+                          </p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-3">
                         <div className="text-right border-r border-gray-100 pr-3 hidden sm:block">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Peserta Disetujui</span>
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Total Peserta Disetujui</span>
                           <span className="text-sm font-black text-hw-green">
-                            {trainingApps.filter(app => isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg)).length} Orang
+                            {trainingApps.filter(app => isApprovedParticipant(app)).length} Orang
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -7219,9 +7216,7 @@ export default function AdminDashboard() {
 
                     {/* Presensi Grid Table */}
                     {(() => {
-                      const targetKey = getNormalizedLevelKey(selectedPresensiProg);
-                      const prog = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === targetKey) || TRAINING_PROGRAMS[0];
-                      const sessionList = prog ? prog.sessions : [];
+                      const sessionList = TRAINING_PROGRAMS[0]?.sessions || [];
                       const sessions = sessionList.map(s => s.id);
 
                       const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
@@ -7229,12 +7224,12 @@ export default function AdminDashboard() {
                         const name = (app?.nama || app?.namaLengkap || '').trim();
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPresensiProg);
+                        return isApprovedParticipant(app);
                       });
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                          Belum ada peserta yang disetujui untuk pelatihan tingkat {selectedPresensiProg} ini.
+                          Belum ada peserta yang disetujui untuk pelatihan.
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
