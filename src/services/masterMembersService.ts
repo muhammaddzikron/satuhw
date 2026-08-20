@@ -162,22 +162,34 @@ export const getMasterMembersList = (): User[] => {
   const mergedMap = new Map<string, User>();
   const emailToKey = new Map<string, string>();
   const ktaToKey = new Map<string, string>();
-  const nameToKey = new Map<string, string>();
+  const idToKey = new Map<string, string>();
+  const nameKwardaToKey = new Map<string, string>();
+  const namePhoneToKey = new Map<string, string>();
 
   rawCandidates.forEach((item, index) => {
     const email = (item.email || '').trim().toLowerCase();
-    const isRealEmail = email && !email.startsWith('member_') && !email.startsWith('user_');
+    const isRealEmail = email && !email.startsWith('member_') && !email.startsWith('user_') && email.includes('@');
     const kta = (item.ktaNumber || item.nomorKTA || '').trim().toLowerCase();
     const normName = (item.namaLengkap || '').trim().toLowerCase();
     const isRealName = normName && normName.length >= 3 && normName !== 'anggota hw' && normName !== 'tanpa nama';
+    const kwarda = (item.asalKwarda || '').trim().toLowerCase();
+    const phone = item.noHp ? String(item.noHp).replace(/[^0-9]/g, '') : '';
+    const rawId = item.id ? String(item.id).trim() : '';
+    const isRealId = rawId && !rawId.startsWith('user-cand-') && !rawId.startsWith('user-init-') && !rawId.startsWith('user-csv-');
 
     let matchKey: string | undefined;
-    if (isRealEmail && emailToKey.has(email)) {
+    if (isRealId && idToKey.has(rawId)) {
+      matchKey = idToKey.get(rawId);
+    } else if (isRealEmail && emailToKey.has(email)) {
       matchKey = emailToKey.get(email);
     } else if (kta && ktaToKey.has(kta)) {
       matchKey = ktaToKey.get(kta);
-    } else if (isRealName && nameToKey.has(normName)) {
-      matchKey = nameToKey.get(normName);
+    } else if (isRealName) {
+      if (phone && phone.length >= 8 && namePhoneToKey.has(`${normName}:::${phone}`)) {
+        matchKey = namePhoneToKey.get(`${normName}:::${phone}`);
+      } else if (kwarda && kwarda !== '-' && nameKwardaToKey.has(`${normName}:::${kwarda}`)) {
+        matchKey = nameKwardaToKey.get(`${normName}:::${kwarda}`);
+      }
     }
 
     if (matchKey && mergedMap.has(matchKey)) {
@@ -200,9 +212,13 @@ export const getMasterMembersList = (): User[] => {
     } else {
       const newKey = item.id || `user-cand-${index}`;
       mergedMap.set(newKey, { ...item });
+      if (isRealId) idToKey.set(rawId, newKey);
       if (isRealEmail) emailToKey.set(email, newKey);
       if (kta) ktaToKey.set(kta, newKey);
-      if (isRealName) nameToKey.set(normName, newKey);
+      if (isRealName) {
+        if (phone && phone.length >= 8) namePhoneToKey.set(`${normName}:::${phone}`, newKey);
+        if (kwarda && kwarda !== '-') nameKwardaToKey.set(`${normName}:::${kwarda}`, newKey);
+      }
     }
   });
 

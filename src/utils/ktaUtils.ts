@@ -432,8 +432,6 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       matchId = nameKwardaToId.get(nameKwardaKey)!;
     } else if (namePhoneKey && namePhoneToId.has(namePhoneKey)) {
       matchId = namePhoneToId.get(namePhoneKey)!;
-    } else if (normName && nameOnlyToId.has(normName)) {
-      matchId = nameOnlyToId.get(normName)!;
     }
 
     if (matchId && map.has(matchId)) {

@@ -493,68 +493,6 @@ export const firestoreService = {
         safeStorageSet('training_applications', cleaned);
       }
     } catch (e) {}
-
-    if (this.getIsQuotaExceeded()) return;
-
-    try {
-      // 1. Purge empty KTA Applications from Firestore
-      const ktaSnap = await getDocs(collection(db, 'kta_applications'));
-      if (!ktaSnap.empty) {
-        for (const d of ktaSnap.docs) {
-          const data = d.data();
-          const name = (data.nama || data.namaLengkap || '').trim();
-          const email = (data.email || '').trim();
-          if (!isValidName(name) || (!email && name === 'Anggota HW')) {
-            await deleteDoc(doc(db, 'kta_applications', d.id)).catch((err) => this.checkQuotaError(err));
-          }
-        }
-      }
-
-      // 2. Purge empty Members from Firestore
-      const membersSnap = await getDocs(collection(db, 'members'));
-      if (!membersSnap.empty) {
-        for (const d of membersSnap.docs) {
-          const data = d.data();
-          const name = (data.namaLengkap || data.nama || '').trim();
-          const email = (data.email || '').trim();
-          if (!isValidName(name) || (!email && !data.noHp && !data.id?.includes('user-'))) {
-            await deleteDoc(doc(db, 'members', d.id)).catch((err) => this.checkQuotaError(err));
-          }
-        }
-      }
-
-      // 3. Purge empty, dummy or invalid Training Applications from Firestore
-      const trainSnap = await getDocs(collection(db, 'training_applications'));
-      if (!trainSnap.empty) {
-        const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-        for (const d of trainSnap.docs) {
-          const data = d.data();
-          const name = (data.nama || data.namaLengkap || '').trim();
-          const email = (data.email || '').toLowerCase().trim();
-          const prog = (data.pelatihanAkanDiikuti || '').trim();
-          const docId = d.id;
-
-          const isDummyOrInvalid = 
-            docId.startsWith('training-') ||
-            docId.startsWith('train-api-') ||
-            !isValidName(name) ||
-            name.includes('@') ||
-            sysEmails.includes(email) ||
-            !prog ||
-            prog === '-' ||
-            (data.status === 'ditolak' && (!name || name.includes('@') || !prog || prog === '-'));
-
-          if (isDummyOrInvalid) {
-            await deleteDoc(doc(db, 'training_applications', d.id)).catch((err) => this.checkQuotaError(err));
-          }
-        }
-      }
-    } catch (e) {
-      this.checkQuotaError(e);
-      if (!this.getIsQuotaExceeded()) {
-        console.error('Error purging empty data:', e);
-      }
-    }
   },
 
   // --- MEMBERS ---
@@ -566,56 +504,51 @@ export const firestoreService = {
       let members: User[] = [];
       if (!this.getIsQuotaExceeded()) {
         try {
-          const snap = await withTimeout(getDocs(collection(db, 'members')), 8000);
+          const snap = await withTimeout(getDocs(collection(db, 'members')), 15000);
           if (!snap.empty) {
             const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
-            const validMembers: User[] = [];
-            for (const m of rawMembers) {
+            members = rawMembers.filter(m => {
               const name = (m.namaLengkap || (m as any).nama || '').trim();
-              const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
-              if (isInvalid) {
-                deleteDoc(doc(db, 'members', m.id)).catch((err) => this.checkQuotaError(err));
-              } else {
-                validMembers.push(m);
-              }
-            }
-            members = validMembers;
+              return name && name !== 'Tanpa Nama' && name !== '-';
+            });
           }
         } catch (err: any) {
           this.checkQuotaError(err);
           if (!this.getIsQuotaExceeded()) {
-            console.warn('[FIRESTORE] getMembers fallback to local cache:', err?.message || err);
+            console.warn('[FIRESTORE] getMembers fallback to master dataset:', err?.message || err);
           }
         }
       }
 
     // Merge localStorage mock_members to ensure instant offline/local edits are never lost
     try {
-      const stored = localStorage.getItem('mock_members') || '[]';
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((lm: any) => {
-          if (!lm || !lm.namaLengkap || lm.namaLengkap === 'Tanpa Nama' || lm.namaLengkap === '-') return;
-          const lmEmail = lm.email ? lm.email.toLowerCase().trim() : '';
-          const lmId = lm.id ? String(lm.id) : '';
+      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('mock_members') : null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((lm: any) => {
+            if (!lm || !lm.namaLengkap || lm.namaLengkap === 'Tanpa Nama' || lm.namaLengkap === '-') return;
+            const lmEmail = lm.email ? lm.email.toLowerCase().trim() : '';
+            const lmId = lm.id ? String(lm.id) : '';
 
-          const idx = members.findIndex(m => 
-            (m.id && lmId && String(m.id) === lmId) ||
-            (lmEmail && m.email && m.email.toLowerCase().trim() === lmEmail)
-          );
+            const idx = members.findIndex(m => 
+              (m.id && lmId && String(m.id) === lmId) ||
+              (lmEmail && m.email && m.email.toLowerCase().trim() === lmEmail)
+            );
 
-          if (idx >= 0) {
-            members[idx] = { ...members[idx], ...lm };
-          } else {
-            members.push(lm);
-          }
-        });
+            if (idx >= 0) {
+              members[idx] = { ...members[idx], ...lm };
+            } else {
+              members.push(lm);
+            }
+          });
+        }
       }
     } catch (e) {}
 
     // Synchronize valid KTA Applications into members list automatically
     try {
-      const ktaStored = localStorage.getItem('kta_applications');
+      const ktaStored = typeof localStorage !== 'undefined' ? localStorage.getItem('kta_applications') : null;
       let ktas: any[] = [];
       if (ktaStored) {
         try { ktas = JSON.parse(ktaStored); } catch(e) {}
