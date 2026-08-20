@@ -35,6 +35,43 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => 
   ]);
 };
 
+// Global in-memory cache and inflight promise map for ultra-fast navigation
+const FS_CACHE = new Map<string, { data: any; timestamp: number }>();
+const FS_IN_FLIGHT = new Map<string, Promise<any>>();
+
+export function clearFirestoreCache(prefix?: string) {
+  if (!prefix) {
+    FS_CACHE.clear();
+  } else {
+    for (const key of Array.from(FS_CACHE.keys())) {
+      if (key.startsWith(prefix) || key.includes(prefix)) {
+        FS_CACHE.delete(key);
+      }
+    }
+  }
+}
+
+async function cachedFirestoreFetch<T>(key: string, fetcher: () => Promise<T>, ttlMs: number = 30000): Promise<T> {
+  const cached = FS_CACHE.get(key);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < ttlMs)) {
+    return cached.data;
+  }
+  if (FS_IN_FLIGHT.has(key)) {
+    return FS_IN_FLIGHT.get(key)!;
+  }
+  const p = fetcher().then((res) => {
+    FS_CACHE.set(key, { data: res, timestamp: Date.now() });
+    FS_IN_FLIGHT.delete(key);
+    return res;
+  }).catch((err) => {
+    FS_IN_FLIGHT.delete(key);
+    throw err;
+  });
+  FS_IN_FLIGHT.set(key, p);
+  return p;
+}
+
 // Global session registry to prevent duplicate allocation within the same session context
 const sessionAllocatedKtaNumbers = new Set<string>();
 
@@ -521,32 +558,36 @@ export const firestoreService = {
   },
 
   // --- MEMBERS ---
-  async getMembers(): Promise<User[]> {
-    let members: User[] = [];
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await withTimeout(getDocs(collection(db, 'members')), 8000);
-        if (!snap.empty) {
-          const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
-          const validMembers: User[] = [];
-          for (const m of rawMembers) {
-            const name = (m.namaLengkap || (m as any).nama || '').trim();
-            const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
-            if (isInvalid) {
-              deleteDoc(doc(db, 'members', m.id)).catch((err) => this.checkQuotaError(err));
-            } else {
-              validMembers.push(m);
+  async getMembers(forceRefresh: boolean = false): Promise<User[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('members');
+    }
+    return cachedFirestoreFetch('members', async () => {
+      let members: User[] = [];
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'members')), 8000);
+          if (!snap.empty) {
+            const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+            const validMembers: User[] = [];
+            for (const m of rawMembers) {
+              const name = (m.namaLengkap || (m as any).nama || '').trim();
+              const isInvalid = !name || name === 'Tanpa Nama' || name === '-';
+              if (isInvalid) {
+                deleteDoc(doc(db, 'members', m.id)).catch((err) => this.checkQuotaError(err));
+              } else {
+                validMembers.push(m);
+              }
             }
+            members = validMembers;
           }
-          members = validMembers;
-        }
-      } catch (err: any) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) {
-          console.warn('[FIRESTORE] getMembers fallback to local cache:', err?.message || err);
+        } catch (err: any) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded()) {
+            console.warn('[FIRESTORE] getMembers fallback to local cache:', err?.message || err);
+          }
         }
       }
-    }
 
     // Merge localStorage mock_members to ensure instant offline/local edits are never lost
     try {
@@ -821,6 +862,7 @@ export const firestoreService = {
       } catch (e) {}
     }
     return sanitized;
+    }, 25000);
   },
 
   async login(emailOrId: string, password?: string): Promise<{ user: User; token: string } | null> {
@@ -1393,6 +1435,7 @@ export const firestoreService = {
   },
 
   async saveMember(member: User): Promise<User> {
+    clearFirestoreCache('members');
     const memberId = member.id || member.uid || `user-${Date.now()}`;
     const existingKta = member.nomorKTA || member.ktaNumber;
 
@@ -1535,6 +1578,7 @@ export const firestoreService = {
   },
 
   async updateMember(id: string, updates: Partial<User>): Promise<User> {
+    clearFirestoreCache('members');
     const normUpdates = { ...updates };
     if (updates.roles || updates.role) {
       const normRoles = parseRolesField(updates.roles, updates.role);
@@ -1622,6 +1666,7 @@ export const firestoreService = {
   },
 
   async deleteMember(id: string): Promise<boolean> {
+    clearFirestoreCache('members');
     if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'members', id));
@@ -1637,6 +1682,7 @@ export const firestoreService = {
   },
 
   async saveAllMembers(members: User[]): Promise<boolean> {
+    clearFirestoreCache('members');
     try {
       const batch = writeBatch(db);
       for (const m of members) {
@@ -1787,27 +1833,37 @@ export const firestoreService = {
   },
 
   // --- MATERI ---
-  async getMateri(): Promise<Materi[]> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
-        if (!snap.empty) {
-          const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
-          safeStorageSet('materi', materi);
-          return materi;
-        }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
-          console.warn('Firestore getMateri offline / fallback to cache:', (err as any)?.message || err);
+  async getMateri(forceRefresh: boolean = false): Promise<Materi[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('materi');
+    }
+    return cachedFirestoreFetch('materi', async () => {
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
+          if (!snap.empty) {
+            const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
+            safeStorageSet('materi', materi);
+            return materi;
+          }
+        } catch (err) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+            console.warn('Firestore getMateri offline / fallback to cache:', (err as any)?.message || err);
+          }
         }
       }
-    }
-    const stored = localStorage.getItem('materi') || '[]';
-    return JSON.parse(stored);
+      const stored = localStorage.getItem('materi') || '[]';
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return [];
+      }
+    }, 45000);
   },
 
   async saveMateri(item: Materi): Promise<Materi> {
+    clearFirestoreCache('materi');
     const rawId = item.id ? String(item.id) : `materi-${Date.now()}`;
     const itemData = cleanData({
       ...item,
@@ -1821,7 +1877,7 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore saveMateri error:', err);
       }
     }
-    const list = await this.getMateri();
+    const list = await this.getMateri(true);
     const idx = list.findIndex(m => String(m.id) === String(itemData.id));
     if (idx >= 0) {
       list[idx] = itemData as Materi;
@@ -1833,6 +1889,7 @@ export const firestoreService = {
   },
 
   async deleteMateri(id: string): Promise<boolean> {
+    clearFirestoreCache('materi');
     const strId = String(id);
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -1842,83 +1899,88 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore deleteMateri error:', err);
       }
     }
-    const list = await this.getMateri();
+    const list = await this.getMateri(true);
     const filtered = list.filter(m => String(m.id) !== strId);
     safeStorageSet('materi', filtered);
     return true;
   },
 
   // --- KTA APPLICATIONS ---
-  async getKTAApplications(): Promise<any[]> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const snap = await withTimeout(getDocs(collection(db, 'kta_applications')), 8000);
-        let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  async getKTAApplications(forceRefresh: boolean = false): Promise<any[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('kta_applications');
+    }
+    return cachedFirestoreFetch('kta_applications', async () => {
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'kta_applications')), 8000);
+          let rawKtas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const cleanKtas: any[] = [];
-        for (const k of rawKtas) {
-          const item = k as any;
-          const name = (item.nama || item.namaLengkap || '').trim();
-          const email = (item.email || '').trim();
-          const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || name === 'KTA-HW.JT.XXXX' || name.toLowerCase() === 'undefined' || name.toLowerCase() === 'null' || (!email && name === 'Anggota HW');
-          if (isInvalid) {
-            deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
-          } else {
-            cleanKtas.push(k);
+          const cleanKtas: any[] = [];
+          for (const k of rawKtas) {
+            const item = k as any;
+            const name = (item.nama || item.namaLengkap || '').trim();
+            const email = (item.email || '').trim();
+            const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || name === 'KTA-HW.JT.XXXX' || name.toLowerCase() === 'undefined' || name.toLowerCase() === 'null' || (!email && name === 'Anggota HW');
+            if (isInvalid) {
+              deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
+            } else {
+              cleanKtas.push(k);
+            }
+          }
+          let ktas = cleanKtas;
+
+          const membersStored = localStorage.getItem('mock_members');
+          if (membersStored && ktas.length > 0) {
+            try {
+              const members = JSON.parse(membersStored);
+              ktas = ktas.map((k: any) => {
+                const match = members.find((m: any) => 
+                  (m.email && k.email && String(m.email).trim().toLowerCase() === String(m.email).trim().toLowerCase()) ||
+                  (m.id && k.userId && String(m.id) === String(k.userId))
+                );
+                if (match) {
+                  return { 
+                    ...k, 
+                    nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
+                    email: k.email || match.email || '',
+                    photo: k.photo || match.photo || '',
+                    noWa: k.noWa || match.noHp || '',
+                    asalDaerah: k.asalDaerah || match.asalKwarda || '',
+                    qabilah: k.qabilah || match.qabilah || '',
+                    tempatLahir: k.tempatLahir || match.tempatLahir || '',
+                    tanggalLahir: k.tanggalLahir || match.tanggalLahir || '',
+                    nbm: k.nbm || match.nbm || '',
+                    alamat: k.alamat || match.alamat || ''
+                  };
+                }
+                return k;
+              });
+            } catch (e) {}
+          }
+          ktas = ensureUniqueKtaNumbers(ktas);
+          safeStorageSet('kta_applications', ktas);
+          return ktas;
+        } catch (err) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded()) {
+            console.warn('[FIRESTORE] getKTAApplications fallback to cache:', (err as any)?.message || err);
           }
         }
-        let ktas = cleanKtas;
-
-        const membersStored = localStorage.getItem('mock_members');
-        if (membersStored && ktas.length > 0) {
-          try {
-            const members = JSON.parse(membersStored);
-            ktas = ktas.map((k: any) => {
-              const match = members.find((m: any) => 
-                (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
-                (m.id && k.userId && String(m.id) === String(k.userId))
-              );
-              if (match) {
-                return { 
-                  ...k, 
-                  nama: k.nama && k.nama !== 'Tanpa Nama' ? k.nama : (match.namaLengkap || 'Anggota HW'),
-                  email: k.email || match.email || '',
-                  photo: k.photo || match.photo || '',
-                  noWa: k.noWa || match.noHp || '',
-                  asalDaerah: k.asalDaerah || match.asalKwarda || '',
-                  qabilah: k.qabilah || match.qabilah || '',
-                  tempatLahir: k.tempatLahir || match.tempatLahir || '',
-                  tanggalLahir: k.tanggalLahir || match.tanggalLahir || '',
-                  nbm: k.nbm || match.nbm || '',
-                  alamat: k.alamat || match.alamat || ''
-                };
-              }
-              return k;
-            });
-          } catch (e) {}
-        }
-        ktas = ensureUniqueKtaNumbers(ktas);
-        safeStorageSet('kta_applications', ktas);
-        return ktas;
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) {
-          console.warn('[FIRESTORE] getKTAApplications fallback to cache:', (err as any)?.message || err);
-        }
       }
-    }
-    const stored = localStorage.getItem('kta_applications') || '[]';
-    try {
-      const parsed = JSON.parse(stored);
-      const cleanList = parsed.filter((k: any) => {
-        if (!k) return false;
-        const name = (k.nama || k.namaLengkap || '').trim();
-        return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
-      });
-      return ensureUniqueKtaNumbers(cleanList);
-    } catch (e) {
-      return [];
-    }
+      const stored = localStorage.getItem('kta_applications') || '[]';
+      try {
+        const parsed = JSON.parse(stored);
+        const cleanList = parsed.filter((k: any) => {
+          if (!k) return false;
+          const name = (k.nama || k.namaLengkap || '').trim();
+          return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
+        });
+        return ensureUniqueKtaNumbers(cleanList);
+      } catch (e) {
+        return [];
+      }
+    }, 30000);
   },
 
   async resequenceAndSaveAllKTAs(): Promise<any[]> {
@@ -2212,89 +2274,95 @@ export const firestoreService = {
   },
 
   // --- TRAINING APPLICATIONS ---
-  async getTrainingApplications(): Promise<any[]> {
-    let localStored: any[] = [];
-    try {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      localStored = JSON.parse(stored);
-      if (!Array.isArray(localStored)) localStored = [];
-    } catch (e) {
-      localStored = [];
+  async getTrainingApplications(forceRefresh: boolean = false): Promise<any[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('training_applications');
     }
-
-    let combined: any[] = [...localStored];
-
-    if (!this.getIsQuotaExceeded()) {
+    return cachedFirestoreFetch('training_applications', async () => {
+      let localStored: any[] = [];
       try {
-        const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
-        if (!snap.empty) {
-          const rawFs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          combined = [...rawFs, ...localStored];
-        }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) {
-          console.warn('[FIRESTORE] getTrainingApplications fallback to cache:', (err as any)?.message || err);
-        }
+        const stored = localStorage.getItem('training_applications') || '[]';
+        localStored = JSON.parse(stored);
+        if (!Array.isArray(localStored)) localStored = [];
+      } catch (e) {
+        localStored = [];
       }
-    }
 
-    const map = new Map<string, any>();
-    const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+      let combined: any[] = [...localStored];
 
-    for (const t of combined) {
-      if (!t) continue;
-      const item = t as any;
-      const name = (item.nama || item.namaLengkap || '').trim();
-      const emailStr = String(item.email || '').toLowerCase().trim();
-
-      // Filter out system accounts & invalid entries where name is blank, is an email, or has no valid program
-      if (sysEmails.includes(emailStr)) continue;
-      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) continue;
-      const prog = (item.pelatihanAkanDiikuti || '').trim();
-      if (!prog || prog === '-') continue;
-      if (item.id && (String(item.id).startsWith('training-100') || String(item.id).startsWith('train-api-'))) continue;
-
-      const waDigits = String(item.noWa || item.noHp || '').replace(/[^0-9]/g, '');
-
-      const personKey = (
-        (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
-        (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
-        (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
-        `name_${name.toLowerCase()}`
-      );
-      
-      const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
-      const compositeKey = `${personKey}___${progKey}`;
-
-      if (!map.has(compositeKey)) {
-        map.set(compositeKey, item);
-      } else {
-        const existing = map.get(compositeKey);
-        const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
-        const scoreCurrent = statusScore(item.status);
-        const scoreExisting = statusScore(existing.status);
-
-        if (scoreCurrent > scoreExisting) {
-          map.set(compositeKey, item);
-        } else if (scoreCurrent === scoreExisting) {
-          const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0) + (item.tempatLahir ? 1 : 0);
-          const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0) + (existing.tempatLahir ? 1 : 0);
-          if (currentRichness > existingRichness) {
-            map.set(compositeKey, item);
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
+          if (!snap.empty) {
+            const rawFs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            combined = [...rawFs, ...localStored];
+          }
+        } catch (err) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded()) {
+            console.warn('[FIRESTORE] getTrainingApplications fallback to cache:', (err as any)?.message || err);
           }
         }
       }
-    }
 
-    const cleanTrainings = Array.from(map.values());
-    try {
-      safeStorageSet('training_applications', cleanTrainings);
-    } catch (e) {}
-    return cleanTrainings;
+      const map = new Map<string, any>();
+      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+
+      for (const t of combined) {
+        if (!t) continue;
+        const item = t as any;
+        const name = (item.nama || item.namaLengkap || '').trim();
+        const emailStr = String(item.email || '').toLowerCase().trim();
+
+        // Filter out system accounts & invalid entries where name is blank, is an email, or has no valid program
+        if (sysEmails.includes(emailStr)) continue;
+        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) continue;
+        const prog = (item.pelatihanAkanDiikuti || '').trim();
+        if (!prog || prog === '-') continue;
+        if (item.id && (String(item.id).startsWith('training-100') || String(item.id).startsWith('train-api-'))) continue;
+
+        const waDigits = String(item.noWa || item.noHp || '').replace(/[^0-9]/g, '');
+
+        const personKey = (
+          (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
+          (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
+          (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
+          `name_${name.toLowerCase()}`
+        );
+        
+        const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
+        const compositeKey = `${personKey}___${progKey}`;
+
+        if (!map.has(compositeKey)) {
+          map.set(compositeKey, item);
+        } else {
+          const existing = map.get(compositeKey);
+          const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
+          const scoreCurrent = statusScore(item.status);
+          const scoreExisting = statusScore(existing.status);
+
+          if (scoreCurrent > scoreExisting) {
+            map.set(compositeKey, item);
+          } else if (scoreCurrent === scoreExisting) {
+            const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0) + (item.tempatLahir ? 1 : 0);
+            const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0) + (existing.tempatLahir ? 1 : 0);
+            if (currentRichness > existingRichness) {
+              map.set(compositeKey, item);
+            }
+          }
+        }
+      }
+
+      const cleanTrainings = Array.from(map.values());
+      try {
+        safeStorageSet('training_applications', cleanTrainings);
+      } catch (e) {}
+      return cleanTrainings;
+    }, 30000);
   },
 
   async createTrainingApplication(appData: any): Promise<any> {
+    clearFirestoreCache('training_applications');
     const newApp = cleanData({
       ...appData,
       id: appData.id || `training-${Date.now()}`,
@@ -2499,102 +2567,108 @@ export const firestoreService = {
     }
   },
 
-  async getContents(): Promise<Content[]> {
-    const mapContentItem = (c: any): Content => {
-      if (!c) return c;
-      if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
-        return {
-          ...c,
-          field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-          field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
-        };
-      }
-      if (c.section === 'playlist') {
-        let audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
-        let judul = c.field2 || c.judul || c.title || '';
-        let pencipta = c.field3 || c.pencipta || c.creator || '';
-        let lirik = c.field5 || c.lirik || c.lyrics || '';
-        const lowerJudul = judul.trim().toLowerCase();
+  async getContents(forceRefresh: boolean = false): Promise<Content[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('contents');
+    }
+    return cachedFirestoreFetch('contents', async () => {
+      const mapContentItem = (c: any): Content => {
+        if (!c) return c;
+        if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+          return {
+            ...c,
+            field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+            field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+          };
+        }
+        if (c.section === 'playlist') {
+          let audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
+          let judul = c.field2 || c.judul || c.title || '';
+          let pencipta = c.field3 || c.pencipta || c.creator || '';
+          let lirik = c.field5 || c.lirik || c.lyrics || '';
+          const lowerJudul = judul.trim().toLowerCase();
 
-        const isMarsHW = lowerJudul.includes('mars hizbul wathan') || lowerJudul === 'mars hw' || lowerJudul.includes('mars gerakan kepanduan hizbul wathan') || lowerJudul.includes('mars pandu hw');
-        const isHymneHW = lowerJudul.includes('hymne');
-        const isSangSurya = lowerJudul.includes('sang surya');
-        const isMarsAisyiyah = lowerJudul.includes('mars aisyiyah');
+          const isMarsHW = lowerJudul.includes('mars hizbul wathan') || lowerJudul === 'mars hw' || lowerJudul.includes('mars gerakan kepanduan hizbul wathan') || lowerJudul.includes('mars pandu hw');
+          const isHymneHW = lowerJudul.includes('hymne');
+          const isSangSurya = lowerJudul.includes('sang surya');
+          const isMarsAisyiyah = lowerJudul.includes('mars aisyiyah');
 
-        if (lowerJudul === 'sahabat hw' || audioUrl.toLowerCase().includes('sahabathw')) {
-          if (!audioUrl) audioUrl = 'https://hwjateng.org/musik/sahabathw.mp3';
-          if (!judul) judul = 'Sahabat HW';
-          pencipta = 'Muhammad Dzikron';
-          if (!lirik) {
-            lirik = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
-          }
-        } else if (isMarsHW) {
-          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
-            pencipta = 'H. Siradj Dahlan';
-          }
-        } else if (isHymneHW) {
-          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
-            pencipta = 'H.M. Affandi';
-          }
-        } else if (isSangSurya) {
-          if (!pencipta) pencipta = 'Djarnawi Hadikusuma';
-        } else if (isMarsAisyiyah) {
-          if (!pencipta) pencipta = 'Ny. Hj. Siti Badilah Zuber';
-        } else {
-          // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
-          if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+          if (lowerJudul === 'sahabat hw' || audioUrl.toLowerCase().includes('sahabathw')) {
+            if (!audioUrl) audioUrl = 'https://hwjateng.org/musik/sahabathw.mp3';
+            if (!judul) judul = 'Sahabat HW';
             pencipta = 'Muhammad Dzikron';
+            if (!lirik) {
+              lirik = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
+            }
+          } else if (isMarsHW) {
+            if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+              pencipta = 'H. Siradj Dahlan';
+            }
+          } else if (isHymneHW) {
+            if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+              pencipta = 'H.M. Affandi';
+            }
+          } else if (isSangSurya) {
+            if (!pencipta) pencipta = 'Djarnawi Hadikusuma';
+          } else if (isMarsAisyiyah) {
+            if (!pencipta) pencipta = 'Ny. Hj. Siti Badilah Zuber';
+          } else {
+            // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
+            if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
+              pencipta = 'Muhammad Dzikron';
+            }
+          }
+          return {
+            ...c,
+            field1: audioUrl,
+            field2: judul,
+            field3: pencipta,
+            field4: c.field4 || '',
+            field5: lirik,
+            audioUrl,
+            audiourl: audioUrl,
+            judul,
+            title: judul,
+            pencipta,
+            creator: pencipta,
+            lirik,
+            lyrics: lirik
+          };
+        }
+        return c;
+      };
+
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
+          if (!snap.empty) {
+            const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
+            const sanitized = contents.map(mapContentItem).filter(Boolean) as Content[];
+            safeStorageSet('contents', sanitized);
+            return sanitized;
+          }
+        } catch (err) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+            console.warn('Firestore getContents offline / fallback to cache:', (err as any)?.message || err);
           }
         }
-        return {
-          ...c,
-          field1: audioUrl,
-          field2: judul,
-          field3: pencipta,
-          field4: c.field4 || '',
-          field5: lirik,
-          audioUrl,
-          audiourl: audioUrl,
-          judul,
-          title: judul,
-          pencipta,
-          creator: pencipta,
-          lirik,
-          lyrics: lirik
-        };
       }
-      return c;
-    };
-
-    if (!this.getIsQuotaExceeded()) {
+      const stored = localStorage.getItem('contents') || '[]';
       try {
-        const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
-        if (!snap.empty) {
-          const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-          const sanitized = contents.map(mapContentItem).filter(Boolean) as Content[];
-          safeStorageSet('contents', sanitized);
-          return sanitized;
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return (parsed.map(mapContentItem).filter(Boolean) as Content[]);
         }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
-          console.warn('Firestore getContents offline / fallback to cache:', (err as any)?.message || err);
-        }
+        return [];
+      } catch {
+        return [];
       }
-    }
-    const stored = localStorage.getItem('contents') || '[]';
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return (parsed.map(mapContentItem).filter(Boolean) as Content[]);
-      }
-      return [];
-    } catch {
-      return [];
-    }
+    }, 45000);
   },
 
   async saveContent(item: Content): Promise<Content> {
+    clearFirestoreCache('contents');
     const rawAudio = item.field1 || (item as any).audioUrl || (item as any).audiourl || '';
     const rawJudul = item.field2 || (item as any).judul || (item as any).title || '';
     const rawPencipta = item.field3 || (item as any).pencipta || (item as any).creator || '';
@@ -2627,7 +2701,7 @@ export const firestoreService = {
         }
       }
     }
-    const list = await this.getContents();
+    const list = await this.getContents(true);
     const idx = list.findIndex(c => c.id === itemData.id);
     if (idx >= 0) {
       list[idx] = itemData as Content;
@@ -2639,6 +2713,7 @@ export const firestoreService = {
   },
 
   async deleteContent(id: string): Promise<boolean> {
+    clearFirestoreCache('contents');
     if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'contents', id));
@@ -2649,60 +2724,66 @@ export const firestoreService = {
         }
       }
     }
-    const list = await this.getContents();
+    const list = await this.getContents(true);
     const filtered = list.filter(c => c.id !== id);
     safeStorageSet('contents', filtered);
     return true;
   },
 
   // --- SETTINGS ---
-  async getSettings(): Promise<any> {
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
-        if (docSnap.exists()) {
-          const settings = docSnap.data();
-          const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
-          const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
-          if (Array.isArray(settings.trainingActivities)) {
-            settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+  async getSettings(forceRefresh: boolean = false): Promise<any> {
+    if (forceRefresh) {
+      clearFirestoreCache('settings');
+    }
+    return cachedFirestoreFetch('settings', async () => {
+      if (!this.getIsQuotaExceeded()) {
+        try {
+          const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
+          if (docSnap.exists()) {
+            const settings = docSnap.data();
+            const dIds = Array.isArray(settings.deletedActivityIds) ? settings.deletedActivityIds : [];
+            const dTitles = Array.isArray(settings.deletedActivityTitles) ? settings.deletedActivityTitles : [];
+            if (Array.isArray(settings.trainingActivities)) {
+              settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+            }
+            safeStorageSet('hw_settings', settings);
+            return settings;
           }
-          safeStorageSet('hw_settings', settings);
-          return settings;
-        }
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
-          console.warn('Firestore getSettings offline / fallback to cache:', (err as any)?.message || err);
+        } catch (err) {
+          this.checkQuotaError(err);
+          if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
+            console.warn('Firestore getSettings offline / fallback to cache:', (err as any)?.message || err);
+          }
         }
       }
-    }
-    const stored = localStorage.getItem('hw_settings');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
-        const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
-        if (Array.isArray(parsed.trainingActivities)) {
-          parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
-        }
-        return parsed;
-      } catch (e) {}
-    }
-    return {
-      ktaPrefix: '11.',
-      ktaCounter: 100,
-      ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-      ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
-      ktaKetuaNama: 'TAUFIQ',
-      ktaKetuaNbm: 'NBM 1015096',
-      ktaSekretarisNama: 'MUHAMMAD DZIKRON',
-      ktaSekretarisNbm: 'NBM 1029863',
-      ktaKotaPenerbit: 'Semarang'
-    };
+      const stored = localStorage.getItem('hw_settings');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const dIds = Array.isArray(parsed.deletedActivityIds) ? parsed.deletedActivityIds : [];
+          const dTitles = Array.isArray(parsed.deletedActivityTitles) ? parsed.deletedActivityTitles : [];
+          if (Array.isArray(parsed.trainingActivities)) {
+            parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
+          }
+          return parsed;
+        } catch (e) {}
+      }
+      return {
+        ktaPrefix: '11.',
+        ktaCounter: 100,
+        ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
+        ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
+        ktaKetuaNama: 'TAUFIQ',
+        ktaKetuaNbm: 'NBM 1015096',
+        ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+        ktaSekretarisNbm: 'NBM 1029863',
+        ktaKotaPenerbit: 'Semarang'
+      };
+    }, 60000);
   },
 
   async saveSettings(settings: any): Promise<any> {
+    clearFirestoreCache('settings');
     const dataToSave = cleanData({ ...settings, id: 'app_settings' });
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -3463,15 +3544,19 @@ export const firestoreService = {
   },
 
   // --- KEGIATAN HW JATENG ---
-  async getActivities(): Promise<any[]> {
-    let deletedIds: string[] = [];
-    let deletedTitles: string[] = [];
-    try {
-      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
-        deletedTitles = JSON.parse(localStorage.getItem('hw_deleted_activity_titles') || '[]');
-      }
-    } catch (e) {}
+  async getActivities(forceRefresh: boolean = false): Promise<any[]> {
+    if (forceRefresh) {
+      clearFirestoreCache('hw_activities');
+    }
+    return cachedFirestoreFetch('hw_activities', async () => {
+      let deletedIds: string[] = [];
+      let deletedTitles: string[] = [];
+      try {
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          deletedIds = JSON.parse(localStorage.getItem('hw_deleted_activities') || '[]');
+          deletedTitles = JSON.parse(localStorage.getItem('hw_deleted_activity_titles') || '[]');
+        }
+      } catch (e) {}
 
     try {
       const s = await this.getSettings();
@@ -3679,9 +3764,11 @@ export const firestoreService = {
       } catch (e) {}
     }
     return result;
+    }, 30000);
   },
 
   async saveActivity(activityData: any): Promise<any> {
+    clearFirestoreCache('hw_activities');
     const actId = activityData.id || `keg-${Date.now()}`;
     const actTitle = (activityData.namaKegiatan || activityData.title || activityData.jenisPelatihan || '').trim();
     const nowIso = new Date().toISOString();
@@ -3905,6 +3992,7 @@ export const firestoreService = {
   },
 
   async deleteActivity(id: string, title?: string): Promise<boolean> {
+    clearFirestoreCache('hw_activities');
     if (!id && !title) return true;
 
     // 1. Record in deleted IDs & Titles lists

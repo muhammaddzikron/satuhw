@@ -512,6 +512,20 @@ export default function AdminDashboard() {
   }, [searchParams, isDiklatAdmin, isPelatihOnly]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['Semua']);
   const [loading, setLoading] = useState(false);
+  const [backgroundProcessingText, setBackgroundProcessingText] = useState<string | null>(null);
+  const [toastNotification, setToastNotification] = useState<{
+    id: string;
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
+  const showToast = useCallback((type: 'success' | 'error' | 'info', message: string, duration = 4000) => {
+    const id = Date.now().toString();
+    setToastNotification({ id, type, message });
+    setTimeout(() => {
+      setToastNotification(curr => curr?.id === id ? null : curr);
+    }, duration);
+  }, []);
   
   // State for CRUD
   const [members, setMembers] = useState<any[]>([]);
@@ -664,19 +678,20 @@ export default function AdminDashboard() {
   const handleDeleteKtaApp = async (id: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pengajuan KTA untuk ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
       try {
-        setLoading(true);
+        setBackgroundProcessingText(`Menghapus pengajuan KTA untuk ${name}...`);
+        setKtaApps(prev => prev.filter(k => String(k.id) !== String(id)));
         const res = await sheetsService.deleteKTAApplication(id);
         if (res.success || !res.error) {
-          alert(`Berhasil menghapus pengajuan KTA untuk ${name}.`);
+          showToast('success', `Berhasil menghapus pengajuan KTA untuk ${name}.`);
         } else {
-          alert('Gagal menghapus pengajuan: ' + (res.message || 'Error'));
+          showToast('error', 'Gagal menghapus pengajuan: ' + (res.message || 'Error'));
         }
         await fetchData();
       } catch (e: any) {
         console.error(e);
-        alert('Gagal menghapus pengajuan: ' + (e.message || 'Error'));
+        showToast('error', 'Gagal menghapus pengajuan: ' + (e.message || 'Error'));
       } finally {
-        setLoading(false);
+        setBackgroundProcessingText(null);
       }
     }
   };
@@ -1385,39 +1400,44 @@ export default function AdminDashboard() {
       setKtaApps(prev => prev.map(k => String(k.id) === String(appToSave.id) ? appToSave : k));
       setIsEditKtaModalOpen(false);
       setEditingKtaApp(null);
-      alert('Data KTA berhasil diperbarui!');
+      showToast('success', 'Data KTA berhasil diperbarui!');
 
       // 2. Background save & sync
       (async () => {
-        await sheetsService.saveKTAApplication(appToSave);
-        if (appToSave.email || appToSave.userId) {
-          const matchingMember = members.find(m => 
-            (appToSave.userId && m.id === appToSave.userId) || 
-            (m.email && appToSave.email && m.email.toLowerCase().trim() === appToSave.email.toLowerCase().trim())
-          );
-          if (matchingMember) {
-            const updatedMember = {
-              ...matchingMember,
-              ...(appToSave.photo ? { photo: appToSave.photo } : {}),
-              ...(appToSave.nama ? { namaLengkap: appToSave.nama } : {}),
-              ...(appToSave.noWa ? { noHp: appToSave.noWa } : {}),
-              ...(appToSave.asalDaerah ? { asalKwarda: appToSave.asalDaerah } : {}),
-              ...(appToSave.qabilah ? { qabilah: appToSave.qabilah } : {})
-            };
-            await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+        setBackgroundProcessingText('Menyimpan perubahan KTA di latar belakang...');
+        try {
+          await sheetsService.saveKTAApplication(appToSave);
+          if (appToSave.email || appToSave.userId) {
+            const matchingMember = members.find(m => 
+              (appToSave.userId && m.id === appToSave.userId) || 
+              (m.email && appToSave.email && m.email.toLowerCase().trim() === appToSave.email.toLowerCase().trim())
+            );
+            if (matchingMember) {
+              const updatedMember = {
+                ...matchingMember,
+                ...(appToSave.photo ? { photo: appToSave.photo } : {}),
+                ...(appToSave.nama ? { namaLengkap: appToSave.nama } : {}),
+                ...(appToSave.noWa ? { noHp: appToSave.noWa } : {}),
+                ...(appToSave.asalDaerah ? { asalKwarda: appToSave.asalDaerah } : {}),
+                ...(appToSave.qabilah ? { qabilah: appToSave.qabilah } : {})
+              };
+              await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+            }
           }
+          const [ktaData, membersData] = await Promise.all([
+            sheetsService.getKTAApplications(),
+            sheetsService.getMembers()
+          ]);
+          if (ktaData?.length) setKtaApps(ktaData);
+          if (membersData?.length) setMembers(membersData);
+        } finally {
+          setBackgroundProcessingText(null);
         }
-        const [ktaData, membersData] = await Promise.all([
-          sheetsService.getKTAApplications(),
-          sheetsService.getMembers()
-        ]);
-        if (ktaData?.length) setKtaApps(ktaData);
-        if (membersData?.length) setMembers(membersData);
       })().catch(err => console.warn('Background edit KTA sync warning:', err));
 
     } catch (err: any) {
       console.error(err);
-      alert('Gagal memperbarui data KTA: ' + (err.message || 'Cek koneksi'));
+      showToast('error', 'Gagal memperbarui data KTA: ' + (err.message || 'Cek koneksi'));
     }
   };
 
@@ -1781,22 +1801,27 @@ export default function AdminDashboard() {
 
       setIsEditTrainingModalOpen(false);
       setEditingTrainingApp(null);
-      alert('Data peserta pelatihan dan data anggota berhasil diperbarui!');
+      showToast('success', 'Data peserta pelatihan berhasil diperbarui!');
 
       // 2. Background save
       (async () => {
-        await sheetsService.saveTrainingApplicationAndSyncMember(appToSave);
-        const [tApps, mData] = await Promise.all([
-          sheetsService.getTrainingApplications(),
-          sheetsService.getMembers()
-        ]);
-        if (tApps?.length) setTrainingApps(tApps);
-        if (mData?.length) setMembers(mData);
+        setBackgroundProcessingText('Menyimpan perubahan pelatihan di latar belakang...');
+        try {
+          await sheetsService.saveTrainingApplicationAndSyncMember(appToSave);
+          const [tApps, mData] = await Promise.all([
+            sheetsService.getTrainingApplications(),
+            sheetsService.getMembers()
+          ]);
+          if (tApps?.length) setTrainingApps(tApps);
+          if (mData?.length) setMembers(mData);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
       })().catch(err => console.warn('Background save training edit sync warning:', err));
 
     } catch (err: any) {
       console.error(err);
-      alert('Gagal menyimpan data: ' + (err.message || 'Cek koneksi'));
+      showToast('error', 'Gagal menyimpan data pelatihan: ' + (err.message || 'Cek koneksi'));
     }
   };
 
@@ -1808,18 +1833,23 @@ export default function AdminDashboard() {
       // Optimistic update
       setTrainingApps(prev => prev.map(t => String(t.id) === String(appId) ? { ...t, lokasiPelatihan: targetLokasi, tanggalPelatihan: targetTanggal } : t));
       setEditingScheduleAppId(null);
-      alert('Jadwal dan lokasi pelatihan berhasil diperbarui!');
+      showToast('success', 'Jadwal dan lokasi pelatihan berhasil diperbarui!');
 
       // Background save
       (async () => {
-        await sheetsService.updateTrainingSchedule(appId, targetLokasi, targetTanggal);
-        const tApps = await sheetsService.getTrainingApplications();
-        if (tApps?.length) setTrainingApps(tApps);
+        setBackgroundProcessingText('Menyimpan jadwal pelatihan...');
+        try {
+          await sheetsService.updateTrainingSchedule(appId, targetLokasi, targetTanggal);
+          const tApps = await sheetsService.getTrainingApplications();
+          if (tApps?.length) setTrainingApps(tApps);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
       })().catch(err => console.warn('Background save schedule warning:', err));
 
     } catch (e: any) {
       console.error(e);
-      alert('Gagal memperbarui jadwal: ' + (e.message || 'Cek koneksi'));
+      showToast('error', 'Gagal memperbarui jadwal: ' + (e.message || 'Cek koneksi'));
     }
   };
 
@@ -1904,11 +1934,10 @@ export default function AdminDashboard() {
   const handleSaveActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kegiatanFormData.namaKegiatan) {
-      alert('Nama kegiatan wajib diisi');
+      showToast('error', 'Nama kegiatan wajib diisi');
       return;
     }
     try {
-      setLoading(true);
       const actId = editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`;
       const isPel = kegiatanFormData.kategori === 'Pelatihan' || 
                     kegiatanFormData.kategori === 'Diklat' || 
@@ -1958,7 +1987,17 @@ export default function AdminDashboard() {
         isPelatihan: isPel,
         updatedAt: new Date().toISOString()
       };
-      const saved = await sheetsService.saveActivity(payload);
+
+      // Optimistic update
+      setActivitiesList(prev => {
+        const existing = prev.find(a => a.id === actId);
+        if (existing) {
+          return prev.map(a => a.id === actId ? { ...a, ...payload } : a);
+        }
+        return [payload, ...prev];
+      });
+      setIsKegiatanModalOpen(false);
+      showToast('success', editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
 
       // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
       if (isPel) {
@@ -1970,7 +2009,7 @@ export default function AdminDashboard() {
           if (aTitle && normTitle && (aTitle === normTitle || aTitle.includes(normTitle) || normTitle.includes(aTitle))) return false;
           return true;
         });
-        filteredActs.unshift(saved || payload);
+        filteredActs.unshift(payload);
         const locs = Array.isArray(settings.trainingLocations) ? [...settings.trainingLocations] : [];
         if (kegiatanFormData.lokasi && !locs.includes(kegiatanFormData.lokasi)) locs.push(kegiatanFormData.lokasi);
         const dts = Array.isArray(settings.trainingDates) ? [...settings.trainingDates] : [];
@@ -1983,34 +2022,46 @@ export default function AdminDashboard() {
         }));
       }
 
-      alert(editingKegiatan ? 'Kegiatan berhasil diperbarui dan tersimpan ke Spreadsheet & Firebase!' : 'Kegiatan baru berhasil dibuat dan tersimpan ke Spreadsheet & Firebase!');
-      setIsKegiatanModalOpen(false);
-      const actData = await sheetsService.getActivities();
-      setActivitiesList(actData || []);
+      // Background save
+      (async () => {
+        setBackgroundProcessingText('Menyimpan data kegiatan di latar belakang...');
+        try {
+          await sheetsService.saveActivity(payload);
+          const actData = await sheetsService.getActivities();
+          if (actData) setActivitiesList(actData);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background save activity warning:', err));
+
     } catch (err: any) {
-      alert('Gagal menyimpan kegiatan: ' + (err.message || err));
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal menyimpan kegiatan: ' + (err.message || err));
     }
   };
 
   const handleDeleteActivity = async (id: string, title?: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) return;
     try {
-      setLoading(true);
-      await sheetsService.deleteActivity(id, title);
-
-      // Keep React settings state in sync
+      // Optimistic update
+      setActivitiesList(prev => prev.filter(a => a.id !== id));
       const filteredActs = (settings.trainingActivities || []).filter((a: any) => a.id !== id && (!title || (a.namaKegiatan || a.title) !== title));
       setSettings(prev => ({ ...prev, trainingActivities: filteredActs }));
+      showToast('success', 'Kegiatan berhasil dihapus!');
 
-      alert('Kegiatan berhasil dihapus dari Cloud Firestore');
-      const actData = await sheetsService.getActivities();
-      setActivitiesList(actData || []);
+      // Background delete
+      (async () => {
+        setBackgroundProcessingText('Menghapus kegiatan di latar belakang...');
+        try {
+          await sheetsService.deleteActivity(id, title);
+          const actData = await sheetsService.getActivities();
+          if (actData) setActivitiesList(actData);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background delete activity warning:', err));
+
     } catch (err: any) {
-      alert('Gagal menghapus kegiatan: ' + (err.message || err));
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal menghapus kegiatan: ' + (err.message || err));
     }
   };
 
@@ -2023,32 +2074,51 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingActivityParticipant) return;
     try {
-      setLoading(true);
-      await sheetsService.registerActivity(editingActivityParticipant);
-      alert('Data peserta kegiatan berhasil diperbarui!');
+      const partToSave = { ...editingActivityParticipant };
+      // Optimistic update
+      setActivityApplicationsList(prev => prev.map(a => String(a.id) === String(partToSave.id) ? partToSave : a));
       setIsEditActivityParticipantModalOpen(false);
       setEditingActivityParticipant(null);
-      const updatedApps = await sheetsService.getActivityApplications();
-      setActivityApplicationsList(updatedApps || []);
+      showToast('success', 'Data peserta kegiatan berhasil diperbarui!');
+
+      // Background save
+      (async () => {
+        setBackgroundProcessingText('Menyimpan data peserta kegiatan...');
+        try {
+          await sheetsService.registerActivity(partToSave);
+          const updatedApps = await sheetsService.getActivityApplications();
+          if (updatedApps) setActivityApplicationsList(updatedApps);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background save activity participant warning:', err));
+
     } catch (err: any) {
-      alert('Gagal memperbarui data peserta: ' + (err.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal memperbarui data peserta: ' + (err.message || 'Cek koneksi'));
     }
   };
 
   const handleDeleteActivityParticipant = async (id: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data peserta kegiatan ini?')) return;
     try {
-      setLoading(true);
-      await sheetsService.deleteActivityApplication(id);
-      alert('Data peserta berhasil dihapus!');
-      const updatedApps = await sheetsService.getActivityApplications();
-      setActivityApplicationsList(updatedApps || []);
+      // Optimistic update
+      setActivityApplicationsList(prev => prev.filter(a => String(a.id) !== String(id)));
+      showToast('success', 'Data peserta berhasil dihapus!');
+
+      // Background delete
+      (async () => {
+        setBackgroundProcessingText('Menghapus data peserta di latar belakang...');
+        try {
+          await sheetsService.deleteActivityApplication(id);
+          const updatedApps = await sheetsService.getActivityApplications();
+          if (updatedApps) setActivityApplicationsList(updatedApps);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background delete participant warning:', err));
+
     } catch (err: any) {
-      alert('Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi'));
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi'));
     }
   };
 
@@ -2156,21 +2226,41 @@ export default function AdminDashboard() {
   const handleSaveGradeAndRemark = async () => {
     if (!selectedTrainingApp) return;
     try {
-      setLoading(true);
-      await sheetsService.updateGrade(selectedTrainingApp.id, { 
-        grade: gradeInput, 
-        remark: remarkInput,
-        statusKelulusan: graduationStatusInput || selectedTrainingApp.statusKelulusan || 'Lulus'
-      });
-      alert('Nilai & ulasan penugasan berhasil disimpan!');
+      const appId = selectedTrainingApp.id;
+      const targetGrade = gradeInput;
+      const targetRemark = remarkInput;
+      const targetGradStatus = graduationStatusInput || selectedTrainingApp.statusKelulusan || 'Lulus';
+
+      // Optimistic update
+      setTrainingApps(prev => prev.map(a => String(a.id) === String(appId) ? {
+        ...a,
+        nilai: targetGrade,
+        remark: targetRemark,
+        statusKelulusan: targetGradStatus
+      } : a));
+
       setIsGradingModalOpen(false);
       setSelectedTrainingApp(null);
-      const updated = await sheetsService.getTrainingApplications();
-      setTrainingApps(updated || []);
+      showToast('success', 'Nilai & ulasan penugasan berhasil disimpan!');
+
+      // Background save
+      (async () => {
+        setBackgroundProcessingText('Menyimpan nilai & ulasan...');
+        try {
+          await sheetsService.updateGrade(appId, { 
+            grade: targetGrade, 
+            remark: targetRemark,
+            statusKelulusan: targetGradStatus
+          });
+          const updated = await sheetsService.getTrainingApplications();
+          if (updated) setTrainingApps(updated);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background save grade warning:', err));
+
     } catch (err: any) {
-      alert('Gagal simpan nilai: ' + err.message);
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal simpan nilai: ' + err.message);
     }
   };
 
@@ -2442,88 +2532,127 @@ export default function AdminDashboard() {
       // Simple validation for list types
       if (['galeri', 'playlist'].includes(selectedContentSection)) {
         if (selectedContentSection === 'galeri' && !contentFormData.field1) {
-          alert('URL Video Youtube harus diisi');
+          showToast('error', 'URL Video Youtube harus diisi');
           return;
         }
         if (selectedContentSection === 'playlist' && !contentFormData.field1) {
-          alert('Link File Audio (Drive/URL) harus diisi');
+          showToast('error', 'Link File Audio (Drive/URL) harus diisi');
           return;
         }
         if (selectedContentSection === 'playlist' && !contentFormData.field2) {
-          alert('Judul harus diisi');
+          showToast('error', 'Judul harus diisi');
           return;
         }
       }
       
       try {
-        setLoading(true);
         const isList = ['galeri', 'playlist'].includes(selectedContentSection);
       
-      const payload: any = {
-        section: selectedContentSection,
-        type: isList ? 'list' : 'single',
-        field1: (contentFormData.field1 || '').trim(),
-        field2: (contentFormData.field2 || '').trim(),
-        field3: (contentFormData.field3 || '').trim(),
-        field4: '',
-        field5: (contentFormData.field5 || '').trim(),
-        lirik: (contentFormData.field5 || '').trim(),
-        lyrics: (contentFormData.field5 || '').trim(),
-        pencipta: (contentFormData.field3 || '').trim(),
-        creator: (contentFormData.field3 || '').trim(),
-        judul: (contentFormData.field2 || '').trim(),
-        title: (contentFormData.field2 || '').trim(),
-        audioUrl: (contentFormData.field1 || '').trim(),
-        audiourl: (contentFormData.field1 || '').trim()
-      };
+        const payload: any = {
+          section: selectedContentSection,
+          type: isList ? 'list' : 'single',
+          field1: (contentFormData.field1 || '').trim(),
+          field2: (contentFormData.field2 || '').trim(),
+          field3: (contentFormData.field3 || '').trim(),
+          field4: '',
+          field5: (contentFormData.field5 || '').trim(),
+          lirik: (contentFormData.field5 || '').trim(),
+          lyrics: (contentFormData.field5 || '').trim(),
+          pencipta: (contentFormData.field3 || '').trim(),
+          creator: (contentFormData.field3 || '').trim(),
+          judul: (contentFormData.field2 || '').trim(),
+          title: (contentFormData.field2 || '').trim(),
+          audioUrl: (contentFormData.field1 || '').trim(),
+          audiourl: (contentFormData.field1 || '').trim()
+        };
 
-      if (editingContent) {
-        payload.id = editingContent.id;
-      } else {
-        // For single types, check if we already have one
-        if (!isList && contentList.length > 0) {
-          payload.id = contentList[0].id;
+        if (editingContent) {
+          payload.id = editingContent.id;
         } else {
-          payload.id = selectedContentSection === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString();
+          // For single types, check if we already have one
+          if (!isList && contentList.length > 0) {
+            payload.id = contentList[0].id;
+          } else {
+            payload.id = selectedContentSection === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString();
+          }
         }
-      }
 
-      const res = await sheetsService.saveContent(payload);
-      if (res.error) throw new Error(res.error);
-      
-      // Refresh
-      const allContents = await sheetsService.getContents();
-      setContents(allContents);
-      setContentList(allContents.filter(c => c.section === selectedContentSection));
-      setIsContentModalOpen(false);
-      
-      // Reset form
-      setContentFormData({
-        field1: '',
-        field2: '',
-        field3: '',
-        field4: '',
-        field5: ''
-      });
-    } catch (error: any) {
-      alert('Gagal menyimpan konten: ' + (error.message || 'Error tidak diketahui'));
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Optimistic update
+        setContents(prev => {
+          const idx = prev.findIndex(c => c.id === payload.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = payload;
+            return next;
+          }
+          return [payload, ...prev];
+        });
+        setContentList(prev => {
+          const idx = prev.findIndex(c => c.id === payload.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = payload;
+            return next;
+          }
+          return [payload, ...prev];
+        });
+        setIsContentModalOpen(false);
+        showToast('success', editingContent ? 'Konten berhasil diperbarui!' : 'Konten baru berhasil disimpan!');
+
+        // Reset form
+        setContentFormData({
+          field1: '',
+          field2: '',
+          field3: '',
+          field4: '',
+          field5: ''
+        });
+
+        // Background save
+        (async () => {
+          setBackgroundProcessingText('Menyimpan konten...');
+          try {
+            await sheetsService.saveContent(payload);
+            const allContents = await sheetsService.getContents();
+            if (allContents) {
+              setContents(allContents);
+              setContentList(allContents.filter(c => c.section === selectedContentSection));
+            }
+          } finally {
+            setBackgroundProcessingText(null);
+          }
+        })().catch(err => console.warn('Background save content warning:', err));
+
+      } catch (error: any) {
+        showToast('error', 'Gagal menyimpan konten: ' + (error.message || 'Error tidak diketahui'));
+      }
+    };
 
   const handleDeleteContent = async (id: string) => {
     if (confirm('Yakin ingin menghapus konten ini?')) {
       try {
-        setLoading(true);
-        await sheetsService.deleteContent(id);
-        const allContents = await sheetsService.getContents();
-        setContents(allContents);
-        setContentList(allContents.filter(c => c.section === selectedContentSection));
-      } catch (error) {
-        alert('Gagal menghapus konten');
-      } finally {
-        setLoading(false);
+        // Optimistic update
+        setContents(prev => prev.filter(c => c.id !== id));
+        setContentList(prev => prev.filter(c => c.id !== id));
+        showToast('success', 'Konten berhasil dihapus!');
+
+        // Background delete
+        (async () => {
+          setBackgroundProcessingText('Menghapus konten...');
+          try {
+            await sheetsService.deleteContent(id);
+            const allContents = await sheetsService.getContents();
+            if (allContents) {
+              setContents(allContents);
+              setContentList(allContents.filter(c => c.section === selectedContentSection));
+            }
+          } finally {
+            setBackgroundProcessingText(null);
+          }
+        })().catch(err => console.warn('Background delete content warning:', err));
+
+      } catch (error: any) {
+        showToast('error', 'Gagal menghapus konten: ' + (error?.message || 'Error'));
       }
     }
   };
@@ -2553,38 +2682,65 @@ export default function AdminDashboard() {
 
   const handleSaveMateri = async () => {
     try {
-      setLoading(true);
-      if (editingMateri) {
-        await sheetsService.saveMateri({ ...editingMateri, ...materiFormData });
-      } else {
-        await sheetsService.saveMateri({ 
-          ...materiFormData, 
-          id: Date.now().toString(),
-          tanggal: new Date().toISOString()
-        });
-      }
-      // Refresh list
-      const data = await sheetsService.getMateri('admin');
-      setMateriList(data);
+      const materiPayload = editingMateri 
+        ? { ...editingMateri, ...materiFormData }
+        : {
+            ...materiFormData,
+            id: Date.now().toString(),
+            tanggal: new Date().toISOString()
+          };
+
+      // Optimistic update
+      setMateriList(prev => {
+        const idx = prev.findIndex(m => m.id === materiPayload.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = materiPayload;
+          return next;
+        }
+        return [materiPayload, ...prev];
+      });
       setIsMateriModalOpen(false);
-    } catch (error) {
-      alert('Gagal menyimpan materi');
-    } finally {
-      setLoading(false);
+      showToast('success', editingMateri ? 'Materi berhasil diperbarui!' : 'Materi baru berhasil ditambahkan!');
+
+      // Background save
+      (async () => {
+        setBackgroundProcessingText('Menyimpan materi...');
+        try {
+          await sheetsService.saveMateri(materiPayload);
+          const data = await sheetsService.getMateri('admin');
+          if (data) setMateriList(data);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background save materi warning:', err));
+
+    } catch (error: any) {
+      showToast('error', 'Gagal menyimpan materi: ' + (error?.message || 'Error'));
     }
   };
 
   const handleDeleteMateri = async (id: string) => {
     if (confirm('Yakin ingin menghapus materi ini?')) {
       try {
-        setLoading(true);
-        await sheetsService.deleteMateri(id);
-        const data = await sheetsService.getMateri('admin');
-        setMateriList(data);
-      } catch (error) {
-        alert('Gagal menghapus materi');
-      } finally {
-        setLoading(false);
+        // Optimistic update
+        setMateriList(prev => prev.filter(m => m.id !== id));
+        showToast('success', 'Materi berhasil dihapus!');
+
+        // Background delete
+        (async () => {
+          setBackgroundProcessingText('Menghapus materi...');
+          try {
+            await sheetsService.deleteMateri(id);
+            const data = await sheetsService.getMateri('admin');
+            if (data) setMateriList(data);
+          } finally {
+            setBackgroundProcessingText(null);
+          }
+        })().catch(err => console.warn('Background delete materi warning:', err));
+
+      } catch (error: any) {
+        showToast('error', 'Gagal menghapus materi: ' + (error?.message || 'Error'));
       }
     }
   };
@@ -2664,7 +2820,6 @@ export default function AdminDashboard() {
 
   const handleSaveMember = async () => {
     try {
-      setLoading(true);
       const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan, formData.role);
       const isJM = synced.roles.includes('jari1') || synced.roles.includes('jari2') || synced.roles.includes('jaya_matahari_1') || synced.roles.includes('jaya_matahari_2') || synced.primaryRole === 'jari1' || synced.primaryRole === 'jari2';
       const memberId = editingMember?.id || Date.now().toString();
@@ -2714,87 +2869,100 @@ export default function AdminDashboard() {
       
       // Prevent non-superadmin from setting superadmin role
       if (user?.role !== 'superadmin' && payload.role === 'superadmin') {
-        alert('Anda tidak memiliki izin untuk memberikan akses Super Admin');
-        setLoading(false);
+        showToast('error', 'Anda tidak memiliki izin untuk memberikan akses Super Admin');
         return;
       }
 
       // Optimistically update local members state immediately
-      setMembers(prev => prev.map(m => (m.id === payload.id || (m.email && payload.email && m.email.toLowerCase().trim() === payload.email.toLowerCase().trim())) ? { ...m, ...payload } : m));
+      setMembers(prev => {
+        const idx = prev.findIndex(m => m.id === payload.id || (m.email && payload.email && m.email.toLowerCase().trim() === payload.email.toLowerCase().trim()));
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...payload };
+          return next;
+        }
+        return [payload, ...prev];
+      });
 
-      const res = await sheetsService.saveMember(payload);
-      if (res.error) {
-        throw new Error(res.error);
-      }
-
-      // Explicitly save and update member document directly in Firestore
-      await firestoreService.saveMember(payload as User).catch(err => console.error("Firestore saveMember error:", err));
-      if (payload.id) {
-        await firestoreService.updateMember(payload.id, payload as User).catch(err => console.error("Firestore updateMember error:", err));
-      }
-
-      // Centralized KTA application update/create
-      const matchingKta = ktaApps.find(app => 
-        (payload.id && app.userId === payload.id) || 
-        (app.email && payload.email && String(app.email).toLowerCase().trim() === String(payload.email).toLowerCase().trim())
-      );
-
-      const ktaPayload = {
-        ...(matchingKta || {}),
-        id: matchingKta?.id || `kta-${Date.now()}`,
-        userId: payload.id,
-        nama: payload.namaLengkap,
-        email: payload.email,
-        noWa: payload.noHp || formData.noHp || '',
-        asalDaerah: payload.asalKwarda || formData.asalKwarda || '',
-        qabilah: payload.qabilah || formData.qabilah || '',
-        alamat: payload.alamat || formData.alamat || '',
-        tempatLahir: payload.tempatLahir || formData.tempatLahir || '',
-        tanggalLahir: cleanTanggalLahir || payload.tanggalLahir || '',
-        jenisKelamin: payload.jenisKelamin || formData.jenisKelamin || 'L',
-        tingkatan: payload.golongan || formData.golongan || 'Penghela',
-        photo: payload.photo || formData.photo || '',
-        jenisKta: formData.jenisKta || matchingKta?.jenisKta || 'Reguler',
-        status: formData.statusKta || matchingKta?.status || (payload.isVerified ? 'approved' : 'pending'),
-        ktaNumber: formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
-        verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
-      };
-
-      try {
-        await sheetsService.saveKTAApplication(ktaPayload);
-      } catch (syncErr) {
-        console.warn("KTA sync notice:", syncErr);
-      }
-      
       // If current logged-in user is being updated, sync authStore
       if (user && (user.id === payload.id || (user.email && payload.email && user.email.toLowerCase() === payload.email.toLowerCase()))) {
         useAuthStore.getState().updateUser(payload as Partial<User>);
       }
 
-      // Refresh lists
-      const [data, ktaData] = await Promise.all([
-        sheetsService.getMembers(),
-        sheetsService.getKTAApplications()
-      ]);
-      setMembers(data || []);
-      setKtaApps(ktaData || []);
       setIsModalOpen(false);
-      alert("Data anggota berhasil diperbarui.");
+      showToast('success', editingMember ? 'Data anggota berhasil diperbarui!' : 'Anggota baru berhasil ditambahkan!');
+
+      // Background save & sync
+      (async () => {
+        setBackgroundProcessingText('Menyimpan data anggota...');
+        try {
+          await sheetsService.saveMember(payload);
+
+          // Centralized KTA application update/create
+          const matchingKta = ktaApps.find(app => 
+            (payload.id && app.userId === payload.id) || 
+            (app.email && payload.email && String(app.email).toLowerCase().trim() === String(payload.email).toLowerCase().trim())
+          );
+
+          const ktaPayload = {
+            ...(matchingKta || {}),
+            id: matchingKta?.id || `kta-${Date.now()}`,
+            userId: payload.id,
+            nama: payload.namaLengkap,
+            email: payload.email,
+            noWa: payload.noHp || formData.noHp || '',
+            asalDaerah: payload.asalKwarda || formData.asalKwarda || '',
+            qabilah: payload.qabilah || formData.qabilah || '',
+            alamat: payload.alamat || formData.alamat || '',
+            tempatLahir: payload.tempatLahir || formData.tempatLahir || '',
+            tanggalLahir: cleanTanggalLahir || payload.tanggalLahir || '',
+            jenisKelamin: payload.jenisKelamin || formData.jenisKelamin || 'L',
+            tingkatan: payload.golongan || formData.golongan || 'Penghela',
+            photo: payload.photo || formData.photo || '',
+            jenisKta: formData.jenisKta || matchingKta?.jenisKta || 'Reguler',
+            status: formData.statusKta || matchingKta?.status || (payload.isVerified ? 'approved' : 'pending'),
+            ktaNumber: formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
+            verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
+          };
+
+          await sheetsService.saveKTAApplication(ktaPayload).catch(syncErr => console.warn("KTA sync notice:", syncErr));
+
+          const [data, ktaData] = await Promise.all([
+            sheetsService.getMembers(),
+            sheetsService.getKTAApplications()
+          ]);
+          if (data) setMembers(data);
+          if (ktaData) setKtaApps(ktaData);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background save member warning:', err));
+
     } catch (error: any) {
       console.error('Save member error:', error);
-      alert('Gagal menyimpan anggota: ' + (error.message || 'Error tidak diketahui'));
-    } finally {
-      setLoading(false);
+      showToast('error', 'Gagal menyimpan anggota: ' + (error.message || 'Error tidak diketahui'));
     }
   };
 
   const handleDeleteMember = async (id: string) => {
     if (confirm('Yakin ingin menghapus anggota ini?')) {
       try {
-        await sheetsService.deleteMember(id);
-        setMembers(members.filter(m => m.id !== id));
-      } catch (error) {
-        alert('Gagal menghapus anggota');
+        setMembers(prev => prev.filter(m => m.id !== id));
+        showToast('success', 'Anggota berhasil dihapus!');
+
+        (async () => {
+          setBackgroundProcessingText('Menghapus anggota...');
+          try {
+            await sheetsService.deleteMember(id);
+            const data = await sheetsService.getMembers();
+            if (data) setMembers(data);
+          } finally {
+            setBackgroundProcessingText(null);
+          }
+        })().catch(err => console.warn('Background delete member warning:', err));
+
+      } catch (error: any) {
+        showToast('error', 'Gagal menghapus anggota: ' + (error?.message || 'Error'));
       }
     }
   };
@@ -2814,20 +2982,23 @@ export default function AdminDashboard() {
 
       // 1. Instantly update local members state
       setMembers(prev => prev.map(m => m.id === id ? updated : m));
-      alert(`Status verifikasi ${member.namaLengkap || 'Anggota'} berhasil diperbarui menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
+      showToast('success', `Status verifikasi ${member.namaLengkap || 'Anggota'} diubah menjadi: ${updated.isVerified ? 'TERVERIFIKASI' : 'PENDING'}`);
 
       // 2. Background save
       (async () => {
-        await firestoreService.saveMember(updated as User);
-        await firestoreService.updateMember(member.id, updated);
-        await sheetsService.saveMember(updated);
-        const data = await sheetsService.getMembers();
-        if (data?.length) setMembers(data);
+        setBackgroundProcessingText('Memperbarui status verifikasi...');
+        try {
+          await sheetsService.saveMember(updated);
+          const data = await sheetsService.getMembers();
+          if (data?.length) setMembers(data);
+        } finally {
+          setBackgroundProcessingText(null);
+        }
       })().catch(err => console.warn('Background verify sync warning:', err));
 
     } catch (error: any) {
       console.error(error);
-      alert('Gagal mengubah status verifikasi: ' + (error.message || 'Error tidak diketahui'));
+      showToast('error', 'Gagal mengubah status verifikasi: ' + (error.message || 'Error tidak diketahui'));
     }
   };
 
@@ -4056,8 +4227,6 @@ export default function AdminDashboard() {
   if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType && !isPelatihUser)) {
     return <Navigate to="/" />;
   }
-
-  if (loading) return <LoadingPage />;
 
   return (
     <div className="space-y-6 pb-24">
@@ -12958,11 +13127,57 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {loading && (
-          <div key="global-loading-overlay" className="fixed inset-0 z-[999] bg-white/20 backdrop-blur-sm flex items-center justify-center">
-            <div className="w-16 h-16 border-4 border-hw-green border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
+        {/* Background Processing Indicator */}
+        <AnimatePresence>
+          {backgroundProcessingText && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 px-5 py-2.5 bg-gray-900/95 backdrop-blur-md text-white rounded-full shadow-2xl border border-white/15 text-xs font-bold pointer-events-none"
+            >
+              <Loader2 size={16} className="animate-spin text-hw-gold" />
+              <span>{backgroundProcessingText}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Toast Notification Banner */}
+        <AnimatePresence>
+          {toastNotification && (
+            <motion.div
+              key={toastNotification.id}
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className={`fixed top-6 right-6 z-[9999] max-w-sm flex items-start gap-3 p-4 rounded-2xl shadow-2xl border backdrop-blur-md transition-all ${
+                toastNotification.type === 'success' 
+                  ? 'bg-emerald-950/95 text-emerald-100 border-emerald-500/50 shadow-emerald-950/50' 
+                  : toastNotification.type === 'error'
+                  ? 'bg-rose-950/95 text-rose-100 border-rose-500/50 shadow-rose-950/50'
+                  : 'bg-blue-950/95 text-blue-100 border-blue-500/50 shadow-blue-950/50'
+              }`}
+            >
+              <div className="p-0.5 rounded-xl shrink-0 mt-0.5">
+                {toastNotification.type === 'success' && <CheckCircle2 size={20} className="text-emerald-400" />}
+                {toastNotification.type === 'error' && <AlertTriangle size={20} className="text-rose-400" />}
+                {toastNotification.type === 'info' && <Info size={20} className="text-blue-400" />}
+              </div>
+              <div className="flex-1 text-xs">
+                <p className="font-black tracking-tight text-white mb-0.5">
+                  {toastNotification.type === 'success' ? 'Berhasil' : toastNotification.type === 'error' ? 'Pemberitahuan' : 'Informasi'}
+                </p>
+                <p className="opacity-90 leading-relaxed font-medium">{toastNotification.message}</p>
+              </div>
+              <button 
+                onClick={() => setToastNotification(null)}
+                className="p-1 text-white/60 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
