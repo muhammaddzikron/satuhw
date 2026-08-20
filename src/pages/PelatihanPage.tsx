@@ -2331,22 +2331,22 @@ export default function PelatihanPage() {
           </div>
 
           {/* Search Bar Peserta Pelatihan */}
-          <div className="relative w-full">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="relative w-full box-border">
+            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input 
               type="text" 
               placeholder="Cari data peserta pelatihan berdasarkan nama, email, kwarda, jenis pelatihan..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl pl-11 pr-10 py-3.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-xs transition-all"
+              className="w-full bg-white border border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 rounded-2xl pl-12 pr-12 py-3.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-xs transition-all outline-none font-medium"
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-full transition-colors cursor-pointer"
                 title="Hapus pencarian"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             )}
           </div>

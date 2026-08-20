@@ -633,30 +633,10 @@ export default function KegiatanPage() {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
                   }}
                 />
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-                  <div className="bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
-                    {activity.kategori || 'Kegiatan'}
-                  </div>
-                  {(activity.createdBy === user?.email || activity.createdBy === 'muhammaddzikron@gmail.com' || !activity.createdBy) && (
-                    <div className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                      <UserCheck size={12} /> Dibuat oleh Anda
-                    </div>
-                  )}
-                  {activity.themeSongUrl && (
-                    <div className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs border border-emerald-400/30">
-                      <Music size={12} className="animate-pulse" /> Themesong MP3
-                    </div>
-                  )}
-                  {(activity.youtubeUrl || activity.videoUrl) && (
-                    <div className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs border border-rose-400/30">
-                      <Youtube size={12} /> Video YouTube
-                    </div>
-                  )}
-                </div>
-                <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
-                  activity.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md ${
+                  (activity.status === 'Tutup' || activity.status === 'Selesai') ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                 }`}>
-                  {activity.status || 'Buka'}
+                  {(activity.status === 'Tutup' || activity.status === 'Selesai') ? 'Selesai' : (activity.status || 'Buka')}
                 </div>
               </div>
 

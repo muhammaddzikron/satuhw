@@ -3516,13 +3516,36 @@ export default function AdminDashboard() {
 
       let matchActivity = true;
       if (trainingFilterActivity !== 'Semua') {
-        const acts = settings.trainingActivities || [];
-        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
-        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
-        const loc = (app?.lokasiPelatihan || '').toLowerCase();
-        const dt = (app?.tanggalPelatihan || '').toLowerCase();
-        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        const rawFilter = trainingFilterActivity.startsWith('jenis:')
+          ? trainingFilterActivity.replace('jenis:', '').trim()
+          : trainingFilterActivity.trim();
+
+        const allTypes = (settings.trainingTypes && settings.trainingTypes.length > 0)
+          ? settings.trainingTypes
+          : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
+        
+        const isTypeMatch = trainingFilterActivity.startsWith('jenis:') || allTypes.some((t: string) => t.toLowerCase() === rawFilter.toLowerCase());
+
+        if (isTypeMatch) {
+          const targetType = rawFilter.toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
+          const targetKey = getNormalizedLevelKey(targetType);
+          const appKey = getNormalizedLevelKey(prog);
+          matchActivity = prog.includes(targetType) || targetType.includes(prog) || (targetKey && appKey && targetKey === appKey);
+        } else {
+          const acts = allTrainingActivitiesList;
+          const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+          const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || rawFilter).toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase();
+          const loc = (app?.lokasiPelatihan || app?.lokasi || '').toLowerCase();
+          const dt = (app?.tanggalPelatihan || app?.tanggal || '').toLowerCase();
+          const appActId = String(app?.activityId || app?.activity_id || app?.kegiatanId || '').toLowerCase();
+
+          matchActivity = (selAct?.id && appActId && appActId === String(selAct.id).toLowerCase()) ||
+            prog.includes(filterStr) ||
+            (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) ||
+            (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        }
       }
 
       return matchSearch && matchStatus && matchActivity;
@@ -3599,13 +3622,36 @@ export default function AdminDashboard() {
 
       let matchActivity = true;
       if (trainingFilterActivity !== 'Semua') {
-        const acts = settings.trainingActivities || [];
-        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
-        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
-        const loc = (app?.lokasiPelatihan || '').toLowerCase();
-        const dt = (app?.tanggalPelatihan || '').toLowerCase();
-        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        const rawFilter = trainingFilterActivity.startsWith('jenis:')
+          ? trainingFilterActivity.replace('jenis:', '').trim()
+          : trainingFilterActivity.trim();
+
+        const allTypes = (settings.trainingTypes && settings.trainingTypes.length > 0)
+          ? settings.trainingTypes
+          : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
+        
+        const isTypeMatch = trainingFilterActivity.startsWith('jenis:') || allTypes.some((t: string) => t.toLowerCase() === rawFilter.toLowerCase());
+
+        if (isTypeMatch) {
+          const targetType = rawFilter.toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
+          const targetKey = getNormalizedLevelKey(targetType);
+          const appKey = getNormalizedLevelKey(prog);
+          matchActivity = prog.includes(targetType) || targetType.includes(prog) || (targetKey && appKey && targetKey === appKey);
+        } else {
+          const acts = allTrainingActivitiesList;
+          const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+          const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || rawFilter).toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase();
+          const loc = (app?.lokasiPelatihan || app?.lokasi || '').toLowerCase();
+          const dt = (app?.tanggalPelatihan || app?.tanggal || '').toLowerCase();
+          const appActId = String(app?.activityId || app?.activity_id || app?.kegiatanId || '').toLowerCase();
+
+          matchActivity = (selAct?.id && appActId && appActId === String(selAct.id).toLowerCase()) ||
+            prog.includes(filterStr) ||
+            (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) ||
+            (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        }
       }
 
       return matchSearch && matchStatus && matchActivity;
@@ -4185,13 +4231,36 @@ export default function AdminDashboard() {
 
       let matchActivity = true;
       if (trainingFilterActivity !== 'Semua') {
-        const acts = settings.trainingActivities || [];
-        const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-        const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || trainingFilterActivity).toLowerCase();
-        const prog = (app?.pelatihanAkanDiikuti || '').toLowerCase();
-        const loc = (app?.lokasiPelatihan || '').toLowerCase();
-        const dt = (app?.tanggalPelatihan || '').toLowerCase();
-        matchActivity = prog.includes(filterStr) || (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) || (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        const rawFilter = trainingFilterActivity.startsWith('jenis:')
+          ? trainingFilterActivity.replace('jenis:', '').trim()
+          : trainingFilterActivity.trim();
+
+        const allTypes = (settings.trainingTypes && settings.trainingTypes.length > 0)
+          ? settings.trainingTypes
+          : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
+        
+        const isTypeMatch = trainingFilterActivity.startsWith('jenis:') || allTypes.some((t: string) => t.toLowerCase() === rawFilter.toLowerCase());
+
+        if (isTypeMatch) {
+          const targetType = rawFilter.toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
+          const targetKey = getNormalizedLevelKey(targetType);
+          const appKey = getNormalizedLevelKey(prog);
+          matchActivity = prog.includes(targetType) || targetType.includes(prog) || (targetKey && appKey && targetKey === appKey);
+        } else {
+          const acts = allTrainingActivitiesList;
+          const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+          const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || rawFilter).toLowerCase();
+          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase();
+          const loc = (app?.lokasiPelatihan || app?.lokasi || '').toLowerCase();
+          const dt = (app?.tanggalPelatihan || app?.tanggal || '').toLowerCase();
+          const appActId = String(app?.activityId || app?.activity_id || app?.kegiatanId || '').toLowerCase();
+
+          matchActivity = (selAct?.id && appActId && appActId === String(selAct.id).toLowerCase()) ||
+            prog.includes(filterStr) ||
+            (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) ||
+            (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
+        }
       }
 
       return matchSearch && matchStatus && matchActivity;
@@ -4201,7 +4270,7 @@ export default function AdminDashboard() {
       if (timeA !== timeB) return timeB - timeA;
       return String(b.id || '').localeCompare(String(a.id || ''));
     });
-  }, [trainingApps, trainingSearchQuery, trainingFilterStatus, trainingFilterActivity, settings.trainingActivities]);
+  }, [trainingApps, trainingSearchQuery, trainingFilterStatus, trainingFilterActivity, settings.trainingActivities, settings.trainingTypes, allTrainingActivitiesList]);
 
   const paginatedTrainingApps = useMemo(() => {
     const start = (trainingPage - 1) * trainingPageSize;
@@ -6638,31 +6707,58 @@ export default function AdminDashboard() {
                         onChange={(e) => {
                           const val = e.target.value;
                           setTrainingFilterActivity(val);
+                          setTrainingPage(1);
                           if (val !== 'Semua') {
-                            const acts = settings.trainingActivities || [];
-                            const selAct = acts.find((a: any) => String(a.id) === val || a.namaKegiatan === val);
-                            if (selAct && selAct.jenisPelatihan) {
-                              const normalizedProg = selAct.jenisPelatihan.includes('Jati 2') ? 'Jati 2' : selAct.jenisPelatihan.includes('Jari 1') ? 'Jari 1' : 'Jati 1';
-                              setSelectedPresensiProg(normalizedProg as any);
-                              setSelectedTugasProg(normalizedProg as any);
-                              setSelectedGradeProg(normalizedProg as any);
-                              setSelectedPiagamProg(normalizedProg as any);
+                            let progMatch = 'Jaya Melati 1';
+                            if (val.startsWith('jenis:')) {
+                              progMatch = val.replace('jenis:', '').trim();
+                            } else {
+                              const selAct = allTrainingActivitiesList.find((a: any) => String(a.id) === val || a.namaKegiatan === val);
+                              if (selAct && (selAct.jenisPelatihan || selAct.namaKegiatan)) {
+                                progMatch = selAct.jenisPelatihan || selAct.namaKegiatan;
+                              }
                             }
+                            const normalizedProg = progMatch.includes('Jaya Matahari 2') ? 'Jaya Matahari 2'
+                              : progMatch.includes('Jaya Matahari 1') ? 'Jaya Matahari 1'
+                              : progMatch.includes('Jaya Melati 2') ? 'Jaya Melati 2'
+                              : progMatch.includes('Jati 2') ? 'Jati 2'
+                              : progMatch.includes('Jari 1') ? 'Jari 1'
+                              : progMatch.includes('Jari 2') ? 'Jari 2'
+                              : 'Jaya Melati 1';
+                            setSelectedPresensiProg(normalizedProg as any);
+                            setSelectedTugasProg(normalizedProg as any);
+                            setSelectedGradeProg(normalizedProg as any);
+                            setSelectedPiagamProg(normalizedProg as any);
                           }
                         }}
                         className="w-full bg-white border-2 border-emerald-300/80 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-black text-xs sm:text-sm outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
                       >
-                        <option value="Semua">🌐 SEMUA JENIS & KEGIATAN PELATIHAN (Semua Tempat & Tanggal)</option>
-                        {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
-                          const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
-                          const loc = act.lokasiPelatihan || 'Lokasi Belum Ditentukan';
-                          const dt = act.tanggalPelatihan || 'Tanggal Belum Ditentukan';
-                          return (
-                            <option key={act.id || idx} value={act.id || title}>
-                              📍 {title} • {loc} (📅 {dt})
+                        <option value="Semua">🌐 SEMUA JENIS & KEGIATAN PELATIHAN (Semua Data)</option>
+                        
+                        {/* 1. KELOMPOK JENIS PELATIHAN (DIBUAT DI KELOLA JENIS PELATIHAN) */}
+                        <optgroup label="🏷️ KELOMPOK JENIS PELATIHAN (Kelola Jenis Pelatihan)">
+                          {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string, idx: number) => (
+                            <option key={`type-${idx}`} value={`jenis:${typ}`}>
+                              🏅 Jenis Pelatihan: {typ}
                             </option>
-                          );
-                        })}
+                          ))}
+                        </optgroup>
+
+                        {/* 2. DAFTAR KEGIATAN PELATIHAN AKTIF */}
+                        {allTrainingActivitiesList.length > 0 && (
+                          <optgroup label="📍 KEGIATAN PELATIHAN AKTIF (Lokasi & Tanggal)">
+                            {[...allTrainingActivitiesList].reverse().map((act: any, idx: number) => {
+                              const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
+                              const loc = act.lokasiPelatihan || act.lokasi || 'Lokasi Belum Ditentukan';
+                              const dt = act.tanggalPelatihan || act.tanggal || 'Tanggal Belum Ditentukan';
+                              return (
+                                <option key={act.id || `act-${idx}`} value={act.id || title}>
+                                  📍 {title} • {loc} (📅 {dt})
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -6701,65 +6797,102 @@ export default function AdminDashboard() {
                 {trainingSubTab === 'peserta' && (
                   <div className="space-y-4">
                     {/* Search & Filter Bar */}
-                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3.5">
-                      {/* Top Row: Wide Search Input & Kegiatan Pelatihan Selector */}
-                      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                    <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4 w-full box-border">
+                      {/* Top Row: Wide & Prominent Search Input & Kegiatan Pelatihan Selector */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
                         {/* Search Query Input */}
-                        <div className="relative flex-1 min-w-[240px]">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <div className="relative lg:col-span-7 w-full">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                           <input 
                             type="text" 
-                            placeholder="Cari nama peserta, nomor WA, NBM, atau asal daerah..." 
+                            placeholder="Cari nama peserta, nomor WhatsApp, NBM, atau asal daerah..." 
                             value={trainingSearchQuery || ''}
                             onChange={(e) => setTrainingSearchQuery(e.target.value)}
-                            className="w-full bg-gray-50/80 border border-gray-200 focus:border-hw-green/50 rounded-2xl py-3 pl-11 pr-10 focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium"
+                            className="w-full bg-gray-50/90 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3.5 pl-12 pr-12 focus:ring-4 focus:ring-hw-green/15 outline-none text-xs sm:text-sm font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-normal shadow-2xs"
                           />
                           {trainingSearchQuery && (
                             <button
                               type="button"
                               onClick={() => setTrainingSearchQuery('')}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 bg-gray-200/70 hover:bg-gray-300 p-1.5 rounded-full transition-colors cursor-pointer"
                               title="Hapus pencarian"
                             >
-                              <X size={16} />
+                              <X size={14} />
                             </button>
                           )}
                         </div>
 
-                        {/* Filter Jenis & Kegiatan Pelatihan (Memuat Tempat Pelaksanaan & Tanggal, Terbaru di Atas) */}
-                        <div className="relative w-full md:w-auto md:min-w-[280px] md:max-w-md shrink-0">
+                        {/* Filter Jenis & Kegiatan Pelatihan (Memuat Jenis Pelatihan dari Kelola Jenis Pelatihan & Kegiatan Pelatihan Aktif) */}
+                        <div className="relative lg:col-span-5 w-full">
                           <select
                             value={trainingFilterActivity || 'Semua'}
-                            onChange={(e) => setTrainingFilterActivity(e.target.value)}
-                            className="w-full bg-emerald-50/80 border border-emerald-200 text-emerald-950 rounded-2xl py-3 px-4 font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setTrainingFilterActivity(val);
+                              setTrainingPage(1);
+                              if (val !== 'Semua') {
+                                let progMatch = 'Jaya Melati 1';
+                                if (val.startsWith('jenis:')) {
+                                  progMatch = val.replace('jenis:', '').trim();
+                                } else {
+                                  const selAct = allTrainingActivitiesList.find((a: any) => String(a.id) === val || a.namaKegiatan === val);
+                                  if (selAct && (selAct.jenisPelatihan || selAct.namaKegiatan)) {
+                                    progMatch = selAct.jenisPelatihan || selAct.namaKegiatan;
+                                  }
+                                }
+                                const normalizedProg = progMatch.includes('Jaya Matahari 2') ? 'Jaya Matahari 2'
+                                  : progMatch.includes('Jaya Matahari 1') ? 'Jaya Matahari 1'
+                                  : progMatch.includes('Jaya Melati 2') ? 'Jaya Melati 2'
+                                  : progMatch.includes('Jati 2') ? 'Jati 2'
+                                  : progMatch.includes('Jari 1') ? 'Jari 1'
+                                  : progMatch.includes('Jari 2') ? 'Jari 2'
+                                  : 'Jaya Melati 1';
+                                setSelectedPresensiProg(normalizedProg as any);
+                                setSelectedTugasProg(normalizedProg as any);
+                                setSelectedGradeProg(normalizedProg as any);
+                                setSelectedPiagamProg(normalizedProg as any);
+                              }
+                            }}
+                            className="w-full h-full min-h-[48px] bg-emerald-50/90 border border-emerald-200 text-emerald-950 rounded-2xl py-3 px-4 font-bold text-xs sm:text-sm outline-none focus:ring-3 focus:ring-emerald-400/30 cursor-pointer shadow-2xs truncate"
                           >
                             <option value="Semua">🏅 Semua Jenis & Kegiatan Pelatihan</option>
-                            {[...(settings.trainingActivities || [])].reverse().map((act: any, idx: number) => {
-                              const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
-                              const loc = act.lokasiPelatihan || 'Lokasi -';
-                              const dt = act.tanggalPelatihan || 'Tanggal -';
-                              return (
-                                <option key={act.id || idx} value={act.id || title}>
-                                  {title} • 📍 {loc} (📅 {dt})
+                            <optgroup label="🏷️ KELOMPOK JENIS PELATIHAN (Kelola Jenis Pelatihan)">
+                              {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string, idx: number) => (
+                                <option key={`sub-type-${idx}`} value={`jenis:${typ}`}>
+                                  🏅 Jenis Pelatihan: {typ}
                                 </option>
-                              );
-                            })}
+                              ))}
+                            </optgroup>
+                            {allTrainingActivitiesList.length > 0 && (
+                              <optgroup label="📍 KEGIATAN PELATIHAN AKTIF">
+                                {[...allTrainingActivitiesList].reverse().map((act: any, idx: number) => {
+                                  const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
+                                  const loc = act.lokasiPelatihan || act.lokasi || 'Lokasi -';
+                                  const dt = act.tanggalPelatihan || act.tanggal || 'Tanggal -';
+                                  return (
+                                    <option key={act.id || `sub-act-${idx}`} value={act.id || title}>
+                                      📍 {title} • {loc} (📅 {dt})
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            )}
                           </select>
                         </div>
                       </div>
 
                       {/* Bottom Row: Status Filter Tabs & Action Buttons */}
-                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-2 border-t border-gray-100/80">
+                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-gray-100/90">
                         {/* Filter Status Pendaftaran */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {['Semua', 'pending', 'approved', 'rejected'].map((st) => (
                             <button
                               key={st}
                               onClick={() => setTrainingFilterStatus(st)}
-                              className={`px-3.5 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                              className={`px-3.5 py-2 rounded-xl text-xs font-black capitalize whitespace-nowrap transition-all border cursor-pointer ${
                                 trainingFilterStatus === st 
                                 ? 'bg-hw-dark text-white border-hw-dark shadow-xs' 
-                                : 'bg-gray-50/80 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                                : 'bg-gray-50/80 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-800'
                               }`}
                             >
                               {st === 'pending' ? 'Menunggu' : st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Semua Status'}
@@ -6768,7 +6901,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={exportTrainingParticipantsToExcel}
                             className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
