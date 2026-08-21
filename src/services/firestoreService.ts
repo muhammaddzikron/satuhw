@@ -1373,14 +1373,14 @@ export const firestoreService = {
     const existingKta = member.nomorKTA || member.ktaNumber;
 
     let ktaInfo: any = null;
-    if (existingKta && isValidKtaNumberFormat(existingKta)) {
-      const parsed = parseKtaNumber(existingKta)!;
+    if (existingKta) {
+      const parsed = isValidKtaNumberFormat(existingKta) ? parseKtaNumber(existingKta) : null;
       ktaInfo = {
         nomorKTA: existingKta,
         ktaNumber: existingKta,
-        kodeProvinsi: '11',
-        kodeKwarda: parsed.kodeKwarda,
-        nomorUrut: parsed.nomorUrut
+        kodeProvinsi: parsed?.kodeProvinsi || '11',
+        kodeKwarda: parsed?.kodeKwarda || '',
+        nomorUrut: parsed?.nomorUrut || ''
       };
     } else {
       ktaInfo = await this.allocateKtaNumberTransaction(
@@ -1470,7 +1470,12 @@ export const firestoreService = {
             (k.email && member.email && String(k.email).trim().toLowerCase() === String(member.email).trim().toLowerCase())) {
           if (member.photo) k.photo = member.photo;
           if (member.namaLengkap) k.nama = member.namaLengkap;
-          if ((member as any).nbm || member.ktaNumber) k.nbm = (member as any).nbm || member.ktaNumber;
+          if (member.nomorKTA || member.ktaNumber || (member as any).nbm) {
+            const ktaVal = member.nomorKTA || member.ktaNumber || (member as any).nbm;
+            k.ktaNumber = ktaVal;
+            k.nomorKTA = ktaVal;
+            k.nbm = ktaVal;
+          }
           if (member.noHp) k.noWa = member.noHp;
           if (member.asalKwarda) k.asalDaerah = member.asalKwarda;
           if (member.qabilah) k.qabilah = member.qabilah;
@@ -1490,6 +1495,12 @@ export const firestoreService = {
             const ktaSync: any = {};
             if (member.photo) ktaSync.photo = member.photo;
             if (member.namaLengkap) ktaSync.nama = member.namaLengkap;
+            if (member.nomorKTA || member.ktaNumber || (member as any).nbm) {
+              const ktaVal = member.nomorKTA || member.ktaNumber || (member as any).nbm;
+              ktaSync.ktaNumber = ktaVal;
+              ktaSync.nomorKTA = ktaVal;
+              ktaSync.nbm = ktaVal;
+            }
             if (member.noHp) ktaSync.noWa = member.noHp;
             if (member.asalKwarda) ktaSync.asalDaerah = member.asalKwarda;
             if (member.qabilah) ktaSync.qabilah = member.qabilah;
@@ -1970,9 +1981,9 @@ export const firestoreService = {
     let ktaNum = appData.nomorKTA || appData.ktaNumber;
     let ktaInfo: any = null;
     if (appData.status === 'approved') {
-      if (ktaNum && isValidKtaNumberFormat(ktaNum)) {
-        const parsed = parseKtaNumber(ktaNum)!;
-        ktaInfo = { nomorKTA: ktaNum, ktaNumber: ktaNum, kodeProvinsi: '11', kodeKwarda: parsed.kodeKwarda, nomorUrut: parsed.nomorUrut };
+      if (ktaNum) {
+        const parsed = isValidKtaNumberFormat(ktaNum) ? parseKtaNumber(ktaNum) : null;
+        ktaInfo = { nomorKTA: ktaNum, ktaNumber: ktaNum, kodeProvinsi: parsed?.kodeProvinsi || '11', kodeKwarda: parsed?.kodeKwarda || '', nomorUrut: parsed?.nomorUrut || '' };
       } else {
         ktaInfo = await this.allocateKtaNumberTransaction(
           appData.asalDaerah || appData.asalKwarda,
@@ -2045,6 +2056,10 @@ export const firestoreService = {
     }
 
     return newApp;
+  },
+
+  async saveKTAApplication(appData: any): Promise<any> {
+    return this.createKTAApplication(appData);
   },
 
   async updateKTAStatus(

@@ -363,12 +363,18 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
     for (const item of groupItems as any[]) {
       const isApprovedOrMember = item.status === 'approved' || item.isVerified === true || Boolean(item.ktaNumber || item.nomorKTA);
       if (isApprovedOrMember) {
-        const newKta = formatKtaNumber(code, currentSeq);
-        item.ktaNumber = newKta;
-        item.nomorKTA = newKta;
-        item.kodeProvinsi = '11';
-        item.kodeKwarda = code;
-        item.nomorUrut = currentSeq;
+        if (!item.ktaNumber && !item.nomorKTA) {
+          const newKta = formatKtaNumber(code, currentSeq);
+          item.ktaNumber = newKta;
+          item.nomorKTA = newKta;
+          item.kodeProvinsi = '11';
+          item.kodeKwarda = code;
+          item.nomorUrut = currentSeq;
+        } else {
+          const currentKta = item.ktaNumber || item.nomorKTA;
+          item.ktaNumber = currentKta;
+          item.nomorKTA = currentKta;
+        }
         currentSeq++;
       }
     }

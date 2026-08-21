@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
 import { isOnlyTrainingActivity } from '../utils/activityUtils';
 import { getCorsSafeUrl, getDriveDirectLink, cn } from '../lib/utils';
 import { ParticipantTestModal } from '../components/training/ParticipantTestModal';
@@ -646,16 +647,52 @@ export default function PelatihanPage() {
 
   // Participant attendance submission
   const handleUserSubmitAttendance = async (sessionId: string, status: string) => {
-    if (!userApp) {
-      alert('Data pendaftaran Anda tidak ditemukan.');
-      return;
-    }
     try {
       setSavingAttendance(prev => ({ ...prev, [sessionId]: true }));
+      
+      // Auto-resolve or create participant application if user is verified
+      let currentApp = userApp;
+      if (!currentApp) {
+        currentApp = approvedUserApps.find(a => normalizeLevelCode(a.pelatihanAkanDiikuti) === normalizeLevelCode(selectedActivity?.jenisPelatihan || selectedLevel))
+          || applications.find(a => isUserAppMatch(a, user))
+          || approvedUserApps[0];
+      }
+
+      if (!currentApp && user) {
+        const newAppId = `train-app-${Date.now()}`;
+        currentApp = {
+          id: newAppId,
+          userId: user.id || `user-${Date.now()}`,
+          nama: user.namaLengkap || user.nama || 'Peserta Pelatihan',
+          email: user.email || '',
+          noWa: user.noHp || '',
+          nbm: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+          ktaNumber: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+          nomorKTA: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+          asalDaerah: user.asalKwarda || 'Jawa Tengah',
+          pelatihanAkanDiikuti: selectedActivity?.jenisPelatihan || selectedLevel || 'Jati 1',
+          status: 'approved',
+          statusPembayaran: 'Lunas',
+          statusKelulusan: 'Proses Pelatihan',
+          kehadiran: '{}'
+        };
+        await Promise.all([
+          sheetsService.applyTraining(currentApp).catch(e => console.warn(e)),
+          firestoreService.createTrainingApplication(currentApp).catch(e => console.warn(e))
+        ]);
+        setApplications(prev => [currentApp, ...prev]);
+        setUserApp(currentApp);
+      }
+
+      if (!currentApp) {
+        alert('Data pendaftaran Anda tidak ditemukan. Silakan login atau pilih pelatihan yang diikuti.');
+        return;
+      }
+
       let attendanceMap: Record<string, any> = {};
       try {
-        attendanceMap = userApp.kehadiran ? (typeof userApp.kehadiran === 'string' ? JSON.parse(userApp.kehadiran) : userApp.kehadiran) : {};
-        if (typeof attendanceMap !== 'object') attendanceMap = {};
+        attendanceMap = currentApp.kehadiran ? (typeof currentApp.kehadiran === 'string' ? JSON.parse(currentApp.kehadiran) : currentApp.kehadiran) : {};
+        if (typeof attendanceMap !== 'object' || attendanceMap === null) attendanceMap = {};
       } catch (err) {
         attendanceMap = {};
       }
@@ -670,11 +707,15 @@ export default function PelatihanPage() {
         timestamp: timestamp
       };
 
-      await sheetsService.updateAttendance(userApp.id, JSON.stringify(attendanceMap));
+      const updatedKehadiranStr = JSON.stringify(attendanceMap);
+      await Promise.all([
+        sheetsService.updateAttendance(currentApp.id, updatedKehadiranStr),
+        firestoreService.updateAttendance(currentApp.id, updatedKehadiranStr)
+      ]);
       
-      const updatedUserApp = { ...userApp, kehadiran: JSON.stringify(attendanceMap) };
+      const updatedUserApp = { ...currentApp, kehadiran: updatedKehadiranStr };
       setUserApp(updatedUserApp);
-      setApplications(prev => prev.map(app => app.id === userApp.id ? updatedUserApp : app));
+      setApplications(prev => prev.map(app => app.id === currentApp.id ? updatedUserApp : app));
 
       setActiveEditSession(null);
       alert(`Presensi ${status === 'hadir' ? 'Hadir' : status === 'izin' ? 'Izin' : 'Tidak Hadir'} berhasil disimpan!`);
@@ -689,7 +730,13 @@ export default function PelatihanPage() {
   // Participant assignment submission
   const handleUserSubmitTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userApp) {
+    let currentApp = userApp;
+    if (!currentApp) {
+      currentApp = approvedUserApps.find(a => normalizeLevelCode(a.pelatihanAkanDiikuti) === normalizeLevelCode(selectedActivity?.jenisPelatihan || selectedLevel))
+        || applications.find(a => isUserAppMatch(a, user))
+        || approvedUserApps[0];
+    }
+    if (!currentApp) {
       alert('Anda belum terdaftar atau pendaftaran belum disetujui untuk kegiatan ini.');
       return;
     }
@@ -702,7 +749,7 @@ export default function PelatihanPage() {
     try {
       let currentTasks: any[] = [];
       try {
-        currentTasks = userApp.tugas ? (typeof userApp.tugas === 'string' ? JSON.parse(userApp.tugas) : userApp.tugas) : [];
+        currentTasks = currentApp.tugas ? (typeof currentApp.tugas === 'string' ? JSON.parse(currentApp.tugas) : currentApp.tugas) : [];
         if (!Array.isArray(currentTasks)) currentTasks = [];
       } catch (err) {
         currentTasks = [];
@@ -716,7 +763,14 @@ export default function PelatihanPage() {
       };
 
       const updatedTasks = [...currentTasks, newTask];
-      await sheetsService.submitAssignment(userApp.id, JSON.stringify(updatedTasks));
+      const updatedTasksStr = JSON.stringify(updatedTasks);
+      await Promise.all([
+        sheetsService.submitAssignment(currentApp.id, updatedTasksStr),
+        firestoreService.updateAssignmentGrade(currentApp.id, updatedTasksStr, undefined)
+      ]);
+      const updatedUserApp = { ...currentApp, tugas: updatedTasksStr };
+      setUserApp(updatedUserApp);
+      setApplications(prev => prev.map(app => app.id === currentApp.id ? updatedUserApp : app));
       window.dispatchEvent(new Event('training_applications_updated'));
       alert('Tugas berhasil dikumpulkan!');
       setTaskTitle('');
@@ -947,7 +1001,7 @@ export default function PelatihanPage() {
         /* MODE ANGGOTA: DAFTAR KEGIATAN & PORTAL KEBUTUHAN PELATIHAN                */
         /* ========================================================================= */
         <div className="space-y-6">
-          {/* Pengelolaan Pelatihan Ditugaskan Card (For Jaya Matahari, Jaya Melati, or Assigned Trainers) */}
+          {/* Pengelolaan Pelatihan Ditugaskan Card (Hanya muncul jika user Role Jaya Matahari 1 yang ditugaskan sebagai Tim Pelatih) */}
           {(() => {
             const userRolesList = [
               ...(Array.isArray(user?.roles) ? user.roles : []),
@@ -957,16 +1011,10 @@ export default function PelatihanPage() {
               (user as any)?.tingkatan
             ].filter(Boolean).map(r => String(r).toLowerCase().trim());
 
-            const trainerRoleIdentifiers = [
-              'jari1', 'jari2', 'jaya_matahari_1', 'jaya_matahari_2', 'pelatih', 'pelatih_nasional',
-              'jati1', 'jati2', 'jaya_melati_1', 'jaya_melati_2', 'asisten_pelatih',
-              'jaya matahari 1', 'jaya matahari 2', 'jaya melati 1', 'jaya melati 2',
-              'pelatih kegiatan', 'asisten pelatih'
-            ];
-
-            const isTrainerRole = userRolesList.some(r => 
-              trainerRoleIdentifiers.some(tr => r.includes(tr) || tr.includes(r)) ||
-              r.includes('matahari') || r.includes('melati 2') || r.includes('jati 2') || r.includes('jari')
+            // Check if user has Jaya Matahari 1 / Pelatih Nasional role
+            const isJayaMatahari1 = userRolesList.some(r => 
+              r === 'jari1' || r === 'jari 1' || r === 'jaya_matahari_1' || r === 'jaya matahari 1' || 
+              r.includes('matahari') || r === 'pelatih_nasional' || r === 'pelatih nasional'
             );
 
             const userEmail = (user?.email || '').toLowerCase().trim();
@@ -1002,7 +1050,8 @@ export default function PelatihanPage() {
               });
             });
 
-            const showTrainerCard = isTrainerRole || assignedActs.length > 0;
+            // Sesuai koreksi: Menu ini hanya muncul di Role Jaya Matahari 1 yang diangkat sebagai Tim Pelatih Pelatihan, bukan di dasbor pelatihan peserta
+            const showTrainerCard = isJayaMatahari1 && assignedActs.length > 0;
 
             if (!showTrainerCard) return null;
 
@@ -2543,23 +2592,96 @@ export default function PelatihanPage() {
       )}
 
       {/* PARTICIPANT PRE TEST / POST TEST MODAL */}
-      <ParticipantTestModal
-        isOpen={activeTestModal !== null}
-        onClose={() => setActiveTestModal(null)}
-        testType={activeTestModal || 'pre_test'}
-        userApplication={userApp}
-        settings={trainingSettings}
-        onTestSubmitted={async (res) => {
-          // Update userApp state optimistically and reload data
-          setUserApp((prev: any) => prev ? {
-            ...prev,
-            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}Score`]: res.score,
-            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}Data`]: JSON.stringify(res),
-            [`${activeTestModal === 'pre_test' ? 'preTest' : 'postTest'}SubmittedAt`]: res.submittedAt,
-          } : prev);
-          await loadData();
-        }}
-      />
+      {activeTestModal && (() => {
+        const testSettings = activeTestModal === 'pre_test'
+          ? (trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS)
+          : (trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS);
+
+        const participantData = {
+          id: userApp?.id || `app-${user?.id || Date.now()}`,
+          nama: userApp?.nama || user?.namaLengkap || user?.nama || 'Peserta Pelatihan',
+          email: userApp?.email || user?.email || '',
+          tingkatan: userApp?.pelatihanAkanDiikuti || selectedActivity?.jenisPelatihan || selectedLevel || 'Jati 1',
+          asalDaerah: userApp?.asalDaerah || user?.asalKwarda || 'Jawa Tengah'
+        };
+
+        let existingSubmission = undefined;
+        if (activeTestModal === 'pre_test' && userApp?.preTestData) {
+          try {
+            existingSubmission = typeof userApp.preTestData === 'string' ? JSON.parse(userApp.preTestData) : userApp.preTestData;
+          } catch (e) {
+            existingSubmission = undefined;
+          }
+        } else if (activeTestModal === 'post_test' && userApp?.postTestData) {
+          try {
+            existingSubmission = typeof userApp.postTestData === 'string' ? JSON.parse(userApp.postTestData) : userApp.postTestData;
+          } catch (e) {
+            existingSubmission = undefined;
+          }
+        }
+
+        return (
+          <ParticipantTestModal
+            isOpen={activeTestModal !== null}
+            onClose={() => setActiveTestModal(null)}
+            testType={activeTestModal}
+            testSettings={testSettings}
+            participantData={participantData}
+            existingSubmission={existingSubmission}
+            onSubmitTest={async (submission) => {
+              let targetApp = userApp;
+              if (!targetApp) {
+                targetApp = approvedUserApps.find(a => normalizeLevelCode(a.pelatihanAkanDiikuti) === normalizeLevelCode(selectedActivity?.jenisPelatihan || selectedLevel))
+                  || applications.find(a => isUserAppMatch(a, user))
+                  || approvedUserApps[0];
+              }
+
+              if (!targetApp && user) {
+                const newAppId = `train-app-${Date.now()}`;
+                targetApp = {
+                  id: newAppId,
+                  userId: user.id || `user-${Date.now()}`,
+                  nama: user.namaLengkap || user.nama || 'Peserta Pelatihan',
+                  email: user.email || '',
+                  noWa: user.noHp || '',
+                  nbm: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+                  ktaNumber: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+                  nomorKTA: (user as any)?.nbm || user.ktaNumber || user.nomorKTA || '',
+                  asalDaerah: user.asalKwarda || 'Jawa Tengah',
+                  pelatihanAkanDiikuti: selectedActivity?.jenisPelatihan || selectedLevel || 'Jati 1',
+                  status: 'approved',
+                  statusPembayaran: 'Lunas',
+                  statusKelulusan: 'Proses Pelatihan'
+                };
+                await Promise.all([
+                  sheetsService.applyTraining(targetApp).catch(e => console.warn(e)),
+                  firestoreService.createTrainingApplication(targetApp).catch(e => console.warn(e))
+                ]);
+                setApplications(prev => [targetApp, ...prev]);
+                setUserApp(targetApp);
+              }
+
+              if (targetApp) {
+                await Promise.all([
+                  sheetsService.submitTestSubmission(targetApp.id, submission),
+                  firestoreService.submitTestSubmission(targetApp.id, submission)
+                ]);
+
+                const updatedApp = {
+                  ...targetApp,
+                  [`${submission.testType === 'pre_test' ? 'preTest' : 'postTest'}Score`]: submission.score,
+                  [`${submission.testType === 'pre_test' ? 'preTest' : 'postTest'}Data`]: JSON.stringify(submission),
+                  [`${submission.testType === 'pre_test' ? 'preTest' : 'postTest'}SubmittedAt`]: submission.submittedAt
+                };
+                setUserApp(updatedApp);
+                setApplications(prev => prev.map(a => a.id === targetApp.id ? updatedApp : a));
+                window.dispatchEvent(new Event('training_applications_updated'));
+              }
+              await loadData();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

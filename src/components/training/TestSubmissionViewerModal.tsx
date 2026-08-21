@@ -21,7 +21,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   application,
   questions = DEFAULT_50_QUESTIONS
 }) => {
-  const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test' | 'tugas_berkas'>('pre_test');
+  const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test'>('pre_test');
   const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'wrong'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,17 +46,6 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
       postTestData = typeof application.postTestData === 'string' ? JSON.parse(application.postTestData) : application.postTestData;
     } catch (e) {
       postTestData = null;
-    }
-  }
-
-  // Parse Regular Tasks / Berkas
-  let tugasList: any[] = [];
-  if (application.tugas) {
-    try {
-      tugasList = typeof application.tugas === 'string' ? JSON.parse(application.tugas) : application.tugas;
-      if (!Array.isArray(tugasList)) tugasList = [];
-    } catch (e) {
-      tugasList = [];
     }
   }
 
@@ -170,21 +159,6 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                 : 'bg-gray-200 text-gray-600'
             }`}>
               {application.postTestScore !== undefined ? `${application.postTestScore}/100` : 'Belum'}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('tugas_berkas')}
-            className={`pb-3 px-4 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-              activeTab === 'tugas_berkas'
-                ? 'border-emerald-600 text-emerald-800 font-extrabold'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <FileText size={14} className={activeTab === 'tugas_berkas' ? 'text-emerald-600' : ''} />
-            3. Berkas Tugas Peserta
-            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
-              {tugasList.length} Tugas
             </span>
           </button>
         </div>
@@ -355,58 +329,6 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                 </div>
               )}
 
-            </div>
-          )}
-
-          {/* TAB 3: UPLOADED SYLLABUS & ADDITIONAL TASKS */}
-          {activeTab === 'tugas_berkas' && (
-            <div className="space-y-4">
-              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                Daftar Penugasan & Berkas yang Dikumpulkan Peserta
-              </h4>
-
-              {tugasList.length === 0 ? (
-                <div className="p-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-2">
-                  <FileText size={32} className="mx-auto text-gray-300" />
-                  <p className="font-black text-xs uppercase tracking-wider text-gray-600">
-                    Belum ada berkas tugas yang diunggah peserta.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {tugasList.map((t, idx) => (
-                    <div key={idx} className="bg-gray-50/70 p-4 rounded-2xl border border-gray-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-                          Tugas #{idx + 1}
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-semibold">
-                          {t.submittedAt ? new Date(t.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Terkumpul'}
-                        </span>
-                      </div>
-
-                      <h5 className="text-xs font-black text-gray-800">{t.title || 'Penugasan Pelatihan'}</h5>
-
-                      {t.pesan && (
-                        <p className="text-[11px] text-gray-600 bg-white p-2.5 rounded-xl border border-gray-150">
-                          💬 "{t.pesan}"
-                        </p>
-                      )}
-
-                      {t.link && (
-                        <a
-                          href={t.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200"
-                        >
-                          <ExternalLink size={13} /> Buka Berkas Tugas (Google Drive / Link)
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

@@ -2779,6 +2779,7 @@ export default function AdminDashboard() {
 
       const rawTanggal = member.tanggalLahir || (member as any)?.tanggallahir || matchingKta?.tanggalLahir || (matchingKta as any)?.tanggallahir || '';
       const normTanggal = normalizeDateForInput(rawTanggal);
+      const resolvedKtaNum = (matchingKta?.ktaNumber || matchingKta?.nomorKTA || member.nomorKTA || member.ktaNumber || member.nbm || (member as any)?.noNbm || '').trim();
 
       setFormData({
         email: member.email || matchingKta?.email || '',
@@ -2802,7 +2803,7 @@ export default function AdminDashboard() {
         tempatLahir: member.tempatLahir || (member as any)?.tempatlahir || matchingKta?.tempatLahir || '',
         tanggalLahir: normTanggal,
         statusKta: matchingKta?.status || (member.isVerified ? 'approved' : 'pending'),
-        ktaNumber: matchingKta?.ktaNumber || member.ktaNumber || '',
+        ktaNumber: resolvedKtaNum,
         jenisKta: matchingKta?.jenisKta || 'Reguler'
       });
     } else {
@@ -2844,23 +2845,39 @@ export default function AdminDashboard() {
       const memberId = editingMember?.id || Date.now().toString();
       const primaryRole = formData.role || synced.primaryRole;
       const cleanTanggalLahir = normalizeDateForInput(formData.tanggalLahir || editingMember?.tanggalLahir || '');
+      const cleanKtaNumber = (formData.ktaNumber || editingMember?.nomorKTA || editingMember?.ktaNumber || editingMember?.nbm || '').trim();
 
       const payload = editingMember 
         ? { 
             ...editingMember, 
             ...formData,
             id: memberId,
+            nomorKTA: cleanKtaNumber || editingMember?.nomorKTA || editingMember?.ktaNumber || '',
+            ktaNumber: cleanKtaNumber || editingMember?.ktaNumber || editingMember?.nomorKTA || '',
+            nbm: cleanKtaNumber || editingMember?.nbm || '',
             role: primaryRole,
             roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
             pelatihan: synced.pelatihan,
-            photo: formData.photo,
-            noHp: formData.noHp,
-            asalKwarda: formData.asalKwarda,
-            qabilah: formData.qabilah,
-            alamat: formData.alamat,
+            photo: formData.photo || editingMember?.photo || (editingMember as any)?.foto || '',
+            foto: formData.photo || (editingMember as any)?.foto || editingMember?.photo || '',
+            noHp: formData.noHp || editingMember?.noHp || '',
+            noWa: formData.noHp || (editingMember as any)?.noWa || editingMember?.noHp || '',
+            asalKwarda: formData.asalKwarda || editingMember?.asalKwarda || '',
+            asalDaerah: formData.asalKwarda || (editingMember as any)?.asalDaerah || editingMember?.asalKwarda || '',
+            qabilah: formData.qabilah || editingMember?.qabilah || '',
+            asalQabilah: formData.qabilah || (editingMember as any)?.asalQabilah || editingMember?.qabilah || '',
+            alamat: formData.alamat || editingMember?.alamat || '',
             tempatLahir: formData.tempatLahir || editingMember?.tempatLahir || '',
             tanggalLahir: cleanTanggalLahir,
-            jenisKelamin: formData.jenisKelamin,
+            jenisKelamin: formData.jenisKelamin || editingMember?.jenisKelamin || 'L',
+            golongan: formData.golongan || editingMember?.golongan || 'Penghela',
+            tingkatan: formData.golongan || (editingMember as any)?.tingkatan || editingMember?.golongan || 'Penghela',
+            pendidikan: formData.pendidikan || editingMember?.pendidikan || 'SMA/SMK/MA',
+            sosmed: formData.sosmed || editingMember?.sosmed || '',
+            isVerified: formData.isVerified !== undefined ? formData.isVerified : (editingMember?.isVerified ?? true),
+            statusAktivasi: formData.isVerified ? 'Aktif' : (editingMember?.statusAktivasi || 'Belum Aktif'),
+            statusPembayaran: formData.isVerified ? 'Lunas' : (editingMember?.statusPembayaran || 'Belum Bayar'),
+            status: formData.isVerified ? 'approved' : (editingMember?.status || 'pending'),
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
               golonganPelatih: formData.golonganPelatih || formData.golongan
@@ -2869,12 +2886,32 @@ export default function AdminDashboard() {
         : { 
             ...formData, 
             id: memberId,
+            nomorKTA: cleanKtaNumber,
+            ktaNumber: cleanKtaNumber,
+            nbm: cleanKtaNumber,
             role: primaryRole,
             roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
             pelatihan: synced.pelatihan,
-            photo: formData.photo,
+            photo: formData.photo || '',
+            foto: formData.photo || '',
+            noHp: formData.noHp || '',
+            noWa: formData.noHp || '',
+            asalKwarda: formData.asalKwarda || '',
+            asalDaerah: formData.asalKwarda || '',
+            qabilah: formData.qabilah || '',
+            asalQabilah: formData.qabilah || '',
+            alamat: formData.alamat || '',
             tempatLahir: formData.tempatLahir || '',
             tanggalLahir: cleanTanggalLahir,
+            jenisKelamin: formData.jenisKelamin || 'L',
+            golongan: formData.golongan || 'Penghela',
+            tingkatan: formData.golongan || 'Penghela',
+            pendidikan: formData.pendidikan || 'SMA/SMK/MA',
+            sosmed: formData.sosmed || '',
+            isVerified: formData.isVerified !== undefined ? formData.isVerified : true,
+            statusAktivasi: formData.isVerified ? 'Aktif' : 'Belum Aktif',
+            statusPembayaran: formData.isVerified ? 'Lunas' : 'Belum Bayar',
+            status: formData.isVerified ? 'approved' : 'pending',
             ...(isJM ? {
               golongan: formData.golonganPelatih || formData.golongan,
               golonganPelatih: formData.golonganPelatih || formData.golongan
@@ -2891,6 +2928,16 @@ export default function AdminDashboard() {
         showToast('error', 'Anda tidak memiliki izin untuk memberikan akses Super Admin');
         return;
       }
+
+      // Save custom edits directly in localStorage for instant persistent retrieval
+      try {
+        const stored = localStorage.getItem('member_custom_edits') || '{}';
+        const parsed = JSON.parse(stored);
+        parsed[payload.id] = payload;
+        if (payload.email) parsed[payload.email.toLowerCase().trim()] = payload;
+        if (payload.ktaNumber) parsed[payload.ktaNumber] = payload;
+        localStorage.setItem('member_custom_edits', JSON.stringify(parsed));
+      } catch (e) {}
 
       // Optimistically update local members state immediately
       setMembers(prev => {
@@ -2915,8 +2962,6 @@ export default function AdminDashboard() {
       (async () => {
         setBackgroundProcessingText('Menyimpan data anggota...');
         try {
-          await sheetsService.saveMember(payload);
-
           // Centralized KTA application update/create
           const matchingKta = ktaApps.find(app => 
             (payload.id && app.userId === payload.id) || 
@@ -2940,11 +2985,18 @@ export default function AdminDashboard() {
             photo: payload.photo || formData.photo || '',
             jenisKta: formData.jenisKta || matchingKta?.jenisKta || 'Reguler',
             status: formData.statusKta || matchingKta?.status || (payload.isVerified ? 'approved' : 'pending'),
-            ktaNumber: formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
+            ktaNumber: cleanKtaNumber || formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
+            nomorKTA: cleanKtaNumber || formData.ktaNumber || matchingKta?.nomorKTA || payload.nomorKTA || '',
+            nbm: cleanKtaNumber || formData.ktaNumber || matchingKta?.nbm || payload.nbm || '',
             verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
           };
 
-          await sheetsService.saveKTAApplication(ktaPayload).catch(syncErr => console.warn("KTA sync notice:", syncErr));
+          await Promise.all([
+            sheetsService.saveMember(payload).catch(e => console.warn("Sheets saveMember warning:", e)),
+            firestoreService.saveMember(payload as User).catch(e => console.warn("Firestore saveMember warning:", e)),
+            sheetsService.saveKTAApplication(ktaPayload).catch(e => console.warn("Sheets KTA sync warning:", e)),
+            firestoreService.saveKTAApplication(ktaPayload).catch(e => console.warn("Firestore KTA sync warning:", e))
+          ]);
 
           const [data, ktaData] = await Promise.all([
             sheetsService.getMembers(),
@@ -9828,14 +9880,31 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1 sm:col-span-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center justify-between">
-                        <span>Nomor KTA</span>
-                        <span className="text-emerald-600 font-extrabold lowercase text-[9px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Otomatis & Permanen (11.xx.xxxx)</span>
+                        <span className="flex items-center gap-1.5 text-gray-700 font-black">
+                          <CreditCard size={13} className="text-hw-green" /> Nomor KTA
+                        </span>
+                        {(user?.role === 'superadmin' || parseRolesField(user?.roles, user?.role).includes('superadmin')) ? (
+                          <span className="text-emerald-700 font-extrabold text-[9px] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                            <Shield size={10} className="text-emerald-600" /> Super Admin: Izin Edit Aktif
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 font-bold text-[9px] bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                            Sesuai Database (11.xx.xxxx)
+                          </span>
+                        )}
                       </label>
                       <input 
                         type="text" 
-                        readOnly
-                        value={formData.ktaNumber || 'Dibuat otomatis oleh sistem (11.xx.xxxx)'}
-                        className="w-full bg-gray-100/80 text-gray-700 font-mono font-black text-sm border border-gray-200 rounded-2xl py-3 px-4 outline-none cursor-not-allowed" 
+                        readOnly={!(user?.role === 'superadmin' || parseRolesField(user?.roles, user?.role).includes('superadmin'))}
+                        value={formData.ktaNumber || ''}
+                        onChange={(e) => setFormData({...formData, ktaNumber: e.target.value})}
+                        placeholder={(user?.role === 'superadmin' || parseRolesField(user?.roles, user?.role).includes('superadmin')) ? "Ketik nomor KTA (Contoh: 11.02.0027)" : "Dibuat otomatis oleh database"}
+                        className={cn(
+                          "w-full font-mono font-black text-sm border rounded-2xl py-3 px-4 outline-none transition-all",
+                          (user?.role === 'superadmin' || parseRolesField(user?.roles, user?.role).includes('superadmin'))
+                            ? "bg-white border-emerald-300 text-gray-900 focus:ring-4 focus:ring-emerald-400/20 focus:border-emerald-500 shadow-sm"
+                            : "bg-gray-100/80 text-gray-700 border-gray-200 cursor-not-allowed"
+                        )}
                       />
                     </div>
                   </div>
