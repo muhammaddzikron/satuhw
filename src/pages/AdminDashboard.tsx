@@ -1856,28 +1856,58 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSetAllToJayaMelati1Solo = async () => {
-    if (!window.confirm('Ubah semua data peserta pelatihan yang ada saat ini menjadi Peserta Pelatihan Jaya Melati 1 HW Solo (Lokasi: Kwarda HW Solo, Tanggal: 15-18 Agustus 2026)?')) {
+  const handleSetAllToActivity = async (targetAct?: any) => {
+    const acts = allTrainingActivitiesList || [];
+    let act = targetAct;
+    if (!act) {
+      // Find Jaya Melati 1 activity from settings / allTrainingActivitiesList (Kelola Jenis Pelatihan)
+      act = acts.find((a: any) => 
+        (a?.jenisPelatihan && a.jenisPelatihan.toLowerCase().includes('jaya melati 1')) ||
+        (a?.namaKegiatan && a.namaKegiatan.toLowerCase().includes('jaya melati 1'))
+      );
+    }
+
+    if (!act && acts.length > 0) {
+      act = acts[0];
+    }
+
+    const activityName = act?.namaKegiatan || act?.jenisPelatihan || 'Pelatihan Jaya Melati 1 HW Solo';
+    const activityJenis = act?.jenisPelatihan || 'Jaya Melati 1';
+    const activityLokasi = act?.lokasiPelatihan || 'Kwarda HW Solo';
+    const activityTanggal = act?.tanggalPelatihan || '15-18 Agustus 2026';
+    const activityBiaya = act?.biayaPelatihan || 'Rp 50.000';
+    const activityRekening = act?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+    const activityId = act?.id || '';
+
+    const count = trainingApps.length;
+
+    if (!window.confirm(`Ubah SEMUA data ${count} peserta pelatihan yang ada saat ini menjadi Peserta Pelatihan:\n\n• Nama Kegiatan: ${activityName}\n• Jenis: ${activityJenis}\n• Lokasi: ${activityLokasi}\n• Tanggal: ${activityTanggal}\n• Biaya: ${activityBiaya}\n\nLanjutkan pembaruan ke semua peserta?`)) {
       return;
     }
 
     try {
       setLoading(true);
-      setBackgroundProcessingText('Mengubah semua peserta menjadi Jaya Melati 1 HW Solo...');
+      setBackgroundProcessingText(`Mengubah semua peserta menjadi ${activityName}...`);
+
+      const payload = {
+        id: activityId,
+        namaKegiatan: activityName,
+        jenisPelatihan: activityJenis,
+        tingkatan: activityJenis,
+        pelatihanAkanDiikuti: activityName,
+        lokasiPelatihan: activityLokasi,
+        tanggalPelatihan: activityTanggal,
+        biayaPelatihan: activityBiaya,
+        rekeningPembiayaan: activityRekening
+      };
 
       // Optimistic update
       setTrainingApps(prev => prev.map(t => ({
         ...t,
-        pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
-        jenisPelatihan: 'Jaya Melati 1',
-        tingkatan: 'Jaya Melati 1',
-        namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
-        lokasiPelatihan: 'Kwarda HW Solo',
-        tanggalPelatihan: '15-18 Agustus 2026',
-        biayaPelatihan: t.biayaPelatihan || 'Rp 50.000'
+        ...payload
       })));
 
-      const res = await sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo();
+      const res = await sheetsService.bulkSetAllTrainingParticipantsToActivity(payload);
       const [tApps, mData] = await Promise.all([
         sheetsService.getTrainingApplications(),
         sheetsService.getMembers()
@@ -1885,14 +1915,22 @@ export default function AdminDashboard() {
       if (tApps?.length) setTrainingApps(tApps);
       if (mData?.length) setMembers(mData);
 
-      showToast('success', `Berhasil! ${res.count || tApps?.length || 0} peserta kini terdaftar di Pelatihan Jaya Melati 1 HW Solo.`);
+      showToast('success', `Berhasil! ${res.count || tApps?.length || 0} peserta kini terdaftar di ${activityName}.`);
     } catch (err: any) {
       console.error(err);
-      showToast('error', 'Gagal migrasi peserta: ' + (err.message || 'Cek koneksi'));
+      showToast('error', 'Gagal mengubah semua peserta: ' + (err.message || 'Cek koneksi'));
     } finally {
       setLoading(false);
       setBackgroundProcessingText(null);
     }
+  };
+
+  const handleSetAllToJayaMelati1Solo = async () => {
+    const jm1Act = (allTrainingActivitiesList || []).find((a: any) => 
+      (a?.jenisPelatihan && a.jenisPelatihan.toLowerCase().includes('jaya melati 1')) ||
+      (a?.namaKegiatan && a.namaKegiatan.toLowerCase().includes('jaya melati 1'))
+    );
+    return handleSetAllToActivity(jm1Act);
   };
 
   const handleSaveSchedule = async (appId: string) => {
@@ -6911,10 +6949,10 @@ export default function AdminDashboard() {
                           </button>
                           <button
                             onClick={handleSetAllToJayaMelati1Solo}
-                            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/20"
-                            title="Set Semua Peserta Jadi Peserta Pelatihan Jaya Melati 1 HW Solo"
+                            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/20"
+                            title="Set Semua Peserta Jadi Peserta Pelatihan Jaya Melati 1 (dari Kelola Jenis Pelatihan)"
                           >
-                            <Sparkles size={14} /> Set Semua Jaya Melati 1 Solo
+                            <Sparkles size={14} className="text-amber-100" /> Set Semua Jaya Melati 1
                           </button>
                           <button
                             onClick={() => {
@@ -8474,6 +8512,18 @@ export default function AdminDashboard() {
                                     "{act.deskripsi}"
                                   </p>
                                 )}
+
+                                <div className="pt-2 border-t border-gray-100/80 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetAllToActivity(act)}
+                                    className="w-full py-2 px-3 bg-amber-500/10 hover:bg-amber-500 text-amber-900 hover:text-white border border-amber-300/80 hover:border-amber-500 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs group"
+                                    title={`Terapkan "${act.namaKegiatan}" ke SEMUA data peserta pelatihan`}
+                                  >
+                                    <Sparkles size={13} className="text-amber-600 group-hover:text-white transition-colors" />
+                                    <span>Set Semua Peserta ke Pelatihan Ini</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );

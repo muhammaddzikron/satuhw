@@ -2556,19 +2556,30 @@ export const firestoreService = {
     return true;
   },
 
-  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+  async bulkSetAllTrainingParticipantsToActivity(activityData?: any): Promise<{ success: boolean; count: number }> {
     clearFirestoreCache('training_applications');
     const apps = await this.getTrainingApplications(true);
+    
+    const targetNama = activityData?.namaKegiatan || activityData?.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 HW Solo';
+    const targetJenis = activityData?.jenisPelatihan || 'Jaya Melati 1';
+    const targetTingkat = activityData?.tingkatan || targetJenis || 'Jaya Melati 1';
+    const targetLokasi = activityData?.lokasiPelatihan || 'Kwarda HW Solo';
+    const targetTanggal = activityData?.tanggalPelatihan || '15-18 Agustus 2026';
+    const targetBiaya = activityData?.biayaPelatihan || 'Rp 50.000';
+    const targetRekening = activityData?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
+    const targetActivityId = activityData?.id || activityData?.activityId || '';
+
     const updatedList = apps.map(app => ({
       ...app,
-      pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
-      jenisPelatihan: 'Jaya Melati 1',
-      tingkatan: 'Jaya Melati 1',
-      namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
-      lokasiPelatihan: 'Kwarda HW Solo',
-      tanggalPelatihan: '15-18 Agustus 2026',
-      biayaPelatihan: app.biayaPelatihan || 'Rp 50.000',
-      rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+      pelatihanAkanDiikuti: targetNama,
+      jenisPelatihan: targetJenis,
+      tingkatan: targetTingkat,
+      namaKegiatan: targetNama,
+      lokasiPelatihan: targetLokasi,
+      tanggalPelatihan: targetTanggal,
+      biayaPelatihan: app.biayaPelatihan || targetBiaya,
+      rekeningPembiayaan: targetRekening,
+      activityId: targetActivityId || app.activityId || ''
     }));
 
     safeStorageSet('training_applications', updatedList);
@@ -2584,7 +2595,7 @@ export const firestoreService = {
         await batch.commit();
       } catch (err) {
         this.checkQuotaError(err);
-        console.warn('Firestore bulkSetAllTrainingParticipantsToJayaMelati1Solo warning:', err);
+        console.warn('Firestore bulkSetAllTrainingParticipantsToActivity warning:', err);
       }
     }
 
@@ -2599,8 +2610,8 @@ export const firestoreService = {
         );
         if (isParticipant) {
           const currentPel = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
-          if (!currentPel.includes('Pelatihan Jaya Melati 1 HW Solo') && !currentPel.includes('Jaya Melati 1')) {
-            currentPel.push('Pelatihan Jaya Melati 1 HW Solo');
+          if (!currentPel.includes(targetNama) && !currentPel.includes(targetJenis)) {
+            currentPel.push(targetNama);
           }
           return {
             ...m,
@@ -2614,6 +2625,10 @@ export const firestoreService = {
 
     window.dispatchEvent(new Event('training_applications_updated'));
     return { success: true, count: updatedList.length };
+  },
+
+  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+    return this.bulkSetAllTrainingParticipantsToActivity();
   },
 
   // --- CONTENTS ---

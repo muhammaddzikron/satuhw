@@ -1747,12 +1747,16 @@ export const sheetsService = {
     return { success: true, application: updated };
   },
 
-  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+  async bulkSetAllTrainingParticipantsToActivity(activityData?: any): Promise<{ success: boolean; count: number }> {
     clearSheetsCache('trainingApplications');
     clearSheetsCache('members');
     clearFirestoreCache('training_applications');
     clearFirestoreCache('members');
-    return await firestoreService.bulkSetAllTrainingParticipantsToJayaMelati1Solo();
+    return await firestoreService.bulkSetAllTrainingParticipantsToActivity(activityData);
+  },
+
+  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+    return this.bulkSetAllTrainingParticipantsToActivity();
   },
 
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
