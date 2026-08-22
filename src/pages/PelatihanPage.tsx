@@ -43,6 +43,8 @@ import { ParticipantTestModal } from '../components/training/ParticipantTestModa
 import { 
   DEFAULT_PRE_TEST_SETTINGS, 
   DEFAULT_POST_TEST_SETTINGS, 
+  DEFAULT_50_QUESTIONS,
+  parseTestScheduleSettings,
   isTestCurrentlyOpen 
 } from '../data/trainingQuestions';
 import { 
@@ -520,6 +522,29 @@ export default function PelatihanPage() {
 
   useEffect(() => {
     loadData();
+
+    // Listen to real-time custom event when admin changes test settings
+    const handleSettingsUpdated = (e: any) => {
+      if (e?.detail) {
+        setTrainingSettings(e.detail);
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'hw_settings' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setTrainingSettings(parsed);
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('hw_settings_updated', handleSettingsUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('hw_settings_updated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [selectedLevel, isAuthenticated, user]);
 
   useEffect(() => {
@@ -2130,11 +2155,11 @@ export default function PelatihanPage() {
                       {/* 3. PENUGASAN (PRE-TEST, POST-TEST & TUGAS TAMBAHAN DARI PELATIH) TAB */}
                       {activeTab === 'tugas' && (() => {
                         const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
-                        const preSettings = trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
-                        const postSettings = trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
+                        const preSettings = parseTestScheduleSettings(trainingSettings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS);
+                        const postSettings = parseTestScheduleSettings(trainingSettings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS);
 
-                        const preTestStatus = isTestCurrentlyOpen(preSettings);
-                        const postTestStatus = isTestCurrentlyOpen(postSettings);
+                        const preTestStatus = isTestCurrentlyOpen(preSettings, DEFAULT_PRE_TEST_SETTINGS);
+                        const postTestStatus = isTestCurrentlyOpen(postSettings, DEFAULT_POST_TEST_SETTINGS);
 
                         const isPreOpen = !!preTestStatus.isOpen;
                         const isPostOpen = !!postTestStatus.isOpen;
@@ -2196,7 +2221,11 @@ export default function PelatihanPage() {
                                       </div>
                                       <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
                                         <Calendar size={11} /> 
-                                        Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})
+                                        {preSettings.mode === 'manual' ? (
+                                          <span>Status: {preSettings.isOpen ? 'Dibuka oleh Panitia' : 'Ditutup oleh Panitia'}</span>
+                                        ) : (
+                                          <span>Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})</span>
+                                        )}
                                       </div>
                                     </div>
 
@@ -2245,8 +2274,8 @@ export default function PelatihanPage() {
                                         disabled={!isPreOpen}
                                         className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                                           isPreOpen
-                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01] cursor-pointer'
-                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed'
+                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01] cursor-pointer font-black'
+                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed font-bold'
                                         }`}
                                       >
                                         <ClipboardList size={15} />
@@ -2287,7 +2316,11 @@ export default function PelatihanPage() {
                                       </div>
                                       <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
                                         <Calendar size={11} /> 
-                                        Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})
+                                        {postSettings.mode === 'manual' ? (
+                                          <span>Status: {postSettings.isOpen ? 'Dibuka oleh Panitia' : 'Ditutup oleh Panitia'}</span>
+                                        ) : (
+                                          <span>Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})</span>
+                                        )}
                                       </div>
                                     </div>
 
@@ -2336,8 +2369,8 @@ export default function PelatihanPage() {
                                         disabled={!isPostOpen}
                                         className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                                           isPostOpen
-                                            ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01] cursor-pointer'
-                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed'
+                                            ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01] cursor-pointer font-black'
+                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed font-bold'
                                         }`}
                                       >
                                         <ClipboardList size={15} />
@@ -2955,8 +2988,12 @@ export default function PelatihanPage() {
       {/* PARTICIPANT PRE TEST / POST TEST MODAL */}
       {activeTestModal && (() => {
         const testSettings = activeTestModal === 'pre_test'
-          ? (trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS)
-          : (trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS);
+          ? parseTestScheduleSettings(trainingSettings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS)
+          : parseTestScheduleSettings(trainingSettings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS);
+
+        const testQuestions = Array.isArray(trainingSettings?.trainingQuestions) && trainingSettings.trainingQuestions.length > 0
+          ? trainingSettings.trainingQuestions
+          : (typeof trainingSettings?.trainingQuestions === 'string' ? (() => { try { return JSON.parse(trainingSettings.trainingQuestions); } catch(e) { return DEFAULT_50_QUESTIONS; } })() : DEFAULT_50_QUESTIONS);
 
         const participantData = {
           id: userApp?.id || `app-${user?.id || Date.now()}`,
@@ -3007,6 +3044,7 @@ export default function PelatihanPage() {
             onClose={() => setActiveTestModal(null)}
             testType={activeTestModal}
             testSettings={testSettings}
+            questions={testQuestions}
             participantData={participantData}
             existingSubmission={existingSubmission}
             onSubmitTest={async (submission) => {

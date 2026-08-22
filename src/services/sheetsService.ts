@@ -9,6 +9,12 @@ import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
+import { 
+  parseTestScheduleSettings, 
+  DEFAULT_PRE_TEST_SETTINGS, 
+  DEFAULT_POST_TEST_SETTINGS, 
+  DEFAULT_50_QUESTIONS 
+} from '../data/trainingQuestions';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
 export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
@@ -2201,7 +2207,11 @@ export const sheetsService = {
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES)
+        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES),
+        preTestSettings: parseTestScheduleSettings(parsed.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
+        postTestSettings: parseTestScheduleSettings(parsed.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
+        trainingQuestions: safeParse(parsed.trainingQuestions, DEFAULT_50_QUESTIONS),
+        assignedTasks: safeParse(parsed.assignedTasks, [])
       };
       safeStorageSet('hw_settings', result);
       return result;
@@ -2230,7 +2240,11 @@ export const sheetsService = {
         trainingActivities: safeParse(apiSettings.trainingActivities || fsSettings?.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(apiSettings.trainingLocations || fsSettings?.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(apiSettings.trainingDates || fsSettings?.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, DEFAULT_UPGRADE_FEES)
+        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, DEFAULT_UPGRADE_FEES),
+        preTestSettings: parseTestScheduleSettings(apiSettings.preTestSettings || fsSettings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
+        postTestSettings: parseTestScheduleSettings(apiSettings.postTestSettings || fsSettings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
+        trainingQuestions: safeParse(apiSettings.trainingQuestions || fsSettings?.trainingQuestions, DEFAULT_50_QUESTIONS),
+        assignedTasks: safeParse(apiSettings.assignedTasks || fsSettings?.assignedTasks, [])
       };
       safeStorageSet('hw_settings', merged);
       return merged;
@@ -2272,7 +2286,11 @@ export const sheetsService = {
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
         trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES)
+        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES),
+        preTestSettings: parseTestScheduleSettings(parsed.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
+        postTestSettings: parseTestScheduleSettings(parsed.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
+        trainingQuestions: safeParse(parsed.trainingQuestions, DEFAULT_50_QUESTIONS),
+        assignedTasks: safeParse(parsed.assignedTasks, [])
       };
     }
   },
@@ -2282,9 +2300,17 @@ export const sheetsService = {
   },
 
   async saveSettings(settings: any): Promise<any> {
-    safeStorageSet('hw_settings', settings);
+    const normalizedSettings = {
+      ...settings,
+      preTestSettings: parseTestScheduleSettings(settings.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
+      postTestSettings: parseTestScheduleSettings(settings.postTestSettings, DEFAULT_POST_TEST_SETTINGS)
+    };
+    safeStorageSet('hw_settings', normalizedSettings);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hw_settings_updated', { detail: normalizedSettings }));
+    }
     try {
-      await firestoreService.saveSettings(settings);
+      await firestoreService.saveSettings(normalizedSettings);
     } catch (e) {
       console.warn('saveSettings Firestore error:', e);
     }
@@ -2294,11 +2320,11 @@ export const sheetsService = {
     }
 
     const serializedSettings: any = {};
-    for (const key in settings) {
-      if (Array.isArray(settings[key]) || typeof settings[key] === 'object') {
-        serializedSettings[key] = JSON.stringify(settings[key]);
+    for (const key in normalizedSettings) {
+      if (Array.isArray(normalizedSettings[key]) || typeof normalizedSettings[key] === 'object') {
+        serializedSettings[key] = JSON.stringify(normalizedSettings[key]);
       } else {
-        serializedSettings[key] = settings[key];
+        serializedSettings[key] = normalizedSettings[key];
       }
     }
 

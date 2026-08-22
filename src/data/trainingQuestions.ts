@@ -649,24 +649,76 @@ export function calculateTestResult(
   };
 }
 
-export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: boolean; statusMessage: string } {
-  if (!settings) {
-    return { isOpen: true, statusMessage: 'Ujian Terbuka' };
+export function parseTestScheduleSettings(
+  raw: any,
+  fallback: TestScheduleSettings = DEFAULT_PRE_TEST_SETTINGS
+): TestScheduleSettings {
+  if (!raw) return { ...fallback };
+  
+  let data = raw;
+  if (typeof raw === 'string') {
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      return { ...fallback };
+    }
   }
 
-  // If manual mode or no mode specified
-  if (!settings.mode || settings.mode === 'manual') {
-    if (settings.isOpen === false) {
-      return { isOpen: false, statusMessage: 'Akses Ujian Ditutup oleh Panitia/Pelatih' };
+  if (!data || typeof data !== 'object') return { ...fallback };
+
+  // Parse boolean isOpen strictly
+  let isOpen = fallback.isOpen;
+  if (data.isOpen !== undefined && data.isOpen !== null) {
+    const v = data.isOpen;
+    if (v === true || v === 'true' || v === 1 || v === '1') {
+      isOpen = true;
+    } else if (v === false || v === 'false' || v === 0 || v === '0') {
+      isOpen = false;
     }
-    return { isOpen: true, statusMessage: 'Ujian Sedang Dibuka' };
+  }
+
+  const mode = data.mode === 'scheduled' ? 'scheduled' : 'manual';
+  const durationMinutes = Number(data.durationMinutes) > 0 ? Number(data.durationMinutes) : (fallback.durationMinutes || 60);
+  const passingScore = Number(data.passingScore) >= 0 ? Number(data.passingScore) : (fallback.passingScore || 70);
+
+  return {
+    ...fallback,
+    ...data,
+    isOpen,
+    mode,
+    startDate: data.startDate !== undefined ? String(data.startDate) : (fallback.startDate || ''),
+    startTime: data.startTime !== undefined ? String(data.startTime) : (fallback.startTime || '08:00'),
+    endDate: data.endDate !== undefined ? String(data.endDate) : (fallback.endDate || ''),
+    endTime: data.endTime !== undefined ? String(data.endTime) : (fallback.endTime || '23:59'),
+    durationMinutes,
+    passingScore,
+    title: data.title || fallback.title,
+    description: data.description || fallback.description
+  };
+}
+
+export function isTestCurrentlyOpen(settings?: any, fallback?: TestScheduleSettings): { isOpen: boolean; statusMessage: string } {
+  const parsed = parseTestScheduleSettings(settings, fallback || DEFAULT_PRE_TEST_SETTINGS);
+
+  // If manual mode
+  if (parsed.mode === 'manual') {
+    if (!parsed.isOpen) {
+      return { 
+        isOpen: false, 
+        statusMessage: 'Akses ujian sedang ditutup oleh Panitia / Tim Pelatih.' 
+      };
+    }
+    return { 
+      isOpen: true, 
+      statusMessage: 'Ujian Sedang Dibuka' 
+    };
   }
 
   // Scheduled mode
   const now = new Date();
   
-  if (settings.startDate && settings.startTime) {
-    const startDateTime = new Date(`${settings.startDate}T${settings.startTime}:00`);
+  if (parsed.startDate && parsed.startTime) {
+    const startDateTime = new Date(`${parsed.startDate}T${parsed.startTime}:00`);
     if (!isNaN(startDateTime.getTime()) && now < startDateTime) {
       const formattedStart = startDateTime.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       return { 
@@ -676,8 +728,8 @@ export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: 
     }
   }
 
-  if (settings.endDate && settings.endTime) {
-    const endDateTime = new Date(`${settings.endDate}T${settings.endTime}:00`);
+  if (parsed.endDate && parsed.endTime) {
+    const endDateTime = new Date(`${parsed.endDate}T${parsed.endTime}:00`);
     if (!isNaN(endDateTime.getTime()) && now > endDateTime) {
       const formattedEnd = endDateTime.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       return { 
@@ -688,11 +740,17 @@ export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: 
   }
 
   // If scheduled mode has no valid start/end dates specified, fall back to isOpen flag
-  if (!settings.startDate && !settings.endDate) {
-    if (settings.isOpen === false) {
-      return { isOpen: false, statusMessage: 'Akses Ujian Ditutup oleh Panitia/Pelatih' };
+  if (!parsed.startDate && !parsed.endDate) {
+    if (!parsed.isOpen) {
+      return { 
+        isOpen: false, 
+        statusMessage: 'Akses ujian sedang ditutup oleh Panitia / Tim Pelatih.' 
+      };
     }
   }
 
-  return { isOpen: true, statusMessage: 'Ujian Sedang Berlangsung' };
+  return { 
+    isOpen: true, 
+    statusMessage: 'Ujian Sedang Berlangsung (Sesuai Jadwal)' 
+  };
 }

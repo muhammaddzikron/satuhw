@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { 
   Settings, Clock, Calendar, CheckCircle2, XCircle, Edit3, Trash2, 
-  Plus, RotateCcw, Save, BookOpen, AlertCircle, FileText, ChevronDown, ChevronUp, Search, Sparkles
+  Plus, RotateCcw, Save, BookOpen, AlertCircle, FileText, ChevronDown, ChevronUp, Search, Sparkles, Check, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { 
   TestQuestion, 
   TestScheduleSettings, 
   DEFAULT_PRE_TEST_SETTINGS, 
   DEFAULT_POST_TEST_SETTINGS, 
-  DEFAULT_50_QUESTIONS 
+  DEFAULT_50_QUESTIONS,
+  parseTestScheduleSettings,
+  isTestCurrentlyOpen
 } from '../../data/trainingQuestions';
 
 interface TestManagementPanelProps {
@@ -22,19 +24,18 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
 }) => {
   const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test'>('pre_test');
   const [isSaving, setIsSaving] = useState(false);
+  const [quickSavingType, setQuickSavingType] = useState<'pre_test' | 'post_test' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedQuestionId, setExpandedQuestionId] = useState<number | null>(null);
 
-  // Read current settings with fallback
-  const preTestSettings: TestScheduleSettings = settings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
-  const postTestSettings: TestScheduleSettings = settings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
-
-  const currentTestSettings = activeTestTab === 'pre_test' ? preTestSettings : postTestSettings;
+  // Read current settings with fallback and safe parser
+  const preTestSettings: TestScheduleSettings = parseTestScheduleSettings(settings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS);
+  const postTestSettings: TestScheduleSettings = parseTestScheduleSettings(settings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS);
 
   // Questions bank: Can be stored per test or shared
   const questions: TestQuestion[] = Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0
     ? settings.trainingQuestions
-    : DEFAULT_50_QUESTIONS;
+    : (typeof settings?.trainingQuestions === 'string' ? (() => { try { return JSON.parse(settings.trainingQuestions); } catch(e) { return DEFAULT_50_QUESTIONS; } })() : DEFAULT_50_QUESTIONS);
 
   // Local editing states
   const [localPreSettings, setLocalPreSettings] = useState<TestScheduleSettings>(preTestSettings);
@@ -44,13 +45,18 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   // Keep local state in sync when settings prop updates
   React.useEffect(() => {
     if (settings?.preTestSettings) {
-      setLocalPreSettings(settings.preTestSettings);
+      setLocalPreSettings(parseTestScheduleSettings(settings.preTestSettings, DEFAULT_PRE_TEST_SETTINGS));
     }
     if (settings?.postTestSettings) {
-      setLocalPostSettings(settings.postTestSettings);
+      setLocalPostSettings(parseTestScheduleSettings(settings.postTestSettings, DEFAULT_POST_TEST_SETTINGS));
     }
-    if (Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0) {
-      setLocalQuestions(settings.trainingQuestions);
+    if (settings?.trainingQuestions) {
+      const qList = Array.isArray(settings.trainingQuestions) 
+        ? settings.trainingQuestions 
+        : (() => { try { return JSON.parse(settings.trainingQuestions); } catch(e) { return DEFAULT_50_QUESTIONS; } })();
+      if (Array.isArray(qList) && qList.length > 0) {
+        setLocalQuestions(qList);
+      }
     }
   }, [settings]);
 
@@ -61,6 +67,38 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
       setLocalPreSettings(prev => ({ ...prev, [field]: value }));
     } else {
       setLocalPostSettings(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  // Instant 1-click Quick Toggle with Immediate Auto-Save
+  const handleQuickToggleAccess = async (testType: 'pre_test' | 'post_test', newIsOpen: boolean) => {
+    setQuickSavingType(testType);
+    try {
+      const updatedPre = testType === 'pre_test' 
+        ? { ...localPreSettings, isOpen: newIsOpen } 
+        : localPreSettings;
+      const updatedPost = testType === 'post_test' 
+        ? { ...localPostSettings, isOpen: newIsOpen } 
+        : localPostSettings;
+
+      if (testType === 'pre_test') {
+        setLocalPreSettings(updatedPre);
+      } else {
+        setLocalPostSettings(updatedPost);
+      }
+
+      const updated = {
+        ...settings,
+        preTestSettings: updatedPre,
+        postTestSettings: updatedPost,
+        trainingQuestions: localQuestions
+      };
+
+      await onSaveSettings(updated);
+    } catch (err: any) {
+      alert('Gagal mengubah status akses: ' + (err?.message || err));
+    } finally {
+      setQuickSavingType(null);
     }
   };
 
@@ -121,7 +159,7 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
         trainingQuestions: localQuestions
       };
       await onSaveSettings(updated);
-      alert('Pengaturan Pre Test, Post Test & Bank Soal berhasil disimpan ke sistem!');
+      alert('Pengaturan Pre Test, Post Test & Bank Soal berhasil disinkronkan ke seluruh sistem!');
     } catch (err: any) {
       alert('Gagal menyimpan: ' + (err?.message || err));
     } finally {
@@ -134,6 +172,9 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
     const query = searchQuery.toLowerCase().trim();
     return text.includes(query) || String(q.id).includes(query);
   });
+
+  const preLiveStatus = isTestCurrentlyOpen(localPreSettings, DEFAULT_PRE_TEST_SETTINGS);
+  const postLiveStatus = isTestCurrentlyOpen(localPostSettings, DEFAULT_POST_TEST_SETTINGS);
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden text-left space-y-6 p-5 sm:p-6">
@@ -151,10 +192,10 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-black text-gray-800 uppercase tracking-wide">
-              Pengaturan Pre Test & Post Test Pelatihan HW
+              Pengaturan Akses Pre Test & Post Test Pelatihan HW
             </h3>
             <p className="text-xs text-gray-400 font-medium">
-              Atur jadwal buka/tutup, durasi, KKM, serta kelola 50 bank soal dan kunci jawaban peserta.
+              Atur status buka/tutup akses pengerjaan peserta secara real-time, durasi, KKM, serta kelola 50 bank soal.
             </p>
           </div>
         </div>
@@ -169,6 +210,105 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
         </button>
       </div>
 
+      {/* QUICK REAL-TIME STATUS & 1-CLICK TOGGLE BAR */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* PRE TEST QUICK CARD */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          preLiveStatus.isOpen 
+            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' 
+            : 'bg-rose-50/70 border-rose-200 text-rose-900'
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white px-2 py-0.5 rounded-full shadow-2xs">
+                  1. Pre Test (Awal)
+                </span>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  preLiveStatus.isOpen ? 'bg-emerald-600 text-white animate-pulse' : 'bg-rose-600 text-white'
+                }`}>
+                  {preLiveStatus.isOpen ? '● AKSES DIBUKA' : '● AKSES DITUTUP'}
+                </span>
+              </div>
+              <p className="text-xs font-semibold">
+                {preLiveStatus.statusMessage}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={quickSavingType === 'pre_test'}
+              onClick={() => handleQuickToggleAccess('pre_test', !localPreSettings.isOpen)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border shadow-xs transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                localPreSettings.isOpen
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+              }`}
+            >
+              {quickSavingType === 'pre_test' ? (
+                'Memperbarui...'
+              ) : localPreSettings.isOpen ? (
+                <>
+                  <XCircle size={14} /> Tutup Akses Pre Test
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={14} /> Buka Akses Pre Test
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* POST TEST QUICK CARD */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          postLiveStatus.isOpen 
+            ? 'bg-teal-50/70 border-teal-200 text-teal-900' 
+            : 'bg-rose-50/70 border-rose-200 text-rose-900'
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white px-2 py-0.5 rounded-full shadow-2xs">
+                  2. Post Test (Akhir)
+                </span>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  postLiveStatus.isOpen ? 'bg-teal-600 text-white animate-pulse' : 'bg-rose-600 text-white'
+                }`}>
+                  {postLiveStatus.isOpen ? '● AKSES DIBUKA' : '● AKSES DITUTUP'}
+                </span>
+              </div>
+              <p className="text-xs font-semibold">
+                {postLiveStatus.statusMessage}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={quickSavingType === 'post_test'}
+              onClick={() => handleQuickToggleAccess('post_test', !localPostSettings.isOpen)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border shadow-xs transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                localPostSettings.isOpen
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'
+                  : 'bg-teal-600 hover:bg-teal-700 text-white border-teal-700'
+              }`}
+            >
+              {quickSavingType === 'post_test' ? (
+                'Memperbarui...'
+              ) : localPostSettings.isOpen ? (
+                <>
+                  <XCircle size={14} /> Tutup Akses Post Test
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={14} /> Buka Akses Post Test
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* TEST TAB SWITCHER: PRE TEST vs POST TEST */}
       <div className="flex bg-gray-100 p-1.5 rounded-2xl max-w-md">
         <button
@@ -180,10 +320,8 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
           }`}
         >
           <Sparkles size={15} className={activeTestTab === 'pre_test' ? 'text-emerald-600' : ''} />
-          1. Pre Test (Awal)
-          {localPreSettings.isOpen && (
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          )}
+          Edit Form 1. Pre Test
+          <span className={`w-2.5 h-2.5 rounded-full ${localPreSettings.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
         </button>
 
         <button
@@ -195,10 +333,8 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
           }`}
         >
           <CheckCircle2 size={15} className={activeTestTab === 'post_test' ? 'text-emerald-600' : ''} />
-          2. Post Test (Akhir)
-          {localPostSettings.isOpen && (
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          )}
+          Edit Form 2. Post Test
+          <span className={`w-2.5 h-2.5 rounded-full ${localPostSettings.isOpen ? 'bg-teal-500' : 'bg-rose-500'}`}></span>
         </button>
       </div>
 
@@ -246,9 +382,9 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
               <button
                 type="button"
                 onClick={() => handleUpdateActiveSettings('isOpen', true)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all cursor-pointer ${
                   activeLocalSettings.isOpen 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-black' 
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                 }`}
               >
@@ -257,9 +393,9 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
               <button
                 type="button"
                 onClick={() => handleUpdateActiveSettings('isOpen', false)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all cursor-pointer ${
                   !activeLocalSettings.isOpen 
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
+                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs font-black' 
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                 }`}
               >
