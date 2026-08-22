@@ -960,6 +960,7 @@ export default function AdminDashboard() {
 
   // Schedule Editing States
   const [editingScheduleAppId, setEditingScheduleAppId] = useState<string | null>(null);
+  const [editPelatihan, setEditPelatihan] = useState<string>('');
   const [editLokasi, setEditLokasi] = useState<string>('');
   const [editTanggal, setEditTanggal] = useState<string>('');
 
@@ -1044,19 +1045,25 @@ export default function AdminDashboard() {
   }, [settings.trainingActivities, activitiesList]);
 
   const getAvailableTrainingOptions = () => {
-    const options: { id: string; name: string; label: string; act?: any }[] = [];
+    const options: { id: string; name: string; label: string; act?: any; location?: string; date?: string; fee?: string }[] = [];
     const addedNames = new Set<string>();
 
-    // 1. Registered training activities from settings & activitiesList
+    // 1. Registered training activities from settings & activitiesList (from "Kelola Jenis Pelatihan")
     allTrainingActivitiesList.forEach((act: any) => {
       const name = act.namaKegiatan || act.jenisPelatihan;
       if (name && !addedNames.has(name)) {
         addedNames.add(name);
+        const loc = act.lokasiPelatihan || act.lokasi || '';
+        const dt = act.tanggalPelatihan || act.tanggal || '';
+        const fee = act.biayaPelatihan || act.biaya || '';
         options.push({
           id: act.id || name,
           name: name,
-          label: `${name} ${act.lokasiPelatihan ? `📍 ${act.lokasiPelatihan}` : ''} ${act.biayaPelatihan ? `(💰 ${act.biayaPelatihan})` : ''}`,
-          act
+          label: `${name}${loc ? ` • 📍 ${loc}` : ''}${dt ? ` • 📅 ${dt}` : ''}`,
+          act,
+          location: loc,
+          date: dt,
+          fee: fee
         });
       }
     });
@@ -1074,9 +1081,9 @@ export default function AdminDashboard() {
   };
 
   const handleAddParticipantTrainingChange = (val: string) => {
-    const activeActs = settings.trainingActivities || [];
+    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
     const matchingAct = activeActs.find((a: any) => 
-      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === val.toLowerCase().trim())
     ) || (activitiesList || []).find((a: any) => 
       a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
     );
@@ -1087,8 +1094,8 @@ export default function AdminDashboard() {
         pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
         lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
         tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
-        biayaPelatihan: matchingAct.biayaPelatihan || 'Rp 50.000',
-        rekeningPembiayaan: matchingAct.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+        biayaPelatihan: matchingAct.biayaPelatihan || matchingAct.biaya || 'Rp 50.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || matchingAct.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
       }));
     } else {
       setAddParticipantForm(prev => ({
@@ -1102,9 +1109,9 @@ export default function AdminDashboard() {
   };
 
   const handleEditParticipantTrainingChange = (val: string) => {
-    const activeActs = settings.trainingActivities || [];
+    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
     const matchingAct = activeActs.find((a: any) => 
-      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === val.toLowerCase().trim())
     ) || (activitiesList || []).find((a: any) => 
       a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
     );
@@ -1115,14 +1122,60 @@ export default function AdminDashboard() {
         pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
         lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || prev?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
         tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || prev?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
-        biayaPelatihan: matchingAct.biayaPelatihan || prev?.biayaPelatihan || 'Rp 50.000',
-        rekeningPembiayaan: matchingAct.rekeningPembiayaan || prev?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+        biayaPelatihan: matchingAct.biayaPelatihan || matchingAct.biaya || prev?.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || matchingAct.rekeningPembayaran || prev?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
       }));
     } else {
       setEditingTrainingApp((prev: any) => ({
         ...prev,
         pelatihanAkanDiikuti: val
       }));
+    }
+  };
+
+  const handleEditParticipantLocationChange = (locVal: string) => {
+    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
+    const matchingAct = activeActs.find((a: any) => 
+      (a.lokasiPelatihan === locVal || a.lokasi === locVal) &&
+      (!editingTrainingApp?.pelatihanAkanDiikuti || a.namaKegiatan === editingTrainingApp.pelatihanAkanDiikuti || a.jenisPelatihan === editingTrainingApp.pelatihanAkanDiikuti)
+    ) || activeActs.find((a: any) => a.lokasiPelatihan === locVal || a.lokasi === locVal);
+
+    setEditingTrainingApp((prev: any) => ({
+      ...prev,
+      lokasiPelatihan: locVal,
+      ...(matchingAct && (matchingAct.tanggalPelatihan || matchingAct.tanggal) ? { tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal } : {})
+    }));
+  };
+
+  const handleInlineScheduleTrainingChange = (val: string) => {
+    setEditPelatihan(val);
+    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
+    const matchingAct = activeActs.find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val || (a.namaKegiatan && a.namaKegiatan.toLowerCase().trim() === val.toLowerCase().trim())
+    ) || (activitiesList || []).find((a: any) => 
+      a.id === val || a.namaKegiatan === val || a.jenisPelatihan === val
+    );
+
+    if (matchingAct) {
+      if (matchingAct.lokasiPelatihan || matchingAct.lokasi) {
+        setEditLokasi(matchingAct.lokasiPelatihan || matchingAct.lokasi);
+      }
+      if (matchingAct.tanggalPelatihan || matchingAct.tanggal) {
+        setEditTanggal(matchingAct.tanggalPelatihan || matchingAct.tanggal);
+      }
+    }
+  };
+
+  const handleInlineScheduleLocationChange = (locVal: string) => {
+    setEditLokasi(locVal);
+    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
+    const matchingAct = activeActs.find((a: any) => 
+      (a.lokasiPelatihan === locVal || a.lokasi === locVal) &&
+      (!editPelatihan || a.namaKegiatan === editPelatihan || a.jenisPelatihan === editPelatihan)
+    ) || activeActs.find((a: any) => a.lokasiPelatihan === locVal || a.lokasi === locVal);
+
+    if (matchingAct && (matchingAct.tanggalPelatihan || matchingAct.tanggal)) {
+      setEditTanggal(matchingAct.tanggalPelatihan || matchingAct.tanggal);
     }
   };
 
@@ -1859,19 +1912,25 @@ export default function AdminDashboard() {
 
   const handleSaveSchedule = async (appId: string) => {
     try {
+      const targetPelatihan = editPelatihan ? editPelatihan.trim() : undefined;
       const targetLokasi = editLokasi;
       const targetTanggal = editTanggal;
 
       // Optimistic update
-      setTrainingApps(prev => prev.map(t => String(t.id) === String(appId) ? { ...t, lokasiPelatihan: targetLokasi, tanggalPelatihan: targetTanggal } : t));
+      setTrainingApps(prev => prev.map(t => String(t.id) === String(appId) ? { 
+        ...t, 
+        ...(targetPelatihan ? { pelatihanAkanDiikuti: targetPelatihan } : {}),
+        lokasiPelatihan: targetLokasi, 
+        tanggalPelatihan: targetTanggal 
+      } : t));
       setEditingScheduleAppId(null);
-      showToast('success', 'Jadwal dan lokasi pelatihan berhasil diperbarui!');
+      showToast('success', 'Program, jadwal, dan lokasi pelatihan berhasil diperbarui!');
 
       // Background save
       (async () => {
-        setBackgroundProcessingText('Menyimpan jadwal pelatihan...');
+        setBackgroundProcessingText('Menyimpan jadwal dan program pelatihan...');
         try {
-          await sheetsService.updateTrainingSchedule(appId, targetLokasi, targetTanggal);
+          await sheetsService.updateTrainingSchedule(appId, targetLokasi, targetTanggal, targetPelatihan);
           const tApps = await sheetsService.getTrainingApplications();
           if (tApps?.length) setTrainingApps(tApps);
         } finally {
@@ -7067,43 +7126,85 @@ export default function AdminDashboard() {
                                     {app.pelatihanAkanDiikuti}
                                   </span>
                                   {editingScheduleAppId === app.id ? (
-                                    <div className="space-y-1.5 mt-2 bg-gray-50 p-2 rounded-xl border border-gray-150 max-w-[200px]">
+                                    <div className="space-y-2 mt-2 bg-indigo-50/80 p-2.5 rounded-2xl border border-indigo-200/80 shadow-xs max-w-[260px]">
                                       <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black uppercase text-gray-400 tracking-wider">📍 Lokasi</label>
+                                        <label className="text-[8px] font-black uppercase text-indigo-900 tracking-wider">🏷️ Jenis / Program Pelatihan</label>
                                         <select
-                                          value={editLokasi || ''}
-                                          onChange={(e) => setEditLokasi(e.target.value)}
-                                          className="w-full text-[10px] p-1 bg-white border border-gray-200 rounded-md outline-none font-bold text-gray-700"
+                                          value={editPelatihan || app.pelatihanAkanDiikuti || ''}
+                                          onChange={(e) => handleInlineScheduleTrainingChange(e.target.value)}
+                                          className="w-full text-[10px] p-1.5 bg-white border border-indigo-200 rounded-lg outline-none font-bold text-gray-800 shadow-2xs cursor-pointer"
                                         >
-                                          <option value="">Belum ditentukan</option>
-                                          {(settings.trainingLocations || []).map((loc: string) => (
-                                            <option key={loc} value={loc}>{loc}</option>
-                                          ))}
+                                          {allTrainingActivitiesList.length > 0 && (
+                                            <optgroup label="📋 Kegiatan Pelatihan (Kelola Jenis Pelatihan)">
+                                              {allTrainingActivitiesList.map((act: any) => {
+                                                const actName = act.namaKegiatan || act.jenisPelatihan;
+                                                return (
+                                                  <option key={act.id || actName} value={actName}>
+                                                    {actName} {act.lokasiPelatihan ? `📍 ${act.lokasiPelatihan}` : ''}
+                                                  </option>
+                                                );
+                                              })}
+                                            </optgroup>
+                                          )}
+                                          <optgroup label="🏷️ Jenis Pelatihan">
+                                            {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string) => (
+                                              <option key={typ} value={typ}>{typ}</option>
+                                            ))}
+                                          </optgroup>
                                         </select>
                                       </div>
                                       <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black uppercase text-gray-400 tracking-wider">📅 Tanggal</label>
-                                        <select
-                                          value={editTanggal || ''}
-                                          onChange={(e) => setEditTanggal(e.target.value)}
-                                          className="w-full text-[10px] p-1 bg-white border border-gray-200 rounded-md outline-none font-bold text-gray-700"
-                                        >
-                                          <option value="">Belum ditentukan</option>
-                                          {(settings.trainingDates || []).map((dt: string) => (
-                                            <option key={dt} value={dt}>{dt}</option>
-                                          ))}
-                                        </select>
+                                        <label className="text-[8px] font-black uppercase text-gray-600 tracking-wider">📍 Lokasi Pelatihan</label>
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            list={`inline-loc-list-${app.id}`}
+                                            value={editLokasi}
+                                            onChange={(e) => handleInlineScheduleLocationChange(e.target.value)}
+                                            placeholder="Pilih / ketik lokasi..."
+                                            className="w-full text-[10px] p-1.5 bg-white border border-gray-200 rounded-lg outline-none font-bold text-gray-700 shadow-2xs"
+                                          />
+                                          <datalist id={`inline-loc-list-${app.id}`}>
+                                            {Array.from(new Set([
+                                              ...(allTrainingActivitiesList.map((a: any) => a.lokasiPelatihan || a.lokasi).filter(Boolean)),
+                                              ...(settings.trainingLocations || ['Kwarda HW Solo', 'Pusdiklat HW Jateng'])
+                                            ])).map((loc: string, idx: number) => (
+                                              <option key={idx} value={loc} />
+                                            ))}
+                                          </datalist>
+                                        </div>
                                       </div>
-                                      <div className="flex gap-1 mt-1">
+                                      <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black uppercase text-gray-600 tracking-wider">📅 Tanggal Pelaksanaan</label>
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            list={`inline-dt-list-${app.id}`}
+                                            value={editTanggal}
+                                            onChange={(e) => setEditTanggal(e.target.value)}
+                                            placeholder="Otomatis terisi dari kegiatan..."
+                                            className="w-full text-[10px] p-1.5 bg-white border border-gray-200 rounded-lg outline-none font-bold text-gray-700 shadow-2xs"
+                                          />
+                                          <datalist id={`inline-dt-list-${app.id}`}>
+                                            {Array.from(new Set([
+                                              ...(allTrainingActivitiesList.map((a: any) => a.tanggalPelatihan || a.tanggal).filter(Boolean)),
+                                              ...(settings.trainingDates || ['Jadwal Reguler'])
+                                            ])).map((dt: string, idx: number) => (
+                                              <option key={idx} value={dt} />
+                                            ))}
+                                          </datalist>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1.5 pt-1">
                                         <button
                                           onClick={() => handleSaveSchedule(app.id)}
-                                          className="px-2 py-1 bg-hw-green text-white text-[9px] font-black rounded hover:bg-emerald-700 uppercase tracking-wider transition-all"
+                                          className="flex-1 py-1.5 bg-hw-green text-white text-[9px] font-black rounded-lg hover:bg-emerald-700 uppercase tracking-wider transition-all shadow-xs"
                                         >
                                           Simpan
                                         </button>
                                         <button
                                           onClick={() => setEditingScheduleAppId(null)}
-                                          className="px-2 py-1 bg-gray-200 text-gray-700 text-[9px] font-black rounded hover:bg-gray-300 uppercase tracking-wider transition-all"
+                                          className="px-2.5 py-1.5 bg-gray-200 text-gray-700 text-[9px] font-black rounded-lg hover:bg-gray-300 uppercase tracking-wider transition-all"
                                         >
                                           Batal
                                         </button>
@@ -7132,6 +7233,7 @@ export default function AdminDashboard() {
                                       <button 
                                         onClick={() => {
                                           setEditingScheduleAppId(app.id);
+                                          setEditPelatihan(app.pelatihanAkanDiikuti || '');
                                           setEditLokasi(app.lokasiPelatihan || '');
                                           setEditTanggal(app.tanggalPelatihan || '');
                                         }}
@@ -7825,12 +7927,22 @@ export default function AdminDashboard() {
                                       </td>
 
                                       <td className="p-4 text-right pr-6">
-                                        <button
-                                          onClick={() => handleOpenGradingModal(app)}
-                                          className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
-                                        >
-                                          Beri Nilai
-                                        </button>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <button
+                                            onClick={() => setViewingTestApp(app)}
+                                            className="px-2.5 py-1.5 bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 rounded-lg border border-gray-200 hover:border-emerald-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                                            title="Lihat Rincian Jawaban Pre/Post Test & Tugas"
+                                          >
+                                            <FileText size={12} className="text-emerald-700" />
+                                            <span>View Pengerjaan</span>
+                                          </button>
+                                          <button
+                                            onClick={() => handleOpenGradingModal(app)}
+                                            className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                          >
+                                            Beri Nilai
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -11868,11 +11980,27 @@ export default function AdminDashboard() {
                         onChange={(e) => handleEditParticipantTrainingChange(e.target.value)}
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
                       >
-                        {getAvailableTrainingOptions().map(opt => (
-                          <option key={opt.id} value={opt.name}>
-                            {opt.label}
-                          </option>
-                        ))}
+                        {allTrainingActivitiesList.length > 0 && (
+                          <optgroup label="📋 Kegiatan Pelatihan Terdaftar (Kelola Jenis Pelatihan)">
+                            {allTrainingActivitiesList.map((act: any) => {
+                              const actName = act.namaKegiatan || act.jenisPelatihan;
+                              const loc = act.lokasiPelatihan || act.lokasi || '';
+                              const dt = act.tanggalPelatihan || act.tanggal || '';
+                              return (
+                                <option key={act.id || actName} value={actName}>
+                                  {actName} {loc ? `• 📍 ${loc}` : ''} {dt ? `• 📅 ${dt}` : ''}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )}
+                        <optgroup label="🏷️ Kelompok Jenis Pelatihan">
+                          {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string) => (
+                            <option key={typ} value={typ}>
+                              {typ}
+                            </option>
+                          ))}
+                        </optgroup>
                       </select>
                     </div>
 
@@ -11911,16 +12039,16 @@ export default function AdminDashboard() {
                         type="text"
                         list="edit-participant-locations-list"
                         value={editingTrainingApp.lokasiPelatihan || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, lokasiPelatihan: e.target.value })}
+                        onChange={(e) => handleEditParticipantLocationChange(e.target.value)}
                         placeholder="misal: Pusdiklat HW Jateng..."
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
                       <datalist id="edit-participant-locations-list">
-                        {(settings.trainingLocations || ['Pusdiklat HW Jateng']).map((loc: string, idx: number) => (
+                        {Array.from(new Set([
+                          ...(allTrainingActivitiesList.map((a: any) => a.lokasiPelatihan || a.lokasi).filter(Boolean)),
+                          ...(settings.trainingLocations || ['Kwarda HW Solo', 'Pusdiklat HW Jateng'])
+                        ])).map((loc: string, idx: number) => (
                           <option key={idx} value={loc} />
-                        ))}
-                        {(settings.trainingActivities || []).map((act: any, idx: number) => (
-                          act.lokasiPelatihan ? <option key={`act-loc-edit-${idx}`} value={act.lokasiPelatihan} /> : null
                         ))}
                       </datalist>
                     </div>
@@ -11937,11 +12065,11 @@ export default function AdminDashboard() {
                         className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
                       />
                       <datalist id="edit-participant-dates-list">
-                        {(settings.trainingDates || ['Jadwal Reguler']).map((dt: string, idx: number) => (
+                        {Array.from(new Set([
+                          ...(allTrainingActivitiesList.map((a: any) => a.tanggalPelatihan || a.tanggal).filter(Boolean)),
+                          ...(settings.trainingDates || ['Jadwal Reguler'])
+                        ])).map((dt: string, idx: number) => (
                           <option key={idx} value={dt} />
-                        ))}
-                        {(settings.trainingActivities || []).map((act: any, idx: number) => (
-                          act.tanggalPelatihan ? <option key={`act-dt-edit-${idx}`} value={act.tanggalPelatihan} /> : null
                         ))}
                       </datalist>
                     </div>

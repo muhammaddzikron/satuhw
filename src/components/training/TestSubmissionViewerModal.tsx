@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { 
   X, CheckCircle2, XCircle, Award, FileText, ExternalLink, Calendar, 
-  Clock, User as UserIcon, BookOpen, Sparkles, Filter, Search, Check, AlertCircle 
+  Clock, User as UserIcon, BookOpen, Sparkles, Filter, Search, Check, AlertCircle,
+  FileCheck, Download, MapPin, CheckSquare, Eye
 } from 'lucide-react';
 import { 
   TestQuestion, 
   DEFAULT_50_QUESTIONS 
 } from '../../data/trainingQuestions';
+import { JATI1_36_SESSIONS } from '../../pages/PelatihanPage';
 
 interface TestSubmissionViewerModalProps {
   isOpen: boolean;
@@ -21,7 +23,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   application,
   questions = DEFAULT_50_QUESTIONS
 }) => {
-  const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test'>('pre_test');
+  const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test' | 'tugas' | 'presensi'>('pre_test');
   const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'wrong'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -62,6 +64,28 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
     }
   }
 
+  // Parse Tugas (Submitted assignments)
+  let submittedTasks: any[] = [];
+  if (application.tugas) {
+    try {
+      submittedTasks = typeof application.tugas === 'string' ? JSON.parse(application.tugas) : application.tugas;
+      if (!Array.isArray(submittedTasks)) submittedTasks = [submittedTasks];
+    } catch (e) {
+      submittedTasks = [];
+    }
+  }
+
+  // Parse Kehadiran (Attendance)
+  let attendanceMap: Record<string, any> = {};
+  if (application.kehadiran) {
+    try {
+      attendanceMap = typeof application.kehadiran === 'string' ? JSON.parse(application.kehadiran) : application.kehadiran;
+      if (typeof attendanceMap !== 'object' || attendanceMap === null) attendanceMap = {};
+    } catch (e) {
+      attendanceMap = {};
+    }
+  }
+
   const currentTestData = activeTab === 'pre_test' ? preTestData : postTestData;
   const currentAnswers: Record<number, string> = currentTestData?.answers || {};
 
@@ -97,6 +121,27 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   const unsubmittedTotal = testReviewItems.filter(i => !i.isAnswered).length;
   const scoreCalculated = testReviewItems.length > 0 ? Math.round((correctTotal / testReviewItems.length) * 100) : 0;
 
+  // Attendance stats
+  const sessionList = JATI1_36_SESSIONS;
+  const totalSessions = sessionList.length;
+  const attendedCount = sessionList.filter(s => {
+    const record = attendanceMap[s.id];
+    const status = typeof record === 'object' && record !== null ? record.status : record;
+    return status === 'hadir';
+  }).length;
+  const izinCount = sessionList.filter(s => {
+    const record = attendanceMap[s.id];
+    const status = typeof record === 'object' && record !== null ? record.status : record;
+    return status === 'izin';
+  }).length;
+  const absenCount = sessionList.filter(s => {
+    const record = attendanceMap[s.id];
+    const status = typeof record === 'object' && record !== null ? record.status : record;
+    return status === 'absen';
+  }).length;
+  const unrecordedCount = totalSessions - (attendedCount + izinCount + absenCount);
+  const attendanceRate = totalSessions > 0 ? Math.round((attendedCount / totalSessions) * 100) : 0;
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden text-left relative">
@@ -112,15 +157,26 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full">
                   Lembar Rekap Tugas & Ujian
                 </span>
                 <span className="text-[10px] font-bold bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full">
                   {application.tingkatan || application.pelatihanAkanDiikuti || 'Peserta Pelatihan'}
                 </span>
+                {application.statusKelulusan && (
+                  <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                    application.statusKelulusan === 'Lulus' 
+                      ? 'bg-emerald-400 text-emerald-950' 
+                      : application.statusKelulusan === 'Lulus Bersyarat'
+                        ? 'bg-amber-300 text-amber-950'
+                        : 'bg-rose-400 text-rose-950'
+                  }`}>
+                    {application.statusKelulusan}
+                  </span>
+                )}
               </div>
-              <h3 className="text-lg sm:text-xl font-black text-white">{application.nama || application.namaLengkap}</h3>
+              <h3 className="text-lg sm:text-xl font-black text-white mt-1">{application.nama || application.namaLengkap}</h3>
               <p className="text-xs text-white/80 font-medium">
                 {application.asalDaerah || 'Jawa Tengah'} • {application.email || application.noWa || 'Peserta Terdaftar'}
               </p>
@@ -135,11 +191,11 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
           </button>
         </div>
 
-        {/* TABS NAVIGATION */}
-        <div className="flex bg-gray-50 border-b border-gray-150 px-4 sm:px-6 gap-2 pt-3">
+        {/* TABS NAVIGATION: 4 TABS */}
+        <div className="flex flex-wrap bg-gray-50 border-b border-gray-150 px-4 sm:px-6 gap-2 pt-3">
           <button
             onClick={() => { setActiveTab('pre_test'); setFilterStatus('all'); }}
-            className={`pb-3 px-4 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 px-3.5 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
               activeTab === 'pre_test'
                 ? 'border-emerald-600 text-emerald-800 font-extrabold'
                 : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -148,17 +204,17 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
             <Sparkles size={14} className={activeTab === 'pre_test' ? 'text-emerald-600' : ''} />
             1. Lembar Pre Test
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-              application.preTestScore !== undefined 
+              application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== ''
                 ? 'bg-emerald-100 text-emerald-800 font-black' 
                 : 'bg-gray-200 text-gray-600'
             }`}>
-              {application.preTestScore !== undefined ? `${application.preTestScore}/100` : 'Belum'}
+              {application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== '' ? `${application.preTestScore}/100` : 'Belum'}
             </span>
           </button>
 
           <button
             onClick={() => { setActiveTab('post_test'); setFilterStatus('all'); }}
-            className={`pb-3 px-4 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 px-3.5 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
               activeTab === 'post_test'
                 ? 'border-emerald-600 text-emerald-800 font-extrabold'
                 : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -167,11 +223,45 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
             <CheckCircle2 size={14} className={activeTab === 'post_test' ? 'text-emerald-600' : ''} />
             2. Lembar Post Test
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-              application.postTestScore !== undefined 
+              application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== ''
                 ? 'bg-emerald-100 text-emerald-800 font-black' 
                 : 'bg-gray-200 text-gray-600'
             }`}>
-              {application.postTestScore !== undefined ? `${application.postTestScore}/100` : 'Belum'}
+              {application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== '' ? `${application.postTestScore}/100` : 'Belum'}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('tugas')}
+            className={`pb-3 px-3.5 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+              activeTab === 'tugas'
+                ? 'border-emerald-600 text-emerald-800 font-extrabold'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <FileText size={14} className={activeTab === 'tugas' ? 'text-emerald-600' : ''} />
+            3. Berkas Tugas
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+              submittedTasks.length > 0 ? 'bg-blue-100 text-blue-800 font-black' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {submittedTasks.length} Tugas
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('presensi')}
+            className={`pb-3 px-3.5 font-black text-xs uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+              activeTab === 'presensi'
+                ? 'border-emerald-600 text-emerald-800 font-extrabold'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <CheckSquare size={14} className={activeTab === 'presensi' ? 'text-emerald-600' : ''} />
+            4. Rekap Presensi
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+              attendanceRate >= 80 ? 'bg-emerald-100 text-emerald-800 font-black' : 'bg-amber-100 text-amber-800 font-black'
+            }`}>
+              {attendanceRate}% Hadir
             </span>
           </button>
         </div>
@@ -203,9 +293,9 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                         Nilai: {currentTestData.score ?? scoreCalculated} / 100
                       </div>
                       <div className="text-xs text-emerald-800 font-bold flex items-center gap-3 mt-0.5">
-                        <span className="text-green-700">✓ {correctTotal} Benar</span>
-                        <span className="text-rose-600">✗ {wrongTotal} Salah</span>
-                        {unsubmittedTotal > 0 && <span className="text-gray-500">⚪ {unsubmittedTotal} Kosong</span>}
+                        <span className="text-green-700 font-extrabold">✓ {correctTotal} Benar</span>
+                        <span className="text-rose-600 font-extrabold">✗ {wrongTotal} Salah</span>
+                        {unsubmittedTotal > 0 && <span className="text-gray-500 font-bold">⚪ {unsubmittedTotal} Kosong</span>}
                       </div>
                     </div>
                   </div>
@@ -254,7 +344,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                      Rincian Lembar Jawaban Peserta ({filteredItems.length} Butir)
+                      Rincian Lembar Jawaban Peserta ({filteredItems.length} Butir Soal)
                     </h4>
                     <div className="relative w-64">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -314,21 +404,23 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
 
                               let optClass = 'bg-white/80 border-gray-200 text-gray-600';
                               if (isKey) {
-                                optClass = 'bg-green-100/90 border-green-300 text-green-900 font-bold';
+                                optClass = 'bg-green-100/90 border-green-300 text-green-900 font-bold ring-1 ring-green-400';
                               }
                               if (isUserChoice && !isKey) {
-                                optClass = 'bg-rose-100/90 border-rose-300 text-rose-900 font-bold';
+                                optClass = 'bg-rose-100/90 border-rose-300 text-rose-900 font-bold ring-1 ring-rose-300';
                               }
 
                               return (
-                                <div key={opt} className={`p-2 rounded-xl border text-[11px] flex items-center justify-between ${optClass}`}>
+                                <div key={opt} className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between ${optClass}`}>
                                   <span>
-                                    <strong className="uppercase mr-1.5">{opt}.</strong>
+                                    <strong className="uppercase mr-1.5 font-black">{opt}.</strong>
                                     {q.options[opt]}
                                   </span>
                                   {isUserChoice && (
-                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 bg-black/10 rounded">
-                                      Jawaban Peserta
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                      isKey ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                                    }`}>
+                                      Pilihan Peserta
                                     </span>
                                   )}
                                 </div>
@@ -345,13 +437,162 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
             </div>
           )}
 
+          {/* TAB 3: BERKAS & TUGAS PENGUMPULAN */}
+          {activeTab === 'tugas' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider">
+                    Daftar Pengumpulan Berkas Tugas Peserta
+                  </h4>
+                  <p className="text-[11px] text-gray-400 font-medium">
+                    Total {submittedTasks.length} tugas telah diunggah oleh peserta ini
+                  </p>
+                </div>
+              </div>
+
+              {submittedTasks.length === 0 ? (
+                <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-2">
+                  <FileText size={36} className="mx-auto text-gray-300" />
+                  <p className="font-black text-xs uppercase tracking-wider text-gray-600">
+                    Belum Ada Tugas yang Dikumpulkan
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    Peserta belum mengunggah berkas penugasan materi kurikulum melalui portal pelatihan.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {submittedTasks.map((t, idx) => (
+                    <div key={idx} className="bg-white p-4.5 rounded-2xl border border-gray-200 shadow-xs space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-100">
+                            Tugas #{idx + 1}
+                          </span>
+                          <h5 className="text-xs font-black text-gray-800 leading-snug">{t.title || 'Penugasan Pelatihan'}</h5>
+                          {t.submittedAt && (
+                            <div className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                              <Clock size={11} /> Dikirim: {new Date(t.submittedAt).toLocaleString('id-ID')}
+                            </div>
+                          )}
+                        </div>
+                        {t.link && (
+                          <a
+                            href={t.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-all shadow-xs"
+                          >
+                            <ExternalLink size={12} /> Buka Berkas
+                          </a>
+                        )}
+                      </div>
+
+                      {(t.pesan || t.message) && (
+                        <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-150 text-[11px] text-gray-700 italic">
+                          "{t.pesan || t.message}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: REKAP PRESENSI & KEHADIRAN */}
+          {activeTab === 'presensi' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-teal-50 to-emerald-50 p-4.5 rounded-2xl border border-teal-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-black text-teal-900 uppercase tracking-wider">
+                    Rekapitulasi Kehadiran Sesi ({attendanceRate}%)
+                  </h4>
+                  <p className="text-[11px] text-teal-700 font-medium">
+                    {attendedCount} dari {totalSessions} Sesi Materi Kurikulum Telah Dihadiri
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-black">
+                  <span className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg">
+                    ✓ {attendedCount} Hadir
+                  </span>
+                  <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg">
+                    ℹ {izinCount} Izin
+                  </span>
+                  <span className="bg-rose-600 text-white px-2.5 py-1 rounded-lg">
+                    ✗ {absenCount} Tidak Hadir
+                  </span>
+                  <span className="bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg">
+                    ⚪ {unrecordedCount} Belum
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                {sessionList.map((ses) => {
+                  const record = attendanceMap[ses.id];
+                  const status = typeof record === 'object' && record !== null ? record.status : record;
+                  const timestamp = typeof record === 'object' && record !== null ? record.timestamp : '';
+
+                  let statusBadge = (
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase">
+                      Belum Presensi
+                    </span>
+                  );
+                  if (status === 'hadir') {
+                    statusBadge = (
+                      <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500 text-white uppercase flex items-center gap-1">
+                        <Check size={11} /> Hadir
+                      </span>
+                    );
+                  } else if (status === 'izin') {
+                    statusBadge = (
+                      <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-blue-500 text-white uppercase">
+                        Izin
+                      </span>
+                    );
+                  } else if (status === 'absen') {
+                    statusBadge = (
+                      <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-rose-500 text-white uppercase">
+                        Tidak Hadir
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div key={ses.id} className="p-3 bg-white rounded-xl border border-gray-150 flex items-center justify-between gap-3 text-left">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">
+                            {ses.id}
+                          </span>
+                          <span className="text-xs font-bold text-gray-800">{ses.title}</span>
+                        </div>
+                        {timestamp && (
+                          <span className="text-[9px] text-gray-400 flex items-center gap-1 font-medium">
+                            <Clock size={10} /> Presensi pada: {timestamp}
+                          </span>
+                        )}
+                      </div>
+                      <div className="shrink-0">{statusBadge}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 bg-gray-50 border-t border-gray-150 flex justify-end">
+        <div className="p-4 bg-gray-50 border-t border-gray-150 flex items-center justify-between">
+          <div className="text-[11px] text-gray-500 font-bold">
+            Status Kelulusan: <span className="text-gray-800 uppercase font-black">{application.statusKelulusan || 'Proses Pelatihan'}</span>
+          </div>
           <button
             onClick={onClose}
-            className="px-5 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer"
+            className="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer"
           >
             Tutup
           </button>
@@ -361,3 +602,4 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
     </div>
   );
 };
+

@@ -1487,7 +1487,7 @@ export default function PelatihanPage() {
                         {selectedActivity.jenisPelatihan || selectedLevel}
                       </span>
                       {userApp?.statusKelulusan === 'Lulus' && (
-                        <span className="text-[10px] font-black bg-amber-500 text-white px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <span className="text-[10px] font-black bg-amber-500 text-white px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
                           <Sparkles size={12} /> LULUS PELATIHAN 🎉
                         </span>
                       )}
@@ -1498,6 +1498,168 @@ export default function PelatihanPage() {
                     <p className="text-xs text-gray-500 font-medium">
                       {selectedActivity.lokasiPelatihan || 'Pusdiklat HW'} • {selectedActivity.tanggalPelatihan || 'Jadwal Pelatihan'}
                     </p>
+                  </div>
+                );
+              })()}
+
+              {/* PARTICIPANT QUICK RECAP BANNER: ATTENDANCE STATUS & PRE/POST TEST SCORES */}
+              {(() => {
+                const attendanceMap = parseAttendance(userApp);
+                const totalCurriculumSessions = program.sessions.length;
+                const attendedSessionsCount = program.sessions.filter((ses) => {
+                  const st = getAttendanceStatus(attendanceMap, ses.id);
+                  return st === 'hadir';
+                }).length;
+                const izinCount = program.sessions.filter((ses) => getAttendanceStatus(attendanceMap, ses.id) === 'izin').length;
+                const absenCount = program.sessions.filter((ses) => getAttendanceStatus(attendanceMap, ses.id) === 'absen').length;
+                const recordedSessionsCount = attendedSessionsCount + izinCount + absenCount;
+                const unrecordedSessionsCount = Math.max(0, totalCurriculumSessions - recordedSessionsCount);
+                const attendancePercentage = totalCurriculumSessions > 0 
+                  ? Math.round((attendedSessionsCount / totalCurriculumSessions) * 100) 
+                  : 0;
+
+                const hasPreScore = userApp && userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '';
+                const hasPostScore = userApp && userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '';
+                const preScore = hasPreScore ? Number(userApp.preTestScore) : null;
+                const postScore = hasPostScore ? Number(userApp.postTestScore) : null;
+
+                return (
+                  <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-sm space-y-3.5 text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                            Dasbor Rekap Akademik & Kehadiran Peserta
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-semibold">• Real-time Sync</span>
+                        </div>
+                        <h4 className="text-sm sm:text-base font-black text-gray-800 mt-1 font-display">
+                          Ringkasan Status Kehadiran & Rekap Nilai Ujian
+                        </h4>
+                      </div>
+                      {unrecordedSessionsCount > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-bold self-start sm:self-auto animate-pulse">
+                          <AlertCircle size={13} className="text-amber-600" />
+                          <span>{unrecordedSessionsCount} Sesi Belum Presensi</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold self-start sm:self-auto">
+                          <CheckCircle2 size={13} className="text-emerald-600" />
+                          <span>Presensi Lengkap ({totalCurriculumSessions}/{totalCurriculumSessions})</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 4 Stat Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      
+                      {/* CARD 1: STATUS PRESENSI */}
+                      <div 
+                        onClick={() => setActiveTab('presensi')}
+                        className="bg-gradient-to-br from-emerald-50/80 to-teal-50/80 p-3.5 rounded-2xl border border-emerald-200 hover:border-emerald-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">1. Kehadiran</span>
+                          <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
+                            <CheckCircle2 size={14} />
+                          </div>
+                        </div>
+                        <div className="my-1.5">
+                          <div className="text-xl font-black text-emerald-950 font-display">
+                            {attendancePercentage}%
+                          </div>
+                          <p className="text-[10px] font-bold text-emerald-700 leading-tight">
+                            {attendedSessionsCount} Hadir • {recordedSessionsCount}/{totalCurriculumSessions} Terisi
+                          </p>
+                        </div>
+                        <div className="pt-1.5 border-t border-emerald-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className={unrecordedSessionsCount > 0 ? 'text-amber-700' : 'text-emerald-700'}>
+                            {unrecordedSessionsCount > 0 ? `⚠️ ${unrecordedSessionsCount} Belum Presensi` : '✓ Lengkap'}
+                          </span>
+                          <span className="text-emerald-800 group-hover:underline">Lihat →</span>
+                        </div>
+                      </div>
+
+                      {/* CARD 2: HASIL PRE TEST */}
+                      <div 
+                        onClick={() => setActiveTab('tugas')}
+                        className="bg-gradient-to-br from-teal-50/80 to-cyan-50/80 p-3.5 rounded-2xl border border-teal-200 hover:border-teal-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-800">2. Hasil Pre Test</span>
+                          <div className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
+                            <Sparkles size={14} />
+                          </div>
+                        </div>
+                        <div className="my-1.5">
+                          <div className="text-xl font-black text-teal-950 font-display">
+                            {hasPreScore ? `${preScore} / 100` : 'Belum Tes'}
+                          </div>
+                          <p className="text-[10px] font-bold text-teal-700 leading-tight">
+                            {hasPreScore ? '✓ Evaluasi Awal Selesai' : '⏳ Belum Mengerjakan'}
+                          </p>
+                        </div>
+                        <div className="pt-1.5 border-t border-teal-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className={hasPreScore ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>
+                            {hasPreScore ? 'Terekap di Sistem' : 'Buka Ujian'}
+                          </span>
+                          <span className="text-teal-800 group-hover:underline">Detail →</span>
+                        </div>
+                      </div>
+
+                      {/* CARD 3: HASIL POST TEST */}
+                      <div 
+                        onClick={() => setActiveTab('tugas')}
+                        className="bg-gradient-to-br from-blue-50/80 to-indigo-50/80 p-3.5 rounded-2xl border border-blue-200 hover:border-blue-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">3. Hasil Post Test</span>
+                          <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
+                            <Award size={14} />
+                          </div>
+                        </div>
+                        <div className="my-1.5">
+                          <div className="text-xl font-black text-blue-950 font-display">
+                            {hasPostScore ? `${postScore} / 100` : 'Belum Tes'}
+                          </div>
+                          <p className="text-[10px] font-bold text-blue-700 leading-tight">
+                            {hasPostScore ? (postScore! >= 70 ? '✓ Lulus KKM (≥70)' : '⚠️ Di Bawah KKM') : 'Syarat Kelulusan Akhir'}
+                          </p>
+                        </div>
+                        <div className="pt-1.5 border-t border-blue-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className={hasPostScore ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>
+                            {hasPostScore ? 'Terekap di Sistem' : 'Buka Ujian'}
+                          </span>
+                          <span className="text-blue-800 group-hover:underline">Detail →</span>
+                        </div>
+                      </div>
+
+                      {/* CARD 4: STATUS AKHIR */}
+                      <div 
+                        onClick={() => setActiveTab('piagam')}
+                        className="bg-gradient-to-br from-amber-50/80 to-yellow-50/80 p-3.5 rounded-2xl border border-amber-200 hover:border-amber-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">4. Status Kelulusan</span>
+                          <div className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
+                            <GraduationCap size={14} />
+                          </div>
+                        </div>
+                        <div className="my-1.5">
+                          <div className="text-sm font-black text-amber-950 font-display truncate">
+                            {userApp?.statusKelulusan || 'Proses Pelatihan'}
+                          </div>
+                          <p className="text-[10px] font-bold text-amber-800 leading-tight">
+                            {userApp?.nilai ? `Nilai Akhir: ${userApp.nilai}` : 'Akumulasi Presensi & Nilai'}
+                          </p>
+                        </div>
+                        <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className="text-amber-800">Piagam & Sertifikat</span>
+                          <span className="text-amber-900 group-hover:underline">Lihat →</span>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
                 );
               })()}
@@ -1750,40 +1912,61 @@ export default function PelatihanPage() {
                                 const isEditing = activeEditSession === ses.id;
                                 
                                 return (
-                                  <div key={ses.id} className="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-xs flex flex-col gap-3 text-left">
+                                  <div 
+                                    key={ses.id} 
+                                    className={`p-4.5 rounded-2xl border transition-all flex flex-col gap-3 text-left ${
+                                      status === 'hadir' 
+                                        ? 'bg-white border-emerald-200/80 shadow-xs' 
+                                        : status === 'izin'
+                                          ? 'bg-white border-blue-200/80 shadow-xs'
+                                          : status === 'absen'
+                                            ? 'bg-white border-rose-200/80 shadow-xs'
+                                            : 'bg-amber-50/40 border-amber-200/80 shadow-xs'
+                                    }`}
+                                  >
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="space-y-1">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md">
-                                          {ses.id}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-hw-green bg-hw-green/10 px-2 py-0.5 rounded-md">
+                                            {ses.id}
+                                          </span>
+                                          {status === 'belum' && (
+                                            <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                              Belum Presensi
+                                            </span>
+                                          )}
+                                        </div>
                                         <h5 className="text-xs font-black text-gray-800 mt-1">{ses.title}</h5>
                                         <p className="text-[11px] text-gray-500 leading-normal">{ses.description}</p>
                                       </div>
                                       
                                       <div className="shrink-0 pt-1 flex items-center gap-1.5">
                                         {status === 'hadir' ? (
-                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white uppercase flex items-center gap-1">
-                                            <Check size={12} /> Hadir
+                                          <span className="text-[10px] font-black px-3 py-1.5 rounded-xl bg-emerald-600 text-white uppercase flex items-center gap-1.5 shadow-xs">
+                                            <Check size={13} /> HADIR (Tercatat)
                                           </span>
                                         ) : status === 'izin' ? (
-                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-500 text-white uppercase">
-                                            Izin
+                                          <span className="text-[10px] font-black px-3 py-1.5 rounded-xl bg-blue-600 text-white uppercase flex items-center gap-1.5 shadow-xs">
+                                            <Info size={13} /> IZIN
                                           </span>
                                         ) : status === 'absen' ? (
-                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500 text-white uppercase">
-                                            Tidak Hadir
+                                          <span className="text-[10px] font-black px-3 py-1.5 rounded-xl bg-rose-600 text-white uppercase flex items-center gap-1.5 shadow-xs">
+                                            <X size={13} /> TIDAK HADIR
                                           </span>
                                         ) : (
-                                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gray-100 text-gray-400 uppercase">
-                                            Belum Presensi
-                                          </span>
-                                        )}
-
-                                        {!isEditing && (
                                           <button
                                             onClick={() => setActiveEditSession(ses.id)}
-                                            className="p-1.5 text-gray-400 hover:text-hw-green hover:bg-gray-100 rounded-lg transition-all"
-                                            title="Isi / Ubah Presensi"
+                                            className="text-[10px] font-black px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white uppercase flex items-center gap-1.5 shadow-xs transition-all cursor-pointer hover:scale-105"
+                                          >
+                                            <AlertCircle size={13} /> Isi Presensi Sesi Ini
+                                          </button>
+                                        )}
+
+                                        {!isEditing && status !== 'belum' && (
+                                          <button
+                                            onClick={() => setActiveEditSession(ses.id)}
+                                            className="p-1.5 text-gray-400 hover:text-hw-green hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                            title="Ubah Presensi"
                                           >
                                             <Pencil size={12} />
                                           </button>
@@ -1792,45 +1975,45 @@ export default function PelatihanPage() {
                                     </div>
 
                                     {timestamp && (
-                                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg w-max font-bold font-sans">
-                                        <Clock size={11} className="text-gray-400" />
-                                        <span>Presensi Tercatat: {timestamp}</span>
+                                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg w-max font-bold border border-emerald-100">
+                                        <Clock size={11} className="text-emerald-600" />
+                                        <span>Presensi Tercatat Pada: {timestamp}</span>
                                       </div>
                                     )}
 
                                     {isEditing && (
                                       <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex flex-col gap-2">
-                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
-                                          Pilih Status Presensi Sesi Ini:
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-wider">
+                                          Pilih Status Kehadiran untuk {ses.id}:
                                         </span>
                                         <div className="grid grid-cols-4 gap-2">
                                           <button
                                             disabled={savingAttendance[ses.id]}
                                             onClick={() => handleUserSubmitAttendance(ses.id, 'hadir')}
-                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                            className="py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                           >
-                                            {savingAttendance[ses.id] ? <Loader2 size={12} className="animate-spin" /> : 'Hadir ✓'}
+                                            {savingAttendance[ses.id] ? <Loader2 size={13} className="animate-spin" /> : <><Check size={13} /> Hadir</>}
                                           </button>
 
                                           <button
                                             disabled={savingAttendance[ses.id]}
                                             onClick={() => handleUserSubmitAttendance(ses.id, 'izin')}
-                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                            className="py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                           >
-                                            Izin
+                                            <Info size={13} /> Izin
                                           </button>
 
                                           <button
                                             disabled={savingAttendance[ses.id]}
                                             onClick={() => handleUserSubmitAttendance(ses.id, 'absen')}
-                                            className="py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-1 cursor-pointer"
+                                            className="py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                           >
-                                            Tidak Hadir
+                                            <X size={13} /> Tidak Hadir
                                           </button>
 
                                           <button
                                             onClick={() => setActiveEditSession(null)}
-                                            className="py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                                            className="py-2.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                                           >
                                             Batal
                                           </button>

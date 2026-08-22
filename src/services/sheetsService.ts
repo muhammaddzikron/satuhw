@@ -1801,11 +1801,15 @@ export const sheetsService = {
     return { success: true };
   },
 
-  async updateTrainingSchedule(id: string, lokasiPelatihan: string, tanggalPelatihan: string): Promise<any> {
+  async updateTrainingSchedule(id: string, lokasiPelatihan: string, tanggalPelatihan: string, pelatihanAkanDiikuti?: string): Promise<any> {
     if (IS_API_VALID) {
-      this.post({ action: 'updateTrainingSchedule', id, lokasiPelatihan, tanggalPelatihan }).catch(() => {});
+      this.post({ action: 'updateTrainingSchedule', id, lokasiPelatihan, tanggalPelatihan, pelatihanAkanDiikuti }).catch(() => {});
     }
-    await firestoreService.createTrainingApplication({ id, lokasiPelatihan, tanggalPelatihan });
+    const payload: any = { id, lokasiPelatihan, tanggalPelatihan };
+    if (pelatihanAkanDiikuti) {
+      payload.pelatihanAkanDiikuti = pelatihanAkanDiikuti;
+    }
+    await firestoreService.createTrainingApplication(payload);
     return { success: true };
   },
 
