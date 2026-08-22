@@ -116,14 +116,22 @@ const getUserRoleCategories = (user: any, apps: any[] = []): string[] => {
   addCategoryByText(user.golongan);
   addCategoryByText((user as any).pelatihGolongan);
 
-  // 5. Check approved training applications
+  // 5. Check training applications
   if (apps && Array.isArray(apps)) {
     apps.forEach(app => {
-      const isMatch = (app.email && app.email.toLowerCase() === user.email?.toLowerCase()) ||
-                      (app.userId && String(app.userId) === String(user.id));
-      const isApproved = app.status === 'approved' || app.status === 'terverifikasi' || app.status === 'disetujui' || app.statusPembayaran === 'Lunas' || app.statusKelulusan === 'Lulus';
-      if (isMatch && isApproved) {
-        addCategoryByText(app.pelatihanAkanDiikuti);
+      const isMatch = (app.email && user.email && app.email.toLowerCase() === user.email.toLowerCase()) ||
+                      (app.userId && user.id && String(app.userId) === String(user.id));
+      if (isMatch) {
+        const normKey = normalizeTrainingKey(app.pelatihanAkanDiikuti);
+        if (normKey === 'jati1') {
+          // Auto-grant Jaya Melati 1 access for registered participants without needing manual upgrade
+          categories.add('jati1');
+        } else {
+          const isApproved = app.status === 'approved' || app.status === 'terverifikasi' || app.status === 'disetujui' || app.statusPembayaran === 'Lunas' || app.statusKelulusan === 'Lulus';
+          if (isApproved) {
+            addCategoryByText(app.pelatihanAkanDiikuti);
+          }
+        }
       }
     });
   }
@@ -213,6 +221,18 @@ export default function MateriPage() {
     fetchMateri();
   }, [activeRole, user, isAuthenticated]);
 
+  const isJati1Participant = Boolean(
+    user && (
+      (user.roles && (user.roles.includes('jati1') || user.roles.includes('Jaya Melati 1'))) ||
+      (user.pelatihan && (user.pelatihan.includes('Jati 1') || user.pelatihan.includes('Jaya Melati 1'))) ||
+      trainingApps.some(app => {
+        const isMatch = (app.email && user.email && app.email.toLowerCase() === user.email.toLowerCase()) ||
+                        (app.userId && user.id && String(app.userId) === String(user.id));
+        return isMatch && normalizeTrainingKey(app.pelatihanAkanDiikuti) === 'jati1';
+      })
+    )
+  );
+
   const isAccountActive = Boolean(
     user && (
       user.role === 'admin' || 
@@ -221,7 +241,8 @@ export default function MateriPage() {
       user.role === 'diklat' || 
       user.statusAktivasi === 'Aktif' || 
       user.statusPembayaran === 'Lunas' || 
-      user.isVerified === true
+      user.isVerified === true ||
+      isJati1Participant
     )
   );
 

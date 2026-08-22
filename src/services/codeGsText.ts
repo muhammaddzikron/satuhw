@@ -211,6 +211,10 @@ function doPost(e) {
       return handleSubmitAssignment(data.id, data.tugas);
     }
 
+    if (action == 'submitTestSubmission') {
+      return handleSubmitTestSubmission(data.id, data.testType, data.score, data.data, data.submittedAt);
+    }
+
     if (action == 'updateGrade') {
       return handleUpdateGrade(data.id, data.nilai, data.remark, data.statusKelulusan);
     }
@@ -351,7 +355,7 @@ function handleSyncDatabase() {
   ensureHeaders('Contents', ['id', 'section', 'type', 'field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'judul', 'pencipta', 'lirik', 'audioUrl']);
   ensureHeaders('Playlist', ['id', 'judul', 'pencipta', 'audioUrl', 'lirik', 'createdAt']);
   ensureHeaders('KTA_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'ktaNumber', 'remark', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'jenisKta', 'alamat']);
-  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota']);
+  ensureHeaders('Training_Applications', ['id', 'userId', 'nama', 'noWa', 'email', 'sosmed', 'photo', 'tingkatan', 'asalDaerah', 'status', 'tanggalAjuan', 'pelatihanAkanDiikuti', 'tempatLahir', 'tanggalLahir', 'jenisKelamin', 'qabilah', 'kehadiran', 'tugas', 'nilai', 'remark', 'statusKelulusan', 'lokasiPelatihan', 'tanggalPelatihan', 'pelatihGolongan', 'golonganAnggota', 'preTestScore', 'preTestData', 'preTestSubmittedAt', 'postTestScore', 'postTestData', 'postTestSubmittedAt']);
   ensureHeaders('Activity_Applications', ['id', 'activityId', 'namaKegiatan', 'userId', 'namaLengkap', 'email', 'unsur', 'utusan', 'qabilahPtma', 'jabatan', 'kategoriUndangan', 'noHp', 'asalKwarda', 'qabilah', 'status', 'tanggalDaftar']);
   ensureHeaders('Activities', ['id', 'namaKegiatan', 'kategori', 'lokasi', 'tanggal', 'biaya', 'kuota', 'penyelenggara', 'status', 'deskripsi', 'gambarUrl', 'rekeningPembayaran', 'noWhatsappPanitia', 'proposalUrl', 'themeSongUrl', 'themeSongTitle', 'youtubeUrl', 'pelatih', 'asistenPelatih', 'pelatihGolongan', 'golonganAnggota', 'createdAt', 'updatedAt']);
   ensureHeaders('Activity_Categories', ['id', 'name', 'createdAt']);
@@ -2053,7 +2057,13 @@ function handleGetTrainingApplications() {
             lokasiPelatihan: getRobustValue(row, ['lokasiPelatihan', 'lokasipelatihan', 'lokasi', 'tempat', 'Lokasi']) || '',
             tanggalPelatihan: formatDateVal(getRobustValue(row, ['tanggalPelatihan', 'tanggalpelatihan', 'tglPelatihan', 'Tanggal Pelatihan'])),
             pelatihGolongan: getRobustValue(row, ['pelatihGolongan', 'pelatihgolongan']) || '',
-            golonganAnggota: getRobustValue(row, ['golonganAnggota', 'golongananggota', 'golongan']) || ''
+            golonganAnggota: getRobustValue(row, ['golonganAnggota', 'golongananggota', 'golongan']) || '',
+            preTestScore: getRobustValue(row, ['preTestScore', 'pretestscore', 'preTest', 'pretest']),
+            preTestData: getRobustValue(row, ['preTestData', 'pretestdata']),
+            preTestSubmittedAt: formatDateVal(getRobustValue(row, ['preTestSubmittedAt', 'pretestsubmittedat'])),
+            postTestScore: getRobustValue(row, ['postTestScore', 'posttestscore', 'postTest', 'posttest']),
+            postTestData: getRobustValue(row, ['postTestData', 'posttestdata']),
+            postTestSubmittedAt: formatDateVal(getRobustValue(row, ['postTestSubmittedAt', 'posttestsubmittedat']))
           };
 
           allTrainApps.push(cleanApp);
@@ -2305,6 +2315,49 @@ function handleSubmitAssignment(id, tugas) {
     return responseOk({ success: true });
   }
   return responseError("Column 'tugas' not found");
+}
+
+function handleSubmitTestSubmission(id, testType, score, testData, submittedAt) {
+  var sheet = getSheet('Training_Applications');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
+    return h ? h.toString().trim().toLowerCase() : ""; 
+  });
+  var apps = getRowsAsObjects(sheet);
+  var rowIndex = apps.findIndex(function(app) { 
+    var appId = (app.id || app.Id || '').toString();
+    return appId === (id || '').toString() && appId !== ''; 
+  });
+  if (rowIndex === -1) {
+    // Also try finding by email or userId
+    rowIndex = apps.findIndex(function(app) {
+      var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
+      var appUserId = (app.userid || app.userId || '').toString();
+      return (id && appEmail === id.toString().trim().toLowerCase()) || (id && appUserId === id.toString());
+    });
+  }
+  if (rowIndex === -1) return responseError("Training Application not found");
+
+  var isPre = testType === 'pre_test';
+  var scoreColName = isPre ? 'pretestscore' : 'posttestscore';
+  var dataColName = isPre ? 'pretestdata' : 'posttestdata';
+  var submittedAtColName = isPre ? 'pretestsubmittedat' : 'posttestsubmittedat';
+
+  var scoreCol = headers.indexOf(scoreColName) + 1;
+  if (scoreCol > 0 && score !== undefined && score !== null) {
+    sheet.getRange(rowIndex + 2, scoreCol).setValue(score);
+  }
+
+  var dataCol = headers.indexOf(dataColName) + 1;
+  if (dataCol > 0 && testData !== undefined && testData !== null) {
+    sheet.getRange(rowIndex + 2, dataCol).setValue(typeof testData === 'string' ? testData : JSON.stringify(testData));
+  }
+
+  var subCol = headers.indexOf(submittedAtColName) + 1;
+  if (subCol > 0) {
+    sheet.getRange(rowIndex + 2, subCol).setValue(submittedAt || new Date().toISOString());
+  }
+
+  return responseOk({ success: true, testType: testType, score: score });
 }
 
 function handleUpdateGrade(id, nilai, remark, statusKelulusan) {
@@ -2673,6 +2726,39 @@ function handleSaveTrainingApplication(data) {
       
       var golonganIdx = userHeaders.indexOf('golongan');
       if (golonganIdx > -1 && data.golonganAnggota) uRowValues[golonganIdx] = data.golonganAnggota;
+      
+      // Auto-assign jati1 role if registered for Jaya Melati 1
+      var progStr = (data.pelatihanAkanDiikuti || app.pelatihanakandiikuti || app.pelatihanAkanDiikuti || '').toString().toLowerCase();
+      if (progStr.indexOf('melati 1') > -1 || progStr.indexOf('jati 1') > -1 || progStr.indexOf('jati1') > -1 || progStr.indexOf('jm 1') > -1 || progStr.indexOf('jm1') > -1) {
+        var roleIdx = userHeaders.indexOf('role');
+        if (roleIdx > -1) {
+          var curRoles = [];
+          var rVal = (uRowValues[roleIdx] || '').toString().trim();
+          if (rVal.indexOf('[') === 0) {
+            try { curRoles = JSON.parse(rVal); } catch(e) { curRoles = [rVal]; }
+          } else {
+            curRoles = rVal ? rVal.split(',').map(function(s){return s.trim();}).filter(Boolean) : [];
+          }
+          if (curRoles.indexOf('jati1') === -1) {
+            curRoles.push('jati1');
+            uRowValues[roleIdx] = JSON.stringify(curRoles);
+          }
+        }
+        var pelIdx = userHeaders.indexOf('pelatihan');
+        if (pelIdx > -1) {
+          var curPels = [];
+          var pVal = (uRowValues[pelIdx] || '').toString().trim();
+          if (pVal.indexOf('[') === 0) {
+            try { curPels = JSON.parse(pVal); } catch(e) { curPels = [pVal]; }
+          } else {
+            curPels = pVal ? pVal.split(',').map(function(s){return s.trim();}).filter(Boolean) : [];
+          }
+          if (curPels.indexOf('Jati 1') === -1 && curPels.indexOf('Jaya Melati 1') === -1) {
+            curPels.push('Jati 1');
+            uRowValues[pelIdx] = JSON.stringify(curPels);
+          }
+        }
+      }
       
       uRowRange.setValues([uRowValues]);
     }

@@ -2322,16 +2322,19 @@ export const firestoreService = {
 
           const preferred = (scoreCurrent > scoreExisting) ? item : (scoreCurrent < scoreExisting) ? existing : { ...existing, ...item };
 
+          const isVal = (v: any) => v !== undefined && v !== null && v !== '';
           const mergedApp = {
             ...preferred,
             kehadiran: mergedKehadiran,
             tugas: mergedTugas,
             nilai: item.nilai || existing.nilai || '',
             remark: item.remark || existing.remark || '',
-            preTestData: item.preTestData || existing.preTestData || '',
-            postTestData: item.postTestData || existing.postTestData || '',
-            preTestScore: item.preTestScore !== undefined ? item.preTestScore : existing.preTestScore,
-            postTestScore: item.postTestScore !== undefined ? item.postTestScore : existing.postTestScore,
+            preTestData: isVal(item.preTestData) ? item.preTestData : (existing.preTestData || ''),
+            postTestData: isVal(item.postTestData) ? item.postTestData : (existing.postTestData || ''),
+            preTestScore: isVal(item.preTestScore) ? item.preTestScore : existing.preTestScore,
+            postTestScore: isVal(item.postTestScore) ? item.postTestScore : existing.postTestScore,
+            preTestSubmittedAt: isVal(item.preTestSubmittedAt) ? item.preTestSubmittedAt : existing.preTestSubmittedAt,
+            postTestSubmittedAt: isVal(item.postTestSubmittedAt) ? item.postTestSubmittedAt : existing.postTestSubmittedAt,
             photo: item.photo || existing.photo || '',
             nbm: item.nbm || existing.nbm || '',
             ktaNumber: item.ktaNumber || existing.ktaNumber || item.nomorKTA || existing.nomorKTA || '',
@@ -2354,21 +2357,62 @@ export const firestoreService = {
 
   async createTrainingApplication(appData: any): Promise<any> {
     clearFirestoreCache('training_applications');
+    const stored = localStorage.getItem('training_applications') || '[]';
+    let existingList: any[] = [];
+    try { existingList = JSON.parse(stored); } catch (e) { existingList = []; }
+
+    const targetId = appData.id || `training-${Date.now()}`;
+    const existingApp = existingList.find(x => x && (x.id === targetId || (x.email && appData.email && x.email.toLowerCase() === appData.email.toLowerCase() && normalizeTrainingKey(x.pelatihanAkanDiikuti) === normalizeTrainingKey(appData.pelatihanAkanDiikuti))));
+
     const newApp = cleanData({
+      ...existingApp,
       ...appData,
-      id: appData.id || `training-${Date.now()}`,
-      status: appData.status || 'pending',
-      tanggalAjuan: appData.tanggalAjuan || new Date().toISOString()
+      id: targetId,
+      status: appData.status || existingApp?.status || 'pending',
+      tanggalAjuan: appData.tanggalAjuan || existingApp?.tanggalAjuan || new Date().toISOString(),
+      preTestScore: appData.preTestScore !== undefined ? appData.preTestScore : existingApp?.preTestScore,
+      preTestData: appData.preTestData || existingApp?.preTestData || '',
+      preTestSubmittedAt: appData.preTestSubmittedAt || existingApp?.preTestSubmittedAt || '',
+      postTestScore: appData.postTestScore !== undefined ? appData.postTestScore : existingApp?.postTestScore,
+      postTestData: appData.postTestData || existingApp?.postTestData || '',
+      postTestSubmittedAt: appData.postTestSubmittedAt || existingApp?.postTestSubmittedAt || ''
     });
 
     // Save locally first so it's instantly persistent even before network finishes
     try {
-      const stored = localStorage.getItem('training_applications') || '[]';
-      const existing: any[] = JSON.parse(stored);
-      const filtered = Array.isArray(existing) ? existing.filter(x => x && x.id !== newApp.id) : [];
+      const filtered = Array.isArray(existingList) ? existingList.filter(x => x && x.id !== newApp.id) : [];
       filtered.unshift(newApp);
       safeStorageSet('training_applications', filtered);
     } catch (e) {}
+
+    // Auto-assign jati1 role if registered for Jaya Melati 1
+    if (normalizeTrainingKey(newApp.pelatihanAkanDiikuti) === 'jati1') {
+      try {
+        const uId = newApp.userId;
+        const uEmail = (newApp.email || '').toLowerCase().trim();
+        
+        // 1. Update current_user in localStorage if matches
+        const curUserStr = localStorage.getItem('current_user') || localStorage.getItem('auth_user');
+        if (curUserStr) {
+          const curUser = JSON.parse(curUserStr);
+          if (curUser && ((uId && String(curUser.id) === String(uId)) || (uEmail && curUser.email && curUser.email.toLowerCase() === uEmail))) {
+            const synced = syncRolesAndPelatihan(curUser.roles || [curUser.role], curUser.pelatihan || []);
+            if (!synced.roles.includes('jati1')) synced.roles.push('jati1');
+            if (!synced.pelatihan.includes('Jati 1') && !synced.pelatihan.includes('Jaya Melati 1')) synced.pelatihan.push('Jati 1');
+            const updatedUser = {
+              ...curUser,
+              roles: synced.roles,
+              role: synced.primaryRole === 'umum' ? 'jati1' : synced.primaryRole,
+              pelatihan: synced.pelatihan
+            };
+            localStorage.setItem('current_user', JSON.stringify(updatedUser));
+            localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+          }
+        }
+      } catch (err) {
+        console.warn('Auto-role assign error for Jati 1:', err);
+      }
+    }
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -2530,6 +2574,7 @@ export const firestoreService = {
   },
 
   async submitTestSubmission(id: string, submission: any): Promise<any> {
+    clearFirestoreCache('training_applications');
     const isPre = submission.testType === 'pre_test';
     const updates: any = {};
     if (isPre) {
@@ -2542,6 +2587,28 @@ export const firestoreService = {
       updates.postTestSubmittedAt = submission.submittedAt || new Date().toISOString();
     }
 
+    // Direct local storage update immediately to be rock solid and instantaneous
+    let updatedApp: any = null;
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      let existingList: any[] = JSON.parse(stored);
+      if (Array.isArray(existingList)) {
+        existingList = existingList.map(item => {
+          if (!item) return item;
+          const matchId = String(item.id) === String(id);
+          const matchUser = submission.userId && String(item.userId) === String(submission.userId);
+          const matchEmail = submission.email && item.email && item.email.toLowerCase() === submission.email.toLowerCase();
+          if (matchId || matchUser || matchEmail) {
+            const updated = { ...item, ...updates };
+            updatedApp = updated;
+            return updated;
+          }
+          return item;
+        });
+        safeStorageSet('training_applications', existingList);
+      }
+    } catch (e) {}
+
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
@@ -2551,16 +2618,9 @@ export const firestoreService = {
       }
     }
 
-    const list = await this.getTrainingApplications();
-    const idx = list.findIndex(t => t.id === id);
-    let updatedApp = list[idx];
-    if (idx >= 0) {
-      list[idx] = { ...list[idx], ...updates };
-      updatedApp = list[idx];
-      safeStorageSet('training_applications', list);
-    }
+    clearFirestoreCache('training_applications');
     window.dispatchEvent(new Event('training_applications_updated'));
-    return updatedApp;
+    return updatedApp || { id, ...updates };
   },
 
   async deleteTrainingApplication(id: string): Promise<boolean> {

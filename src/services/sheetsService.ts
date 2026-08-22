@@ -1606,22 +1606,42 @@ export const sheetsService = {
               pelatihanAkanDiikuti: rawPelatihan,
               asalDaerah: t.asalDaerah || t.asaldaerah || t.asalKwarda || '',
               status: t.status || 'approved',
-              tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString()
+              tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString(),
+              preTestScore: t.preTestScore !== undefined ? t.preTestScore : (t.pretestscore !== undefined ? t.pretestscore : undefined),
+              preTestData: t.preTestData || t.pretestdata || '',
+              preTestSubmittedAt: t.preTestSubmittedAt || t.pretestsubmittedat || '',
+              postTestScore: t.postTestScore !== undefined ? t.postTestScore : (t.posttestscore !== undefined ? t.posttestscore : undefined),
+              postTestData: t.postTestData || t.posttestdata || '',
+              postTestSubmittedAt: t.postTestSubmittedAt || t.posttestsubmittedat || ''
             };
           }).filter((t: any) => {
             const name = (t.nama || t.namaLengkap || '').trim();
             const email = (t.email || '').toLowerCase().trim();
             return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
           });
-          
-          apiTrainings.forEach(tr => firestoreService.createTrainingApplication(tr).catch(() => {}));
 
           const map = new Map<string, any>();
           fsTrainings.forEach(t => {
             if (t && t.id) map.set(t.id, t);
           });
           apiTrainings.forEach(t => {
-            if (t && t.id && !map.has(t.id)) map.set(t.id, t);
+            if (t && t.id) {
+              if (map.has(t.id)) {
+                const existing = map.get(t.id);
+                map.set(t.id, {
+                  ...t,
+                  ...existing,
+                  preTestScore: existing.preTestScore !== undefined ? existing.preTestScore : t.preTestScore,
+                  preTestData: existing.preTestData || t.preTestData,
+                  preTestSubmittedAt: existing.preTestSubmittedAt || t.preTestSubmittedAt,
+                  postTestScore: existing.postTestScore !== undefined ? existing.postTestScore : t.postTestScore,
+                  postTestData: existing.postTestData || t.postTestData,
+                  postTestSubmittedAt: existing.postTestSubmittedAt || t.postTestSubmittedAt
+                });
+              } else {
+                map.set(t.id, t);
+              }
+            }
           });
           return Array.from(map.values());
         }

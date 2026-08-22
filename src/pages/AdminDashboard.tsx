@@ -841,21 +841,25 @@ export default function AdminDashboard() {
         const scoreCurrent = statusScore(app.status);
         const scoreExisting = statusScore(existing.status);
 
-        if (scoreCurrent > scoreExisting) {
-          map.set(compositeKey, app);
-        } else if (scoreCurrent === scoreExisting) {
-          const currentRichness = (app.nbm ? 2 : 0) + (app.photo ? 2 : 0) + (app.tempatLahir ? 1 : 0);
-          const existingRichness = (existing.nbm ? 2 : 0) + (existing.photo ? 2 : 0) + (existing.tempatLahir ? 1 : 0);
-          if (currentRichness > existingRichness) {
-            map.set(compositeKey, app);
-          } else {
-            const currentTime = new Date(app.tanggalAjuan || app.updatedAt || 0).getTime();
-            const existingTime = new Date(existing.tanggalAjuan || existing.updatedAt || 0).getTime();
-            if (currentTime > existingTime) {
-              map.set(compositeKey, app);
-            }
-          }
-        }
+        const isVal = (v: any) => v !== undefined && v !== null && v !== '';
+        const base = (scoreCurrent > scoreExisting) ? app : (scoreCurrent < scoreExisting) ? existing : app;
+        const other = base === app ? existing : app;
+        const merged = {
+          ...other,
+          ...base,
+          preTestScore: isVal(base.preTestScore) ? base.preTestScore : (isVal(other.preTestScore) ? other.preTestScore : undefined),
+          preTestData: isVal(base.preTestData) ? base.preTestData : (isVal(other.preTestData) ? other.preTestData : ''),
+          preTestSubmittedAt: isVal(base.preTestSubmittedAt) ? base.preTestSubmittedAt : (isVal(other.preTestSubmittedAt) ? other.preTestSubmittedAt : ''),
+          postTestScore: isVal(base.postTestScore) ? base.postTestScore : (isVal(other.postTestScore) ? other.postTestScore : undefined),
+          postTestData: isVal(base.postTestData) ? base.postTestData : (isVal(other.postTestData) ? other.postTestData : ''),
+          postTestSubmittedAt: isVal(base.postTestSubmittedAt) ? base.postTestSubmittedAt : (isVal(other.postTestSubmittedAt) ? other.postTestSubmittedAt : ''),
+          kehadiran: isVal(base.kehadiran) ? base.kehadiran : (isVal(other.kehadiran) ? other.kehadiran : ''),
+          tugas: (base.tugas && base.tugas !== '[]') ? base.tugas : (other.tugas || '[]'),
+          nilai: isVal(base.nilai) ? base.nilai : (isVal(other.nilai) ? other.nilai : ''),
+          remark: isVal(base.remark) ? base.remark : (isVal(other.remark) ? other.remark : ''),
+          statusKelulusan: isVal(base.statusKelulusan) ? base.statusKelulusan : (isVal(other.statusKelulusan) ? other.statusKelulusan : '')
+        };
+        map.set(compositeKey, merged);
       }
     }
     return Array.from(map.values());
