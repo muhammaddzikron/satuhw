@@ -7,7 +7,7 @@ import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
-import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan } from '../utils/trainingUtils';
+import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 
 export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
@@ -1620,30 +1620,7 @@ export const sheetsService = {
             return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
           });
 
-          const map = new Map<string, any>();
-          fsTrainings.forEach(t => {
-            if (t && t.id) map.set(t.id, t);
-          });
-          apiTrainings.forEach(t => {
-            if (t && t.id) {
-              if (map.has(t.id)) {
-                const existing = map.get(t.id);
-                map.set(t.id, {
-                  ...t,
-                  ...existing,
-                  preTestScore: existing.preTestScore !== undefined ? existing.preTestScore : t.preTestScore,
-                  preTestData: existing.preTestData || t.preTestData,
-                  preTestSubmittedAt: existing.preTestSubmittedAt || t.preTestSubmittedAt,
-                  postTestScore: existing.postTestScore !== undefined ? existing.postTestScore : t.postTestScore,
-                  postTestData: existing.postTestData || t.postTestData,
-                  postTestSubmittedAt: existing.postTestSubmittedAt || t.postTestSubmittedAt
-                });
-              } else {
-                map.set(t.id, t);
-              }
-            }
-          });
-          return Array.from(map.values());
+          return consolidateTrainingApplications([...fsTrainings, ...apiTrainings]);
         }
         return fsTrainings;
       } catch (e) {

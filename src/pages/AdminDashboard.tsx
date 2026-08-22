@@ -6,7 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId } from '../utils/activityUtils';
-import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey } from '../utils/trainingUtils';
+import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -134,16 +134,19 @@ const isSessionPresent = (attObj: any, sesId: string): boolean => {
     const numMatch = sesId.match(/\d+/);
     if (numMatch) {
       const num = numMatch[0];
-      val = attObj[`Sesi ${num}`] ?? attObj[`sesi_${num}`] ?? attObj[`Materi ${num}`] ?? attObj[`materi_${num}`];
+      val = attObj[`Sesi ${num}`] ?? attObj[`sesi_${num}`] ?? attObj[`sesi-${num}`] ?? attObj[`Materi ${num}`] ?? attObj[`materi_${num}`] ?? attObj[`materi-${num}`] ?? attObj[num];
     }
   }
   if (val === undefined || val === null) return false;
   if (typeof val === 'boolean') return val;
   if (typeof val === 'string') {
-    return val === 'hadir' || val === 'true' || val === 'Hadir';
+    const s = val.toLowerCase().trim();
+    return s === 'hadir' || s === 'true' || s === 'present' || s === 'h' || s.startsWith('hadir');
   }
   if (typeof val === 'object' && val !== null) {
-    return val.status === 'hadir' || val.status === 'Hadir';
+    if (val.present === true) return true;
+    const s = String(val.status || '').toLowerCase().trim();
+    return s === 'hadir' || s === 'present' || s === 'h' || s.startsWith('hadir');
   }
   return false;
 };
@@ -812,57 +815,7 @@ export default function AdminDashboard() {
 
   const deduplicateTrainingApps = useCallback((apps: any[]) => {
     if (!Array.isArray(apps)) return [];
-    const map = new Map<string, any>();
-    for (const app of apps) {
-      if (!app) continue;
-      const name = (app.nama || app.namaLengkap || '').trim();
-      if (!isValidName(name)) continue;
-
-      const nbmStr = String(app.nbm || '').trim();
-      const emailStr = String(app.email || '').toLowerCase().trim();
-      const waDigits = String(app.noWa || '').replace(/[^0-9]/g, '');
-
-      const personKey = (
-        (app.userId && String(app.userId).trim()) ? `id_${String(app.userId).trim()}` :
-        (nbmStr && nbmStr !== '-' && nbmStr.length >= 3) ? `nbm_${nbmStr}` :
-        (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
-        (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
-        (name && name !== 'tanpa nama' && name !== '-') ? `name_${name.toLowerCase()}` :
-        `app_${app.id || Date.now()}`
-      );
-      const progKey = (app.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
-      const compositeKey = `${personKey}___${progKey}`;
-
-      if (!map.has(compositeKey)) {
-        map.set(compositeKey, app);
-      } else {
-        const existing = map.get(compositeKey);
-        const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
-        const scoreCurrent = statusScore(app.status);
-        const scoreExisting = statusScore(existing.status);
-
-        const isVal = (v: any) => v !== undefined && v !== null && v !== '';
-        const base = (scoreCurrent > scoreExisting) ? app : (scoreCurrent < scoreExisting) ? existing : app;
-        const other = base === app ? existing : app;
-        const merged = {
-          ...other,
-          ...base,
-          preTestScore: isVal(base.preTestScore) ? base.preTestScore : (isVal(other.preTestScore) ? other.preTestScore : undefined),
-          preTestData: isVal(base.preTestData) ? base.preTestData : (isVal(other.preTestData) ? other.preTestData : ''),
-          preTestSubmittedAt: isVal(base.preTestSubmittedAt) ? base.preTestSubmittedAt : (isVal(other.preTestSubmittedAt) ? other.preTestSubmittedAt : ''),
-          postTestScore: isVal(base.postTestScore) ? base.postTestScore : (isVal(other.postTestScore) ? other.postTestScore : undefined),
-          postTestData: isVal(base.postTestData) ? base.postTestData : (isVal(other.postTestData) ? other.postTestData : ''),
-          postTestSubmittedAt: isVal(base.postTestSubmittedAt) ? base.postTestSubmittedAt : (isVal(other.postTestSubmittedAt) ? other.postTestSubmittedAt : ''),
-          kehadiran: isVal(base.kehadiran) ? base.kehadiran : (isVal(other.kehadiran) ? other.kehadiran : ''),
-          tugas: (base.tugas && base.tugas !== '[]') ? base.tugas : (other.tugas || '[]'),
-          nilai: isVal(base.nilai) ? base.nilai : (isVal(other.nilai) ? other.nilai : ''),
-          remark: isVal(base.remark) ? base.remark : (isVal(other.remark) ? other.remark : ''),
-          statusKelulusan: isVal(base.statusKelulusan) ? base.statusKelulusan : (isVal(other.statusKelulusan) ? other.statusKelulusan : '')
-        };
-        map.set(compositeKey, merged);
-      }
-    }
-    return Array.from(map.values());
+    return consolidateTrainingApplications(apps);
   }, []);
 
   const setTrainingApps = useCallback((data: any | ((prev: any[]) => any[])) => {
@@ -2248,11 +2201,11 @@ export default function AdminDashboard() {
       const kehadiranStr = JSON.stringify(attObj);
 
       // Instant optimistic UI update
-      setTrainingApps(prev => prev.map(a => String(a.id) === String(appId) ? { ...a, kehadiran: kehadiranStr } : a));
+      setTrainingApps(prev => prev.map(a => (String(a.id) === String(appId) || isSameTrainingParticipant(a, app)) ? { ...a, kehadiran: kehadiranStr } : a));
       
       await Promise.all([
         sheetsService.updateAttendance(appId, kehadiranStr),
-        firestoreService.updateAttendance(appId, kehadiranStr)
+        firestoreService.updateAttendance(appId, kehadiranStr, app)
       ]);
     } catch (err: any) {
       alert('Gagal update kehadiran: ' + err.message);
@@ -8056,30 +8009,48 @@ export default function AdminDashboard() {
 
                                     {/* PRE TEST SCORE */}
                                     <td className="p-4">
-                                      {app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '' ? (
-                                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-black uppercase border border-emerald-200 inline-flex items-center gap-1">
-                                          <Sparkles size={11} className="text-emerald-600" />
-                                          {app.preTestScore} / 100
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
-                                          Belum Tes
-                                        </span>
-                                      )}
+                                      {(() => {
+                                        let pScore = (app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '') ? Number(app.preTestScore) : null;
+                                        if (pScore === null && app.preTestData) {
+                                          try {
+                                            const pObj = typeof app.preTestData === 'string' ? JSON.parse(app.preTestData) : app.preTestData;
+                                            if (pObj && pObj.score !== undefined && pObj.score !== null) pScore = Number(pObj.score);
+                                          } catch(e) {}
+                                        }
+                                        return pScore !== null ? (
+                                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-black uppercase border border-emerald-200 inline-flex items-center gap-1">
+                                            <Sparkles size={11} className="text-emerald-600" />
+                                            {pScore} / 100
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
+                                            Belum Tes
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
 
                                     {/* POST TEST SCORE */}
                                     <td className="p-4">
-                                      {app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '' ? (
-                                        <span className="px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg text-xs font-black uppercase border border-teal-200 inline-flex items-center gap-1">
-                                          <CheckCircle2 size={11} className="text-teal-600" />
-                                          {app.postTestScore} / 100
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
-                                          Belum Tes
-                                        </span>
-                                      )}
+                                      {(() => {
+                                        let pScore = (app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '') ? Number(app.postTestScore) : null;
+                                        if (pScore === null && app.postTestData) {
+                                          try {
+                                            const pObj = typeof app.postTestData === 'string' ? JSON.parse(app.postTestData) : app.postTestData;
+                                            if (pObj && pObj.score !== undefined && pObj.score !== null) pScore = Number(pObj.score);
+                                          } catch(e) {}
+                                        }
+                                        return pScore !== null ? (
+                                          <span className="px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg text-xs font-black uppercase border border-teal-200 inline-flex items-center gap-1">
+                                            <CheckCircle2 size={11} className="text-teal-600" />
+                                            {pScore} / 100
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
+                                            Belum Tes
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
 
                                     {/* NILAI AKHIR */}

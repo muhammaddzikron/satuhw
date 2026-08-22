@@ -430,6 +430,22 @@ export default function PelatihanPage() {
               return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
             });
             setUserApp(myApp || null);
+
+            // Auto-grant jati1 role if registered as Jaya Melati 1
+            const hasJati1App = freshApps.some((a: any) => {
+              if (!isUserAppMatch(a, user)) return false;
+              const norm = normalizeLevelCode(a.pelatihanAkanDiikuti);
+              return norm === 'jati1' && a.status !== 'deleted' && a.status !== 'rejected';
+            });
+            if (hasJati1App) {
+              const currentRoles = Array.isArray(user.roles) ? user.roles : [user.role || 'umum'];
+              if (!currentRoles.includes('jati1')) {
+                useAuthStore.getState().updateUser({
+                  roles: Array.from(new Set([...currentRoles, 'jati1'])) as any,
+                  activeRole: (user.activeRole === 'umum' || !user.activeRole) ? 'jati1' : user.activeRole
+                });
+              }
+            }
           }
         }
       });
@@ -443,6 +459,22 @@ export default function PelatihanPage() {
           return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
         });
         setUserApp(myApp || null);
+
+        // Auto-grant jati1 role if registered as Jaya Melati 1
+        const hasJati1App = (apps || []).some((a: any) => {
+          if (!isUserAppMatch(a, user)) return false;
+          const norm = normalizeLevelCode(a.pelatihanAkanDiikuti);
+          return norm === 'jati1' && a.status !== 'deleted' && a.status !== 'rejected';
+        });
+        if (hasJati1App) {
+          const currentRoles = Array.isArray(user.roles) ? user.roles : [user.role || 'umum'];
+          if (!currentRoles.includes('jati1')) {
+            useAuthStore.getState().updateUser({
+              roles: Array.from(new Set([...currentRoles, 'jati1'])) as any,
+              activeRole: (user.activeRole === 'umum' || !user.activeRole) ? 'jati1' : user.activeRole
+            });
+          }
+        }
       } else {
         setUserApp(null);
       }
@@ -749,7 +781,7 @@ export default function PelatihanPage() {
       // Background persist & sync to backend / sheets / firestore
       await Promise.all([
         sheetsService.updateAttendance(currentApp.id, updatedKehadiranStr),
-        firestoreService.updateAttendance(currentApp.id, updatedKehadiranStr)
+        firestoreService.updateAttendance(currentApp.id, updatedKehadiranStr, currentApp)
       ]);
 
       setActiveEditSession(null);
@@ -857,8 +889,12 @@ export default function PelatihanPage() {
       const timestamp = `${dateStr} pukul ${timeStr} (oleh Admin)`;
 
       attendanceMap[sessionId] = { status, timestamp };
+      const attendanceStr = JSON.stringify(attendanceMap);
 
-      await sheetsService.updateAttendance(app.id, JSON.stringify(attendanceMap));
+      await Promise.all([
+        sheetsService.updateAttendance(app.id, attendanceStr),
+        firestoreService.updateAttendance(app.id, attendanceStr, app)
+      ]);
       loadData();
     } catch (err: any) {
       alert('Gagal mengupdate kehadiran: ' + err.message);
@@ -1524,138 +1560,166 @@ export default function PelatihanPage() {
                 const postScore = hasPostScore ? Number(userApp.postTestScore) : null;
 
                 return (
-                  <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-sm space-y-3.5 text-left">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                  <div className="bg-white p-4 sm:p-5 md:p-6 rounded-3xl border border-gray-150 shadow-xs space-y-4 text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3.5">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-850 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                             Dasbor Rekap Akademik & Kehadiran Peserta
                           </span>
                           <span className="text-[10px] text-gray-400 font-semibold">• Real-time Sync</span>
                         </div>
-                        <h4 className="text-sm sm:text-base font-black text-gray-800 mt-1 font-display">
+                        <h4 className="text-base sm:text-lg font-black text-gray-850 font-display tracking-tight">
                           Ringkasan Status Kehadiran & Rekap Nilai Ujian
                         </h4>
                       </div>
                       {unrecordedSessionsCount > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-bold self-start sm:self-auto animate-pulse">
-                          <AlertCircle size={13} className="text-amber-600" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-900 border border-amber-200 rounded-full text-xs font-bold self-start sm:self-auto shrink-0 shadow-2xs">
+                          <AlertCircle size={14} className="text-amber-600 shrink-0" />
                           <span>{unrecordedSessionsCount} Sesi Belum Presensi</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold self-start sm:self-auto">
-                          <CheckCircle2 size={13} className="text-emerald-600" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-full text-xs font-bold self-start sm:self-auto shrink-0 shadow-2xs">
+                          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
                           <span>Presensi Lengkap ({totalCurriculumSessions}/{totalCurriculumSessions})</span>
                         </span>
                       )}
                     </div>
 
-                    {/* 4 Stat Cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* 4 Responsive Stat Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       
                       {/* CARD 1: STATUS PRESENSI */}
                       <div 
                         onClick={() => setActiveTab('presensi')}
-                        className="bg-gradient-to-br from-emerald-50/80 to-teal-50/80 p-3.5 rounded-2xl border border-emerald-200 hover:border-emerald-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                        className="bg-gradient-to-br from-emerald-50/90 to-teal-50/70 p-4 sm:p-4.5 rounded-2xl border border-emerald-200/90 hover:border-emerald-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">1. Kehadiran</span>
-                          <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
-                            <CheckCircle2 size={14} />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-emerald-950">Kehadiran</span>
+                          </div>
+                          <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
+                            <CheckCircle2 size={15} />
                           </div>
                         </div>
-                        <div className="my-1.5">
-                          <div className="text-xl font-black text-emerald-950 font-display">
+                        
+                        <div className="my-2">
+                          <div className="text-2xl sm:text-3xl font-black text-emerald-950 font-display tracking-tight leading-none">
                             {attendancePercentage}%
                           </div>
-                          <p className="text-[10px] font-bold text-emerald-700 leading-tight">
-                            {attendedSessionsCount} Hadir • {recordedSessionsCount}/{totalCurriculumSessions} Terisi
+                          <p className="text-xs font-semibold text-emerald-800/90 mt-1.5 leading-snug">
+                            {attendedSessionsCount} Hadir • {recordedSessionsCount}/{totalCurriculumSessions} Sesi
                           </p>
                         </div>
-                        <div className="pt-1.5 border-t border-emerald-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
-                          <span className={unrecordedSessionsCount > 0 ? 'text-amber-700' : 'text-emerald-700'}>
+
+                        <div className="pt-2.5 mt-auto border-t border-emerald-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
+                          <span className={unrecordedSessionsCount > 0 ? 'text-amber-800' : 'text-emerald-800'}>
                             {unrecordedSessionsCount > 0 ? `⚠️ ${unrecordedSessionsCount} Belum Presensi` : '✓ Lengkap'}
                           </span>
-                          <span className="text-emerald-800 group-hover:underline">Lihat →</span>
+                          <span className="text-emerald-900 group-hover:underline shrink-0 flex items-center gap-1">
+                            Buka →
+                          </span>
                         </div>
                       </div>
 
                       {/* CARD 2: HASIL PRE TEST */}
                       <div 
                         onClick={() => setActiveTab('tugas')}
-                        className="bg-gradient-to-br from-teal-50/80 to-cyan-50/80 p-3.5 rounded-2xl border border-teal-200 hover:border-teal-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                        className="bg-gradient-to-br from-teal-50/90 to-cyan-50/70 p-4 sm:p-4.5 rounded-2xl border border-teal-200/90 hover:border-teal-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-800">2. Hasil Pre Test</span>
-                          <div className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
-                            <Sparkles size={14} />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-teal-950">Pre Test</span>
+                          </div>
+                          <div className="w-7 h-7 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
+                            <Sparkles size={15} />
                           </div>
                         </div>
-                        <div className="my-1.5">
-                          <div className="text-xl font-black text-teal-950 font-display">
+
+                        <div className="my-2">
+                          <div className="text-2xl sm:text-3xl font-black text-teal-950 font-display tracking-tight leading-none">
                             {hasPreScore ? `${preScore} / 100` : 'Belum Tes'}
                           </div>
-                          <p className="text-[10px] font-bold text-teal-700 leading-tight">
-                            {hasPreScore ? '✓ Evaluasi Awal Selesai' : '⏳ Belum Mengerjakan'}
+                          <p className="text-xs font-semibold text-teal-800/90 mt-1.5 leading-snug">
+                            {hasPreScore ? '✓ Evaluasi Awal Selesai' : 'Evaluasi Awal Kurikulum'}
                           </p>
                         </div>
-                        <div className="pt-1.5 border-t border-teal-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
-                          <span className={hasPreScore ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>
-                            {hasPreScore ? 'Terekap di Sistem' : 'Buka Ujian'}
+
+                        <div className="pt-2.5 mt-auto border-t border-teal-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
+                          <span className={hasPreScore ? 'text-teal-800 font-extrabold' : 'text-amber-800'}>
+                            {hasPreScore ? 'Terekap di Sistem' : 'Belum Selesai'}
                           </span>
-                          <span className="text-teal-800 group-hover:underline">Detail →</span>
+                          <span className="text-teal-900 group-hover:underline shrink-0 flex items-center gap-1">
+                            {hasPreScore ? 'Tinjau →' : 'Mulai →'}
+                          </span>
                         </div>
                       </div>
 
                       {/* CARD 3: HASIL POST TEST */}
                       <div 
                         onClick={() => setActiveTab('tugas')}
-                        className="bg-gradient-to-br from-blue-50/80 to-indigo-50/80 p-3.5 rounded-2xl border border-blue-200 hover:border-blue-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                        className="bg-gradient-to-br from-blue-50/90 to-indigo-50/70 p-4 sm:p-4.5 rounded-2xl border border-blue-200/90 hover:border-blue-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">3. Hasil Post Test</span>
-                          <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
-                            <Award size={14} />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">3</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-blue-950">Post Test</span>
+                          </div>
+                          <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
+                            <Award size={15} />
                           </div>
                         </div>
-                        <div className="my-1.5">
-                          <div className="text-xl font-black text-blue-950 font-display">
+
+                        <div className="my-2">
+                          <div className="text-2xl sm:text-3xl font-black text-blue-950 font-display tracking-tight leading-none">
                             {hasPostScore ? `${postScore} / 100` : 'Belum Tes'}
                           </div>
-                          <p className="text-[10px] font-bold text-blue-700 leading-tight">
-                            {hasPostScore ? (postScore! >= 70 ? '✓ Lulus KKM (≥70)' : '⚠️ Di Bawah KKM') : 'Syarat Kelulusan Akhir'}
+                          <p className="text-xs font-semibold text-blue-800/90 mt-1.5 leading-snug">
+                            {hasPostScore ? (postScore! >= 70 ? '✓ Lulus KKM (≥70)' : '⚠️ Di Bawah KKM (≥70)') : 'Syarat Kelulusan Akhir'}
                           </p>
                         </div>
-                        <div className="pt-1.5 border-t border-blue-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
-                          <span className={hasPostScore ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>
-                            {hasPostScore ? 'Terekap di Sistem' : 'Buka Ujian'}
+
+                        <div className="pt-2.5 mt-auto border-t border-blue-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
+                          <span className={hasPostScore ? 'text-blue-800 font-extrabold' : 'text-amber-800'}>
+                            {hasPostScore ? 'Terekap di Sistem' : 'Belum Selesai'}
                           </span>
-                          <span className="text-blue-800 group-hover:underline">Detail →</span>
+                          <span className="text-blue-900 group-hover:underline shrink-0 flex items-center gap-1">
+                            {hasPostScore ? 'Tinjau →' : 'Mulai →'}
+                          </span>
                         </div>
                       </div>
 
                       {/* CARD 4: STATUS AKHIR */}
                       <div 
                         onClick={() => setActiveTab('piagam')}
-                        className="bg-gradient-to-br from-amber-50/80 to-yellow-50/80 p-3.5 rounded-2xl border border-amber-200 hover:border-amber-400 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group flex flex-col justify-between"
+                        className="bg-gradient-to-br from-amber-50/90 to-yellow-50/70 p-4 sm:p-4.5 rounded-2xl border border-amber-200/90 hover:border-amber-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">4. Status Kelulusan</span>
-                          <div className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
-                            <GraduationCap size={14} />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">4</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-amber-950">Kelulusan</span>
+                          </div>
+                          <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
+                            <GraduationCap size={15} />
                           </div>
                         </div>
-                        <div className="my-1.5">
-                          <div className="text-sm font-black text-amber-950 font-display truncate">
+
+                        <div className="my-2">
+                          <div className="text-lg sm:text-xl font-black text-amber-950 font-display tracking-tight leading-tight">
                             {userApp?.statusKelulusan || 'Proses Pelatihan'}
                           </div>
-                          <p className="text-[10px] font-bold text-amber-800 leading-tight">
-                            {userApp?.nilai ? `Nilai Akhir: ${userApp.nilai}` : 'Akumulasi Presensi & Nilai'}
+                          <p className="text-xs font-semibold text-amber-850/90 mt-1.5 leading-snug">
+                            {userApp?.nilai ? `Predikat: ${userApp.nilai}` : 'Akumulasi Presensi & Ujian'}
                           </p>
                         </div>
-                        <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
-                          <span className="text-amber-800">Piagam & Sertifikat</span>
-                          <span className="text-amber-900 group-hover:underline">Lihat →</span>
+
+                        <div className="pt-2.5 mt-auto border-t border-amber-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
+                          <span className="text-amber-900">Piagam Pelatihan</span>
+                          <span className="text-amber-900 group-hover:underline shrink-0 flex items-center gap-1">
+                            Buka →
+                          </span>
                         </div>
                       </div>
 
@@ -2946,7 +3010,7 @@ export default function PelatihanPage() {
               if (targetApp) {
                 await Promise.all([
                   sheetsService.submitTestSubmission(targetApp.id, submission),
-                  firestoreService.submitTestSubmission(targetApp.id, submission)
+                  firestoreService.submitTestSubmission(targetApp.id, submission, targetApp)
                 ]);
 
                 const updatedApp = {

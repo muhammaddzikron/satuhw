@@ -434,3 +434,223 @@ export const syncRolesAndPelatihan = (
     primaryRole
   };
 };
+
+/**
+ * Normalizes participant name for deduplication & matching.
+ * Strips punctuation (such as apostrophes like "Nida'"), whitespace, and lowercases.
+ */
+export const normalizeParticipantName = (name?: string): string => {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+};
+
+/**
+ * Checks if two training application objects belong to the exact same person and training program.
+ */
+export const isSameTrainingParticipant = (a: any, b: any): boolean => {
+  if (!a || !b) return false;
+  
+  // 1. Program check
+  const progA = normalizeTrainingKey(a.pelatihanAkanDiikuti || a.jenisPelatihan || a.tingkatan || 'jati1');
+  const progB = normalizeTrainingKey(b.pelatihanAkanDiikuti || b.jenisPelatihan || b.tingkatan || 'jati1');
+  if (progA && progB && progA !== progB) {
+    return false;
+  }
+
+  // 2. Direct ID match
+  if (a.id && b.id && String(a.id).trim() === String(b.id).trim()) return true;
+
+  // 3. User ID match
+  if (a.userId && b.userId && String(a.userId).trim() === String(b.userId).trim()) return true;
+
+  // 4. Email match
+  const emailA = String(a.email || '').toLowerCase().trim();
+  const emailB = String(b.email || '').toLowerCase().trim();
+  if (emailA && emailB && emailA.includes('@') && emailA === emailB) return true;
+
+  // 5. NBM / KTA number match
+  const nbmA = String(a.nbm || a.ktaNumber || a.nomorKTA || '').replace(/[^0-9]/g, '');
+  const nbmB = String(b.nbm || b.ktaNumber || b.nomorKTA || '').replace(/[^0-9]/g, '');
+  if (nbmA && nbmB && nbmA.length >= 4 && nbmA === nbmB) return true;
+
+  // 6. WhatsApp / Phone number match
+  const phoneA = String(a.noWa || a.noHp || '').replace(/[^0-9]/g, '');
+  const phoneB = String(b.noWa || b.noHp || '').replace(/[^0-9]/g, '');
+  if (phoneA && phoneB && phoneA.length >= 8 && phoneA === phoneB) return true;
+
+  // 7. Full name match (handles apostrophes & punctuation)
+  const nameA = normalizeParticipantName(a.nama || a.namaLengkap);
+  const nameB = normalizeParticipantName(b.nama || b.namaLengkap);
+  if (nameA && nameB && nameA.length >= 4 && nameA === nameB) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Consolidates and merges a raw array of training applications into unique, deduplicated participants.
+ * Automatically deep-merges attendance, assignments, and test scores.
+ */
+export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
+  if (!Array.isArray(rawApps) || rawApps.length === 0) return [];
+
+  const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+  const clusters: any[][] = [];
+
+  for (const raw of rawApps) {
+    if (!raw) continue;
+    const name = String(raw.nama || raw.namaLengkap || '').trim();
+    const email = String(raw.email || '').toLowerCase().trim();
+
+    // Filter out obvious invalid / system entries
+    if (sysEmails.includes(email)) continue;
+    if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@')) continue;
+    if (raw.status === 'deleted') continue;
+    if (raw.id && (String(raw.id).startsWith('training-100') || String(raw.id).startsWith('train-api-placeholder'))) continue;
+
+    // Find existing cluster
+    const foundCluster = clusters.find(cluster => 
+      cluster.some(item => isSameTrainingParticipant(item, raw))
+    );
+
+    if (foundCluster) {
+      foundCluster.push(raw);
+    } else {
+      clusters.push([raw]);
+    }
+  }
+
+  // Merge each cluster into a single consolidated record
+  return clusters.map(cluster => {
+    if (cluster.length === 1) return cluster[0];
+
+    // Priority ordering for base object (prefer approved/terverifikasi with photo/id)
+    const sorted = [...cluster].sort((a, b) => {
+      const scoreStatus = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
+      const sa = scoreStatus(a.status) + (a.photo ? 1 : 0) + (a.preTestScore !== undefined ? 1 : 0);
+      const sb = scoreStatus(b.status) + (b.photo ? 1 : 0) + (b.preTestScore !== undefined ? 1 : 0);
+      return sb - sa;
+    });
+
+    const base = { ...sorted[0] };
+
+    // Deep merge fields
+    const mergedKehadiranObj: Record<string, any> = {};
+    const mergedTasksList: any[] = [];
+    let mergedPreScore: any = undefined;
+    let mergedPreData: any = '';
+    let mergedPreSubmittedAt: any = '';
+    let mergedPostScore: any = undefined;
+    let mergedPostData: any = '';
+    let mergedPostSubmittedAt: any = '';
+    let bestPhoto = '';
+    let bestUserId = '';
+    let bestEmail = '';
+    let bestNoWa = '';
+    let bestNbm = '';
+    let bestKta = '';
+    let bestAsalDaerah = '';
+    let bestNilai = '';
+    let bestRemark = '';
+    let bestStatusKelulusan = '';
+
+    for (const item of cluster) {
+      if (!bestPhoto && item.photo) bestPhoto = item.photo;
+      if (!bestUserId && item.userId) bestUserId = item.userId;
+      if (!bestEmail && item.email && item.email.includes('@')) bestEmail = item.email;
+      if (!bestNoWa && (item.noWa || item.noHp)) bestNoWa = item.noWa || item.noHp;
+      if (!bestNbm && item.nbm) bestNbm = item.nbm;
+      if (!bestKta && (item.ktaNumber || item.nomorKTA)) bestKta = item.ktaNumber || item.nomorKTA;
+      if (!bestAsalDaerah && item.asalDaerah) bestAsalDaerah = item.asalDaerah;
+      if (!bestNilai && item.nilai) bestNilai = item.nilai;
+      if (!bestRemark && item.remark) bestRemark = item.remark;
+
+      // Kelulusan priority
+      if (item.statusKelulusan === 'Lulus') bestStatusKelulusan = 'Lulus';
+      else if (!bestStatusKelulusan && item.statusKelulusan) bestStatusKelulusan = item.statusKelulusan;
+
+      // Extract Pre Test Score & Data
+      if (mergedPreScore === undefined) {
+        if (item.preTestScore !== undefined && item.preTestScore !== null && item.preTestScore !== '') {
+          mergedPreScore = Number(item.preTestScore);
+        } else if (item.preTestData) {
+          try {
+            const pObj = typeof item.preTestData === 'string' ? JSON.parse(item.preTestData) : item.preTestData;
+            if (pObj && pObj.score !== undefined && pObj.score !== null) mergedPreScore = Number(pObj.score);
+          } catch (e) {}
+        }
+      }
+      if (!mergedPreData && item.preTestData) mergedPreData = item.preTestData;
+      if (!mergedPreSubmittedAt && item.preTestSubmittedAt) mergedPreSubmittedAt = item.preTestSubmittedAt;
+
+      // Extract Post Test Score & Data
+      if (mergedPostScore === undefined) {
+        if (item.postTestScore !== undefined && item.postTestScore !== null && item.postTestScore !== '') {
+          mergedPostScore = Number(item.postTestScore);
+        } else if (item.postTestData) {
+          try {
+            const pObj = typeof item.postTestData === 'string' ? JSON.parse(item.postTestData) : item.postTestData;
+            if (pObj && pObj.score !== undefined && pObj.score !== null) mergedPostScore = Number(pObj.score);
+          } catch (e) {}
+        }
+      }
+      if (!mergedPostData && item.postTestData) mergedPostData = item.postTestData;
+      if (!mergedPostSubmittedAt && item.postTestSubmittedAt) mergedPostSubmittedAt = item.postTestSubmittedAt;
+
+      // Merge Attendance (Kehadiran)
+      if (item.kehadiran) {
+        try {
+          const kObj = typeof item.kehadiran === 'string' ? JSON.parse(item.kehadiran) : item.kehadiran;
+          if (kObj && typeof kObj === 'object') {
+            Object.assign(mergedKehadiranObj, kObj);
+          }
+        } catch (e) {}
+      }
+
+      // Merge Assignments (Tugas)
+      if (item.tugas) {
+        try {
+          const tArr = Array.isArray(item.tugas) ? item.tugas : JSON.parse(item.tugas);
+          if (Array.isArray(tArr)) {
+            tArr.forEach((t: any) => {
+              if (t && (t.title || t.id || t.link)) {
+                const key = t.title || t.id || t.link;
+                if (!mergedTasksList.some(x => (x.title || x.id || x.link) === key)) {
+                  mergedTasksList.push(t);
+                }
+              }
+            });
+          }
+        } catch (e) {}
+      }
+    }
+
+    return {
+      ...base,
+      photo: bestPhoto || base.photo || '',
+      userId: bestUserId || base.userId,
+      email: bestEmail || base.email,
+      noWa: bestNoWa || base.noWa || base.noHp,
+      noHp: bestNoWa || base.noHp || base.noWa,
+      nbm: bestNbm || base.nbm || '',
+      ktaNumber: bestKta || base.ktaNumber || base.nomorKTA || '',
+      nomorKTA: bestKta || base.nomorKTA || base.ktaNumber || '',
+      asalDaerah: bestAsalDaerah || base.asalDaerah || 'Jawa Tengah',
+      nilai: bestNilai || base.nilai || '',
+      remark: bestRemark || base.remark || '',
+      statusKelulusan: bestStatusKelulusan || base.statusKelulusan || 'Proses Pelatihan',
+      preTestScore: mergedPreScore !== undefined ? mergedPreScore : base.preTestScore,
+      preTestData: mergedPreData || base.preTestData || (mergedPreScore !== undefined ? JSON.stringify({ testType: 'pre_test', score: mergedPreScore, answers: {}, submittedAt: mergedPreSubmittedAt || 'Selesai' }) : ''),
+      preTestSubmittedAt: mergedPreSubmittedAt || base.preTestSubmittedAt || '',
+      postTestScore: mergedPostScore !== undefined ? mergedPostScore : base.postTestScore,
+      postTestData: mergedPostData || base.postTestData || (mergedPostScore !== undefined ? JSON.stringify({ testType: 'post_test', score: mergedPostScore, answers: {}, submittedAt: mergedPostSubmittedAt || 'Selesai' }) : ''),
+      postTestSubmittedAt: mergedPostSubmittedAt || base.postTestSubmittedAt || '',
+      kehadiran: Object.keys(mergedKehadiranObj).length > 0 ? JSON.stringify(mergedKehadiranObj) : (base.kehadiran || '{}'),
+      tugas: mergedTasksList.length > 0 ? JSON.stringify(mergedTasksList) : (base.tugas || '[]')
+    };
+  });
+};

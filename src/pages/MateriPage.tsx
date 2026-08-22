@@ -223,7 +223,7 @@ export default function MateriPage() {
 
   const isJati1Participant = Boolean(
     user && (
-      (user.roles && (user.roles.includes('jati1') || user.roles.includes('Jaya Melati 1'))) ||
+      (user.roles && (user.roles.includes('jati1') || (user.roles as string[]).includes('Jaya Melati 1'))) ||
       (user.pelatihan && (user.pelatihan.includes('Jati 1') || user.pelatihan.includes('Jaya Melati 1'))) ||
       trainingApps.some(app => {
         const isMatch = (app.email && user.email && app.email.toLowerCase() === user.email.toLowerCase()) ||

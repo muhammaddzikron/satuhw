@@ -53,6 +53,14 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
       preTestData = null;
     }
   }
+  if (!preTestData && application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== '') {
+    preTestData = {
+      testType: 'pre_test',
+      score: Number(application.preTestScore),
+      answers: {},
+      submittedAt: application.preTestSubmittedAt || 'Selesai'
+    };
+  }
 
   // Parse Post Test Data
   let postTestData: any = null;
@@ -62,6 +70,14 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
     } catch (e) {
       postTestData = null;
     }
+  }
+  if (!postTestData && application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== '') {
+    postTestData = {
+      testType: 'post_test',
+      score: Number(application.postTestScore),
+      answers: {},
+      submittedAt: application.postTestSubmittedAt || 'Selesai'
+    };
   }
 
   // Parse Tugas (Submitted assignments)
@@ -87,11 +103,15 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   }
 
   const currentTestData = activeTab === 'pre_test' ? preTestData : postTestData;
-  const currentAnswers: Record<number, string> = currentTestData?.answers || {};
+  const currentAnswers: Record<string | number, any> = 
+    (currentTestData && typeof currentTestData.answers === 'object' && currentTestData.answers !== null)
+      ? currentTestData.answers
+      : (currentTestData && typeof currentTestData === 'object' && !Array.isArray(currentTestData) && !currentTestData.score ? currentTestData : {});
 
   // Calculate detailed items for test review
   const testReviewItems = activeQuestions.map((q) => {
-    const userAns = (currentAnswers[q.id] || '').toLowerCase().trim();
+    const rawUserAns = currentAnswers[q.id] !== undefined ? currentAnswers[q.id] : currentAnswers[String(q.id)];
+    const userAns = (rawUserAns !== undefined && rawUserAns !== null ? String(rawUserAns) : '').toLowerCase().trim();
     const correctAns = (q.correctAnswer || '').toLowerCase().trim();
     const isAnswered = !!userAns;
     const isCorrect = isAnswered && userAns === correctAns;

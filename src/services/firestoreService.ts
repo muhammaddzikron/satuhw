@@ -24,7 +24,7 @@ import {
   resequenceKtaNumbers
 } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
-import { normalizeTrainingKey, syncRolesAndPelatihan } from '../utils/trainingUtils';
+import { normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
@@ -2253,101 +2253,7 @@ export const firestoreService = {
         }
       }
 
-      const map = new Map<string, any>();
-      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-
-      for (const t of combined) {
-        if (!t) continue;
-        const item = t as any;
-        const name = (item.nama || item.namaLengkap || '').trim();
-        const emailStr = String(item.email || '').toLowerCase().trim();
-
-        // Filter out system accounts & invalid entries where name is blank, is an email, or has no valid program
-        if (sysEmails.includes(emailStr)) continue;
-        if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) continue;
-        const prog = (item.pelatihanAkanDiikuti || '').trim();
-        if (!prog || prog === '-') continue;
-        if (item.id && (String(item.id).startsWith('training-100') || String(item.id).startsWith('train-api-'))) continue;
-
-        const waDigits = String(item.noWa || item.noHp || '').replace(/[^0-9]/g, '');
-
-        const personKey = (
-          (item.userId && String(item.userId).trim()) ? `id_${String(item.userId).trim()}` :
-          (emailStr && emailStr !== '-' && emailStr.includes('@')) ? `email_${emailStr}` :
-          (waDigits && waDigits.length >= 6) ? `wa_${waDigits}` :
-          `name_${name.toLowerCase()}`
-        );
-        
-        const progKey = (item.pelatihanAkanDiikuti || 'jati1').toLowerCase().trim().replace(/\s+/g, '');
-        const compositeKey = `${personKey}___${progKey}`;
-
-        if (!map.has(compositeKey)) {
-          map.set(compositeKey, item);
-        } else {
-          const existing = map.get(compositeKey);
-          const statusScore = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
-          const scoreCurrent = statusScore(item.status);
-          const scoreExisting = statusScore(existing.status);
-
-          // Deep merge attendance (kehadiran)
-          let mergedKehadiran = existing.kehadiran || '{}';
-          if (item.kehadiran && existing.kehadiran) {
-            try {
-              const k1 = typeof existing.kehadiran === 'string' ? JSON.parse(existing.kehadiran) : existing.kehadiran;
-              const k2 = typeof item.kehadiran === 'string' ? JSON.parse(item.kehadiran) : item.kehadiran;
-              mergedKehadiran = JSON.stringify({ ...(typeof k1 === 'object' ? k1 : {}), ...(typeof k2 === 'object' ? k2 : {}) });
-            } catch (e) {
-              mergedKehadiran = item.kehadiran || existing.kehadiran;
-            }
-          } else {
-            mergedKehadiran = item.kehadiran || existing.kehadiran || '{}';
-          }
-
-          // Deep merge tasks (tugas)
-          let mergedTugas = existing.tugas || '[]';
-          if (item.tugas && existing.tugas) {
-            try {
-              const t1 = Array.isArray(existing.tugas) ? existing.tugas : JSON.parse(existing.tugas || '[]');
-              const t2 = Array.isArray(item.tugas) ? item.tugas : JSON.parse(item.tugas || '[]');
-              const tMap = new Map<string, any>();
-              if (Array.isArray(t1)) t1.forEach((x: any) => { if (x && (x.title || x.link || x.id)) tMap.set(x.title || x.id || JSON.stringify(x), x); });
-              if (Array.isArray(t2)) t2.forEach((x: any) => { if (x && (x.title || x.link || x.id)) tMap.set(x.title || x.id || JSON.stringify(x), x); });
-              mergedTugas = JSON.stringify(Array.from(tMap.values()));
-            } catch (e) {
-              mergedTugas = item.tugas || existing.tugas;
-            }
-          } else {
-            mergedTugas = item.tugas || existing.tugas || '[]';
-          }
-
-          const preferred = (scoreCurrent > scoreExisting) ? item : (scoreCurrent < scoreExisting) ? existing : { ...existing, ...item };
-
-          const isVal = (v: any) => v !== undefined && v !== null && v !== '';
-          const mergedApp = {
-            ...preferred,
-            kehadiran: mergedKehadiran,
-            tugas: mergedTugas,
-            nilai: item.nilai || existing.nilai || '',
-            remark: item.remark || existing.remark || '',
-            preTestData: isVal(item.preTestData) ? item.preTestData : (existing.preTestData || ''),
-            postTestData: isVal(item.postTestData) ? item.postTestData : (existing.postTestData || ''),
-            preTestScore: isVal(item.preTestScore) ? item.preTestScore : existing.preTestScore,
-            postTestScore: isVal(item.postTestScore) ? item.postTestScore : existing.postTestScore,
-            preTestSubmittedAt: isVal(item.preTestSubmittedAt) ? item.preTestSubmittedAt : existing.preTestSubmittedAt,
-            postTestSubmittedAt: isVal(item.postTestSubmittedAt) ? item.postTestSubmittedAt : existing.postTestSubmittedAt,
-            photo: item.photo || existing.photo || '',
-            nbm: item.nbm || existing.nbm || '',
-            ktaNumber: item.ktaNumber || existing.ktaNumber || item.nomorKTA || existing.nomorKTA || '',
-            nomorKTA: item.nomorKTA || existing.nomorKTA || item.ktaNumber || existing.ktaNumber || '',
-            statusKelulusan: item.statusKelulusan || existing.statusKelulusan || 'Proses Pelatihan',
-            status: scoreCurrent >= scoreExisting ? item.status : existing.status
-          };
-
-          map.set(compositeKey, mergedApp);
-        }
-      }
-
-      const cleanTrainings = Array.from(map.values());
+      const cleanTrainings = consolidateTrainingApplications(combined);
       try {
         safeStorageSet('training_applications', cleanTrainings);
       } catch (e) {}
@@ -2449,7 +2355,7 @@ export const firestoreService = {
     return list[idx];
   },
 
-  async updateAttendance(id: string, kehadiranStr: string): Promise<any> {
+  async updateAttendance(id: string, kehadiranStr: string, extraAppInfo?: any): Promise<any> {
     clearFirestoreCache('training_applications');
 
     // 1. Direct local storage update immediately to be rock solid and instantaneous
@@ -2459,14 +2365,18 @@ export const firestoreService = {
       if (Array.isArray(existing)) {
         let found = false;
         existing = existing.map(item => {
-          if (item && (String(item.id) === String(id) || (item.userId && String(item.userId) === String(id)))) {
+          if (!item) return item;
+          const match = String(item.id) === String(id) ||
+            (item.userId && String(item.userId) === String(id)) ||
+            (extraAppInfo && isSameTrainingParticipant(item, extraAppInfo));
+          if (match) {
             found = true;
             return { ...item, kehadiran: kehadiranStr };
           }
           return item;
         });
         if (found) {
-          safeStorageSet('training_applications', existing);
+          safeStorageSet('training_applications', consolidateTrainingApplications(existing));
         }
       }
     } catch (e) {}
@@ -2573,7 +2483,7 @@ export const firestoreService = {
     return updatedApp;
   },
 
-  async submitTestSubmission(id: string, submission: any): Promise<any> {
+  async submitTestSubmission(id: string, submission: any, extraParticipantInfo?: any): Promise<any> {
     clearFirestoreCache('training_applications');
     const isPre = submission.testType === 'pre_test';
     const updates: any = {};
@@ -2598,14 +2508,16 @@ export const firestoreService = {
           const matchId = String(item.id) === String(id);
           const matchUser = submission.userId && String(item.userId) === String(submission.userId);
           const matchEmail = submission.email && item.email && item.email.toLowerCase() === submission.email.toLowerCase();
-          if (matchId || matchUser || matchEmail) {
+          const matchParticipant = extraParticipantInfo && isSameTrainingParticipant(item, extraParticipantInfo);
+          const matchName = submission.nama && item.nama && normalizeParticipantName(item.nama) === normalizeParticipantName(submission.nama);
+          if (matchId || matchUser || matchEmail || matchParticipant || matchName) {
             const updated = { ...item, ...updates };
             updatedApp = updated;
             return updated;
           }
           return item;
         });
-        safeStorageSet('training_applications', existingList);
+        safeStorageSet('training_applications', consolidateTrainingApplications(existingList));
       }
     } catch (e) {}
 
