@@ -41,6 +41,19 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   const [localPostSettings, setLocalPostSettings] = useState<TestScheduleSettings>(postTestSettings);
   const [localQuestions, setLocalQuestions] = useState<TestQuestion[]>(questions);
 
+  // Keep local state in sync when settings prop updates
+  React.useEffect(() => {
+    if (settings?.preTestSettings) {
+      setLocalPreSettings(settings.preTestSettings);
+    }
+    if (settings?.postTestSettings) {
+      setLocalPostSettings(settings.postTestSettings);
+    }
+    if (Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0) {
+      setLocalQuestions(settings.trainingQuestions);
+    }
+  }, [settings]);
+
   const activeLocalSettings = activeTestTab === 'pre_test' ? localPreSettings : localPostSettings;
 
   const handleUpdateActiveSettings = (field: keyof TestScheduleSettings, value: any) => {

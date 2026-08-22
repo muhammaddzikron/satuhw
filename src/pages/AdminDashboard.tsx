@@ -1829,6 +1829,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteTrainingParticipant = async (appId: string, participantName?: string) => {
+    const confirmMsg = `Hapus pendaftaran peserta pelatihan ${participantName ? `"${participantName}"` : 'ini'}?\n\nCatatan: Data pelatihan ini akan dihapus dari daftar pelatihan, namun data anggota (KTA) tetap aman.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      // 1. Optimistic UI update
+      setTrainingApps(prev => prev.filter(t => String(t.id) !== String(appId)));
+      showToast('success', `Data peserta ${participantName ? `"${participantName}"` : ''} berhasil dihapus.`);
+
+      // 2. Background database deletion
+      (async () => {
+        setBackgroundProcessingText('Menghapus data peserta pelatihan...');
+        try {
+          await sheetsService.updateTrainingStatus(appId, 'deleted');
+          const tApps = await sheetsService.getTrainingApplications();
+          if (Array.isArray(tApps)) {
+            setTrainingApps(tApps);
+          }
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background delete training error:', err));
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', 'Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi'));
+    }
+  };
+
   const handleSaveSchedule = async (appId: string) => {
     try {
       const targetLokasi = editLokasi;
@@ -2145,20 +2173,24 @@ export default function AdminDashboard() {
       if (isPresent) {
         attObj[dayKey] = {
           status: 'hadir',
-          timestamp: `${dateStr} pukul ${timeStr} (Admin)`
+          timestamp: `${dateStr} pukul ${timeStr} (Admin/Pelatih)`
         };
       } else {
         attObj[dayKey] = {
           status: 'absen',
-          timestamp: `${dateStr} pukul ${timeStr} (Admin)`
+          timestamp: `${dateStr} pukul ${timeStr} (Admin/Pelatih)`
         };
       }
       
       const kehadiranStr = JSON.stringify(attObj);
+
+      // Instant optimistic UI update
+      setTrainingApps(prev => prev.map(a => String(a.id) === String(appId) ? { ...a, kehadiran: kehadiranStr } : a));
       
-      await sheetsService.updateAttendance(appId, kehadiranStr);
-      const updated = await sheetsService.getTrainingApplications();
-      setTrainingApps(updated || []);
+      await Promise.all([
+        sheetsService.updateAttendance(appId, kehadiranStr),
+        firestoreService.updateAttendance(appId, kehadiranStr)
+      ]);
     } catch (err: any) {
       alert('Gagal update kehadiran: ' + err.message);
     }
@@ -2298,7 +2330,8 @@ export default function AdminDashboard() {
     if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || !isValidName(name)) return false;
     const prog = (t?.pelatihanAkanDiikuti || '').trim();
     if (!prog || prog === '-') return false;
-    if (t?.id && (String(t.id).startsWith('training-100') || String(t.id).startsWith('train-api-'))) return false;
+    const mockBadIds = ['training-1001', 'training-1002', 'training-1003', 'training-1004', 'training-1005', 'train-api-sample'];
+    if (t?.id && mockBadIds.includes(String(t.id))) return false;
     return true;
   };
 
@@ -7219,21 +7252,7 @@ export default function AdminDashboard() {
                                       Detail
                                     </button>
                                     <button
-                                      onClick={async () => {
-                                        if (confirm('Hapus rincian pendaftaran pelatihan ini? Ketika dihapus, data pelatihan akan terhapus namun data anggota KTA tetap aman.')) {
-                                          try {
-                                            setLoading(true);
-                                            await sheetsService.updateTrainingStatus(app.id, 'deleted');
-                                            alert('Data pendaftaran pelatihan berhasil dihapus!');
-                                            const tApps = await sheetsService.getTrainingApplications();
-                                            setTrainingApps(tApps || []);
-                                          } catch (err: any) {
-                                            alert('Gagal menghapus: ' + err.message);
-                                          } finally {
-                                            setLoading(false);
-                                          }
-                                        }
-                                      }}
+                                      onClick={() => handleDeleteTrainingParticipant(app.id, app.nama)}
                                       className="p-1 px-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg border border-rose-100 shrink-0 flex items-center justify-center"
                                       title="Hapus Data"
                                     >
@@ -7343,7 +7362,8 @@ export default function AdminDashboard() {
 
                     {/* Presensi Grid Table */}
                     {(() => {
-                      const sessionList = TRAINING_PROGRAMS[0]?.sessions || [];
+                      const matchedProg = TRAINING_PROGRAMS.find(p => getNormalizedLevelKey(p.id) === getNormalizedLevelKey(selectedPresensiProg)) || TRAINING_PROGRAMS[0];
+                      const sessionList = matchedProg?.sessions || TRAINING_PROGRAMS[0]?.sessions || [];
                       const sessions = sessionList.map(s => s.id);
 
                       const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
@@ -7351,7 +7371,19 @@ export default function AdminDashboard() {
                         const name = (app?.nama || app?.namaLengkap || '').trim();
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-                        return isApprovedParticipant(app);
+                        if (!isApprovedParticipant(app)) return false;
+                        if (trainingFilterActivity && trainingFilterActivity !== 'Semua') {
+                          const rawFilter = trainingFilterActivity.startsWith('jenis:') ? trainingFilterActivity.replace('jenis:', '').trim() : trainingFilterActivity.trim();
+                          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
+                          const targetKey = getNormalizedLevelKey(rawFilter);
+                          const appKey = getNormalizedLevelKey(prog);
+                          if (targetKey && appKey && targetKey === appKey) return true;
+                          if (prog.includes(rawFilter.toLowerCase()) || rawFilter.toLowerCase().includes(prog)) return true;
+                          const selAct = allTrainingActivitiesList.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
+                          if (selAct && ((selAct.id && String(app?.activityId || app?.activity_id) === String(selAct.id)) || (selAct.namaKegiatan && prog.includes(selAct.namaKegiatan.toLowerCase())))) return true;
+                          return false;
+                        }
+                        return true;
                       });
 
                       return enrolled.length === 0 ? (
@@ -13468,7 +13500,11 @@ export default function AdminDashboard() {
           isOpen={!!viewingTestApp}
           onClose={() => setViewingTestApp(null)}
           application={viewingTestApp}
-          questions={settings?.trainingQuestions}
+          questions={
+            Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0
+              ? settings.trainingQuestions
+              : undefined
+          }
         />
 
         {/* Toast Notification Banner */}

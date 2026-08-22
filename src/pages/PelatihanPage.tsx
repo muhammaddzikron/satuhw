@@ -625,20 +625,35 @@ export default function PelatihanPage() {
   // Helper for attendance status
   const getAttendanceStatus = (attendanceMap: any, sesId: string): string => {
     if (!attendanceMap) return 'belum';
-    const item = attendanceMap[sesId];
+    let item = attendanceMap[sesId];
+    if (item === undefined) {
+      const numMatch = sesId.match(/\d+/);
+      if (numMatch) {
+        const num = numMatch[0];
+        item = attendanceMap[`Sesi ${num}`] ?? attendanceMap[`sesi_${num}`] ?? attendanceMap[`Materi ${num}`] ?? attendanceMap[`materi_${num}`] ?? attendanceMap[num];
+      }
+    }
     if (item === undefined || item === null) return 'belum';
     if (typeof item === 'boolean') return item ? 'hadir' : 'absen';
     if (typeof item === 'object' && item !== null) return item.status || 'belum';
     if (typeof item === 'string') {
-      if (item === 'true') return 'hadir';
-      if (item === 'false') return 'absen';
-      return item;
+      if (item === 'true' || item.toLowerCase() === 'hadir') return 'hadir';
+      if (item === 'false' || item.toLowerCase() === 'absen') return 'absen';
+      return item.toLowerCase();
     }
     return 'belum';
   };
 
   const getAttendanceTimestamp = (attendanceMap: any, sesId: string): string | null => {
-    const item = attendanceMap[sesId];
+    if (!attendanceMap) return null;
+    let item = attendanceMap[sesId];
+    if (item === undefined) {
+      const numMatch = sesId.match(/\d+/);
+      if (numMatch) {
+        const num = numMatch[0];
+        item = attendanceMap[`Sesi ${num}`] ?? attendanceMap[`sesi_${num}`] ?? attendanceMap[`Materi ${num}`] ?? attendanceMap[`materi_${num}`] ?? attendanceMap[num];
+      }
+    }
     if (item && typeof item === 'object' && item !== null) {
       return item.timestamp || null;
     }
@@ -708,18 +723,37 @@ export default function PelatihanPage() {
       };
 
       const updatedKehadiranStr = JSON.stringify(attendanceMap);
+      const updatedUserApp = { ...currentApp, kehadiran: updatedKehadiranStr };
+
+      // Instant optimistic state update
+      setUserApp(updatedUserApp);
+      setApplications(prev => prev.map(app => (app.id === currentApp.id || (user && isUserAppMatch(app, user))) ? { ...app, kehadiran: updatedKehadiranStr } : app));
+
+      // Local storage instant persistence
+      try {
+        const stored = localStorage.getItem('training_applications');
+        if (stored) {
+          const list = JSON.parse(stored);
+          if (Array.isArray(list)) {
+            const updatedList = list.map((item: any) => {
+              if (item && (String(item.id) === String(currentApp.id) || (user && isUserAppMatch(item, user)))) {
+                return { ...item, kehadiran: updatedKehadiranStr };
+              }
+              return item;
+            });
+            localStorage.setItem('training_applications', JSON.stringify(updatedList));
+          }
+        }
+      } catch (e) {}
+
+      // Background persist & sync to backend / sheets / firestore
       await Promise.all([
         sheetsService.updateAttendance(currentApp.id, updatedKehadiranStr),
         firestoreService.updateAttendance(currentApp.id, updatedKehadiranStr)
       ]);
-      
-      const updatedUserApp = { ...currentApp, kehadiran: updatedKehadiranStr };
-      setUserApp(updatedUserApp);
-      setApplications(prev => prev.map(app => app.id === currentApp.id ? updatedUserApp : app));
 
       setActiveEditSession(null);
-      alert(`Presensi ${status === 'hadir' ? 'Hadir' : status === 'izin' ? 'Izin' : 'Tidak Hadir'} berhasil disimpan!`);
-      loadData();
+      alert(`Presensi ${status === 'hadir' ? 'Hadir' : status === 'izin' ? 'Izin' : 'Tidak Hadir'} berhasil disimpan! Data presensi otomatis terekap.`);
     } catch (err: any) {
       alert('Gagal menyimpan presensi: ' + err.message);
     } finally {
@@ -1817,11 +1851,14 @@ export default function PelatihanPage() {
                         const preSettings = trainingSettings?.preTestSettings || DEFAULT_PRE_TEST_SETTINGS;
                         const postSettings = trainingSettings?.postTestSettings || DEFAULT_POST_TEST_SETTINGS;
 
-                        const isPreOpen = isTestCurrentlyOpen(preSettings);
-                        const isPostOpen = isTestCurrentlyOpen(postSettings);
+                        const preTestStatus = isTestCurrentlyOpen(preSettings);
+                        const postTestStatus = isTestCurrentlyOpen(postSettings);
 
-                        const hasDonePre = userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '');
-                        const hasDonePost = userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '');
+                        const isPreOpen = !!preTestStatus.isOpen;
+                        const isPostOpen = !!postTestStatus.isOpen;
+
+                        const hasDonePre = !!(userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== ''));
+                        const hasDonePost = !!(userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== ''));
 
                         return (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 text-left">
@@ -1848,19 +1885,19 @@ export default function PelatihanPage() {
                                 
                                 {/* PRE TEST CARD */}
                                 <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-emerald-100 flex flex-col justify-between space-y-4">
-                                  <div className="space-y-2">
+                                  <div className="space-y-2.5">
                                     <div className="flex items-center justify-between">
                                       <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
                                         1. Pre Test (Awal)
                                       </span>
                                       <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                                         hasDonePre 
-                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
                                           : isPreOpen 
                                             ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
-                                            : 'bg-gray-100 text-gray-500'
+                                            : 'bg-rose-50 text-rose-700 border border-rose-200'
                                       }`}>
-                                        {hasDonePre ? 'Sudah Dikerjakan ✓' : isPreOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                        {hasDonePre ? 'Selesai (Akses Ditutup) ✓' : isPreOpen ? 'Sedang Dibuka' : 'Akses Ditutup Panitia'}
                                       </span>
                                     </div>
 
@@ -1880,6 +1917,19 @@ export default function PelatihanPage() {
                                         Jadwal: {preSettings.startDate || '-'} ({preSettings.startTime || '08:00'}) s/d {preSettings.endDate || '-'} ({preSettings.endTime || '23:59'})
                                       </div>
                                     </div>
+
+                                    {/* STATUS NOTICE BOX */}
+                                    {hasDonePre ? (
+                                      <div className="bg-emerald-50/80 p-2.5 rounded-xl text-[11px] text-emerald-800 flex items-center gap-2 border border-emerald-200 font-medium">
+                                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                                        <span>Pre Test telah selesai dikerjakan. Akses pengerjaan ulang otomatis ditutup.</span>
+                                      </div>
+                                    ) : !isPreOpen ? (
+                                      <div className="bg-rose-50/80 p-2.5 rounded-xl text-[11px] text-rose-800 flex items-center gap-2 border border-rose-200 font-medium">
+                                        <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                                        <span>{preTestStatus.statusMessage || 'Akses Pre Test sedang ditutup oleh Panitia / Tim Pelatih.'}</span>
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   {/* PRE TEST ACTION & SCORE */}
@@ -1893,24 +1943,32 @@ export default function PelatihanPage() {
                                           </div>
                                         </div>
                                         <button
+                                          type="button"
                                           onClick={() => setActiveTestModal('pre_test')}
-                                          className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black uppercase tracking-wider border border-emerald-200 transition-all cursor-pointer"
+                                          className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black uppercase tracking-wider border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                                         >
-                                          Tinjau Lembar Hasil
+                                          <FileText size={14} /> Tinjau Lembar Hasil
                                         </button>
                                       </>
                                     ) : (
                                       <button
-                                        onClick={() => setActiveTestModal('pre_test')}
+                                        type="button"
+                                        onClick={() => {
+                                          if (!isPreOpen) {
+                                            alert(preTestStatus.statusMessage || 'Akses Pre Test sedang ditutup oleh Panitia / Tim Pelatih.');
+                                            return;
+                                          }
+                                          setActiveTestModal('pre_test');
+                                        }}
                                         disabled={!isPreOpen}
-                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                                           isPreOpen
-                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01]'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-md hover:scale-[1.01] cursor-pointer'
+                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed'
                                         }`}
                                       >
                                         <ClipboardList size={15} />
-                                        {isPreOpen ? 'Mulai Kerjakan Pre Test' : 'Akses Pre Test Belum Dibuka'}
+                                        {isPreOpen ? 'Mulai Kerjakan Pre Test' : (preTestStatus.statusMessage || 'Akses Pre Test Ditutup')}
                                       </button>
                                     )}
                                   </div>
@@ -1918,19 +1976,19 @@ export default function PelatihanPage() {
 
                                 {/* POST TEST CARD */}
                                 <div className="bg-white text-gray-800 p-5 rounded-2xl shadow-md border border-teal-100 flex flex-col justify-between space-y-4">
-                                  <div className="space-y-2">
+                                  <div className="space-y-2.5">
                                     <div className="flex items-center justify-between">
                                       <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
                                         2. Post Test (Akhir)
                                       </span>
                                       <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                                         hasDonePost 
-                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
                                           : isPostOpen 
                                             ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' 
-                                            : 'bg-gray-100 text-gray-500'
+                                            : 'bg-rose-50 text-rose-700 border border-rose-200'
                                       }`}>
-                                        {hasDonePost ? 'Sudah Dikerjakan ✓' : isPostOpen ? 'Sedang Dibuka' : 'Belum Dibuka / Ditutup'}
+                                        {hasDonePost ? 'Selesai (Akses Ditutup) ✓' : isPostOpen ? 'Sedang Dibuka' : 'Akses Ditutup Panitia'}
                                       </span>
                                     </div>
 
@@ -1950,6 +2008,19 @@ export default function PelatihanPage() {
                                         Jadwal: {postSettings.startDate || '-'} ({postSettings.startTime || '08:00'}) s/d {postSettings.endDate || '-'} ({postSettings.endTime || '23:59'})
                                       </div>
                                     </div>
+
+                                    {/* STATUS NOTICE BOX */}
+                                    {hasDonePost ? (
+                                      <div className="bg-emerald-50/80 p-2.5 rounded-xl text-[11px] text-emerald-800 flex items-center gap-2 border border-emerald-200 font-medium">
+                                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                                        <span>Post Test telah selesai dikerjakan. Akses pengerjaan ulang otomatis ditutup.</span>
+                                      </div>
+                                    ) : !isPostOpen ? (
+                                      <div className="bg-rose-50/80 p-2.5 rounded-xl text-[11px] text-rose-800 flex items-center gap-2 border border-rose-200 font-medium">
+                                        <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                                        <span>{postTestStatus.statusMessage || 'Akses Post Test sedang ditutup oleh Panitia / Tim Pelatih.'}</span>
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   {/* POST TEST ACTION & SCORE */}
@@ -1963,24 +2034,32 @@ export default function PelatihanPage() {
                                           </div>
                                         </div>
                                         <button
+                                          type="button"
                                           onClick={() => setActiveTestModal('post_test')}
-                                          className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-black uppercase tracking-wider border border-teal-200 transition-all cursor-pointer"
+                                          className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-black uppercase tracking-wider border border-teal-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                                         >
-                                          Tinjau Lembar Hasil
+                                          <FileText size={14} /> Tinjau Lembar Hasil
                                         </button>
                                       </>
                                     ) : (
                                       <button
-                                        onClick={() => setActiveTestModal('post_test')}
+                                        type="button"
+                                        onClick={() => {
+                                          if (!isPostOpen) {
+                                            alert(postTestStatus.statusMessage || 'Akses Post Test sedang ditutup oleh Panitia / Tim Pelatih.');
+                                            return;
+                                          }
+                                          setActiveTestModal('post_test');
+                                        }}
                                         disabled={!isPostOpen}
-                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                        className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                                           isPostOpen
-                                            ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01]'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:scale-[1.01] cursor-pointer'
+                                            : 'bg-gray-150 text-gray-400 border border-gray-200 cursor-not-allowed'
                                         }`}
                                       >
                                         <ClipboardList size={15} />
-                                        {isPostOpen ? 'Mulai Kerjakan Post Test' : 'Akses Post Test Belum Dibuka'}
+                                        {isPostOpen ? 'Mulai Kerjakan Post Test' : (postTestStatus.statusMessage || 'Akses Post Test Ditutup')}
                                       </button>
                                     )}
                                   </div>
@@ -2606,17 +2685,37 @@ export default function PelatihanPage() {
         };
 
         let existingSubmission = undefined;
-        if (activeTestModal === 'pre_test' && userApp?.preTestData) {
-          try {
-            existingSubmission = typeof userApp.preTestData === 'string' ? JSON.parse(userApp.preTestData) : userApp.preTestData;
-          } catch (e) {
-            existingSubmission = undefined;
+        if (activeTestModal === 'pre_test') {
+          if (userApp?.preTestData) {
+            try {
+              existingSubmission = typeof userApp.preTestData === 'string' ? JSON.parse(userApp.preTestData) : userApp.preTestData;
+            } catch (e) {
+              existingSubmission = undefined;
+            }
           }
-        } else if (activeTestModal === 'post_test' && userApp?.postTestData) {
-          try {
-            existingSubmission = typeof userApp.postTestData === 'string' ? JSON.parse(userApp.postTestData) : userApp.postTestData;
-          } catch (e) {
-            existingSubmission = undefined;
+          if (!existingSubmission && userApp && userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== '') {
+            existingSubmission = {
+              testType: 'pre_test',
+              score: Number(userApp.preTestScore) || 0,
+              answers: {},
+              submittedAt: userApp.preTestSubmittedAt || 'Selesai'
+            };
+          }
+        } else if (activeTestModal === 'post_test') {
+          if (userApp?.postTestData) {
+            try {
+              existingSubmission = typeof userApp.postTestData === 'string' ? JSON.parse(userApp.postTestData) : userApp.postTestData;
+            } catch (e) {
+              existingSubmission = undefined;
+            }
+          }
+          if (!existingSubmission && userApp && userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== '') {
+            existingSubmission = {
+              testType: 'post_test',
+              score: Number(userApp.postTestScore) || 0,
+              answers: {},
+              submittedAt: userApp.postTestSubmittedAt || 'Selesai'
+            };
           }
         }
 

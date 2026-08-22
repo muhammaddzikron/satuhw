@@ -2,7 +2,7 @@ import { safeStorageSet, safeStorageGet } from '../utils/safeStorage';
 import axios from 'axios';
 import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
-import { firestoreService, parseRolesField, applyMemberOverrides, applyMemberListOverrides } from './firestoreService';
+import { firestoreService, parseRolesField, applyMemberOverrides, applyMemberListOverrides, clearFirestoreCache } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
@@ -1745,14 +1745,18 @@ export const sheetsService = {
   },
 
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
+    clearSheetsCache('trainingApplications');
+    clearFirestoreCache('training_applications');
     if (IS_API_VALID) {
       this.post({ action: 'updateAttendance', id, kehadiran }).catch(() => {});
     }
-    await firestoreService.updateAttendance(id, kehadiran);
-    return { success: true };
+    const res = await firestoreService.updateAttendance(id, kehadiran);
+    return { success: true, application: res };
   },
 
   async submitAssignment(id: string, tugas: string): Promise<any> {
+    clearSheetsCache('trainingApplications');
+    clearFirestoreCache('training_applications');
     if (IS_API_VALID) {
       this.post({ action: 'submitAssignment', id, tugas }).catch(() => {});
     }
@@ -1761,6 +1765,8 @@ export const sheetsService = {
   },
 
   async submitTestSubmission(id: string, submission: any): Promise<any> {
+    clearSheetsCache('trainingApplications');
+    clearFirestoreCache('training_applications');
     if (IS_API_VALID) {
       this.post({ 
         action: 'submitTestSubmission', 
@@ -1775,6 +1781,8 @@ export const sheetsService = {
   },
 
   async updateGrade(id: string, nilai: any): Promise<any> {
+    clearSheetsCache('trainingApplications');
+    clearFirestoreCache('training_applications');
     const isObj = nilai && typeof nilai === 'object';
     const gradeStr = isObj ? (nilai.grade || '') : String(nilai || '');
     const remarkStr = isObj ? (nilai.remark || '') : undefined;

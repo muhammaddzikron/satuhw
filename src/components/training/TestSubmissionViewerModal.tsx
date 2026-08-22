@@ -27,7 +27,20 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
 
   if (!isOpen || !application) return null;
 
-  const activeQuestions = questions && questions.length > 0 ? questions : DEFAULT_50_QUESTIONS;
+  // Ensure activeQuestions is strictly a valid array
+  let activeQuestions: TestQuestion[] = Array.isArray(DEFAULT_50_QUESTIONS) ? DEFAULT_50_QUESTIONS : [];
+  if (Array.isArray(questions) && questions.length > 0) {
+    activeQuestions = questions;
+  } else if (questions && typeof questions === 'object') {
+    if (Array.isArray((questions as any).questions)) {
+      activeQuestions = (questions as any).questions;
+    } else {
+      const values = Object.values(questions).filter((v: any) => v && typeof v === 'object' && v.question);
+      if (values.length > 0) {
+        activeQuestions = values as TestQuestion[];
+      }
+    }
+  }
 
   // Parse Pre Test Data
   let preTestData: any = null;

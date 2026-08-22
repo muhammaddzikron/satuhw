@@ -45,7 +45,20 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
   existingSubmission,
   onSubmitTest
 }) => {
-  const activeQuestions = questions && questions.length > 0 ? questions : DEFAULT_50_QUESTIONS;
+  // Ensure activeQuestions is strictly a valid array
+  let activeQuestions: TestQuestion[] = Array.isArray(DEFAULT_50_QUESTIONS) ? DEFAULT_50_QUESTIONS : [];
+  if (Array.isArray(questions) && questions.length > 0) {
+    activeQuestions = questions;
+  } else if (questions && typeof questions === 'object') {
+    if (Array.isArray((questions as any).questions)) {
+      activeQuestions = (questions as any).questions;
+    } else {
+      const values = Object.values(questions).filter((v: any) => v && typeof v === 'object' && v.question);
+      if (values.length > 0) {
+        activeQuestions = values as TestQuestion[];
+      }
+    }
+  }
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -194,15 +207,34 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
         </div>
 
         {/* PETUNJUK BAR */}
-        <div className="bg-amber-50/80 border-b border-amber-150 px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-amber-900 font-medium">
+        <div className={`border-b px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs font-medium ${
+          testCompletedResult || existingSubmission
+            ? 'bg-emerald-50/80 border-emerald-150 text-emerald-900'
+            : 'bg-amber-50/80 border-amber-150 text-amber-900'
+        }`}>
           <div className="flex items-center gap-2">
-            <HelpCircle size={15} className="text-amber-600 shrink-0" />
-            <span className="font-bold">PETUNJUK:</span>
-            <span className="hidden sm:inline">Jawablah pertanyaan berikut dengan cara memilih opsi (a, b, c, atau d) yang paling tepat.</span>
-            <span className="sm:hidden">Pilihlah jawaban a, b, c, atau d yang paling tepat.</span>
+            {testCompletedResult || existingSubmission ? (
+              <>
+                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                <span className="font-bold">MODE TINJAU HASIL:</span>
+                <span className="hidden sm:inline">Ujian telah selesai dikerjakan dan akses pengerjaan ulang ditutup. Anda sedang meninjau lembar evaluasi.</span>
+                <span className="sm:hidden">Meninjau lembar evaluasi ujian (Selesai).</span>
+              </>
+            ) : (
+              <>
+                <HelpCircle size={15} className="text-amber-600 shrink-0" />
+                <span className="font-bold">PETUNJUK:</span>
+                <span className="hidden sm:inline">Jawablah pertanyaan berikut dengan cara memilih opsi (a, b, c, atau d) yang paling tepat.</span>
+                <span className="sm:hidden">Pilihlah jawaban a, b, c, atau d yang paling tepat.</span>
+              </>
+            )}
           </div>
-          <div className="text-[11px] font-black uppercase text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full shrink-0">
-            Terjawab: {answeredCount} / {totalCount}
+          <div className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 ${
+            testCompletedResult || existingSubmission
+              ? 'text-emerald-800 bg-emerald-100'
+              : 'text-amber-800 bg-amber-100'
+          }`}>
+            {testCompletedResult || existingSubmission ? 'Status: Terkunci Permanen' : `Terjawab: ${answeredCount} / ${totalCount}`}
           </div>
         </div>
 
@@ -218,6 +250,9 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
                   <span className="text-xs font-black text-emerald-900 uppercase">Hasil Penilaian Ujian</span>
                   <span className="text-[10px] bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                     {testCompletedResult.score >= (testSettings.passingScore || 70) ? 'Lulus KKM' : 'Tercatat'}
+                  </span>
+                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
+                    Akses Ditutup (Selesai)
                   </span>
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-emerald-800 font-display">
@@ -361,13 +396,21 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
                   Selanjutnya <ChevronRight size={16} />
                 </button>
               ) : (
-                !testCompletedResult && (
+                !testCompletedResult && !existingSubmission ? (
                   <button
                     type="button"
                     onClick={() => setShowConfirmModal(true)}
                     className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer animate-bounce"
                   >
                     <Send size={15} /> Selesaikan Ujian
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 size={15} /> Tutup Lembar Hasil
                   </button>
                 )
               )}

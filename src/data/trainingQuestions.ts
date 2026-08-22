@@ -654,11 +654,12 @@ export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: 
     return { isOpen: true, statusMessage: 'Ujian Terbuka' };
   }
 
-  if (settings.mode === 'manual') {
-    if (settings.isOpen) {
-      return { isOpen: true, statusMessage: 'Ujian Sedang Dibuka' };
+  // If manual mode or no mode specified
+  if (!settings.mode || settings.mode === 'manual') {
+    if (settings.isOpen === false) {
+      return { isOpen: false, statusMessage: 'Akses Ujian Ditutup oleh Panitia/Pelatih' };
     }
-    return { isOpen: false, statusMessage: 'Ujian Sedang Ditutup oleh Panitia' };
+    return { isOpen: true, statusMessage: 'Ujian Sedang Dibuka' };
   }
 
   // Scheduled mode
@@ -670,7 +671,7 @@ export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: 
       const formattedStart = startDateTime.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       return { 
         isOpen: false, 
-        statusMessage: `Ujian belum dibuka. Akan dibuka pada ${formattedStart}` 
+        statusMessage: `Ujian belum dibuka. Dijadwalkan buka pada ${formattedStart}` 
       };
     }
   }
@@ -681,8 +682,15 @@ export function isTestCurrentlyOpen(settings?: TestScheduleSettings): { isOpen: 
       const formattedEnd = endDateTime.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       return { 
         isOpen: false, 
-        statusMessage: `Waktu pengerjaan telah berakhir sejak ${formattedEnd}` 
+        statusMessage: `Waktu pengerjaan ujian telah berakhir sejak ${formattedEnd}` 
       };
+    }
+  }
+
+  // If scheduled mode has no valid start/end dates specified, fall back to isOpen flag
+  if (!settings.startDate && !settings.endDate) {
+    if (settings.isOpen === false) {
+      return { isOpen: false, statusMessage: 'Akses Ujian Ditutup oleh Panitia/Pelatih' };
     }
   }
 

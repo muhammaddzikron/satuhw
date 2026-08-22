@@ -2289,15 +2289,58 @@ export const firestoreService = {
           const scoreCurrent = statusScore(item.status);
           const scoreExisting = statusScore(existing.status);
 
-          if (scoreCurrent > scoreExisting) {
-            map.set(compositeKey, item);
-          } else if (scoreCurrent === scoreExisting) {
-            const currentRichness = (item.photo ? 2 : 0) + (item.nbm ? 1 : 0) + (item.tempatLahir ? 1 : 0);
-            const existingRichness = (existing.photo ? 2 : 0) + (existing.nbm ? 1 : 0) + (existing.tempatLahir ? 1 : 0);
-            if (currentRichness > existingRichness) {
-              map.set(compositeKey, item);
+          // Deep merge attendance (kehadiran)
+          let mergedKehadiran = existing.kehadiran || '{}';
+          if (item.kehadiran && existing.kehadiran) {
+            try {
+              const k1 = typeof existing.kehadiran === 'string' ? JSON.parse(existing.kehadiran) : existing.kehadiran;
+              const k2 = typeof item.kehadiran === 'string' ? JSON.parse(item.kehadiran) : item.kehadiran;
+              mergedKehadiran = JSON.stringify({ ...(typeof k1 === 'object' ? k1 : {}), ...(typeof k2 === 'object' ? k2 : {}) });
+            } catch (e) {
+              mergedKehadiran = item.kehadiran || existing.kehadiran;
             }
+          } else {
+            mergedKehadiran = item.kehadiran || existing.kehadiran || '{}';
           }
+
+          // Deep merge tasks (tugas)
+          let mergedTugas = existing.tugas || '[]';
+          if (item.tugas && existing.tugas) {
+            try {
+              const t1 = Array.isArray(existing.tugas) ? existing.tugas : JSON.parse(existing.tugas || '[]');
+              const t2 = Array.isArray(item.tugas) ? item.tugas : JSON.parse(item.tugas || '[]');
+              const tMap = new Map<string, any>();
+              if (Array.isArray(t1)) t1.forEach((x: any) => { if (x && (x.title || x.link || x.id)) tMap.set(x.title || x.id || JSON.stringify(x), x); });
+              if (Array.isArray(t2)) t2.forEach((x: any) => { if (x && (x.title || x.link || x.id)) tMap.set(x.title || x.id || JSON.stringify(x), x); });
+              mergedTugas = JSON.stringify(Array.from(tMap.values()));
+            } catch (e) {
+              mergedTugas = item.tugas || existing.tugas;
+            }
+          } else {
+            mergedTugas = item.tugas || existing.tugas || '[]';
+          }
+
+          const preferred = (scoreCurrent > scoreExisting) ? item : (scoreCurrent < scoreExisting) ? existing : { ...existing, ...item };
+
+          const mergedApp = {
+            ...preferred,
+            kehadiran: mergedKehadiran,
+            tugas: mergedTugas,
+            nilai: item.nilai || existing.nilai || '',
+            remark: item.remark || existing.remark || '',
+            preTestData: item.preTestData || existing.preTestData || '',
+            postTestData: item.postTestData || existing.postTestData || '',
+            preTestScore: item.preTestScore !== undefined ? item.preTestScore : existing.preTestScore,
+            postTestScore: item.postTestScore !== undefined ? item.postTestScore : existing.postTestScore,
+            photo: item.photo || existing.photo || '',
+            nbm: item.nbm || existing.nbm || '',
+            ktaNumber: item.ktaNumber || existing.ktaNumber || item.nomorKTA || existing.nomorKTA || '',
+            nomorKTA: item.nomorKTA || existing.nomorKTA || item.ktaNumber || existing.ktaNumber || '',
+            statusKelulusan: item.statusKelulusan || existing.statusKelulusan || 'Proses Pelatihan',
+            status: scoreCurrent >= scoreExisting ? item.status : existing.status
+          };
+
+          map.set(compositeKey, mergedApp);
         }
       }
 
@@ -2335,11 +2378,13 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore createTrainingApplication error:', err);
       }
     }
-
+    clearFirestoreCache('training_applications');
+    window.dispatchEvent(new Event('training_applications_updated'));
     return newApp;
   },
 
   async updateTrainingStatus(id: string, status: string, remark?: string): Promise<any> {
+    clearFirestoreCache('training_applications');
     const updates: any = { status };
     if (remark !== undefined) updates.remark = remark;
     if (!this.getIsQuotaExceeded()) {
@@ -2350,7 +2395,7 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore updateTrainingStatus error:', err);
       }
     }
-    const list = await this.getTrainingApplications();
+    const list = await this.getTrainingApplications(true);
     const idx = list.findIndex(t => t.id === id);
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
@@ -2361,6 +2406,28 @@ export const firestoreService = {
   },
 
   async updateAttendance(id: string, kehadiranStr: string): Promise<any> {
+    clearFirestoreCache('training_applications');
+
+    // 1. Direct local storage update immediately to be rock solid and instantaneous
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      let existing: any[] = JSON.parse(stored);
+      if (Array.isArray(existing)) {
+        let found = false;
+        existing = existing.map(item => {
+          if (item && (String(item.id) === String(id) || (item.userId && String(item.userId) === String(id)))) {
+            found = true;
+            return { ...item, kehadiran: kehadiranStr };
+          }
+          return item;
+        });
+        if (found) {
+          safeStorageSet('training_applications', existing);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Persist to Firestore
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'training_applications', id), { kehadiran: kehadiranStr }, { merge: true });
@@ -2369,24 +2436,24 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore updateAttendance error:', err);
       }
     }
-    const list = await this.getTrainingApplications();
-    const idx = list.findIndex(t => t.id === id);
-    if (idx >= 0) {
-      list[idx].kehadiran = kehadiranStr;
-      safeStorageSet('training_applications', list);
-    }
+
+    clearFirestoreCache('training_applications');
+    const list = await this.getTrainingApplications(true);
+    const updated = list.find(t => String(t.id) === String(id)) || list.find(t => t.userId && String(t.userId) === String(id));
+
     // Dispatch custom event for real-time local sync across tabs & components
     window.dispatchEvent(new Event('training_applications_updated'));
-    return list[idx];
+    return updated || { id, kehadiran: kehadiranStr };
   },
 
   subscribeToTrainingApplications(callback: (apps: any[]) => void): () => void {
-    this.getTrainingApplications().then(list => callback(list)).catch(() => {});
+    this.getTrainingApplications(true).then(list => callback(list)).catch(() => {});
 
     let unsub: (() => void) | null = null;
     try {
       unsub = onSnapshot(collection(db, 'training_applications'), async () => {
-        const list = await this.getTrainingApplications();
+        clearFirestoreCache('training_applications');
+        const list = await this.getTrainingApplications(true);
         callback(list);
       }, (err) => {
         this.checkQuotaError(err);
@@ -2395,7 +2462,8 @@ export const firestoreService = {
     } catch (e) {}
 
     const handleStorage = (e: Event) => {
-      this.getTrainingApplications().then(list => callback(list)).catch(() => {});
+      clearFirestoreCache('training_applications');
+      this.getTrainingApplications(true).then(list => callback(list)).catch(() => {});
     };
     window.addEventListener('storage', handleStorage);
     window.addEventListener('training_applications_updated', handleStorage);
@@ -2496,6 +2564,7 @@ export const firestoreService = {
   },
 
   async deleteTrainingApplication(id: string): Promise<boolean> {
+    clearFirestoreCache('training_applications');
     if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'training_applications', id));
@@ -2504,9 +2573,14 @@ export const firestoreService = {
         if (!this.getIsQuotaExceeded()) console.error('Firestore deleteTrainingApplication error:', err);
       }
     }
-    const list = await this.getTrainingApplications();
-    const filtered = list.filter(t => t.id !== id);
-    safeStorageSet('training_applications', filtered);
+    clearFirestoreCache('training_applications');
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      const existing: any[] = JSON.parse(stored);
+      const filtered = Array.isArray(existing) ? existing.filter(x => x && String(x.id) !== String(id)) : [];
+      safeStorageSet('training_applications', filtered);
+    } catch (e) {}
+    window.dispatchEvent(new Event('training_applications_updated'));
     return true;
   },
 
