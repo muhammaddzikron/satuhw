@@ -45,6 +45,11 @@ import {
   DEFAULT_POST_TEST_SETTINGS, 
   isTestCurrentlyOpen 
 } from '../data/trainingQuestions';
+import { 
+  normalizeTrainingKey, 
+  isSameTrainingParticipant, 
+  normalizeParticipantName 
+} from '../utils/trainingUtils';
 
 export interface TrainingProgram {
   id: 'Jati 1' | 'Jati 2' | 'Jari 1';
@@ -423,12 +428,7 @@ export default function PelatihanPage() {
         if (Array.isArray(freshApps) && freshApps.length > 0) {
           setApplications(freshApps);
           if (user) {
-            const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');
-            const myApp = freshApps.find((a: any) => {
-              if (!isUserAppMatch(a, user)) return false;
-              const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
-              return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
-            });
+            const myApp = findUserAppForLevel(freshApps, user, selectedActivity?.jenisPelatihan || selectedLevel);
             setUserApp(myApp || null);
 
             // Auto-grant jati1 role if registered as Jaya Melati 1
@@ -452,12 +452,7 @@ export default function PelatihanPage() {
 
       // Find user app for selected level or activity
       if (user) {
-        const targetLevel = selectedLevel.toLowerCase().replace(/\s+/g, '');
-        const myApp = apps?.find((a: any) => {
-          if (!isUserAppMatch(a, user)) return false;
-          const appLevel = (a.pelatihanAkanDiikuti || '').toLowerCase().trim().replace(/\s+/g, '');
-          return appLevel === targetLevel || appLevel.includes(targetLevel) || targetLevel.includes(appLevel);
-        });
+        const myApp = findUserAppForLevel(apps || [], user, selectedActivity?.jenisPelatihan || selectedLevel);
         setUserApp(myApp || null);
 
         // Auto-grant jati1 role if registered as Jaya Melati 1
@@ -542,26 +537,66 @@ export default function PelatihanPage() {
 
   const normalizeLevelCode = (str?: string): string => {
     if (!str) return 'jati1';
-    const clean = str.toLowerCase().trim();
-    if (clean.includes('jati 2') || clean.includes('jati2') || clean.includes('jaya melati 2') || clean.includes('jm 2') || clean.includes('jm2')) {
-      return 'jati2';
-    }
-    if (clean.includes('jari 1') || clean.includes('jari1') || clean.includes('jaya matahari 1') || clean.includes('jmh 1')) {
-      return 'jari1';
-    }
-    if (clean.includes('jati 1') || clean.includes('jati1') || clean.includes('jaya melati 1') || clean.includes('jm 1') || clean.includes('jm1')) {
-      return 'jati1';
-    }
-    return clean.replace(/\s+/g, '');
+    const key = normalizeTrainingKey(str);
+    if (key) return key;
+    const clean = str.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    if (clean.includes('jati2') || clean.includes('melati2')) return 'jati2';
+    if (clean.includes('jari1') || clean.includes('matahari1')) return 'jari1';
+    if (clean.includes('jari2') || clean.includes('matahari2')) return 'jari2';
+    if (clean.includes('jati1') || clean.includes('melati1') || clean.includes('pelatihan')) return 'jati1';
+    return clean || 'jati1';
   };
 
   const isUserAppMatch = (a: any, u: any): boolean => {
     if (!a || !u) return false;
+    if (isSameTrainingParticipant(a, u)) return true;
     if (a.email && u.email && a.email.toLowerCase().trim() === u.email.toLowerCase().trim()) return true;
-    if (a.userId && String(a.userId) === String(u.id)) return true;
-    if (a.noWa && u.noHp && String(a.noWa).replace(/[^0-9]/g, '') === String(u.noHp).replace(/[^0-9]/g, '')) return true;
-    if (a.nama && u.namaLengkap && a.nama.toLowerCase().trim() === u.namaLengkap.toLowerCase().trim()) return true;
+    if (a.userId && (String(a.userId) === String(u.id) || String(a.userId) === String(u.userId))) return true;
+    if (a.id && (String(a.id) === String(u.id) || String(a.id) === String(u.trainingAppId))) return true;
+    
+    const aWa = String(a.noWa || a.noHp || '').replace(/[^0-9]/g, '');
+    const uWa = String(u.noHp || u.noWa || '').replace(/[^0-9]/g, '');
+    if (aWa && uWa && aWa.length >= 7 && (aWa === uWa || aWa.endsWith(uWa.slice(-8)) || uWa.endsWith(aWa.slice(-8)))) return true;
+
+    const aNbm = String(a.nbm || a.ktaNumber || a.nomorKTA || '').replace(/[^0-9a-zA-Z]/g, '').toLowerCase();
+    const uNbm = String(u.nbm || u.ktaNumber || u.nomorKTA || '').replace(/[^0-9a-zA-Z]/g, '').toLowerCase();
+    if (aNbm && uNbm && aNbm.length >= 4 && aNbm === uNbm) return true;
+
+    const aName = normalizeParticipantName(a.nama || a.namaLengkap || '');
+    const uName = normalizeParticipantName(u.namaLengkap || u.nama || '');
+    if (aName && uName && (aName === uName || aName.includes(uName) || uName.includes(aName))) return true;
+
     return false;
+  };
+
+  const findUserAppForLevel = (appsList: any[], currentUser: any, targetLevelStr?: string) => {
+    if (!currentUser || !Array.isArray(appsList) || appsList.length === 0) return null;
+    const targetNorm = normalizeLevelCode(targetLevelStr || selectedActivity?.jenisPelatihan || selectedLevel);
+    
+    // 1. Exact / matching level
+    const matchLevel = appsList.find((a: any) => {
+      if (!isUserAppMatch(a, currentUser)) return false;
+      if (a.status === 'deleted' || a.status === 'rejected') return false;
+      const aNorm = normalizeLevelCode(a.pelatihanAkanDiikuti || a.jenisPelatihan || a.namaKegiatan);
+      return aNorm === targetNorm || aNorm.includes(targetNorm) || targetNorm.includes(aNorm);
+    });
+    if (matchLevel) return matchLevel;
+
+    // 2. Any approved application
+    const anyApproved = appsList.find((a: any) => {
+      if (!isUserAppMatch(a, currentUser)) return false;
+      if (a.status === 'deleted' || a.status === 'rejected') return false;
+      return (
+        a.status === 'approved' || 
+        a.status === 'terverifikasi' || 
+        a.status === 'disetujui' ||
+        a.statusPembayaran === 'Lunas'
+      );
+    });
+    if (anyApproved) return anyApproved;
+
+    // 3. Any valid application
+    return appsList.find((a: any) => isUserAppMatch(a, currentUser) && a.status !== 'deleted' && a.status !== 'rejected') || null;
   };
 
   const approvedUserApps = user ? applications.filter((a: any) => {
@@ -1560,16 +1595,16 @@ export default function PelatihanPage() {
                 const postScore = hasPostScore ? Number(userApp.postTestScore) : null;
 
                 return (
-                  <div className="bg-white p-4 sm:p-5 md:p-6 rounded-3xl border border-gray-150 shadow-xs space-y-4 text-left">
+                  <div className="bg-white p-4 sm:p-5 md:p-6 rounded-3xl border border-gray-150 shadow-xs space-y-4 text-left w-full overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3.5">
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-850 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                             Dasbor Rekap Akademik & Kehadiran Peserta
                           </span>
                           <span className="text-[10px] text-gray-400 font-semibold">• Real-time Sync</span>
                         </div>
-                        <h4 className="text-base sm:text-lg font-black text-gray-850 font-display tracking-tight">
+                        <h4 className="text-base sm:text-lg font-black text-gray-850 font-display tracking-tight leading-snug">
                           Ringkasan Status Kehadiran & Rekap Nilai Ujian
                         </h4>
                       </div>
@@ -1587,37 +1622,37 @@ export default function PelatihanPage() {
                     </div>
 
                     {/* 4 Responsive Stat Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
                       
                       {/* CARD 1: STATUS PRESENSI */}
                       <div 
                         onClick={() => setActiveTab('presensi')}
-                        className="bg-gradient-to-br from-emerald-50/90 to-teal-50/70 p-4 sm:p-4.5 rounded-2xl border border-emerald-200/90 hover:border-emerald-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
+                        className="bg-gradient-to-br from-emerald-50/90 to-teal-50/70 p-4 rounded-2xl border border-emerald-200/90 hover:border-emerald-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-w-0 overflow-hidden min-h-[145px]"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</span>
-                            <span className="text-xs font-black uppercase tracking-wider text-emerald-950">Kehadiran</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 truncate">Kehadiran</span>
                           </div>
                           <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
                             <CheckCircle2 size={15} />
                           </div>
                         </div>
                         
-                        <div className="my-2">
-                          <div className="text-2xl sm:text-3xl font-black text-emerald-950 font-display tracking-tight leading-none">
+                        <div className="my-2 min-w-0">
+                          <div className="text-xl sm:text-2xl font-black text-emerald-950 font-display tracking-tight leading-none truncate">
                             {attendancePercentage}%
                           </div>
-                          <p className="text-xs font-semibold text-emerald-800/90 mt-1.5 leading-snug">
+                          <p className="text-[11px] sm:text-xs font-semibold text-emerald-850/90 mt-1 leading-snug truncate">
                             {attendedSessionsCount} Hadir • {recordedSessionsCount}/{totalCurriculumSessions} Sesi
                           </p>
                         </div>
 
-                        <div className="pt-2.5 mt-auto border-t border-emerald-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
-                          <span className={unrecordedSessionsCount > 0 ? 'text-amber-800' : 'text-emerald-800'}>
+                        <div className="pt-2 mt-auto border-t border-emerald-200/70 flex items-center justify-between gap-1 text-[11px] font-bold min-w-0">
+                          <span className={`truncate flex-1 text-left ${unrecordedSessionsCount > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
                             {unrecordedSessionsCount > 0 ? `⚠️ ${unrecordedSessionsCount} Belum Presensi` : '✓ Lengkap'}
                           </span>
-                          <span className="text-emerald-900 group-hover:underline shrink-0 flex items-center gap-1">
+                          <span className="text-emerald-900 group-hover:underline shrink-0 flex items-center gap-1 font-extrabold">
                             Buka →
                           </span>
                         </div>
@@ -1626,32 +1661,32 @@ export default function PelatihanPage() {
                       {/* CARD 2: HASIL PRE TEST */}
                       <div 
                         onClick={() => setActiveTab('tugas')}
-                        className="bg-gradient-to-br from-teal-50/90 to-cyan-50/70 p-4 sm:p-4.5 rounded-2xl border border-teal-200/90 hover:border-teal-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
+                        className="bg-gradient-to-br from-teal-50/90 to-cyan-50/70 p-4 rounded-2xl border border-teal-200/90 hover:border-teal-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-w-0 overflow-hidden min-h-[145px]"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="w-5 h-5 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</span>
-                            <span className="text-xs font-black uppercase tracking-wider text-teal-950">Pre Test</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-teal-950 truncate">Pre Test</span>
                           </div>
                           <div className="w-7 h-7 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
                             <Sparkles size={15} />
                           </div>
                         </div>
 
-                        <div className="my-2">
-                          <div className="text-2xl sm:text-3xl font-black text-teal-950 font-display tracking-tight leading-none">
+                        <div className="my-2 min-w-0">
+                          <div className="text-xl sm:text-2xl font-black text-teal-950 font-display tracking-tight leading-none truncate">
                             {hasPreScore ? `${preScore} / 100` : 'Belum Tes'}
                           </div>
-                          <p className="text-xs font-semibold text-teal-800/90 mt-1.5 leading-snug">
+                          <p className="text-[11px] sm:text-xs font-semibold text-teal-850/90 mt-1 leading-snug truncate">
                             {hasPreScore ? '✓ Evaluasi Awal Selesai' : 'Evaluasi Awal Kurikulum'}
                           </p>
                         </div>
 
-                        <div className="pt-2.5 mt-auto border-t border-teal-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
-                          <span className={hasPreScore ? 'text-teal-800 font-extrabold' : 'text-amber-800'}>
+                        <div className="pt-2 mt-auto border-t border-teal-200/70 flex items-center justify-between gap-1 text-[11px] font-bold min-w-0">
+                          <span className={`truncate flex-1 text-left ${hasPreScore ? 'text-teal-800 font-extrabold' : 'text-amber-800'}`}>
                             {hasPreScore ? 'Terekap di Sistem' : 'Belum Selesai'}
                           </span>
-                          <span className="text-teal-900 group-hover:underline shrink-0 flex items-center gap-1">
+                          <span className="text-teal-900 group-hover:underline shrink-0 flex items-center gap-1 font-extrabold">
                             {hasPreScore ? 'Tinjau →' : 'Mulai →'}
                           </span>
                         </div>
@@ -1660,32 +1695,32 @@ export default function PelatihanPage() {
                       {/* CARD 3: HASIL POST TEST */}
                       <div 
                         onClick={() => setActiveTab('tugas')}
-                        className="bg-gradient-to-br from-blue-50/90 to-indigo-50/70 p-4 sm:p-4.5 rounded-2xl border border-blue-200/90 hover:border-blue-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
+                        className="bg-gradient-to-br from-blue-50/90 to-indigo-50/70 p-4 rounded-2xl border border-blue-200/90 hover:border-blue-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-w-0 overflow-hidden min-h-[145px]"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">3</span>
-                            <span className="text-xs font-black uppercase tracking-wider text-blue-950">Post Test</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-blue-950 truncate">Post Test</span>
                           </div>
                           <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
                             <Award size={15} />
                           </div>
                         </div>
 
-                        <div className="my-2">
-                          <div className="text-2xl sm:text-3xl font-black text-blue-950 font-display tracking-tight leading-none">
+                        <div className="my-2 min-w-0">
+                          <div className="text-xl sm:text-2xl font-black text-blue-950 font-display tracking-tight leading-none truncate">
                             {hasPostScore ? `${postScore} / 100` : 'Belum Tes'}
                           </div>
-                          <p className="text-xs font-semibold text-blue-800/90 mt-1.5 leading-snug">
+                          <p className="text-[11px] sm:text-xs font-semibold text-blue-850/90 mt-1 leading-snug truncate">
                             {hasPostScore ? (postScore! >= 70 ? '✓ Lulus KKM (≥70)' : '⚠️ Di Bawah KKM (≥70)') : 'Syarat Kelulusan Akhir'}
                           </p>
                         </div>
 
-                        <div className="pt-2.5 mt-auto border-t border-blue-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
-                          <span className={hasPostScore ? 'text-blue-800 font-extrabold' : 'text-amber-800'}>
+                        <div className="pt-2 mt-auto border-t border-blue-200/70 flex items-center justify-between gap-1 text-[11px] font-bold min-w-0">
+                          <span className={`truncate flex-1 text-left ${hasPostScore ? 'text-blue-800 font-extrabold' : 'text-amber-800'}`}>
                             {hasPostScore ? 'Terekap di Sistem' : 'Belum Selesai'}
                           </span>
-                          <span className="text-blue-900 group-hover:underline shrink-0 flex items-center gap-1">
+                          <span className="text-blue-900 group-hover:underline shrink-0 flex items-center gap-1 font-extrabold">
                             {hasPostScore ? 'Tinjau →' : 'Mulai →'}
                           </span>
                         </div>
@@ -1694,30 +1729,30 @@ export default function PelatihanPage() {
                       {/* CARD 4: STATUS AKHIR */}
                       <div 
                         onClick={() => setActiveTab('piagam')}
-                        className="bg-gradient-to-br from-amber-50/90 to-yellow-50/70 p-4 sm:p-4.5 rounded-2xl border border-amber-200/90 hover:border-amber-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-h-[155px]"
+                        className="bg-gradient-to-br from-amber-50/90 to-yellow-50/70 p-4 rounded-2xl border border-amber-200/90 hover:border-amber-400 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group flex flex-col justify-between min-w-0 overflow-hidden min-h-[145px]"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">4</span>
-                            <span className="text-xs font-black uppercase tracking-wider text-amber-950">Kelulusan</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-amber-950 truncate">Kelulusan</span>
                           </div>
                           <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform shrink-0">
                             <GraduationCap size={15} />
                           </div>
                         </div>
 
-                        <div className="my-2">
-                          <div className="text-lg sm:text-xl font-black text-amber-950 font-display tracking-tight leading-tight">
+                        <div className="my-2 min-w-0">
+                          <div className="text-base sm:text-lg font-black text-amber-950 font-display tracking-tight leading-tight truncate">
                             {userApp?.statusKelulusan || 'Proses Pelatihan'}
                           </div>
-                          <p className="text-xs font-semibold text-amber-850/90 mt-1.5 leading-snug">
+                          <p className="text-[11px] sm:text-xs font-semibold text-amber-900/90 mt-1 leading-snug truncate">
                             {userApp?.nilai ? `Predikat: ${userApp.nilai}` : 'Akumulasi Presensi & Ujian'}
                           </p>
                         </div>
 
-                        <div className="pt-2.5 mt-auto border-t border-amber-200/70 flex items-center justify-between gap-1 text-[11px] font-bold">
-                          <span className="text-amber-900">Piagam Pelatihan</span>
-                          <span className="text-amber-900 group-hover:underline shrink-0 flex items-center gap-1">
+                        <div className="pt-2 mt-auto border-t border-amber-200/70 flex items-center justify-between gap-1 text-[11px] font-bold min-w-0">
+                          <span className="text-amber-900 truncate flex-1 text-left">Piagam Pelatihan</span>
+                          <span className="text-amber-900 group-hover:underline shrink-0 flex items-center gap-1 font-extrabold">
                             Buka →
                           </span>
                         </div>
