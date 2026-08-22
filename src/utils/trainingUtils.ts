@@ -631,6 +631,11 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
 
     return {
       ...base,
+      pelatihanAkanDiikuti: base.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 HW Solo',
+      tingkatan: base.tingkatan || 'Jaya Melati 1',
+      lokasiPelatihan: base.lokasiPelatihan || 'Kwarda HW Solo',
+      tanggalPelatihan: base.tanggalPelatihan || '15-18 Agustus 2026',
+      biayaPelatihan: base.biayaPelatihan || 'Rp 50.000',
       photo: bestPhoto || base.photo || '',
       userId: bestUserId || base.userId,
       email: bestEmail || base.email,
@@ -654,3 +659,37 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
     };
   });
 };
+
+export const DEFAULT_JM1_SOLO_ACTIVITY = {
+  id: 'act-jm1-solo',
+  namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+  jenisPelatihan: 'Jaya Melati 1',
+  tingkatan: 'Jaya Melati 1',
+  kategori: 'Pelatihan Jaya Melati 1 HW Solo',
+  lokasiPelatihan: 'Kwarda HW Solo',
+  lokasi: 'Kwarda HW Solo',
+  tanggalPelatihan: '15-18 Agustus 2026',
+  tanggal: '15-18 Agustus 2026',
+  biayaPelatihan: 'Rp 50.000',
+  biaya: 'Rp 50.000',
+  status: 'Buka',
+  deskripsi: 'Pelatihan Jaya Melati 1 Kwarda HW Solo Terverifikasi',
+  rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+  noWhatsappPanitia: '089688754000'
+};
+
+export const migrateParticipantToJayaMelati1Solo = (p: any): any => {
+  if (!p) return p;
+  return {
+    ...p,
+    pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
+    jenisPelatihan: 'Jaya Melati 1',
+    tingkatan: p.tingkatan || 'Jaya Melati 1',
+    namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+    lokasiPelatihan: 'Kwarda HW Solo',
+    tanggalPelatihan: '15-18 Agustus 2026',
+    biayaPelatihan: p.biayaPelatihan || 'Rp 50.000',
+    rekeningPembiayaan: p.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+  };
+};
+

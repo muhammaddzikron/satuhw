@@ -2556,6 +2556,66 @@ export const firestoreService = {
     return true;
   },
 
+  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+    clearFirestoreCache('training_applications');
+    const apps = await this.getTrainingApplications(true);
+    const updatedList = apps.map(app => ({
+      ...app,
+      pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
+      jenisPelatihan: 'Jaya Melati 1',
+      tingkatan: 'Jaya Melati 1',
+      namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+      lokasiPelatihan: 'Kwarda HW Solo',
+      tanggalPelatihan: '15-18 Agustus 2026',
+      biayaPelatihan: app.biayaPelatihan || 'Rp 50.000',
+      rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+    }));
+
+    safeStorageSet('training_applications', updatedList);
+
+    if (!this.getIsQuotaExceeded() && updatedList.length > 0) {
+      try {
+        const batch = writeBatch(db);
+        updatedList.forEach(app => {
+          if (app.id) {
+            batch.set(doc(db, 'training_applications', String(app.id)), cleanData(app), { merge: true });
+          }
+        });
+        await batch.commit();
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.warn('Firestore bulkSetAllTrainingParticipantsToJayaMelati1Solo warning:', err);
+      }
+    }
+
+    // Also sync to member pelatihan list
+    try {
+      const members = await this.getMembers();
+      const updatedMembers = members.map((m: any) => {
+        const isParticipant = updatedList.some((t: any) => 
+          (t.userId && String(m.id) === String(t.userId)) ||
+          (t.email && m.email && t.email.toLowerCase() === m.email.toLowerCase()) ||
+          (t.nama && m.namaLengkap && normalizeParticipantName(t.nama) === normalizeParticipantName(m.namaLengkap))
+        );
+        if (isParticipant) {
+          const currentPel = Array.isArray(m.pelatihan) ? [...m.pelatihan] : [];
+          if (!currentPel.includes('Pelatihan Jaya Melati 1 HW Solo') && !currentPel.includes('Jaya Melati 1')) {
+            currentPel.push('Pelatihan Jaya Melati 1 HW Solo');
+          }
+          return {
+            ...m,
+            pelatihan: currentPel
+          };
+        }
+        return m;
+      });
+      safeStorageSet('mock_members', updatedMembers);
+    } catch (e) {}
+
+    window.dispatchEvent(new Event('training_applications_updated'));
+    return { success: true, count: updatedList.length };
+  },
+
   // --- CONTENTS ---
   subscribeToContents(callback: (contents: Content[]) => void): () => void {
     try {

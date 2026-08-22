@@ -1077,31 +1077,20 @@ export default function AdminDashboard() {
       setEditingTrainingApp((prev: any) => ({
         ...prev,
         pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
-        lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || prev?.lokasiPelatihan || (settings.trainingLocations || [])[0] || 'Pusdiklat HW Jateng',
-        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || prev?.tanggalPelatihan || (settings.trainingDates || [])[0] || 'Jadwal Reguler',
+        lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || 'Kwarda HW Solo',
+        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || '15-18 Agustus 2026',
         biayaPelatihan: matchingAct.biayaPelatihan || matchingAct.biaya || prev?.biayaPelatihan || 'Rp 50.000',
         rekeningPembiayaan: matchingAct.rekeningPembiayaan || matchingAct.rekeningPembayaran || prev?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
       }));
     } else {
       setEditingTrainingApp((prev: any) => ({
         ...prev,
-        pelatihanAkanDiikuti: val
+        pelatihanAkanDiikuti: val,
+        lokasiPelatihan: prev?.lokasiPelatihan || 'Kwarda HW Solo',
+        tanggalPelatihan: prev?.tanggalPelatihan || '15-18 Agustus 2026',
+        biayaPelatihan: prev?.biayaPelatihan || 'Rp 50.000'
       }));
     }
-  };
-
-  const handleEditParticipantLocationChange = (locVal: string) => {
-    const activeActs = allTrainingActivitiesList.length > 0 ? allTrainingActivitiesList : (settings.trainingActivities || []);
-    const matchingAct = activeActs.find((a: any) => 
-      (a.lokasiPelatihan === locVal || a.lokasi === locVal) &&
-      (!editingTrainingApp?.pelatihanAkanDiikuti || a.namaKegiatan === editingTrainingApp.pelatihanAkanDiikuti || a.jenisPelatihan === editingTrainingApp.pelatihanAkanDiikuti)
-    ) || activeActs.find((a: any) => a.lokasiPelatihan === locVal || a.lokasi === locVal);
-
-    setEditingTrainingApp((prev: any) => ({
-      ...prev,
-      lokasiPelatihan: locVal,
-      ...(matchingAct && (matchingAct.tanggalPelatihan || matchingAct.tanggal) ? { tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal } : {})
-    }));
   };
 
   const handleInlineScheduleTrainingChange = (val: string) => {
@@ -1867,6 +1856,45 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSetAllToJayaMelati1Solo = async () => {
+    if (!window.confirm('Ubah semua data peserta pelatihan yang ada saat ini menjadi Peserta Pelatihan Jaya Melati 1 HW Solo (Lokasi: Kwarda HW Solo, Tanggal: 15-18 Agustus 2026)?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setBackgroundProcessingText('Mengubah semua peserta menjadi Jaya Melati 1 HW Solo...');
+
+      // Optimistic update
+      setTrainingApps(prev => prev.map(t => ({
+        ...t,
+        pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
+        jenisPelatihan: 'Jaya Melati 1',
+        tingkatan: 'Jaya Melati 1',
+        namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+        lokasiPelatihan: 'Kwarda HW Solo',
+        tanggalPelatihan: '15-18 Agustus 2026',
+        biayaPelatihan: t.biayaPelatihan || 'Rp 50.000'
+      })));
+
+      const res = await sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo();
+      const [tApps, mData] = await Promise.all([
+        sheetsService.getTrainingApplications(),
+        sheetsService.getMembers()
+      ]);
+      if (tApps?.length) setTrainingApps(tApps);
+      if (mData?.length) setMembers(mData);
+
+      showToast('success', `Berhasil! ${res.count || tApps?.length || 0} peserta kini terdaftar di Pelatihan Jaya Melati 1 HW Solo.`);
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', 'Gagal migrasi peserta: ' + (err.message || 'Cek koneksi'));
+    } finally {
+      setLoading(false);
+      setBackgroundProcessingText(null);
+    }
+  };
+
   const handleSaveSchedule = async (appId: string) => {
     try {
       const targetPelatihan = editPelatihan ? editPelatihan.trim() : undefined;
@@ -2397,10 +2425,22 @@ export default function AdminDashboard() {
         (window as any).requestIdleCallback(() => {
           sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
           firestoreService.purgeEmptyData().catch(() => {});
+          const hasMigrated = localStorage.getItem('training_jm1_solo_migrated_v1');
+          if (!hasMigrated) {
+            sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo()
+              .then(() => localStorage.setItem('training_jm1_solo_migrated_v1', 'true'))
+              .catch(err => console.warn('Auto training migration warning:', err));
+          }
         });
       } else {
         sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
         firestoreService.purgeEmptyData().catch(() => {});
+        const hasMigrated = localStorage.getItem('training_jm1_solo_migrated_v1');
+        if (!hasMigrated) {
+          sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo()
+            .then(() => localStorage.setItem('training_jm1_solo_migrated_v1', 'true'))
+            .catch(err => console.warn('Auto training migration warning:', err));
+        }
       }
     }, 4000);
 
@@ -3602,55 +3642,7 @@ export default function AdminDashboard() {
 
   // 2. Export Data Peserta Pelatihan
   const exportTrainingParticipantsToExcel = () => {
-    const list = trainingApps.filter(app => {
-      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-      const name = (app?.nama || app?.namaLengkap || '').trim();
-      const email = (app?.email || '').toLowerCase().trim();
-      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-
-      const matchSearch = 
-        name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-
-      let matchActivity = true;
-      if (trainingFilterActivity !== 'Semua') {
-        const rawFilter = trainingFilterActivity.startsWith('jenis:')
-          ? trainingFilterActivity.replace('jenis:', '').trim()
-          : trainingFilterActivity.trim();
-
-        const allTypes = (settings.trainingTypes && settings.trainingTypes.length > 0)
-          ? settings.trainingTypes
-          : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
-        
-        const isTypeMatch = trainingFilterActivity.startsWith('jenis:') || allTypes.some((t: string) => t.toLowerCase() === rawFilter.toLowerCase());
-
-        if (isTypeMatch) {
-          const targetType = rawFilter.toLowerCase();
-          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
-          const targetKey = getNormalizedLevelKey(targetType);
-          const appKey = getNormalizedLevelKey(prog);
-          matchActivity = prog.includes(targetType) || targetType.includes(prog) || (targetKey && appKey && targetKey === appKey);
-        } else {
-          const acts = allTrainingActivitiesList;
-          const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-          const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || rawFilter).toLowerCase();
-          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase();
-          const loc = (app?.lokasiPelatihan || app?.lokasi || '').toLowerCase();
-          const dt = (app?.tanggalPelatihan || app?.tanggal || '').toLowerCase();
-          const appActId = String(app?.activityId || app?.activity_id || app?.kegiatanId || '').toLowerCase();
-
-          matchActivity = (selAct?.id && appActId && appActId === String(selAct.id).toLowerCase()) ||
-            prog.includes(filterStr) ||
-            (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) ||
-            (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
-        }
-      }
-
-      return matchSearch && matchStatus && matchActivity;
-    });
+    const list = filteredTrainingAppsList;
 
     const headers = ['No', 'Nama Lengkap', 'Email', 'No. WhatsApp', 'Nomor KTA', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin', 'Asal Kwarda / Daerah', 'Qabilah', 'Program Pelatihan', 'Pelatih Golongan', 'Status Pendaftaran', 'Status Pembayaran', 'Tanggal Ajuan'];
     const data = list.map((app, idx) => {
@@ -3708,55 +3700,7 @@ export default function AdminDashboard() {
   };
 
   const exportTrainingParticipantsToPDF = () => {
-    const list = trainingApps.filter(app => {
-      const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-      const name = (app?.nama || app?.namaLengkap || '').trim();
-      const email = (app?.email || '').toLowerCase().trim();
-      if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-
-      const matchSearch = 
-        name.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.email || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.noWa || '').toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-        (app?.asalDaerah || '').toLowerCase().includes(trainingSearchQuery.toLowerCase());
-      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
-
-      let matchActivity = true;
-      if (trainingFilterActivity !== 'Semua') {
-        const rawFilter = trainingFilterActivity.startsWith('jenis:')
-          ? trainingFilterActivity.replace('jenis:', '').trim()
-          : trainingFilterActivity.trim();
-
-        const allTypes = (settings.trainingTypes && settings.trainingTypes.length > 0)
-          ? settings.trainingTypes
-          : ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2'];
-        
-        const isTypeMatch = trainingFilterActivity.startsWith('jenis:') || allTypes.some((t: string) => t.toLowerCase() === rawFilter.toLowerCase());
-
-        if (isTypeMatch) {
-          const targetType = rawFilter.toLowerCase();
-          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase().trim();
-          const targetKey = getNormalizedLevelKey(targetType);
-          const appKey = getNormalizedLevelKey(prog);
-          matchActivity = prog.includes(targetType) || targetType.includes(prog) || (targetKey && appKey && targetKey === appKey);
-        } else {
-          const acts = allTrainingActivitiesList;
-          const selAct = acts.find((a: any) => String(a.id) === trainingFilterActivity || a.namaKegiatan === trainingFilterActivity);
-          const filterStr = (selAct?.namaKegiatan || selAct?.jenisPelatihan || rawFilter).toLowerCase();
-          const prog = (app?.pelatihanAkanDiikuti || app?.jenisPelatihan || '').toLowerCase();
-          const loc = (app?.lokasiPelatihan || app?.lokasi || '').toLowerCase();
-          const dt = (app?.tanggalPelatihan || app?.tanggal || '').toLowerCase();
-          const appActId = String(app?.activityId || app?.activity_id || app?.kegiatanId || '').toLowerCase();
-
-          matchActivity = (selAct?.id && appActId && appActId === String(selAct.id).toLowerCase()) ||
-            prog.includes(filterStr) ||
-            (selAct?.lokasiPelatihan && loc.includes(selAct.lokasiPelatihan.toLowerCase())) ||
-            (selAct?.tanggalPelatihan && dt.includes(selAct.tanggalPelatihan.toLowerCase()));
-        }
-      }
-
-      return matchSearch && matchStatus && matchActivity;
-    });
+    const list = filteredTrainingAppsList;
 
     const doc = new jsPDF() as any;
     const headers = [['No', 'Nama Peserta', 'No. KTA / WA', 'Asal Daerah / Qabilah', 'Program Pelatihan', 'Status']];
@@ -3803,7 +3747,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       return isApprovedParticipant(app);
-    });
+    }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const sessionHeaders = sessionList.map(s => `${s.id} (${s.title})`);
     const headers = ['No', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Asal Daerah', 'Qabilah', ...sessionHeaders, 'Jumlah Hadir', 'Total Sesi', 'Persentase Kehadiran (%)'];
@@ -3873,7 +3817,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       return isApprovedParticipant(app);
-    });
+    }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const doc = new jsPDF() as any;
     const headers = [['No', 'Nama Peserta', 'Pelatihan', 'Asal Daerah / Qabilah', 'Jumlah Hadir', 'Total Sesi', '% Kehadiran']];
@@ -3924,7 +3868,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
-    });
+    }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const headers = ['No', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Asal Daerah', 'Qabilah', 'Nilai / Predikat', 'Kehadiran (%)', 'Tugas (%)', 'Status Kelulusan', 'Catatan / Ulasan Pelatih'];
     const data = enrolled.map((app, idx) => {
@@ -3971,7 +3915,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
-    });
+    }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const doc = new jsPDF() as any;
     const headers = [['No', 'Nama Peserta', 'Asal Daerah / Qabilah', 'Nilai / Predikat', '% Presensi', '% Tugas', 'Status Kelulusan']];
@@ -4256,7 +4200,7 @@ export default function AdminDashboard() {
   const [ktaPageSize, setKtaPageSize] = useState(25);
 
   const [trainingPage, setTrainingPage] = useState(1);
-  const [trainingPageSize, setTrainingPageSize] = useState(25);
+  const [trainingPageSize, setTrainingPageSize] = useState(100);
 
   const [activityPage, setActivityPage] = useState(1);
   const [activityPageSize, setActivityPageSize] = useState(25);
@@ -4366,6 +4310,12 @@ export default function AdminDashboard() {
 
       return matchSearch && matchStatus && matchActivity;
     }).sort((a, b) => {
+      const nameA = String(a?.nama || a?.namaLengkap || '').trim();
+      const nameB = String(b?.nama || b?.namaLengkap || '').trim();
+      if (nameA && nameB) {
+        const comp = nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
+        if (comp !== 0) return comp;
+      }
       const timeA = new Date(a.tanggalAjuan || a.updatedAt || a.createdAt || 0).getTime();
       const timeB = new Date(b.tanggalAjuan || b.updatedAt || b.createdAt || 0).getTime();
       if (timeA !== timeB) return timeB - timeA;
@@ -6960,6 +6910,13 @@ export default function AdminDashboard() {
                             <Download size={14} /> Export PDF
                           </button>
                           <button
+                            onClick={handleSetAllToJayaMelati1Solo}
+                            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/20"
+                            title="Set Semua Peserta Jadi Peserta Pelatihan Jaya Melati 1 HW Solo"
+                          >
+                            <Sparkles size={14} /> Set Semua Jaya Melati 1 Solo
+                          </button>
+                          <button
                             onClick={() => {
                               setAddParticipantSelectedMemberId('');
                               setAddParticipantSearchQuery('');
@@ -7336,17 +7293,17 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-1.5 ml-2">
                           <span className="text-[11px] text-gray-400">Per hal:</span>
                           <select
-                            value={trainingPageSize || 10}
+                            value={trainingPageSize || 100}
                             onChange={(e) => {
                               setTrainingPageSize(Number(e.target.value));
                               setTrainingPage(1);
                             }}
-                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-700 outline-none cursor-pointer hover:border-gray-300 shadow-2xs"
                           >
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
                             <option value={100}>100</option>
+                            <option value={200}>200</option>
+                            <option value={500}>500</option>
+                            <option value={1000}>1000</option>
                           </select>
                         </div>
                       </div>
@@ -7443,7 +7400,7 @@ export default function AdminDashboard() {
                           return false;
                         }
                         return true;
-                      });
+                      }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -7707,7 +7664,7 @@ export default function AdminDashboard() {
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
                         return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedTugasProg);
-                      });
+                      }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -7963,7 +7920,7 @@ export default function AdminDashboard() {
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
                         return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
-                      });
+                      }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -8187,7 +8144,7 @@ export default function AdminDashboard() {
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
                         const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
                         return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
-                      });
+                      }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return graduates.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
@@ -11434,12 +11391,17 @@ export default function AdminDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       {/* Training Level / Activity Selection */}
-                      <div className="space-y-1 sm:col-span-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Program / Kegiatan Pelatihan *</label>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest ml-1 flex items-center justify-between">
+                          <span>Pilihan Jenis / Kegiatan Pelatihan Yang Diadakan Admin *</span>
+                          <span className="text-[9px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                            ✨ Otomatis Mengatur Lokasi, Tanggal & Biaya
+                          </span>
+                        </label>
                         <select 
                           value={addParticipantForm.pelatihanAkanDiikuti || ''}
                           onChange={(e) => handleAddParticipantTrainingChange(e.target.value)}
-                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800 focus:ring-2 focus:ring-emerald-400"
+                          className="w-full bg-white border-2 border-emerald-300 rounded-xl py-2.5 px-3 font-extrabold text-xs outline-none text-gray-900 focus:ring-4 focus:ring-emerald-400/20 cursor-pointer shadow-xs"
                         >
                           {getAvailableTrainingOptions().map(opt => (
                             <option key={opt.id} value={opt.name}>
@@ -11447,6 +11409,19 @@ export default function AdminDashboard() {
                             </option>
                           ))}
                         </select>
+
+                        {/* Ringkasan Lokasi, Jadwal & Biaya */}
+                        <div className="mt-1.5 p-2.5 bg-white/90 border border-emerald-200 rounded-xl flex flex-wrap items-center gap-2 text-xs font-bold text-emerald-950">
+                          <span className="bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-150 text-[11px]">
+                            📍 Tempat: <strong className="text-emerald-800">{addParticipantForm.lokasiPelatihan || 'Kwarda HW Solo'}</strong>
+                          </span>
+                          <span className="bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-150 text-[11px]">
+                            📅 Jadwal: <strong className="text-emerald-800">{addParticipantForm.tanggalPelatihan || '15-18 Agustus 2026'}</strong>
+                          </span>
+                          <span className="bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-150 text-[11px]">
+                            💰 Biaya: <strong className="text-emerald-800">{addParticipantForm.biayaPelatihan || 'Rp 50.000'}</strong>
+                          </span>
+                        </div>
                       </div>
 
                       {/* Pelatih Golongan */}
@@ -11463,62 +11438,10 @@ export default function AdminDashboard() {
                         </select>
                       </div>
 
-                      {/* Lokasi Pelatihan */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Lokasi Pelatihan / Tempat</label>
-                          {addParticipantForm.lokasiPelatihan && (
-                            <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
-                          )}
-                        </div>
-                        <input 
-                          type="text"
-                          list="add-participant-locations-list"
-                          value={addParticipantForm.lokasiPelatihan || ''}
-                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, lokasiPelatihan: e.target.value })}
-                          placeholder="misal: Pusdiklat HW Jateng..."
-                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
-                        />
-                        <datalist id="add-participant-locations-list">
-                          {(settings.trainingLocations || ['Pusdiklat HW Jateng']).map((loc: string, idx: number) => (
-                            <option key={idx} value={loc} />
-                          ))}
-                          {(settings.trainingActivities || []).map((act: any, idx: number) => (
-                            act.lokasiPelatihan ? <option key={`act-loc-${idx}`} value={act.lokasiPelatihan} /> : null
-                          ))}
-                        </datalist>
-                      </div>
-
-                      {/* Tanggal Pelatihan */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Tanggal / Jadwal Pelatihan</label>
-                          {addParticipantForm.tanggalPelatihan && (
-                            <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
-                          )}
-                        </div>
-                        <input 
-                          type="text"
-                          list="add-participant-dates-list"
-                          value={addParticipantForm.tanggalPelatihan || ''}
-                          onChange={(e) => setAddParticipantForm({ ...addParticipantForm, tanggalPelatihan: e.target.value })}
-                          placeholder="misal: 15-18 Agustus 2026..."
-                          className="w-full bg-white border border-emerald-200 rounded-xl py-2 px-3 font-bold text-xs outline-none text-gray-800"
-                        />
-                        <datalist id="add-participant-dates-list">
-                          {(settings.trainingDates || ['Jadwal Reguler']).map((dt: string, idx: number) => (
-                            <option key={idx} value={dt} />
-                          ))}
-                          {(settings.trainingActivities || []).map((act: any, idx: number) => (
-                            act.tanggalPelatihan ? <option key={`act-dt-${idx}`} value={act.tanggalPelatihan} /> : null
-                          ))}
-                        </datalist>
-                      </div>
-
                       {/* Biaya Pelatihan */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Biaya Pelatihan / Registrasi</label>
                           {addParticipantForm.biayaPelatihan && (
                             <span className="text-[9px] font-black text-emerald-700">✓ Terdeteksi</span>
                           )}
@@ -11947,13 +11870,18 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Pelatihan Akan Diikuti */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pelatihan Akan Diikuti *</label>
+                    {/* Pilihan Jenis / Kegiatan Pelatihan Yang Diadakan Admin */}
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 flex items-center justify-between">
+                        <span>Pilihan Jenis / Kegiatan Pelatihan Yang Diadakan Admin *</span>
+                        <span className="text-emerald-700 font-bold text-[9px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          ✨ Otomatis Mengatur Lokasi, Tanggal & Biaya
+                        </span>
+                      </label>
                       <select 
                         value={editingTrainingApp.pelatihanAkanDiikuti || ''}
                         onChange={(e) => handleEditParticipantTrainingChange(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800 cursor-pointer"
+                        className="w-full bg-gray-50 border-2 border-emerald-300/80 rounded-2xl py-2.5 px-4 font-extrabold text-xs outline-none focus:ring-4 focus:ring-emerald-500/20 text-gray-900 cursor-pointer shadow-xs"
                       >
                         {allTrainingActivitiesList.length > 0 && (
                           <optgroup label="📋 Kegiatan Pelatihan Terdaftar (Kelola Jenis Pelatihan)">
@@ -11977,6 +11905,19 @@ export default function AdminDashboard() {
                           ))}
                         </optgroup>
                       </select>
+
+                      {/* Ringkasan Otomatis Lokasi, Tanggal & Biaya Pelatihan */}
+                      <div className="mt-2 p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex flex-wrap items-center gap-2 text-xs font-bold text-emerald-950">
+                        <span className="bg-white px-2.5 py-1 rounded-xl shadow-2xs border border-emerald-150">
+                          📍 Tempat: <strong className="text-emerald-800">{editingTrainingApp.lokasiPelatihan || 'Kwarda HW Solo'}</strong>
+                        </span>
+                        <span className="bg-white px-2.5 py-1 rounded-xl shadow-2xs border border-emerald-150">
+                          📅 Jadwal: <strong className="text-emerald-800">{editingTrainingApp.tanggalPelatihan || '15-18 Agustus 2026'}</strong>
+                        </span>
+                        <span className="bg-white px-2.5 py-1 rounded-xl shadow-2xs border border-emerald-150">
+                          💰 Biaya: <strong className="text-emerald-800">{editingTrainingApp.biayaPelatihan || 'Rp 50.000'}</strong>
+                        </span>
+                      </div>
                     </div>
 
                     {/* Pelatih Golongan */}
@@ -12007,51 +11948,9 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    {/* Lokasi Pelatihan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lokasi Pelatihan / Tempat</label>
-                      <input 
-                        type="text"
-                        list="edit-participant-locations-list"
-                        value={editingTrainingApp.lokasiPelatihan || ''}
-                        onChange={(e) => handleEditParticipantLocationChange(e.target.value)}
-                        placeholder="misal: Pusdiklat HW Jateng..."
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                      <datalist id="edit-participant-locations-list">
-                        {Array.from(new Set([
-                          ...(allTrainingActivitiesList.map((a: any) => a.lokasiPelatihan || a.lokasi).filter(Boolean)),
-                          ...(settings.trainingLocations || ['Kwarda HW Solo', 'Pusdiklat HW Jateng'])
-                        ])).map((loc: string, idx: number) => (
-                          <option key={idx} value={loc} />
-                        ))}
-                      </datalist>
-                    </div>
-
-                    {/* Tanggal Pelatihan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tanggal / Jadwal Pelatihan</label>
-                      <input 
-                        type="text"
-                        list="edit-participant-dates-list"
-                        value={editingTrainingApp.tanggalPelatihan || ''}
-                        onChange={(e) => setEditingTrainingApp({ ...editingTrainingApp, tanggalPelatihan: e.target.value })}
-                        placeholder="misal: 15-18 Agustus 2026..."
-                        className="w-full bg-gray-50 border border-gray-150 rounded-2xl py-2.5 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-hw-green/10 text-gray-800"
-                      />
-                      <datalist id="edit-participant-dates-list">
-                        {Array.from(new Set([
-                          ...(allTrainingActivitiesList.map((a: any) => a.tanggalPelatihan || a.tanggal).filter(Boolean)),
-                          ...(settings.trainingDates || ['Jadwal Reguler'])
-                        ])).map((dt: string, idx: number) => (
-                          <option key={idx} value={dt} />
-                        ))}
-                      </datalist>
-                    </div>
-
                     {/* Biaya Pelatihan */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Biaya Pelatihan</label>
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Biaya Pelatihan / Registrasi</label>
                       <input 
                         type="text"
                         list="edit-participant-fees-list"

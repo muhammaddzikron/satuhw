@@ -1015,6 +1015,10 @@ export default function PelatihanPage() {
       (app.pelatihanAkanDiikuti || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
     return matchesQuery;
+  }).sort((a, b) => {
+    const nameA = String(a.nama || a.namaLengkap || '').trim();
+    const nameB = String(b.nama || b.namaLengkap || '').trim();
+    return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
   });
 
   const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';

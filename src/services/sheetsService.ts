@@ -7,7 +7,7 @@ import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl } from '../lib/utils';
-import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications } from '../utils/trainingUtils';
+import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, DEFAULT_JM1_SOLO_ACTIVITY, migrateParticipantToJayaMelati1Solo } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { 
   parseTestScheduleSettings, 
@@ -1747,6 +1747,14 @@ export const sheetsService = {
     return { success: true, application: updated };
   },
 
+  async bulkSetAllTrainingParticipantsToJayaMelati1Solo(): Promise<{ success: boolean; count: number }> {
+    clearSheetsCache('trainingApplications');
+    clearSheetsCache('members');
+    clearFirestoreCache('training_applications');
+    clearFirestoreCache('members');
+    return await firestoreService.bulkSetAllTrainingParticipantsToJayaMelati1Solo();
+  },
+
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
     clearSheetsCache('trainingApplications');
     clearFirestoreCache('training_applications');
@@ -2185,7 +2193,7 @@ export const sheetsService = {
     };
 
     const DEFAULT_TYPES = DEFAULT_TRAINING_TYPES;
-    const DEFAULT_ACTIVITIES: any[] = [];
+    const DEFAULT_ACTIVITIES: any[] = [DEFAULT_JM1_SOLO_ACTIVITY];
 
     const fsSettings = await firestoreService.getSettings();
 
