@@ -1,3 +1,5 @@
+import { normalizeDateForInput } from '../lib/utils';
+
 /**
  * Utility functions and constants for Training Levels (Tingkatan Pelatihan & Parameter Pelatih HW).
  *
@@ -460,28 +462,45 @@ export const isSameTrainingParticipant = (a: any, b: any): boolean => {
     return false;
   }
 
-  // 2. Direct ID match
-  if (a.id && b.id && String(a.id).trim() === String(b.id).trim()) return true;
+  // 2. Explicit distinct check: if both records have different non-empty user IDs, they are distinct!
+  const uidA = String(a.userId || '').trim();
+  const uidB = String(b.userId || '').trim();
+  if (uidA && uidB && uidA !== uidB) {
+    return false;
+  }
 
-  // 3. User ID match
-  if (a.userId && b.userId && String(a.userId).trim() === String(b.userId).trim()) return true;
-
-  // 4. Email match
+  // 3. Explicit distinct check: if both records have different real emails, they are distinct!
   const emailA = String(a.email || '').toLowerCase().trim();
   const emailB = String(b.email || '').toLowerCase().trim();
+  if (emailA && emailB && emailA.includes('@') && emailB.includes('@') && emailA !== emailB) {
+    return false;
+  }
+
+  // 4. Explicit distinct check: if both records have different valid phone numbers, they are distinct!
+  const phoneA = String(a.noWa || a.noHp || '').replace(/[^0-9]/g, '');
+  const phoneB = String(b.noWa || b.noHp || '').replace(/[^0-9]/g, '');
+  if (phoneA && phoneB && phoneA.length >= 8 && phoneB.length >= 8 && phoneA !== phoneB) {
+    return false;
+  }
+
+  // 5. Direct ID match
+  if (a.id && b.id && String(a.id).trim() === String(b.id).trim()) return true;
+
+  // 6. User ID match
+  if (uidA && uidB && uidA === uidB) return true;
+
+  // 7. Email match
   if (emailA && emailB && emailA.includes('@') && emailA === emailB) return true;
 
-  // 5. NBM / KTA number match
+  // 8. NBM / KTA number match
   const nbmA = String(a.nbm || a.ktaNumber || a.nomorKTA || '').replace(/[^0-9]/g, '');
   const nbmB = String(b.nbm || b.ktaNumber || b.nomorKTA || '').replace(/[^0-9]/g, '');
   if (nbmA && nbmB && nbmA.length >= 4 && nbmA === nbmB) return true;
 
-  // 6. WhatsApp / Phone number match
-  const phoneA = String(a.noWa || a.noHp || '').replace(/[^0-9]/g, '');
-  const phoneB = String(b.noWa || b.noHp || '').replace(/[^0-9]/g, '');
+  // 9. WhatsApp / Phone number match
   if (phoneA && phoneB && phoneA.length >= 8 && phoneA === phoneB) return true;
 
-  // 7. Full name match (handles apostrophes & punctuation)
+  // 10. Full name match (only if no conflicting email/phone/uid)
   const nameA = normalizeParticipantName(a.nama || a.namaLengkap);
   const nameB = normalizeParticipantName(b.nama || b.namaLengkap);
   if (nameA && nameB && nameA.length >= 4 && nameA === nameB) {
@@ -552,6 +571,10 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
     let bestNbm = '';
     let bestKta = '';
     let bestAsalDaerah = '';
+    let bestTempatLahir = '';
+    let bestTanggalLahir = '';
+    let bestJenisKelamin = '';
+    let bestQabilah = '';
     let bestNilai = '';
     let bestRemark = '';
     let bestStatusKelulusan = '';
@@ -564,6 +587,10 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
       if (!bestNbm && item.nbm) bestNbm = item.nbm;
       if (!bestKta && (item.ktaNumber || item.nomorKTA)) bestKta = item.ktaNumber || item.nomorKTA;
       if (!bestAsalDaerah && item.asalDaerah) bestAsalDaerah = item.asalDaerah;
+      if (!bestTempatLahir && (item.tempatLahir || (item as any)?.tempatlahir)) bestTempatLahir = item.tempatLahir || (item as any)?.tempatlahir;
+      if (!bestTanggalLahir && (item.tanggalLahir || (item as any)?.tanggallahir)) bestTanggalLahir = item.tanggalLahir || (item as any)?.tanggallahir;
+      if (!bestJenisKelamin && item.jenisKelamin) bestJenisKelamin = item.jenisKelamin;
+      if (!bestQabilah && item.qabilah) bestQabilah = item.qabilah;
       if (!bestNilai && item.nilai) bestNilai = item.nilai;
       if (!bestRemark && item.remark) bestRemark = item.remark;
 
@@ -627,6 +654,9 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
       }
     }
 
+    const resolvedTempat = (bestTempatLahir || base.tempatLahir || (base as any)?.tempatlahir || '').trim();
+    const resolvedTanggal = normalizeDateForInput(bestTanggalLahir || base.tanggalLahir || (base as any)?.tanggallahir || '');
+
     return {
       ...base,
       pelatihanAkanDiikuti: base.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 Solo',
@@ -640,6 +670,10 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
       email: bestEmail || base.email,
       noWa: bestNoWa || base.noWa || base.noHp,
       noHp: bestNoWa || base.noHp || base.noWa,
+      tempatLahir: resolvedTempat,
+      tanggalLahir: resolvedTanggal,
+      jenisKelamin: bestJenisKelamin || base.jenisKelamin || 'L',
+      qabilah: bestQabilah || base.qabilah || '',
       nbm: bestNbm || base.nbm || '',
       ktaNumber: bestKta || base.ktaNumber || base.nomorKTA || '',
       nomorKTA: bestKta || base.nomorKTA || base.ktaNumber || '',

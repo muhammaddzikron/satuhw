@@ -1,3 +1,5 @@
+import { normalizeDateForInput } from '../lib/utils';
+
 export interface KwardaMapping {
   code: string;
   name: string;
@@ -384,7 +386,8 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
 }
 
 /**
- * Deduplicates a list of member records, merging duplicates so no roles, pelatihan, or verified statuses are lost.
+ * Deduplicates a list of member records, merging duplicates strictly by unique ID, non-synthetic email, or KTA number,
+ * so no roles, pelatihan, or verified statuses are lost, while never cross-contaminating different individuals.
  */
 export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[]): T[] {
   if (!Array.isArray(rawMembers) || rawMembers.length === 0) return [];
@@ -392,9 +395,6 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
   const map = new Map<string, T>();
   const emailToId = new Map<string, string>();
   const ktaToId = new Map<string, string>();
-  const nameKwardaToId = new Map<string, string>();
-  const namePhoneToId = new Map<string, string>();
-  const nameOnlyToId = new Map<string, string>();
 
   const normStr = (val: any) => (val ? String(val).trim().toLowerCase().replace(/\s+/g, ' ') : '');
   const cleanDigits = (val: any) => (val ? String(val).replace(/[^0-9]/g, '') : '');
@@ -409,10 +409,8 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
     const name = (raw.namaLengkap || raw.nama || '').trim();
     if (!name || name === 'Tanpa Nama' || name === '-' || name.toLowerCase() === 'null' || name.toLowerCase() === 'undefined') continue;
 
-    const normName = normStr(name);
-    const kwarda = normStr(raw.asalKwarda || raw.asalDaerah);
     const phoneDigits = cleanDigits(raw.noHp || raw.noWa);
-    const validPhone = phoneDigits.length >= 8 ? phoneDigits : '';
+    const resolvedPhone = raw.noHp || raw.noWa || '';
 
     const email = normStr(raw.email);
     const validEmail = (email && !isSyntheticEmail(email)) ? email : '';
@@ -422,10 +420,7 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
 
     const rawId = raw.id ? String(raw.id).trim() : '';
 
-    const nameKwardaKey = kwarda ? `${normName}||${kwarda}` : '';
-    const namePhoneKey = validPhone ? `${normName}||${validPhone}` : '';
-
-    // Search for existing duplicate match in order of specificity
+    // Search for existing duplicate match strictly by unique identifiers
     let matchId: string | null = null;
 
     if (rawId && map.has(rawId)) {
@@ -434,25 +429,10 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       matchId = emailToId.get(validEmail)!;
     } else if (validKta && ktaToId.has(validKta)) {
       matchId = ktaToId.get(validKta)!;
-    } else if (nameKwardaKey && nameKwardaToId.has(nameKwardaKey)) {
-      matchId = nameKwardaToId.get(nameKwardaKey)!;
-    } else if (namePhoneKey && namePhoneToId.has(namePhoneKey)) {
-      matchId = namePhoneToId.get(namePhoneKey)!;
     }
 
     if (matchId && map.has(matchId)) {
-      const existing = map.get(matchId)!;
-      const exKwarda = normStr(existing.asalKwarda || existing.asalDaerah);
-      const rawKwarda = normStr(raw.asalKwarda || raw.asalDaerah);
-
-      // If both have explicit different Kwardas, they are different people!
-      if (exKwarda && rawKwarda && exKwarda !== rawKwarda) {
-        matchId = null;
-      }
-    }
-
-    if (matchId && map.has(matchId)) {
-      // Merge raw into existing member record
+      // Merge into existing member record, prioritizing freshly provided non-empty values
       const existing = map.get(matchId)!;
 
       // Merge roles
@@ -492,48 +472,50 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       newPel.forEach(p => combinedPelMap.set(normStr(p), p));
       const combinedPel = Array.from(combinedPelMap.values()).filter(Boolean);
 
-      const resolvedName = existing.namaLengkap || raw.namaLengkap || existing.nama || raw.nama || name;
-      const resolvedKwarda = existing.asalKwarda || raw.asalKwarda || existing.asalDaerah || raw.asalDaerah || '';
-      const resolvedPhone = existing.noHp || raw.noHp || existing.noWa || raw.noWa || '';
-      const resolvedGol = (existing.golongan && existing.golongan !== 'Dewasa') ? existing.golongan : (raw.golongan || existing.tingkatan || raw.tingkatan || existing.golongan || 'Dewasa');
+      // Prioritize raw's non-empty fields if provided, fallback to existing
+      const resolvedName = (raw.namaLengkap || raw.nama || existing.namaLengkap || existing.nama || name).trim();
+      const resolvedKwarda = raw.asalKwarda || raw.asalDaerah || existing.asalKwarda || existing.asalDaerah || '';
+      const resolvedPhoneVal = raw.noHp || raw.noWa || existing.noHp || existing.noWa || '';
+      const resolvedGol = raw.golongan || raw.tingkatan || existing.golongan || existing.tingkatan || 'Dewasa';
+      const resolvedTempatLahir = (raw.tempatLahir || (raw as any)?.tempatlahir || existing.tempatLahir || (existing as any)?.tempatlahir || '').trim();
+      const rawTgl = raw.tanggalLahir || (raw as any)?.tanggallahir || existing.tanggalLahir || (existing as any)?.tanggallahir || '';
+      const resolvedTanggalLahir = normalizeDateForInput(rawTgl);
 
       const merged: T = {
-        ...raw,
         ...existing,
+        ...raw,
         id: existing.id || raw.id,
         namaLengkap: resolvedName,
         nama: resolvedName,
-        email: validEmail || existing.email || raw.email || '',
-        noHp: resolvedPhone,
-        noWa: resolvedPhone,
-        alamat: existing.alamat || raw.alamat || '',
-        qabilah: existing.qabilah || raw.qabilah || '',
+        email: validEmail || raw.email || existing.email || '',
+        noHp: resolvedPhoneVal,
+        noWa: resolvedPhoneVal,
+        alamat: raw.alamat || existing.alamat || '',
+        qabilah: raw.qabilah || existing.qabilah || '',
         asalKwarda: resolvedKwarda,
         asalDaerah: resolvedKwarda,
-        tempatLahir: existing.tempatLahir || raw.tempatLahir || '',
-        tanggalLahir: existing.tanggalLahir || raw.tanggalLahir || '',
+        tempatLahir: resolvedTempatLahir,
+        tanggalLahir: resolvedTanggalLahir,
+        jenisKelamin: raw.jenisKelamin || existing.jenisKelamin || 'L',
         golongan: resolvedGol,
         tingkatan: resolvedGol,
-        jenisKta: existing.jenisKta || raw.jenisKta || 'Digital',
-        status: existing.status || raw.status || (existing.isVerified || raw.isVerified ? 'approved' : 'pending'),
-        photo: (existing.photo && existing.photo.length > (raw.photo || '').length) ? existing.photo : (raw.photo || existing.photo || ''),
-        isVerified: Boolean(existing.isVerified || raw.isVerified || existing.status === 'approved' || raw.status === 'approved'),
-        statusAktivasi: (existing.statusAktivasi === 'Aktif' || raw.statusAktivasi === 'Aktif') ? 'Aktif' : (existing.statusAktivasi || raw.statusAktivasi || 'Belum Aktif'),
-        statusPembayaran: (existing.statusPembayaran === 'Lunas' || raw.statusPembayaran === 'Lunas') ? 'Lunas' : (existing.statusPembayaran || raw.statusPembayaran || 'Belum Bayar'),
-        ktaNumber: validKta || existing.ktaNumber || raw.ktaNumber || '',
-        nomorKTA: validKta || existing.nomorKTA || raw.nomorKTA || '',
+        jenisKta: raw.jenisKta || existing.jenisKta || 'Digital',
+        status: (raw.status === 'approved' || existing.status === 'approved') ? 'approved' : (raw.status || existing.status || 'pending'),
+        photo: (raw.photo && raw.photo.length > 10) ? raw.photo : (existing.photo || ''),
+        isVerified: Boolean(raw.isVerified || existing.isVerified || raw.status === 'approved' || existing.status === 'approved'),
+        statusAktivasi: (raw.statusAktivasi === 'Aktif' || existing.statusAktivasi === 'Aktif') ? 'Aktif' : (raw.statusAktivasi || existing.statusAktivasi || 'Belum Aktif'),
+        statusPembayaran: (raw.statusPembayaran === 'Lunas' || existing.statusPembayaran === 'Lunas') ? 'Lunas' : (raw.statusPembayaran || existing.statusPembayaran || 'Belum Bayar'),
+        ktaNumber: validKta || raw.ktaNumber || existing.ktaNumber || '',
+        nomorKTA: validKta || raw.nomorKTA || existing.nomorKTA || '',
         role: primaryRole,
         roles: combinedRoles,
         pelatihan: combinedPel,
-        password: existing.password || raw.password || '12345hw'
+        password: raw.password || existing.password || '12345hw'
       };
 
       map.set(matchId, merged);
       if (validEmail) emailToId.set(validEmail, matchId);
       if (validKta) ktaToId.set(validKta, matchId);
-      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, matchId);
-      if (namePhoneKey) namePhoneToId.set(namePhoneKey, matchId);
-      if (normName) nameOnlyToId.set(normName, matchId);
     } else {
       const memberId = rawId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const rawRoles = raw.roles || (raw.role ? [raw.role] : ['umum']);
@@ -562,8 +544,9 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       }
 
       const resolvedKwarda = raw.asalKwarda || raw.asalDaerah || '';
-      const resolvedPhone = raw.noHp || raw.noWa || '';
       const resolvedGol = raw.golongan || raw.tingkatan || 'Dewasa';
+      const resolvedTempat = (raw.tempatLahir || (raw as any)?.tempatlahir || '').trim();
+      const resolvedTgl = normalizeDateForInput(raw.tanggalLahir || (raw as any)?.tanggallahir || '');
 
       const newObj: T = {
         ...raw,
@@ -573,6 +556,8 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
         email: raw.email || '',
         noHp: resolvedPhone,
         noWa: resolvedPhone,
+        tempatLahir: resolvedTempat,
+        tanggalLahir: resolvedTgl,
         asalKwarda: resolvedKwarda,
         asalDaerah: resolvedKwarda,
         jenisKelamin: raw.jenisKelamin === 'Perempuan' || raw.jenisKelamin === 'P' ? 'P' : 'L',
@@ -590,9 +575,6 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       map.set(memberId, newObj);
       if (validEmail) emailToId.set(validEmail, memberId);
       if (validKta) ktaToId.set(validKta, memberId);
-      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, memberId);
-      if (namePhoneKey) namePhoneToId.set(namePhoneKey, memberId);
-      if (normName) nameOnlyToId.set(normName, memberId);
     }
   }
 

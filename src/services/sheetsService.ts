@@ -6,7 +6,7 @@ import { firestoreService, parseRolesField, applyMemberOverrides, applyMemberLis
 import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
-import { pickValidImageUrl } from '../lib/utils';
+import { pickValidImageUrl, normalizeDateForInput } from '../lib/utils';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, DEFAULT_JM1_SOLO_ACTIVITY, migrateParticipantToJayaMelati1Solo } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { 
@@ -1025,6 +1025,7 @@ export const sheetsService = {
       ...userData,
       id: userData.id || (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`),
       namaLengkap: properName || userData.namaLengkap || 'Anggota HW',
+      tanggalLahir: normalizeDateForInput(userData.tanggalLahir || (userData as any)?.tanggallahir || ''),
       role: primaryRole,
       roles: synced.roles,
       pelatihan: synced.pelatihan,
@@ -1040,16 +1041,11 @@ export const sheetsService = {
       if (idStr) overrides[idStr] = cleanUserData;
       if (idClean) overrides[idClean] = cleanUserData;
       if (idClean) overrides[`user-${idClean}`] = cleanUserData;
-      if (cleanUserData.email) overrides[cleanUserData.email.toLowerCase().trim()] = cleanUserData;
+      if (cleanUserData.email && !cleanUserData.email.startsWith('member_') && !cleanUserData.email.startsWith('user_')) {
+        overrides[cleanUserData.email.toLowerCase().trim()] = cleanUserData;
+      }
       if (cleanUserData.ktaNumber) overrides[cleanUserData.ktaNumber.trim()] = cleanUserData;
       if (cleanUserData.nomorKTA) overrides[cleanUserData.nomorKTA.trim()] = cleanUserData;
-      if (cleanUserData.noHp) {
-        const digits = String(cleanUserData.noHp).replace(/[^0-9]/g, '');
-        if (digits.length > 5) overrides[digits] = cleanUserData;
-      }
-      if (cleanUserData.namaLengkap) {
-        overrides[cleanUserData.namaLengkap.toLowerCase().trim()] = cleanUserData;
-      }
       safeStorageSet('member_custom_edits', overrides);
     } catch (e) {}
 
@@ -1059,22 +1055,19 @@ export const sheetsService = {
       let members: any[] = stored ? JSON.parse(stored) : [];
       if (!Array.isArray(members)) members = [];
       const cleanId = String(cleanUserData.id || '');
-      const cleanEmail = cleanUserData.email ? cleanUserData.email.toLowerCase().trim() : '';
+      const cleanEmail = (cleanUserData.email && !cleanUserData.email.startsWith('member_') && !cleanUserData.email.startsWith('user_')) ? cleanUserData.email.toLowerCase().trim() : '';
       const cleanKta = cleanUserData.ktaNumber ? cleanUserData.ktaNumber.trim() : '';
-      const cleanPhone = cleanUserData.noHp ? cleanUserData.noHp.replace(/[^0-9]/g, '') : '';
 
       const idx = members.findIndex((m: any) => {
         if (!m) return false;
         const mId = m.id ? String(m.id) : '';
-        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+        const mEmail = (m.email && !m.email.startsWith('member_') && !m.email.startsWith('user_')) ? m.email.toLowerCase().trim() : '';
         const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
-        const mPhone = m.noHp ? String(m.noHp).replace(/[^0-9]/g, '') : '';
 
         return (
           (cleanId && mId && cleanId === mId) ||
           (cleanEmail && mEmail && cleanEmail === mEmail) ||
-          (cleanKta && mKta && cleanKta === mKta) ||
-          (cleanPhone && cleanPhone.length > 5 && mPhone && cleanPhone === mPhone)
+          (cleanKta && mKta && cleanKta === mKta)
         );
       });
 

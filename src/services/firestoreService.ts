@@ -26,6 +26,7 @@ import {
 import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
+import { normalizeDateForInput } from '../lib/utils';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
@@ -185,18 +186,14 @@ export function applyMemberOverrides(member: any): any {
 
   const mId = member.id ? String(member.id).trim() : '';
   const mIdClean = mId.replace(/^user-/, '');
-  const mEmail = member.email ? String(member.email).toLowerCase().trim() : '';
+  const mEmail = (member.email && !member.email.startsWith('member_') && !member.email.startsWith('user_')) ? String(member.email).toLowerCase().trim() : '';
   const mKta = String(member.ktaNumber || member.nomorKTA || '').trim();
-  const mPhone = member.noHp ? String(member.noHp).replace(/[^0-9]/g, '') : '';
-  const mName = member.namaLengkap ? String(member.namaLengkap).toLowerCase().trim() : '';
 
   const ov = (mId && customOverrides[mId]) ||
     (mIdClean && customOverrides[mIdClean]) ||
-    (mId && customOverrides[`user-${mIdClean}`]) ||
+    (mIdClean && customOverrides[`user-${mIdClean}`]) ||
     (mEmail && customOverrides[mEmail]) ||
-    (mKta && customOverrides[mKta]) ||
-    (mPhone && mPhone.length > 5 && customOverrides[mPhone]) ||
-    (mName && customOverrides[mName]);
+    (mKta && customOverrides[mKta]);
 
   const base = ov ? { ...member, ...ov } : member;
   const rawRoles = parseRolesField(base.roles, base.role);
@@ -206,6 +203,7 @@ export function applyMemberOverrides(member: any): any {
   return {
     ...base,
     namaLengkap: properName || base.namaLengkap || 'Anggota HW',
+    tanggalLahir: normalizeDateForInput(base.tanggalLahir || (base as any)?.tanggallahir || ''),
     roles: synced.roles,
     role: synced.primaryRole,
     pelatihan: synced.pelatihan,
@@ -1427,16 +1425,11 @@ export const firestoreService = {
         if (idStr) overrides[idStr] = dataToSave;
         if (idClean) overrides[idClean] = dataToSave;
         if (idClean) overrides[`user-${idClean}`] = dataToSave;
-        if (dataToSave.email) overrides[dataToSave.email.toLowerCase().trim()] = dataToSave;
+        if (dataToSave.email && !dataToSave.email.startsWith('member_') && !dataToSave.email.startsWith('user_')) {
+          overrides[dataToSave.email.toLowerCase().trim()] = dataToSave;
+        }
         if (dataToSave.ktaNumber) overrides[dataToSave.ktaNumber.trim()] = dataToSave;
         if (dataToSave.nomorKTA) overrides[dataToSave.nomorKTA.trim()] = dataToSave;
-        if (dataToSave.noHp) {
-          const digits = String(dataToSave.noHp).replace(/[^0-9]/g, '');
-          if (digits.length > 5) overrides[digits] = dataToSave;
-        }
-        if (dataToSave.namaLengkap) {
-          overrides[dataToSave.namaLengkap.toLowerCase().trim()] = dataToSave;
-        }
         safeStorageSet('member_custom_edits', overrides);
       }
     } catch (e) {}
@@ -1536,6 +1529,10 @@ export const firestoreService = {
       (normUpdates as any).nama = pName;
     }
 
+    if (updates.tanggalLahir || (updates as any)?.tanggallahir) {
+      normUpdates.tanggalLahir = normalizeDateForInput(updates.tanggalLahir || (updates as any)?.tanggallahir);
+    }
+
     // Immediately store in persistent custom overrides
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -1549,16 +1546,11 @@ export const firestoreService = {
         overrides[idStr] = mergedOv;
         if (idClean) overrides[idClean] = mergedOv;
         if (idClean) overrides[`user-${idClean}`] = mergedOv;
-        if (normUpdates.email) overrides[normUpdates.email.toLowerCase().trim()] = mergedOv;
+        if (normUpdates.email && !normUpdates.email.startsWith('member_') && !normUpdates.email.startsWith('user_')) {
+          overrides[normUpdates.email.toLowerCase().trim()] = mergedOv;
+        }
         if (normUpdates.ktaNumber) overrides[normUpdates.ktaNumber.trim()] = mergedOv;
         if (normUpdates.nomorKTA) overrides[normUpdates.nomorKTA.trim()] = mergedOv;
-        if (normUpdates.noHp) {
-          const digits = String(normUpdates.noHp).replace(/[^0-9]/g, '');
-          if (digits.length > 5) overrides[digits] = mergedOv;
-        }
-        if (normUpdates.namaLengkap) {
-          overrides[normUpdates.namaLengkap.toLowerCase().trim()] = mergedOv;
-        }
         safeStorageSet('member_custom_edits', overrides);
       }
     } catch (e) {}
@@ -2040,7 +2032,7 @@ export const firestoreService = {
           if (newApp.qabilah) memberSync.qabilah = newApp.qabilah;
           if (newApp.asalDaerah || newApp.asalKwarda) memberSync.asalKwarda = newApp.asalDaerah || newApp.asalKwarda;
           if (newApp.tempatLahir) memberSync.tempatLahir = newApp.tempatLahir;
-          if (newApp.tanggalLahir) memberSync.tanggalLahir = newApp.tanggalLahir;
+          if (newApp.tanggalLahir) memberSync.tanggalLahir = normalizeDateForInput(newApp.tanggalLahir);
           if (newApp.jenisKelamin) memberSync.jenisKelamin = (newApp.jenisKelamin === 'Perempuan' || newApp.jenisKelamin === 'P') ? 'P' : 'L';
           if (newApp.sosmed) memberSync.sosmed = newApp.sosmed;
           if (newApp.status === 'approved') memberSync.isVerified = true;
