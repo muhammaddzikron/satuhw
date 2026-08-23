@@ -526,13 +526,11 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
 
   // Merge each cluster into a single consolidated record
   return clusters.map(cluster => {
-    if (cluster.length === 1) return cluster[0];
-
-    // Priority ordering for base object (prefer approved/terverifikasi with photo/id)
+    // Priority ordering for base object (prefer approved/terverifikasi with photo/id/preTestScore)
     const sorted = [...cluster].sort((a, b) => {
       const scoreStatus = (s: string) => (s === 'approved' || s === 'terverifikasi' || s === 'disetujui') ? 3 : s === 'pending' ? 2 : 1;
-      const sa = scoreStatus(a.status) + (a.photo ? 1 : 0) + (a.preTestScore !== undefined ? 1 : 0);
-      const sb = scoreStatus(b.status) + (b.photo ? 1 : 0) + (b.preTestScore !== undefined ? 1 : 0);
+      const sa = scoreStatus(a.status) + (a.photo ? 1 : 0) + (a.preTestScore !== undefined ? 1 : 0) + (a.postTestScore !== undefined ? 1 : 0);
+      const sb = scoreStatus(b.status) + (b.photo ? 1 : 0) + (b.preTestScore !== undefined ? 1 : 0) + (b.postTestScore !== undefined ? 1 : 0);
       return sb - sa;
     });
 
@@ -631,11 +629,12 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
 
     return {
       ...base,
-      pelatihanAkanDiikuti: base.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 HW Solo',
+      pelatihanAkanDiikuti: base.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 Solo',
       tingkatan: base.tingkatan || 'Jaya Melati 1',
       lokasiPelatihan: base.lokasiPelatihan || 'Kwarda HW Solo',
-      tanggalPelatihan: base.tanggalPelatihan || '15-18 Agustus 2026',
-      biayaPelatihan: base.biayaPelatihan || 'Rp 50.000',
+      tanggalPelatihan: base.tanggalPelatihan || '22 - 23 Agustus dan 11 - 13 September 2026',
+      biayaPelatihan: base.biayaPelatihan || 'Rp 550.000',
+      rekeningPembiayaan: base.rekeningPembiayaan || 'BNI 0282085562 a.n. Laily Purnamawati',
       photo: bestPhoto || base.photo || '',
       userId: bestUserId || base.userId,
       email: bestEmail || base.email,
@@ -662,19 +661,22 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
 
 export const DEFAULT_JM1_SOLO_ACTIVITY = {
   id: 'act-jm1-solo',
-  namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+  namaKegiatan: 'Pelatihan Jaya Melati 1 Solo',
   jenisPelatihan: 'Jaya Melati 1',
   tingkatan: 'Jaya Melati 1',
-  kategori: 'Pelatihan Jaya Melati 1 HW Solo',
+  kategori: 'Pelatihan Jaya Melati 1 Solo',
   lokasiPelatihan: 'Kwarda HW Solo',
   lokasi: 'Kwarda HW Solo',
-  tanggalPelatihan: '15-18 Agustus 2026',
-  tanggal: '15-18 Agustus 2026',
-  biayaPelatihan: 'Rp 50.000',
-  biaya: 'Rp 50.000',
+  tanggalPelatihan: '22 - 23 Agustus dan 11 - 13 September 2026',
+  tanggal: '22 - 23 Agustus dan 11 - 13 September 2026',
+  biayaPelatihan: 'Rp 550.000',
+  biaya: 'Rp 550.000',
   status: 'Buka',
-  deskripsi: 'Pelatihan Jaya Melati 1 Kwarda HW Solo Terverifikasi',
-  rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+  deskripsi: 'Pelatihan Jaya Melati 1 Kwarda HW Solo',
+  rekeningPembiayaan: 'BNI 0282085562 a.n. Laily Purnamawati',
+  rekeningPembayaran: 'BNI 0282085562 a.n. Laily Purnamawati',
+  namaPelatih: 'Muhammad Dzikron, Eni Winarti, Wahyu Dewayanto, Dwi Suparwanto, Agus Dwi Setiawan, Puryadi',
+  asistenPelatih: 'Retiana Maharani',
   noWhatsappPanitia: '089688754000'
 };
 
@@ -682,14 +684,14 @@ export const migrateParticipantToJayaMelati1Solo = (p: any): any => {
   if (!p) return p;
   return {
     ...p,
-    pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 HW Solo',
+    pelatihanAkanDiikuti: 'Pelatihan Jaya Melati 1 Solo',
     jenisPelatihan: 'Jaya Melati 1',
     tingkatan: p.tingkatan || 'Jaya Melati 1',
-    namaKegiatan: 'Pelatihan Jaya Melati 1 HW Solo',
+    namaKegiatan: 'Pelatihan Jaya Melati 1 Solo',
     lokasiPelatihan: 'Kwarda HW Solo',
-    tanggalPelatihan: '15-18 Agustus 2026',
-    biayaPelatihan: p.biayaPelatihan || 'Rp 50.000',
-    rekeningPembiayaan: p.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+    tanggalPelatihan: '22 - 23 Agustus dan 11 - 13 September 2026',
+    biayaPelatihan: p.biayaPelatihan || 'Rp 550.000',
+    rekeningPembiayaan: p.rekeningPembiayaan || 'BNI 0282085562 a.n. Laily Purnamawati'
   };
 };
 

@@ -224,6 +224,7 @@ import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
+import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
 import { TestSubmissionViewerModal } from '../components/training/TestSubmissionViewerModal';
 export { KWARDA_QABILAH_JATENG };
@@ -1078,17 +1079,17 @@ export default function AdminDashboard() {
         ...prev,
         pelatihanAkanDiikuti: matchingAct.namaKegiatan || matchingAct.jenisPelatihan || val,
         lokasiPelatihan: matchingAct.lokasiPelatihan || matchingAct.lokasi || 'Kwarda HW Solo',
-        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || '15-18 Agustus 2026',
-        biayaPelatihan: matchingAct.biayaPelatihan || matchingAct.biaya || prev?.biayaPelatihan || 'Rp 50.000',
-        rekeningPembiayaan: matchingAct.rekeningPembiayaan || matchingAct.rekeningPembayaran || prev?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'
+        tanggalPelatihan: matchingAct.tanggalPelatihan || matchingAct.tanggal || '22 - 23 Agustus dan 11 - 13 September 2026',
+        biayaPelatihan: matchingAct.biayaPelatihan || matchingAct.biaya || prev?.biayaPelatihan || 'Rp 550.000',
+        rekeningPembiayaan: matchingAct.rekeningPembiayaan || matchingAct.rekeningPembayaran || prev?.rekeningPembiayaan || 'BNI 0282085562 a.n. Laily Purnamawati'
       }));
     } else {
       setEditingTrainingApp((prev: any) => ({
         ...prev,
         pelatihanAkanDiikuti: val,
         lokasiPelatihan: prev?.lokasiPelatihan || 'Kwarda HW Solo',
-        tanggalPelatihan: prev?.tanggalPelatihan || '15-18 Agustus 2026',
-        biayaPelatihan: prev?.biayaPelatihan || 'Rp 50.000'
+        tanggalPelatihan: prev?.tanggalPelatihan || '22 - 23 Agustus dan 11 - 13 September 2026',
+        biayaPelatihan: prev?.biayaPelatihan || 'Rp 550.000'
       }));
     }
   };
@@ -1871,17 +1872,19 @@ export default function AdminDashboard() {
       act = acts[0];
     }
 
-    const activityName = act?.namaKegiatan || act?.jenisPelatihan || 'Pelatihan Jaya Melati 1 HW Solo';
+    const activityName = act?.namaKegiatan || act?.jenisPelatihan || 'Pelatihan Jaya Melati 1 Solo';
     const activityJenis = act?.jenisPelatihan || 'Jaya Melati 1';
-    const activityLokasi = act?.lokasiPelatihan || 'Kwarda HW Solo';
-    const activityTanggal = act?.tanggalPelatihan || '15-18 Agustus 2026';
-    const activityBiaya = act?.biayaPelatihan || 'Rp 50.000';
-    const activityRekening = act?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
-    const activityId = act?.id || '';
+    const activityLokasi = act?.lokasiPelatihan || act?.lokasi || 'Kwarda HW Solo';
+    const activityTanggal = act?.tanggalPelatihan || act?.tanggal || '22 - 23 Agustus dan 11 - 13 September 2026';
+    const activityBiaya = act?.biayaPelatihan || act?.biaya || 'Rp 550.000';
+    const activityRekening = act?.rekeningPembiayaan || act?.rekeningPembayaran || 'BNI 0282085562 a.n. Laily Purnamawati';
+    const activityPelatih = act?.namaPelatih || act?.pelatih || 'Muhammad Dzikron, Eni Winarti, Wahyu Dewayanto, Dwi Suparwanto, Agus Dwi Setiawan, Puryadi';
+    const activityAsisten = act?.asistenPelatih || 'Retiana Maharani';
+    const activityId = act?.id || 'act-jm1-solo';
 
     const count = trainingApps.length;
 
-    if (!window.confirm(`Ubah SEMUA data ${count} peserta pelatihan yang ada saat ini menjadi Peserta Pelatihan:\n\n• Nama Kegiatan: ${activityName}\n• Jenis: ${activityJenis}\n• Lokasi: ${activityLokasi}\n• Tanggal: ${activityTanggal}\n• Biaya: ${activityBiaya}\n\nLanjutkan pembaruan ke semua peserta?`)) {
+    if (!window.confirm(`Ubah SEMUA data ${count} peserta pelatihan yang ada saat ini menjadi Peserta Pelatihan:\n\n• Nama Kegiatan: ${activityName}\n• Jenis: ${activityJenis}\n• Lokasi: ${activityLokasi}\n• Tanggal: ${activityTanggal}\n• Biaya: ${activityBiaya}\n• Rekening: ${activityRekening}\n• Pelatih: ${activityPelatih}\n• Asisten Pelatih: ${activityAsisten}\n\n(Catatan: Jenis/kegiatan pelatihan lain yang tidak sesuai akan dibersihkan agar sinkron).\n\nLanjutkan pembaruan ke semua peserta?`)) {
       return;
     }
 
@@ -1896,9 +1899,18 @@ export default function AdminDashboard() {
         tingkatan: activityJenis,
         pelatihanAkanDiikuti: activityName,
         lokasiPelatihan: activityLokasi,
+        lokasi: activityLokasi,
         tanggalPelatihan: activityTanggal,
+        tanggal: activityTanggal,
         biayaPelatihan: activityBiaya,
-        rekeningPembiayaan: activityRekening
+        biaya: activityBiaya,
+        rekeningPembiayaan: activityRekening,
+        rekeningPembayaran: activityRekening,
+        namaPelatih: activityPelatih,
+        pelatih: activityPelatih,
+        asistenPelatih: activityAsisten,
+        status: 'Buka',
+        deskripsi: act?.deskripsi || 'Pelatihan Jaya Melati 1 Kwarda HW Solo'
       };
 
       // Optimistic update
@@ -1907,13 +1919,24 @@ export default function AdminDashboard() {
         ...payload
       })));
 
+      // Keep only this registered training activity in settings
+      setSettings(prev => ({
+        ...prev,
+        trainingActivities: [payload],
+        trainingTypes: [activityJenis],
+        trainingLocations: [activityLokasi],
+        trainingDates: [activityTanggal]
+      }));
+
       const res = await sheetsService.bulkSetAllTrainingParticipantsToActivity(payload);
-      const [tApps, mData] = await Promise.all([
+      const [tApps, mData, sData] = await Promise.all([
         sheetsService.getTrainingApplications(),
-        sheetsService.getMembers()
+        sheetsService.getMembers(),
+        sheetsService.getSettings()
       ]);
       if (tApps?.length) setTrainingApps(tApps);
       if (mData?.length) setMembers(mData);
+      if (sData) setSettings(sData);
 
       showToast('success', `Berhasil! ${res.count || tApps?.length || 0} peserta kini terdaftar di ${activityName}.`);
     } catch (err: any) {
@@ -7567,6 +7590,8 @@ export default function AdminDashboard() {
                     {/* PANEL PENGATURAN PRE TEST & POST TEST & BANK SOAL */}
                     <TestManagementPanel
                       settings={settings}
+                      applications={trainingApps}
+                      onViewTestApp={(app) => setViewingTestApp(app)}
                       onSaveSettings={async (updatedSettings) => {
                         await sheetsService.saveSettings(updatedSettings);
                         setSettings(updatedSettings);
@@ -8319,7 +8344,7 @@ export default function AdminDashboard() {
 
                     {/* DAFTAR KEGIATAN PELATIHAN HW JATENG */}
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
                           <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
                             <span>🗓️</span> Daftar Kegiatan Pelatihan HW Jateng
@@ -8328,9 +8353,45 @@ export default function AdminDashboard() {
                             Kegiatan ini tampil di halaman depan portal pelatihan dan menentukan opsi waktu & tempat pada formulir pendaftaran.
                           </p>
                         </div>
-                        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black">
-                          {allTrainingActivitiesList.length} Kegiatan
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {allTrainingActivitiesList.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (confirm('Hapus semua jenis kegiatan pelatihan selain "Pelatihan Jaya Melati 1 Solo"?')) {
+                                  const jm1 = allTrainingActivitiesList.find((a: any) => 
+                                    (a?.jenisPelatihan && a.jenisPelatihan.toLowerCase().includes('jaya melati 1')) ||
+                                    (a?.namaKegiatan && a.namaKegiatan.toLowerCase().includes('jaya melati 1'))
+                                  ) || DEFAULT_JM1_SOLO_ACTIVITY;
+                                  const updatedSettings = {
+                                    ...settings,
+                                    trainingActivities: [jm1],
+                                    trainingTypes: ['Jaya Melati 1'],
+                                    trainingLocations: [jm1.lokasiPelatihan || 'Kwarda HW Solo'],
+                                    trainingDates: [jm1.tanggalPelatihan || '22 - 23 Agustus dan 11 - 13 September 2026']
+                                  };
+                                  setSettings(updatedSettings);
+                                  try {
+                                    setLoading(true);
+                                    await sheetsService.saveSettings(updatedSettings);
+                                    showToast('success', 'Berhasil menyisakan hanya kegiatan Jaya Melati 1 Solo');
+                                  } catch (e: any) {
+                                    showToast('error', e.message);
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }
+                              }}
+                              className="text-[10px] bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-xl font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
+                              title="Hapus semua kegiatan lain dan hanya simpan Jaya Melati 1 Solo"
+                            >
+                              <Trash2 size={12} /> Hapus Kegiatan Lain
+                            </button>
+                          )}
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black">
+                            {allTrainingActivitiesList.length} Kegiatan
+                          </span>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

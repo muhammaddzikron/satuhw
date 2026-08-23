@@ -141,6 +141,13 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   const unsubmittedTotal = testReviewItems.filter(i => !i.isAnswered).length;
   const scoreCalculated = testReviewItems.length > 0 ? Math.round((correctTotal / testReviewItems.length) * 100) : 0;
 
+  const actualScore = currentTestData?.score !== undefined && currentTestData?.score !== null && currentTestData?.score !== ''
+    ? Number(currentTestData.score) 
+    : scoreCalculated;
+  const hasSparseAnswers = Object.keys(currentAnswers).length === 0;
+  const displayCorrectTotal = hasSparseAnswers && actualScore !== undefined ? Math.round((actualScore / 100) * activeQuestions.length) : correctTotal;
+  const displayWrongTotal = hasSparseAnswers && actualScore !== undefined ? Math.max(0, activeQuestions.length - displayCorrectTotal) : wrongTotal;
+
   // Attendance stats
   const sessionList = JATI1_36_SESSIONS;
   const totalSessions = sessionList.length;
@@ -310,12 +317,12 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                         </span>
                       </div>
                       <div className="text-2xl sm:text-3xl font-black text-emerald-900 font-display">
-                        Nilai: {currentTestData.score ?? scoreCalculated} / 100
+                        Nilai: {actualScore} / 100
                       </div>
                       <div className="text-xs text-emerald-800 font-bold flex items-center gap-3 mt-0.5">
-                        <span className="text-green-700 font-extrabold">✓ {correctTotal} Benar</span>
-                        <span className="text-rose-600 font-extrabold">✗ {wrongTotal} Salah</span>
-                        {unsubmittedTotal > 0 && <span className="text-gray-500 font-bold">⚪ {unsubmittedTotal} Kosong</span>}
+                        <span className="text-green-700 font-extrabold">✓ {displayCorrectTotal} Benar</span>
+                        <span className="text-rose-600 font-extrabold">✗ {displayWrongTotal} Salah</span>
+                        {unsubmittedTotal > 0 && !hasSparseAnswers && <span className="text-gray-500 font-bold">⚪ {unsubmittedTotal} Kosong</span>}
                       </div>
                     </div>
                   </div>

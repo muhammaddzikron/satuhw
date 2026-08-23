@@ -120,6 +120,7 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
   const answeredCount = Object.keys(answers).length;
   const totalCount = activeQuestions.length;
   const currentQuestion = activeQuestions[currentIdx] || activeQuestions[0];
+  const calculatedResult = calculateTestResult(answers, activeQuestions);
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -249,17 +250,17 @@ export const ParticipantTestModal: React.FC<ParticipantTestModalProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-black text-emerald-900 uppercase">Hasil Penilaian Ujian</span>
                   <span className="text-[10px] bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                    {testCompletedResult.score >= (testSettings.passingScore || 70) ? 'Lulus KKM' : 'Tercatat'}
+                    {(testCompletedResult.score ?? calculatedResult.score) >= (testSettings.passingScore || 70) ? 'Lulus KKM' : 'Tercatat'}
                   </span>
                   <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
                     Akses Ditutup (Selesai)
                   </span>
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-emerald-800 font-display">
-                  Skor: {testCompletedResult.score} / 100
+                  Skor: {testCompletedResult.score ?? calculatedResult.score} / 100
                 </div>
                 <div className="text-xs text-emerald-700 font-semibold">
-                  Jawaban Benar: <span className="font-bold">{testCompletedResult.correctCount ?? Math.round((testCompletedResult.score / 100) * totalCount)}</span> dari {totalCount} soal
+                  Jawaban Benar: <span className="font-bold">{testCompletedResult.correctCount ?? (Object.keys(answers).length > 0 ? calculatedResult.correctCount : Math.round(((testCompletedResult.score ?? calculatedResult.score) / 100) * totalCount))}</span> dari {totalCount} soal
                 </div>
               </div>
             </div>

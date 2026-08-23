@@ -2560,14 +2560,16 @@ export const firestoreService = {
     clearFirestoreCache('training_applications');
     const apps = await this.getTrainingApplications(true);
     
-    const targetNama = activityData?.namaKegiatan || activityData?.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 HW Solo';
+    const targetNama = activityData?.namaKegiatan || activityData?.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 Solo';
     const targetJenis = activityData?.jenisPelatihan || 'Jaya Melati 1';
     const targetTingkat = activityData?.tingkatan || targetJenis || 'Jaya Melati 1';
     const targetLokasi = activityData?.lokasiPelatihan || 'Kwarda HW Solo';
-    const targetTanggal = activityData?.tanggalPelatihan || '15-18 Agustus 2026';
-    const targetBiaya = activityData?.biayaPelatihan || 'Rp 50.000';
-    const targetRekening = activityData?.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
-    const targetActivityId = activityData?.id || activityData?.activityId || '';
+    const targetTanggal = activityData?.tanggalPelatihan || '22 - 23 Agustus dan 11 - 13 September 2026';
+    const targetBiaya = activityData?.biayaPelatihan || 'Rp 550.000';
+    const targetRekening = activityData?.rekeningPembiayaan || 'BNI 0282085562 a.n. Laily Purnamawati';
+    const targetPelatih = activityData?.namaPelatih || activityData?.pelatih || 'Muhammad Dzikron, Eni Winarti, Wahyu Dewayanto, Dwi Suparwanto, Agus Dwi Setiawan, Puryadi';
+    const targetAsisten = activityData?.asistenPelatih || 'Retiana Maharani';
+    const targetActivityId = activityData?.id || activityData?.activityId || 'act-jm1-solo';
 
     const updatedList = apps.map(app => ({
       ...app,
@@ -2577,12 +2579,49 @@ export const firestoreService = {
       namaKegiatan: targetNama,
       lokasiPelatihan: targetLokasi,
       tanggalPelatihan: targetTanggal,
-      biayaPelatihan: app.biayaPelatihan || targetBiaya,
+      biayaPelatihan: targetBiaya,
       rekeningPembiayaan: targetRekening,
+      rekeningPembayaran: targetRekening,
+      namaPelatih: targetPelatih,
+      asistenPelatih: targetAsisten,
       activityId: targetActivityId || app.activityId || ''
     }));
 
     safeStorageSet('training_applications', updatedList);
+
+    // Also clean up settings.trainingActivities to keep only this valid registered activity (removing any old dummy activities)
+    try {
+      const currentSettings = await this.getSettings();
+      const registeredAct = {
+        id: targetActivityId,
+        namaKegiatan: targetNama,
+        jenisPelatihan: targetJenis,
+        tingkatan: targetTingkat,
+        lokasiPelatihan: targetLokasi,
+        lokasi: targetLokasi,
+        tanggalPelatihan: targetTanggal,
+        tanggal: targetTanggal,
+        biayaPelatihan: targetBiaya,
+        biaya: targetBiaya,
+        rekeningPembiayaan: targetRekening,
+        rekeningPembayaran: targetRekening,
+        namaPelatih: targetPelatih,
+        asistenPelatih: targetAsisten,
+        status: 'Buka',
+        deskripsi: activityData?.deskripsi || 'Pelatihan Jaya Melati 1 Kwarda HW Solo'
+      };
+
+      const updatedSettings = {
+        ...currentSettings,
+        trainingActivities: [registeredAct],
+        trainingTypes: [targetJenis],
+        trainingLocations: [targetLokasi],
+        trainingDates: [targetTanggal]
+      };
+      await this.saveSettings(updatedSettings);
+    } catch (err) {
+      console.warn('Error syncing clean training activities to settings:', err);
+    }
 
     if (!this.getIsQuotaExceeded() && updatedList.length > 0) {
       try {

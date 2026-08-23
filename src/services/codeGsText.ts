@@ -2319,32 +2319,62 @@ function handleSubmitAssignment(id, tugas) {
 
 function handleSubmitTestSubmission(id, testType, score, testData, submittedAt) {
   var sheet = getSheet('Training_Applications');
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { 
+  var rawHeaders = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+  var headers = rawHeaders.map(function(h) { 
     return h ? h.toString().trim().toLowerCase() : ""; 
   });
-  var apps = getRowsAsObjects(sheet);
-  var rowIndex = apps.findIndex(function(app) { 
-    var appId = (app.id || app.Id || '').toString();
-    return appId === (id || '').toString() && appId !== ''; 
-  });
-  if (rowIndex === -1) {
-    // Also try finding by email or userId
-    rowIndex = apps.findIndex(function(app) {
-      var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
-      var appUserId = (app.userid || app.userId || '').toString();
-      return (id && appEmail === id.toString().trim().toLowerCase()) || (id && appUserId === id.toString());
-    });
-  }
-  if (rowIndex === -1) return responseError("Training Application not found");
-
+  
   var isPre = testType === 'pre_test';
   var scoreColName = isPre ? 'pretestscore' : 'posttestscore';
   var dataColName = isPre ? 'pretestdata' : 'posttestdata';
   var submittedAtColName = isPre ? 'pretestsubmittedat' : 'posttestsubmittedat';
+  var scoreHeaderDisplay = isPre ? 'preTestScore' : 'postTestScore';
+  var dataHeaderDisplay = isPre ? 'preTestData' : 'postTestData';
+  var subHeaderDisplay = isPre ? 'preTestSubmittedAt' : 'postTestSubmittedAt';
+
+  // Ensure columns exist on the sheet
+  if (headers.indexOf(scoreColName) === -1) {
+    sheet.getRange(1, headers.length + 1).setValue(scoreHeaderDisplay);
+    headers.push(scoreColName);
+  }
+  if (headers.indexOf(dataColName) === -1) {
+    sheet.getRange(1, headers.length + 1).setValue(dataHeaderDisplay);
+    headers.push(dataColName);
+  }
+  if (headers.indexOf(submittedAtColName) === -1) {
+    sheet.getRange(1, headers.length + 1).setValue(subHeaderDisplay);
+    headers.push(submittedAtColName);
+  }
+
+  var apps = getRowsAsObjects(sheet);
+  var cleanTargetId = (id || '').toString().trim().toLowerCase();
+  var rowIndex = apps.findIndex(function(app) { 
+    var appId = (app.id || app.Id || '').toString().trim().toLowerCase();
+    return appId === cleanTargetId && appId !== ''; 
+  });
+
+  if (rowIndex === -1) {
+    // Also try finding by email, userId, phone, or name
+    rowIndex = apps.findIndex(function(app) {
+      var appEmail = (app.email || app.Email || '').toString().trim().toLowerCase();
+      var appUserId = (app.userid || app.userId || '').toString().trim().toLowerCase();
+      var appPhone = (app.nowa || app.noWa || app.nohp || app.noHp || '').toString().replace(/\D/g, '');
+      var appNama = (app.nama || app.namaLengkap || app.Nama || '').toString().trim().toLowerCase();
+
+      var matchEmail = cleanTargetId && appEmail && (appEmail === cleanTargetId || cleanTargetId.indexOf(appEmail) !== -1 || appEmail.indexOf(cleanTargetId) !== -1);
+      var matchUser = cleanTargetId && appUserId && appUserId === cleanTargetId;
+      var matchPhone = cleanTargetId && appPhone && cleanTargetId.replace(/\D/g, '') === appPhone;
+      var matchNama = cleanTargetId && appNama && (cleanTargetId === appNama || appNama.indexOf(cleanTargetId) !== -1 || cleanTargetId.indexOf(appNama) !== -1);
+
+      return matchEmail || matchUser || matchPhone || matchNama;
+    });
+  }
+
+  if (rowIndex === -1) return responseError("Training Application not found: " + id);
 
   var scoreCol = headers.indexOf(scoreColName) + 1;
   if (scoreCol > 0 && score !== undefined && score !== null) {
-    sheet.getRange(rowIndex + 2, scoreCol).setValue(score);
+    sheet.getRange(rowIndex + 2, scoreCol).setValue(Number(score));
   }
 
   var dataCol = headers.indexOf(dataColName) + 1;
@@ -2357,7 +2387,7 @@ function handleSubmitTestSubmission(id, testType, score, testData, submittedAt) 
     sheet.getRange(rowIndex + 2, subCol).setValue(submittedAt || new Date().toISOString());
   }
 
-  return responseOk({ success: true, testType: testType, score: score });
+  return responseOk({ success: true, testType: testType, score: Number(score) });
 }
 
 function handleUpdateGrade(id, nilai, remark, statusKelulusan) {

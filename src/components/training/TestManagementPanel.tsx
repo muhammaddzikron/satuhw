@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Settings, Clock, Calendar, CheckCircle2, XCircle, Edit3, Trash2, 
-  Plus, RotateCcw, Save, BookOpen, AlertCircle, FileText, ChevronDown, ChevronUp, Search, Sparkles, Check, ToggleLeft, ToggleRight
+  Plus, RotateCcw, Save, BookOpen, AlertCircle, FileText, ChevronDown, ChevronUp, Search, Sparkles, Check, ToggleLeft, ToggleRight,
+  Award, Users, Filter, ArrowUpDown, Eye
 } from 'lucide-react';
 import { 
   TestQuestion, 
@@ -16,16 +17,22 @@ import {
 interface TestManagementPanelProps {
   settings: any;
   onSaveSettings: (updatedSettings: any) => Promise<void>;
+  applications?: any[];
+  onViewTestApp?: (app: any) => void;
 }
 
 export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   settings,
-  onSaveSettings
+  onSaveSettings,
+  applications = [],
+  onViewTestApp
 }) => {
-  const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test'>('pre_test');
+  const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test' | 'rekap'>('pre_test');
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingType, setQuickSavingType] = useState<'pre_test' | 'post_test' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [rekapSearchQuery, setRekapSearchQuery] = useState('');
+  const [rekapFilter, setRekapFilter] = useState<'all' | 'done_pre' | 'done_post' | 'done_both' | 'passed'>('all');
   const [expandedQuestionId, setExpandedQuestionId] = useState<number | null>(null);
 
   // Read current settings with fallback and safe parser
@@ -309,36 +316,283 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
         </div>
       </div>
 
-      {/* TEST TAB SWITCHER: PRE TEST vs POST TEST */}
-      <div className="flex bg-gray-100 p-1.5 rounded-2xl max-w-md">
+      {/* TEST TAB SWITCHER: PRE TEST vs POST TEST vs REKAP HASIL */}
+      <div className="flex flex-wrap bg-gray-100 p-1.5 rounded-2xl max-w-2xl gap-1">
         <button
           onClick={() => setActiveTestTab('pre_test')}
-          className={`flex-1 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
             activeTestTab === 'pre_test'
               ? 'bg-white text-emerald-800 shadow-xs ring-1 ring-black/5'
               : 'text-gray-500 hover:text-gray-800'
           }`}
         >
           <Sparkles size={15} className={activeTestTab === 'pre_test' ? 'text-emerald-600' : ''} />
-          Edit Form 1. Pre Test
+          1. Pre Test
           <span className={`w-2.5 h-2.5 rounded-full ${localPreSettings.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
         </button>
 
         <button
           onClick={() => setActiveTestTab('post_test')}
-          className={`flex-1 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
             activeTestTab === 'post_test'
               ? 'bg-white text-emerald-800 shadow-xs ring-1 ring-black/5'
               : 'text-gray-500 hover:text-gray-800'
           }`}
         >
           <CheckCircle2 size={15} className={activeTestTab === 'post_test' ? 'text-emerald-600' : ''} />
-          Edit Form 2. Post Test
+          2. Post Test
           <span className={`w-2.5 h-2.5 rounded-full ${localPostSettings.isOpen ? 'bg-teal-500' : 'bg-rose-500'}`}></span>
+        </button>
+
+        <button
+          onClick={() => setActiveTestTab('rekap')}
+          className={`flex-1 min-w-[170px] py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+            activeTestTab === 'rekap'
+              ? 'bg-white text-emerald-800 shadow-xs ring-1 ring-black/5'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Award size={15} className={activeTestTab === 'rekap' ? 'text-amber-600' : ''} />
+          3. Rekap Hasil Ujian ({applications.filter(a => a && (a.preTestScore !== undefined || a.postTestScore !== undefined || a.preTestData || a.postTestData)).length})
         </button>
       </div>
 
-      {/* SCHEDULE & CONFIGURATION CARD */}
+      {/* REKAP TAB CONTENT */}
+      {activeTestTab === 'rekap' && (() => {
+        const validApps = applications.filter(a => a && a.status !== 'deleted' && a.status !== 'rejected');
+        
+        const getPreScore = (app: any) => {
+          if (app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '') return Number(app.preTestScore);
+          if (app.preTestData) {
+            try {
+              const p = typeof app.preTestData === 'string' ? JSON.parse(app.preTestData) : app.preTestData;
+              if (p && p.score !== undefined && p.score !== null && p.score !== '') return Number(p.score);
+            } catch(e) {}
+          }
+          return null;
+        };
+
+        const getPostScore = (app: any) => {
+          if (app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '') return Number(app.postTestScore);
+          if (app.postTestData) {
+            try {
+              const p = typeof app.postTestData === 'string' ? JSON.parse(app.postTestData) : app.postTestData;
+              if (p && p.score !== undefined && p.score !== null && p.score !== '') return Number(p.score);
+            } catch(e) {}
+          }
+          return null;
+        };
+
+        const preScores = validApps.map(getPreScore).filter((s): s is number => s !== null);
+        const postScores = validApps.map(getPostScore).filter((s): s is number => s !== null);
+        
+        const avgPre = preScores.length > 0 ? Math.round(preScores.reduce((a, b) => a + b, 0) / preScores.length) : 0;
+        const avgPost = postScores.length > 0 ? Math.round(postScores.reduce((a, b) => a + b, 0) / postScores.length) : 0;
+
+        const filteredApps = validApps.filter(app => {
+          const pre = getPreScore(app);
+          const post = getPostScore(app);
+
+          if (rekapFilter === 'done_pre' && pre === null) return false;
+          if (rekapFilter === 'done_post' && post === null) return false;
+          if (rekapFilter === 'done_both' && (pre === null || post === null)) return false;
+          if (rekapFilter === 'passed' && (post === null || post < (localPostSettings.passingScore || 70))) return false;
+
+          if (rekapSearchQuery) {
+            const q = rekapSearchQuery.toLowerCase().trim();
+            const name = (app.nama || app.namaLengkap || '').toLowerCase();
+            const qabilah = (app.qabilah || '').toLowerCase();
+            const daerah = (app.asalDaerah || '').toLowerCase();
+            const nbm = (app.nbm || app.ktaNumber || '').toLowerCase();
+            return name.includes(q) || qabilah.includes(q) || daerah.includes(q) || nbm.includes(q);
+          }
+
+          return true;
+        });
+
+        return (
+          <div className="space-y-6">
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">Total Peserta Terdaftar</span>
+                <div className="text-2xl font-black text-emerald-950 font-display">{validApps.length}</div>
+                <span className="text-[11px] text-emerald-700 font-bold">Peserta Pelatihan</span>
+              </div>
+
+              <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-teal-800">Telah Pre Test</span>
+                <div className="text-2xl font-black text-teal-950 font-display">{preScores.length} / {validApps.length}</div>
+                <span className="text-[11px] text-teal-700 font-bold">Rata-rata: {avgPre} / 100</span>
+              </div>
+
+              <div className="bg-indigo-50/80 border border-indigo-200 rounded-2xl p-4 space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Telah Post Test</span>
+                <div className="text-2xl font-black text-indigo-950 font-display">{postScores.length} / {validApps.length}</div>
+                <span className="text-[11px] text-indigo-700 font-bold">Rata-rata: {avgPost} / 100</span>
+              </div>
+
+              <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">Lulus KKM Post Test</span>
+                <div className="text-2xl font-black text-amber-950 font-display">
+                  {validApps.filter(a => (getPostScore(a) ?? 0) >= (localPostSettings.passingScore || 70)).length}
+                </div>
+                <span className="text-[11px] text-amber-700 font-bold">KKM: {localPostSettings.passingScore || 70}</span>
+              </div>
+            </div>
+
+            {/* FILTER & SEARCH BAR */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={rekapSearchQuery}
+                  onChange={(e) => setRekapSearchQuery(e.target.value)}
+                  placeholder="Cari nama peserta, NBM, qabilah, asal daerah..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-emerald-500 shadow-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                <button
+                  type="button"
+                  onClick={() => setRekapFilter('all')}
+                  className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    rekapFilter === 'all' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-white text-gray-600 border border-gray-200'
+                  }`}
+                >
+                  Semua ({validApps.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRekapFilter('done_pre')}
+                  className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    rekapFilter === 'done_pre' ? 'bg-teal-700 text-white shadow-xs' : 'bg-white text-teal-700 border border-teal-200'
+                  }`}
+                >
+                  Pre Test ({preScores.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRekapFilter('done_post')}
+                  className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    rekapFilter === 'done_post' ? 'bg-indigo-700 text-white shadow-xs' : 'bg-white text-indigo-700 border border-indigo-200'
+                  }`}
+                >
+                  Post Test ({postScores.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRekapFilter('passed')}
+                  className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    rekapFilter === 'passed' ? 'bg-amber-600 text-white shadow-xs' : 'bg-white text-amber-700 border border-amber-200'
+                  }`}
+                >
+                  Lulus KKM
+                </button>
+              </div>
+            </div>
+
+            {/* PARTICIPANTS TABLE */}
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-xs">
+              <table className="w-full text-left text-xs border-collapse bg-white">
+                <thead>
+                  <tr className="bg-gray-100/80 text-gray-600 border-b border-gray-200 text-[11px] font-black uppercase tracking-wider">
+                    <th className="py-3.5 px-4 text-center w-12">No</th>
+                    <th className="py-3.5 px-4">Nama Peserta</th>
+                    <th className="py-3.5 px-4">Qabilah / Daerah</th>
+                    <th className="py-3.5 px-4 text-center">Nilai Pre Test</th>
+                    <th className="py-3.5 px-4 text-center">Nilai Post Test</th>
+                    <th className="py-3.5 px-4 text-center">Status Kelulusan</th>
+                    <th className="py-3.5 px-4 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
+                  {filteredApps.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-gray-400">
+                        <AlertCircle size={28} className="mx-auto text-gray-300 mb-2" />
+                        Tidak ada data peserta yang cocok dengan filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredApps.map((app, idx) => {
+                      const pre = getPreScore(app);
+                      const post = getPostScore(app);
+                      const isPassingPost = post !== null && post >= (localPostSettings.passingScore || 70);
+
+                      return (
+                        <tr key={app.id || idx} className="hover:bg-emerald-50/40 transition-colors">
+                          <td className="py-3 px-4 text-center font-bold text-gray-400">{idx + 1}</td>
+                          <td className="py-3 px-4">
+                            <div className="font-black text-gray-900">{app.nama || app.namaLengkap}</div>
+                            <div className="text-[10px] text-gray-400">{app.email || app.noWa || '-'}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-gray-700">{app.qabilah || '-'}</div>
+                            <div className="text-[10px] text-gray-400">{app.asalDaerah || 'Jawa Tengah'}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {pre !== null ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+                                {pre} / 100
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-gray-400 font-medium italic">Belum Mengerjakan</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {post !== null ? (
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black border ${
+                                isPassingPost 
+                                  ? 'bg-teal-100 text-teal-900 border-teal-200' 
+                                  : 'bg-rose-100 text-rose-900 border-rose-200'
+                              }`}>
+                                {post} / 100 {isPassingPost ? '✓' : ''}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-gray-400 font-medium italic">Belum Mengerjakan</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              app.statusKelulusan === 'Lulus'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : app.statusKelulusan === 'Lulus Bersyarat'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {app.statusKelulusan || 'Proses'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {onViewTestApp ? (
+                              <button
+                                type="button"
+                                onClick={() => onViewTestApp(app)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Eye size={13} /> Tinjau Lembar Jawaban
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* SCHEDULE & CONFIGURATION CARD (ONLY ON PRE / POST TEST TABS) */}
+      {activeTestTab !== 'rekap' && (
+        <>
       <div className="bg-gray-50/70 p-5 rounded-3xl border border-gray-200/80 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -637,6 +891,8 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
           )}
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

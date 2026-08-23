@@ -2168,8 +2168,34 @@ export default function PelatihanPage() {
                         const isPreOpen = !!preTestStatus.isOpen;
                         const isPostOpen = !!postTestStatus.isOpen;
 
-                        const hasDonePre = !!(userApp && (userApp.preTestScore !== undefined && userApp.preTestScore !== null && userApp.preTestScore !== ''));
-                        const hasDonePost = !!(userApp && (userApp.postTestScore !== undefined && userApp.postTestScore !== null && userApp.postTestScore !== ''));
+                        const displayPreScore = (() => {
+                          if (userApp?.preTestScore !== undefined && userApp?.preTestScore !== null && userApp?.preTestScore !== '') {
+                            return Number(userApp.preTestScore);
+                          }
+                          if (userApp?.preTestData) {
+                            try {
+                              const p = typeof userApp.preTestData === 'string' ? JSON.parse(userApp.preTestData) : userApp.preTestData;
+                              if (p && p.score !== undefined && p.score !== null && p.score !== '') return Number(p.score);
+                            } catch(e) {}
+                          }
+                          return null;
+                        })();
+
+                        const displayPostScore = (() => {
+                          if (userApp?.postTestScore !== undefined && userApp?.postTestScore !== null && userApp?.postTestScore !== '') {
+                            return Number(userApp.postTestScore);
+                          }
+                          if (userApp?.postTestData) {
+                            try {
+                              const p = typeof userApp.postTestData === 'string' ? JSON.parse(userApp.postTestData) : userApp.postTestData;
+                              if (p && p.score !== undefined && p.score !== null && p.score !== '') return Number(p.score);
+                            } catch(e) {}
+                          }
+                          return null;
+                        })();
+
+                        const hasDonePre = displayPreScore !== null;
+                        const hasDonePost = displayPostScore !== null;
 
                         return (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 text-left">
@@ -2254,7 +2280,7 @@ export default function PelatihanPage() {
                                         <div>
                                           <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Pre Test:</span>
                                           <div className="text-xl font-black text-emerald-700 font-display">
-                                            {userApp.preTestScore} / 100
+                                            {displayPreScore} / 100
                                           </div>
                                         </div>
                                         <button
@@ -2349,7 +2375,7 @@ export default function PelatihanPage() {
                                         <div>
                                           <span className="text-[10px] font-bold text-gray-400 uppercase">Nilai Post Test:</span>
                                           <div className="text-xl font-black text-teal-700 font-display">
-                                            {userApp.postTestScore} / 100
+                                            {displayPostScore} / 100
                                           </div>
                                         </div>
                                         <button
