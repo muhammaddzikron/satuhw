@@ -20,19 +20,16 @@ interface TestManagementPanelProps {
   onSaveSettings: (updatedSettings: any) => Promise<void>;
   applications?: any[];
   onViewTestApp?: (app: any) => void;
-  onGenerateSamplePreTest?: () => Promise<void> | void;
 }
 
 export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   settings,
   onSaveSettings,
   applications = [],
-  onViewTestApp,
-  onGenerateSamplePreTest
+  onViewTestApp
 }) => {
   const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test' | 'rekap'>('pre_test');
   const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [quickSavingType, setQuickSavingType] = useState<'pre_test' | 'post_test' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [rekapSearchQuery, setRekapSearchQuery] = useState('');
