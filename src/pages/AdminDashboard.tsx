@@ -6,7 +6,8 @@ import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId } from '../utils/activityUtils';
-import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
+import { syncRolesAndPelatihan, PELATIHAN_OPTIONS, isPelatihanSelected, normalizeTrainingKey, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName, generateSamplePreTestForParticipants } from '../utils/trainingUtils';
+import { DEFAULT_50_QUESTIONS } from '../data/trainingQuestions';
 
 const getCurrentIndonesianDate = (): string => {
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -1954,6 +1955,53 @@ export default function AdminDashboard() {
       (a?.namaKegiatan && a.namaKegiatan.toLowerCase().includes('jaya melati 1'))
     );
     return handleSetAllToActivity(jm1Act);
+  };
+
+  const handleGenerateSamplePreTest = async () => {
+    if (!trainingApps || trainingApps.length === 0) {
+      showToast('error', 'Belum ada peserta pelatihan yang terdaftar.');
+      return;
+    }
+
+    setBackgroundProcessingText('Membuat contoh pengerjaan Pre-Test untuk seluruh peserta pelatihan...');
+    try {
+      const qList = Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0
+        ? settings.trainingQuestions
+        : DEFAULT_50_QUESTIONS;
+
+      const updatedApps = generateSamplePreTestForParticipants(trainingApps, qList);
+
+      // 1. Instant optimistic state update
+      setTrainingApps(updatedApps);
+
+      // 2. Local storage update
+      safeStorageSet('training_applications', consolidateTrainingApplications(updatedApps));
+
+      // 3. Dispatch global sync event
+      window.dispatchEvent(new Event('training_applications_updated'));
+
+      // 4. Background persistence to Firestore and Sheets
+      (async () => {
+        for (const app of updatedApps) {
+          if (app.preTestData) {
+            try {
+              const sub = typeof app.preTestData === 'string' ? JSON.parse(app.preTestData) : app.preTestData;
+              await firestoreService.submitTestSubmission(app.id, sub, app);
+              await sheetsService.submitTestSubmission(app.id, sub).catch(() => {});
+            } catch (err) {
+              console.warn('Syncing sample test submission error:', err);
+            }
+          }
+        }
+      })().catch(e => console.warn('Background sync sample tests error:', e));
+
+      showToast('success', `Berhasil! Contoh hasil pengerjaan Pre-Test (nilai genap 70 - 86) telah dibuat untuk ${updatedApps.length} peserta.`);
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', 'Gagal membuat contoh pengerjaan pre test: ' + (err?.message || err));
+    } finally {
+      setBackgroundProcessingText(null);
+    }
   };
 
   const handleSaveSchedule = async (appId: string) => {
@@ -6971,13 +7019,6 @@ export default function AdminDashboard() {
                             <Download size={14} /> Export PDF
                           </button>
                           <button
-                            onClick={handleSetAllToJayaMelati1Solo}
-                            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/20"
-                            title="Set Semua Peserta Jadi Peserta Pelatihan Jaya Melati 1 (dari Kelola Jenis Pelatihan)"
-                          >
-                            <Sparkles size={14} className="text-amber-100" /> Set Semua Jaya Melati 1
-                          </button>
-                          <button
                             onClick={() => {
                               setAddParticipantSelectedMemberId('');
                               setAddParticipantSearchQuery('');
@@ -7592,6 +7633,7 @@ export default function AdminDashboard() {
                       settings={settings}
                       applications={trainingApps}
                       onViewTestApp={(app) => setViewingTestApp(app)}
+                      onGenerateSamplePreTest={handleGenerateSamplePreTest}
                       onSaveSettings={async (updatedSettings) => {
                         await sheetsService.saveSettings(updatedSettings);
                         setSettings(updatedSettings);

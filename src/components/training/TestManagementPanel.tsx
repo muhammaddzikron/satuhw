@@ -13,22 +13,26 @@ import {
   parseTestScheduleSettings,
   isTestCurrentlyOpen
 } from '../../data/trainingQuestions';
+import { generateSamplePreTestForParticipants } from '../../utils/trainingUtils';
 
 interface TestManagementPanelProps {
   settings: any;
   onSaveSettings: (updatedSettings: any) => Promise<void>;
   applications?: any[];
   onViewTestApp?: (app: any) => void;
+  onGenerateSamplePreTest?: () => Promise<void> | void;
 }
 
 export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   settings,
   onSaveSettings,
   applications = [],
-  onViewTestApp
+  onViewTestApp,
+  onGenerateSamplePreTest
 }) => {
   const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test' | 'rekap'>('pre_test');
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [quickSavingType, setQuickSavingType] = useState<'pre_test' | 'post_test' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [rekapSearchQuery, setRekapSearchQuery] = useState('');
@@ -66,6 +70,13 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
       }
     }
   }, [settings]);
+
+  const handleGeneratePreTestSamples = async () => {
+    if (onGenerateSamplePreTest) {
+      await onGenerateSamplePreTest();
+      return;
+    }
+  };
 
   const activeLocalSettings = activeTestTab === 'pre_test' ? localPreSettings : localPostSettings;
 
@@ -207,14 +218,28 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={handleSaveAll}
-          disabled={isSaving}
-          className="w-full sm:w-auto px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-        >
-          <Save size={16} />
-          {isSaving ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          {onGenerateSamplePreTest && (
+            <button
+              type="button"
+              onClick={handleGeneratePreTestSamples}
+              className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              title="Buat contoh pengerjaan pre-test untuk seluruh peserta dengan rentang nilai genap 70-86"
+            >
+              <Sparkles size={16} className="text-amber-300" />
+              Contoh Pre-Test (70-86 Genap)
+            </button>
+          )}
+
+          <button
+            onClick={handleSaveAll}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Save size={16} />
+            {isSaving ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan'}
+          </button>
+        </div>
       </div>
 
       {/* QUICK REAL-TIME STATUS & 1-CLICK TOGGLE BAR */}
@@ -491,6 +516,18 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
                 >
                   Lulus KKM
                 </button>
+
+                {onGenerateSamplePreTest && (
+                  <button
+                    type="button"
+                    onClick={handleGeneratePreTestSamples}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs flex items-center gap-1.5"
+                    title="Buat contoh pengerjaan pre-test untuk seluruh peserta dengan rentang nilai genap 70-86"
+                  >
+                    <Sparkles size={13} className="text-amber-300" />
+                    Generate Contoh Pre-Test (70-86)
+                  </button>
+                )}
               </div>
             </div>
 

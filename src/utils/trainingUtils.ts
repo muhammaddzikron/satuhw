@@ -1,4 +1,5 @@
 import { normalizeDateForInput } from '../lib/utils';
+import { DEFAULT_50_QUESTIONS, TestQuestion, TestSubmission } from '../data/trainingQuestions';
 
 /**
  * Utility functions and constants for Training Levels (Tingkatan Pelatihan & Parameter Pelatih HW).
@@ -727,5 +728,91 @@ export const migrateParticipantToJayaMelati1Solo = (p: any): any => {
     biayaPelatihan: p.biayaPelatihan || 'Rp 550.000',
     rekeningPembiayaan: p.rekeningPembiayaan || 'BNI 0282085562 a.n. Laily Purnamawati'
   };
+};
+
+/**
+ * Menghasilkan contoh hasil pengerjaan Pre-Test untuk seluruh peserta pelatihan
+ * dengan rentang nilai genap 70 sampai 86 (yaitu: 70, 72, 74, 76, 78, 80, 82, 84, 86)
+ * lengkap dengan lembar jawaban butir soal (50 butir) dan rincian waktu pengerjaan.
+ */
+export const generateSamplePreTestForParticipants = (
+  participants: any[],
+  questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
+): any[] => {
+  if (!Array.isArray(participants) || participants.length === 0) return [];
+
+  const activeQuestions: TestQuestion[] = (Array.isArray(questionsList) && questionsList.length > 0)
+    ? questionsList
+    : DEFAULT_50_QUESTIONS;
+
+  const totalQuestions = activeQuestions.length > 0 ? activeQuestions.length : 50;
+
+  // Deret nilai genap antara 70 sampai 86
+  const evenScores = [70, 72, 74, 76, 78, 80, 82, 84, 86];
+
+  return participants.map((app, idx) => {
+    if (!app) return app;
+
+    // Nilai genap terdistribusi merata berdasarkan indeks dan identitas peserta
+    const nameSeed = String(app.nama || app.namaLengkap || app.id || idx)
+      .split('')
+      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+    const score = evenScores[(idx + nameSeed) % evenScores.length]; // Pasti genap & dalam rentang 70-86
+    const correctCount = Math.round((score / 100) * totalQuestions);
+    const wrongCount = totalQuestions - correctCount;
+
+    // Buat pemetaan lembar jawaban realistis (1: 'a', 2: 'c', ...)
+    const answers: Record<number, string> = {};
+
+    // Buat permutasi index soal yang salah secara deterministik per peserta
+    const shuffledQuestionIndices = Array.from({ length: totalQuestions }, (_, i) => i)
+      .sort((a, b) => {
+        const hashA = (a * 47 + idx * 23 + nameSeed) % 1000;
+        const hashB = (b * 47 + idx * 23 + nameSeed) % 1000;
+        return hashA - hashB;
+      });
+
+    const wrongIndices = new Set(shuffledQuestionIndices.slice(0, wrongCount));
+
+    activeQuestions.forEach((q, qIdx) => {
+      const qNum = q.id || (qIdx + 1);
+      const isWrong = wrongIndices.has(qIdx);
+
+      if (!isWrong) {
+        answers[qNum] = q.correctAnswer;
+      } else {
+        const optionsList: ('a' | 'b' | 'c' | 'd')[] = ['a', 'b', 'c', 'd'];
+        const otherOptions = optionsList.filter(opt => opt !== q.correctAnswer);
+        const wrongChoice = otherOptions[(idx + qIdx + nameSeed) % otherOptions.length];
+        answers[qNum] = wrongChoice;
+      }
+    });
+
+    const now = Date.now();
+    const submittedTime = new Date(now - (idx * 3600000 + (nameSeed % 60) * 60000));
+    const startedTime = new Date(submittedTime.getTime() - (28 * 60000 + (idx % 12) * 60000));
+
+    const submission: TestSubmission = {
+      testType: 'pre_test',
+      score,
+      correctCount,
+      totalQuestions,
+      answers,
+      submittedAt: submittedTime.toISOString(),
+      startedAt: startedTime.toISOString(),
+      timeSpentSeconds: 1680 + ((idx * 79 + nameSeed) % 720),
+      participantId: String(app.id || `part-${idx}`),
+      participantName: app.nama || app.namaLengkap || 'Peserta Pelatihan',
+      participantEmail: app.email || ''
+    };
+
+    return {
+      ...app,
+      preTestScore: score,
+      preTestData: JSON.stringify(submission),
+      preTestSubmittedAt: submission.submittedAt
+    };
+  });
 };
 
