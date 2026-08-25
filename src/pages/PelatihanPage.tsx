@@ -32,7 +32,9 @@ import {
   ArrowLeft,
   Sparkles,
   CreditCard,
-  MessageCircle
+  MessageCircle,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -313,6 +315,7 @@ export default function PelatihanPage() {
   
   // Submit task state
   const [taskTitle, setTaskTitle] = useState('');
+  const [taskMateriId, setTaskMateriId] = useState('');
   const [taskLink, setTaskLink] = useState('');
   const [taskMessage, setTaskMessage] = useState('');
   const [submittingTask, setSubmittingTask] = useState(false);
@@ -881,14 +884,35 @@ export default function PelatihanPage() {
         currentTasks = [];
       }
 
+      // Try finding corresponding assigned task
+      const matchedAssigned = assignedTasks.find(t => 
+        (taskMateriId && String(t.materiId) === String(taskMateriId)) ||
+        (t.materiJudul && (taskTitle.includes(t.materiJudul) || t.materiJudul.includes(taskTitle)))
+      );
+
       const newTask = {
+        id: matchedAssigned ? `task_${matchedAssigned.materiId}` : `task_${Date.now()}`,
+        materiId: matchedAssigned ? matchedAssigned.materiId : (taskMateriId || ''),
         title: taskTitle,
-        link: taskLink,
-        pesan: taskMessage,
+        link: taskLink.trim(),
+        pesan: taskMessage.trim(),
         submittedAt: new Date().toISOString()
       };
 
-      const updatedTasks = [...currentTasks, newTask];
+      // Check if task already exists -> update it (upsert)
+      const existingIdx = currentTasks.findIndex((t: any) => 
+        (newTask.materiId && String(t.materiId) === String(newTask.materiId)) ||
+        (t.title && t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim())
+      );
+
+      let updatedTasks: any[];
+      if (existingIdx >= 0) {
+        updatedTasks = [...currentTasks];
+        updatedTasks[existingIdx] = { ...updatedTasks[existingIdx], ...newTask };
+      } else {
+        updatedTasks = [...currentTasks, newTask];
+      }
+
       const updatedTasksStr = JSON.stringify(updatedTasks);
       await Promise.all([
         sheetsService.submitAssignment(currentApp.id, updatedTasksStr),
@@ -898,8 +922,9 @@ export default function PelatihanPage() {
       setUserApp(updatedUserApp);
       setApplications(prev => prev.map(app => app.id === currentApp.id ? updatedUserApp : app));
       window.dispatchEvent(new Event('training_applications_updated'));
-      alert('Tugas berhasil dikumpulkan!');
+      alert('Tugas berhasil dikumpulkan & disimpan!');
       setTaskTitle('');
+      setTaskMateriId('');
       setTaskLink('');
       setTaskMessage('');
       loadData();
@@ -907,6 +932,43 @@ export default function PelatihanPage() {
       alert('Gagal mengumpulkan tugas: ' + err.message);
     } finally {
       setSubmittingTask(false);
+    }
+  };
+
+  const handleUserDeleteTask = async (taskIndex: number) => {
+    let currentApp = userApp;
+    if (!currentApp) {
+      currentApp = approvedUserApps.find(a => normalizeLevelCode(a.pelatihanAkanDiikuti) === normalizeLevelCode(selectedActivity?.jenisPelatihan || selectedLevel))
+        || applications.find(a => isUserAppMatch(a, user))
+        || approvedUserApps[0];
+    }
+    if (!currentApp) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus berkas pengumpulan tugas ini?')) return;
+
+    try {
+      let currentTasks: any[] = [];
+      try {
+        currentTasks = currentApp.tugas ? (typeof currentApp.tugas === 'string' ? JSON.parse(currentApp.tugas) : currentApp.tugas) : [];
+        if (!Array.isArray(currentTasks)) currentTasks = [];
+      } catch (err) {
+        currentTasks = [];
+      }
+
+      const updatedTasks = currentTasks.filter((_, idx) => idx !== taskIndex);
+      const updatedTasksStr = JSON.stringify(updatedTasks);
+
+      await Promise.all([
+        sheetsService.submitAssignment(currentApp.id, updatedTasksStr),
+        firestoreService.updateAssignmentGrade(currentApp.id, updatedTasksStr, undefined)
+      ]);
+      const updatedUserApp = { ...currentApp, tugas: updatedTasksStr };
+      setUserApp(updatedUserApp);
+      setApplications(prev => prev.map(app => app.id === currentApp.id ? updatedUserApp : app));
+      window.dispatchEvent(new Event('training_applications_updated'));
+      alert('Pengumpulan tugas berhasil dihapus.');
+      loadData();
+    } catch (err: any) {
+      alert('Gagal menghapus tugas: ' + err.message);
     }
   };
 
@@ -2158,7 +2220,11 @@ export default function PelatihanPage() {
 
                       {/* 3. PENUGASAN (PRE-TEST, POST-TEST & TUGAS TAMBAHAN DARI PELATIH) TAB */}
                       {activeTab === 'tugas' && (() => {
-                        const myTasks = assignedTasks.filter(t => t.level === selectedLevel);
+                        const myTasks = assignedTasks.filter(t => 
+                          t.level === selectedLevel || 
+                          normalizeLevelCode(t.level) === normalizeLevelCode(selectedActivity?.jenisPelatihan || selectedLevel) ||
+                          (userApp?.pelatihanAkanDiikuti && normalizeLevelCode(t.level) === normalizeLevelCode(userApp.pelatihanAkanDiikuti))
+                        );
                         const preSettings = parseTestScheduleSettings(trainingSettings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS);
                         const postSettings = parseTestScheduleSettings(trainingSettings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS);
 
@@ -2421,30 +2487,87 @@ export default function PelatihanPage() {
                                     Tugas Tambahan dari Tim Pelatih
                                   </h4>
                                   <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md uppercase">
-                                    {myTasks.length} Tugas Pelatih
+                                    {myTasks.length} Tugas Diberikan
                                   </span>
                                 </div>
-                                <div className="space-y-2.5">
+                                <div className="space-y-3">
                                   {myTasks.map((t) => {
                                     const tasksList = parseTasks(userApp);
-                                    const isSubmitted = tasksList.some((sub: any) => String(sub.materiId) === String(t.materiId) || sub.title === `Tugas: ${t.materiJudul}`);
+                                    const submittedItem = tasksList.find((sub: any) => 
+                                      String(sub.materiId) === String(t.materiId) || 
+                                      sub.title === `Tugas: ${t.materiJudul}` ||
+                                      (t.materiJudul && sub.title?.includes(t.materiJudul))
+                                    );
+                                    const isSubmitted = !!submittedItem;
 
                                     return (
-                                      <div key={t.materiId} className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 space-y-2">
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase">
+                                      <div key={t.materiId} className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-150 space-y-2.5">
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md uppercase tracking-wider">
                                             Instruksi Khusus Pelatih
                                           </span>
-                                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                                            isSubmitted ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-800'
-                                          }`}>
-                                            {isSubmitted ? 'Sudah Dikirim ✓' : 'Belum Dikirim'}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            {t.deadline && (
+                                              <span className="text-[9px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200 flex items-center gap-1">
+                                                <Clock size={10} /> Batas: {t.deadline}
+                                              </span>
+                                            )}
+                                            <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-md ${
+                                              isSubmitted ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                            }`}>
+                                              {isSubmitted ? 'Sudah Dikirim ✓' : 'Belum Dikirim'}
+                                            </span>
+                                          </div>
                                         </div>
-                                        <h5 className="text-xs font-black text-gray-800">{t.materiJudul}</h5>
-                                        <p className="text-[11px] text-gray-600 bg-white p-2.5 rounded-xl border border-emerald-100">
-                                          {t.instruksi || 'Silakan kerjakan tugas sesuai arahan pelatih.'}
-                                        </p>
+                                        
+                                        <div>
+                                          <h5 className="text-xs font-black text-gray-800">{t.materiJudul}</h5>
+                                          <p className="text-[11px] text-gray-600 bg-white p-3 rounded-xl border border-emerald-100 mt-1 whitespace-pre-line leading-relaxed">
+                                            {t.instruksi || 'Silakan kerjakan tugas sesuai arahan materi pelatih.'}
+                                          </p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-2 pt-1">
+                                          {isSubmitted ? (
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                                                <CheckCircle2 size={12} /> Tugas telah Anda kirimkan
+                                              </span>
+                                              {submittedItem.link && (
+                                                <a 
+                                                  href={submittedItem.link} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer" 
+                                                  className="text-[10px] text-hw-green hover:underline font-bold flex items-center gap-1"
+                                                >
+                                                  Buka Tautan <ExternalLink size={10} />
+                                                </a>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <div className="text-[10px] text-amber-700 italic">
+                                              Belum ada berkas tugas yang diunggah
+                                            </div>
+                                          )}
+
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setTaskTitle(`Tugas: ${t.materiJudul}`);
+                                              setTaskMateriId(t.materiId);
+                                              if (submittedItem) {
+                                                setTaskLink(submittedItem.link || '');
+                                                setTaskMessage(submittedItem.pesan || submittedItem.message || '');
+                                              }
+                                              const formEl = document.getElementById('assignment-submission-form');
+                                              if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                                            }}
+                                            className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                                          >
+                                            <Upload size={12} />
+                                            {isSubmitted ? 'Perbarui Berkas' : 'Kumpulkan Tugas Ini'}
+                                          </button>
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -2470,24 +2593,45 @@ export default function PelatihanPage() {
                             </div>
 
                             {/* Submission Form */}
-                            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                              <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                                Formulir Pengumpulan Tugas Peserta
-                              </h4>
-                              <form onSubmit={handleUserSubmitTask} className="space-y-3">
+                            <div id="assignment-submission-form" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                <div>
+                                  <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                    Formulir Pengumpulan Tugas Peserta
+                                  </h4>
+                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                    Kirim link Google Drive, berkas online, atau catatan tugas
+                                  </p>
+                                </div>
+                              </div>
+
+                              <form onSubmit={handleUserSubmitTask} className="space-y-3.5">
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-gray-500 ml-1">Pilih Tugas yang Dikumpulkan</label>
                                   <select 
-                                    value={taskTitle || ''}
-                                    onChange={(e) => setTaskTitle(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800"
+                                    value={taskMateriId ? `materi_${taskMateriId}` : (taskTitle || '')}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val.startsWith('materi_')) {
+                                        const matId = val.replace('materi_', '');
+                                        const found = myTasks.find(t => String(t.materiId) === String(matId));
+                                        setTaskMateriId(matId);
+                                        setTaskTitle(found ? `Tugas: ${found.materiJudul}` : val);
+                                      } else {
+                                        setTaskMateriId('');
+                                        setTaskTitle(val);
+                                      }
+                                    }}
+                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800 outline-none"
                                     required
                                   >
                                     <option value="">-- Pilih Penugasan --</option>
                                     {myTasks.length > 0 && (
                                       <optgroup label="Tugas Khusus dari Pelatih">
                                         {myTasks.map(t => (
-                                          <option key={t.materiId} value={`Tugas: ${t.materiJudul}`}>[PELATIH] {t.materiJudul}</option>
+                                          <option key={t.materiId} value={`materi_${t.materiId}`}>
+                                            [PELATIH] {t.materiJudul}
+                                          </option>
                                         ))}
                                       </optgroup>
                                     )}
@@ -2498,6 +2642,7 @@ export default function PelatihanPage() {
                                     </optgroup>
                                     <optgroup label="Lainnya">
                                       <option value="Tugas Proyek Lapangan Qabilah">Tugas Proyek Lapangan Qabilah</option>
+                                      <option value="Tugas Rencana Tindak Lanjut (RTL)">Tugas Rencana Tindak Lanjut (RTL)</option>
                                     </optgroup>
                                   </select>
                                 </div>
@@ -2506,22 +2651,22 @@ export default function PelatihanPage() {
                                   <label className="text-[10px] font-bold text-gray-500 ml-1">Tautan Berkas / Link Google Drive Tugas</label>
                                   <input 
                                     type="url" 
-                                    placeholder="https://drive.google.com/file/d/... atau link tugas"
+                                    placeholder="https://drive.google.com/file/d/... atau link tugas lainnya"
                                     value={taskLink || ''}
                                     onChange={(e) => setTaskLink(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium"
+                                    className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 font-medium outline-none"
                                     required
                                   />
                                   <p className="text-[9px] text-gray-400 font-medium ml-1">
-                                    *Pastikan link Google Drive atau berkas Anda dapat diakses oleh Tim Pelatih (Akses Publik / Siapa saja pemilik link).
+                                    *Pastikan link Google Drive atau berkas Anda diset ke <strong>Siapa saja yang memiliki link (Viewer/Editor)</strong> agar dapat dibuka oleh Tim Pelatih.
                                   </p>
                                 </div>
 
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-gray-500 ml-1">Pesan / Catatan untuk Tim Pelatih (Opsional)</label>
+                                  <label className="text-[10px] font-bold text-gray-500 ml-1">Pesan / Ringkasan untuk Tim Pelatih (Opsional)</label>
                                   <textarea 
                                     rows={3}
-                                    placeholder="Tuliskan catatan, ringkasan, atau pesan terkait tugas Anda..."
+                                    placeholder="Tuliskan catatan, penjelasan tugas, atau pesan Anda..."
                                     value={taskMessage || ''}
                                     onChange={(e) => setTaskMessage(e.target.value)}
                                     className="w-full bg-gray-50 border border-gray-200 focus:ring-hw-green/20 rounded-xl p-3 text-xs text-gray-800 font-medium resize-none outline-none"
@@ -2538,7 +2683,9 @@ export default function PelatihanPage() {
                                       <Loader2 size={14} className="animate-spin" /> Mengirim Tugas...
                                     </>
                                   ) : (
-                                    'Kumpulkan Penugasan'
+                                    <>
+                                      <Upload size={14} /> Simpan & Kumpulkan Penugasan
+                                    </>
                                   )}
                                 </button>
                               </form>
@@ -2547,33 +2694,77 @@ export default function PelatihanPage() {
                             {/* Submitted Assignment History */}
                             {userApp && (
                               <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
-                                  Riwayat Penugasan Terkirim ({parseTasks(userApp).length})
-                                </h4>
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                                    Riwayat Penugasan Terkirim ({parseTasks(userApp).length})
+                                  </h4>
+                                  <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                    {parseTasks(userApp).length} Dokumen
+                                  </span>
+                                </div>
+
                                 {parseTasks(userApp).length === 0 ? (
-                                  <p className="text-xs text-gray-400 italic py-2 text-center">Belum ada tugas yang dikumpulkan.</p>
+                                  <p className="text-xs text-gray-400 italic py-3 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                    Belum ada tugas yang dikumpulkan.
+                                  </p>
                                 ) : (
                                   <div className="space-y-2.5">
                                     {parseTasks(userApp).map((t: any, idx: number) => (
-                                      <div key={idx} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-150 flex flex-col gap-2">
-                                        <div className="flex items-center justify-between gap-2">
+                                      <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-150 flex flex-col gap-2.5">
+                                        <div className="flex items-start justify-between gap-2 flex-wrap">
                                           <div>
-                                            <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
-                                            <p className="text-[10px] text-gray-400">Terkirim: {new Date(t.submittedAt).toLocaleDateString('id-ID')}</p>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                                                Tugas #{idx + 1}
+                                              </span>
+                                              <h6 className="text-xs font-black text-gray-800">{t.title}</h6>
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 mt-0.5">
+                                              Terkirim: {t.submittedAt ? new Date(t.submittedAt).toLocaleString('id-ID') : '-'}
+                                            </p>
                                           </div>
-                                          <a 
-                                            href={t.link} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            className="text-hw-green hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shrink-0"
-                                          >
-                                            Buka Link <ExternalLink size={12} />
-                                          </a>
+
+                                          <div className="flex items-center gap-1.5">
+                                            {t.link && (
+                                              <a 
+                                                href={t.link} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                className="text-hw-green hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shrink-0"
+                                              >
+                                                Buka Berkas <ExternalLink size={11} />
+                                              </a>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setTaskTitle(t.title || '');
+                                                setTaskMateriId(t.materiId || '');
+                                                setTaskLink(t.link || '');
+                                                setTaskMessage(t.pesan || t.message || '');
+                                                const formEl = document.getElementById('assignment-submission-form');
+                                                if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                                              }}
+                                              className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-bold transition-all"
+                                              title="Edit pengumpulan tugas ini"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUserDeleteTask(idx)}
+                                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                              title="Hapus pengumpulan tugas ini"
+                                            >
+                                              <Trash2 size={13} />
+                                            </button>
+                                          </div>
                                         </div>
+
                                         {(t.pesan || t.message) && (
                                           <div className="bg-white p-2.5 rounded-xl border border-gray-200 text-[11px] text-gray-600 font-medium">
-                                            <span className="font-extrabold text-hw-green text-[9px] uppercase tracking-wider block mb-0.5">Pesan / Catatan:</span>
-                                            {t.pesan || t.message}
+                                            <span className="font-extrabold text-hw-green text-[9px] uppercase tracking-wider block mb-0.5">Catatan Peserta:</span>
+                                            "{t.pesan || t.message}"
                                           </div>
                                         )}
                                       </div>

@@ -599,38 +599,69 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
       if (item.statusKelulusan === 'Lulus') bestStatusKelulusan = 'Lulus';
       else if (!bestStatusKelulusan && item.statusKelulusan) bestStatusKelulusan = item.statusKelulusan;
 
-      // Extract Pre Test Score & Data
-      if (mergedPreScore === undefined) {
-        if (item.preTestScore !== undefined && item.preTestScore !== null && item.preTestScore !== '') {
-          mergedPreScore = Number(item.preTestScore);
-        } else if (item.preTestData) {
-          try {
-            const pObj = typeof item.preTestData === 'string' ? JSON.parse(item.preTestData) : item.preTestData;
-            if (pObj && pObj.score !== undefined && pObj.score !== null) mergedPreScore = Number(pObj.score);
-          } catch (e) {}
-        }
-      }
-      if (!mergedPreData && item.preTestData) mergedPreData = item.preTestData;
-      if (!mergedPreSubmittedAt && item.preTestSubmittedAt) mergedPreSubmittedAt = item.preTestSubmittedAt;
+      // Extract Pre Test Score & Data (support all casings and raw data formats)
+      const rawPre = item.preTestData || (item as any)?.pretestdata || (item as any)?.pre_test_data;
+      const rawPreScore = item.preTestScore !== undefined && item.preTestScore !== null && item.preTestScore !== ''
+        ? Number(item.preTestScore)
+        : (item as any)?.pretestscore !== undefined && (item as any)?.pretestscore !== null && (item as any)?.pretestscore !== ''
+          ? Number((item as any)?.pretestscore)
+          : (item as any)?.pre_test_score !== undefined && (item as any)?.pre_test_score !== null && (item as any)?.pre_test_score !== ''
+            ? Number((item as any)?.pre_test_score)
+            : undefined;
 
-      // Extract Post Test Score & Data
-      if (mergedPostScore === undefined) {
-        if (item.postTestScore !== undefined && item.postTestScore !== null && item.postTestScore !== '') {
-          mergedPostScore = Number(item.postTestScore);
-        } else if (item.postTestData) {
-          try {
-            const pObj = typeof item.postTestData === 'string' ? JSON.parse(item.postTestData) : item.postTestData;
-            if (pObj && pObj.score !== undefined && pObj.score !== null) mergedPostScore = Number(pObj.score);
-          } catch (e) {}
+      if (rawPreScore !== undefined && !isNaN(rawPreScore)) {
+        if (mergedPreScore === undefined) mergedPreScore = rawPreScore;
+      }
+      if (rawPre) {
+        try {
+          const pObj = typeof rawPre === 'string' ? JSON.parse(rawPre) : rawPre;
+          if (pObj && pObj.score !== undefined && pObj.score !== null && pObj.score !== '' && mergedPreScore === undefined) {
+            mergedPreScore = Number(pObj.score);
+          }
+          if (pObj && typeof pObj === 'object' && (!mergedPreData || typeof mergedPreData !== 'object' || Object.keys(pObj.answers || {}).length > 0)) {
+            mergedPreData = typeof rawPre === 'string' ? rawPre : JSON.stringify(rawPre);
+          }
+        } catch (e) {
+          if (!mergedPreData) mergedPreData = typeof rawPre === 'string' ? rawPre : JSON.stringify(rawPre);
         }
       }
-      if (!mergedPostData && item.postTestData) mergedPostData = item.postTestData;
-      if (!mergedPostSubmittedAt && item.postTestSubmittedAt) mergedPostSubmittedAt = item.postTestSubmittedAt;
+      const rawPreTime = item.preTestSubmittedAt || (item as any)?.pretestsubmittedat || (item as any)?.pre_test_submitted_at;
+      if (!mergedPreSubmittedAt && rawPreTime) mergedPreSubmittedAt = rawPreTime;
+
+      // Extract Post Test Score & Data (support all casings and raw data formats)
+      const rawPost = item.postTestData || (item as any)?.posttestdata || (item as any)?.post_test_data;
+      const rawPostScore = item.postTestScore !== undefined && item.postTestScore !== null && item.postTestScore !== ''
+        ? Number(item.postTestScore)
+        : (item as any)?.posttestscore !== undefined && (item as any)?.posttestscore !== null && (item as any)?.posttestscore !== ''
+          ? Number((item as any)?.posttestscore)
+          : (item as any)?.post_test_score !== undefined && (item as any)?.post_test_score !== null && (item as any)?.post_test_score !== ''
+            ? Number((item as any)?.post_test_score)
+            : undefined;
+
+      if (rawPostScore !== undefined && !isNaN(rawPostScore)) {
+        if (mergedPostScore === undefined) mergedPostScore = rawPostScore;
+      }
+      if (rawPost) {
+        try {
+          const pObj = typeof rawPost === 'string' ? JSON.parse(rawPost) : rawPost;
+          if (pObj && pObj.score !== undefined && pObj.score !== null && pObj.score !== '' && mergedPostScore === undefined) {
+            mergedPostScore = Number(pObj.score);
+          }
+          if (pObj && typeof pObj === 'object' && (!mergedPostData || typeof mergedPostData !== 'object' || Object.keys(pObj.answers || {}).length > 0)) {
+            mergedPostData = typeof rawPost === 'string' ? rawPost : JSON.stringify(rawPost);
+          }
+        } catch (e) {
+          if (!mergedPostData) mergedPostData = typeof rawPost === 'string' ? rawPost : JSON.stringify(rawPost);
+        }
+      }
+      const rawPostTime = item.postTestSubmittedAt || (item as any)?.posttestsubmittedat || (item as any)?.post_test_submitted_at;
+      if (!mergedPostSubmittedAt && rawPostTime) mergedPostSubmittedAt = rawPostTime;
 
       // Merge Attendance (Kehadiran)
-      if (item.kehadiran) {
+      const rawKehadiran = item.kehadiran || (item as any)?.presensi || (item as any)?.attendance;
+      if (rawKehadiran) {
         try {
-          const kObj = typeof item.kehadiran === 'string' ? JSON.parse(item.kehadiran) : item.kehadiran;
+          const kObj = typeof rawKehadiran === 'string' ? JSON.parse(rawKehadiran) : rawKehadiran;
           if (kObj && typeof kObj === 'object') {
             Object.assign(mergedKehadiranObj, kObj);
           }
@@ -638,14 +669,15 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
       }
 
       // Merge Assignments (Tugas)
-      if (item.tugas) {
+      const rawTugas = item.tugas || (item as any)?.tasks || (item as any)?.penugasan;
+      if (rawTugas) {
         try {
-          const tArr = Array.isArray(item.tugas) ? item.tugas : JSON.parse(item.tugas);
+          const tArr = Array.isArray(rawTugas) ? rawTugas : JSON.parse(rawTugas);
           if (Array.isArray(tArr)) {
             tArr.forEach((t: any) => {
-              if (t && (t.title || t.id || t.link)) {
-                const key = t.title || t.id || t.link;
-                if (!mergedTasksList.some(x => (x.title || x.id || x.link) === key)) {
+              if (t && (t.title || t.id || t.link || t.materiId)) {
+                const key = t.id || t.materiId || t.title || t.link;
+                if (!mergedTasksList.some(x => (x.id || x.materiId || x.title || x.link) === key)) {
                   mergedTasksList.push(t);
                 }
               }
@@ -815,4 +847,228 @@ export const generateSamplePreTestForParticipants = (
     };
   });
 };
+
+/**
+ * Menghasilkan contoh hasil pengerjaan Post-Test untuk seluruh peserta pelatihan
+ * dengan rentang nilai tinggi (78 sampai 96) dan lembar jawaban lengkap.
+ */
+export const generateSamplePostTestForParticipants = (
+  participants: any[],
+  questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
+): any[] => {
+  if (!Array.isArray(participants) || participants.length === 0) return [];
+
+  const activeQuestions: TestQuestion[] = (Array.isArray(questionsList) && questionsList.length > 0)
+    ? questionsList
+    : DEFAULT_50_QUESTIONS;
+
+  const totalQuestions = activeQuestions.length > 0 ? activeQuestions.length : 50;
+
+  // Rentang nilai genap Post-Test (78 - 96) menunjukkan hasil belajar yang memuaskan
+  const postScores = [78, 80, 82, 84, 86, 88, 90, 92, 94, 96];
+
+  return participants.map((app, idx) => {
+    if (!app) return app;
+
+    const nameSeed = String(app.nama || app.namaLengkap || app.id || idx)
+      .split('')
+      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+    const score = postScores[(idx * 3 + nameSeed) % postScores.length];
+    const correctCount = Math.round((score / 100) * totalQuestions);
+    const wrongCount = totalQuestions - correctCount;
+
+    const answers: Record<number, string> = {};
+
+    const shuffledQuestionIndices = Array.from({ length: totalQuestions }, (_, i) => i)
+      .sort((a, b) => {
+        const hashA = (a * 53 + idx * 31 + nameSeed) % 1000;
+        const hashB = (b * 53 + idx * 31 + nameSeed) % 1000;
+        return hashA - hashB;
+      });
+
+    const wrongIndices = new Set(shuffledQuestionIndices.slice(0, wrongCount));
+
+    activeQuestions.forEach((q, qIdx) => {
+      const qNum = q.id || (qIdx + 1);
+      const isWrong = wrongIndices.has(qIdx);
+
+      if (!isWrong) {
+        answers[qNum] = q.correctAnswer;
+      } else {
+        const optionsList: ('a' | 'b' | 'c' | 'd')[] = ['a', 'b', 'c', 'd'];
+        const otherOptions = optionsList.filter(opt => opt !== q.correctAnswer);
+        const wrongChoice = otherOptions[(idx + qIdx + nameSeed) % otherOptions.length];
+        answers[qNum] = wrongChoice;
+      }
+    });
+
+    const now = Date.now();
+    const submittedTime = new Date(now - (idx * 1800000 + (nameSeed % 45) * 60000));
+    const startedTime = new Date(submittedTime.getTime() - (25 * 60000 + (idx % 10) * 60000));
+
+    const submission: TestSubmission = {
+      testType: 'post_test',
+      score,
+      correctCount,
+      totalQuestions,
+      answers,
+      submittedAt: submittedTime.toISOString(),
+      startedAt: startedTime.toISOString(),
+      timeSpentSeconds: 1500 + ((idx * 67 + nameSeed) % 600),
+      participantId: String(app.id || `part-${idx}`),
+      participantName: app.nama || app.namaLengkap || 'Peserta Pelatihan',
+      participantEmail: app.email || ''
+    };
+
+    return {
+      ...app,
+      postTestScore: score,
+      postTestData: JSON.stringify(submission),
+      postTestSubmittedAt: submission.submittedAt
+    };
+  });
+};
+
+/**
+ * Menghasilkan contoh hasil Pre-Test dan Post-Test sekaligus untuk seluruh peserta
+ */
+export const generateSampleTestSubmissionsForParticipants = (
+  participants: any[],
+  questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
+): any[] => {
+  const withPre = generateSamplePreTestForParticipants(participants, questionsList);
+  return generateSamplePostTestForParticipants(withPre, questionsList);
+};
+
+/**
+ * Merekonstruksi lembar jawaban butir soal secara deterministik berdasarkan skor
+ * jika data jawaban tersimpan ringkas (hanya skor).
+ */
+export const reconstructAnswersForScore = (
+  score: number,
+  activeQuestions: TestQuestion[] = DEFAULT_50_QUESTIONS,
+  participantSeed: string | number = 0
+): Record<number, string> => {
+  const qList = (Array.isArray(activeQuestions) && activeQuestions.length > 0) ? activeQuestions : DEFAULT_50_QUESTIONS;
+  const total = qList.length > 0 ? qList.length : 50;
+  const clampedScore = Math.max(0, Math.min(100, Math.round(score)));
+  const correctCount = Math.round((clampedScore / 100) * total);
+  const wrongCount = total - correctCount;
+
+  const numSeed = typeof participantSeed === 'number'
+    ? participantSeed
+    : String(participantSeed).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const shuffledIndices = Array.from({ length: total }, (_, i) => i)
+    .sort((a, b) => {
+      const hashA = (a * 47 + numSeed * 23) % 1000;
+      const hashB = (b * 47 + numSeed * 23) % 1000;
+      return hashA - hashB;
+    });
+
+  const wrongIndices = new Set(shuffledIndices.slice(0, wrongCount));
+  const answers: Record<number, string> = {};
+
+  qList.forEach((q, qIdx) => {
+    const qNum = q.id || (qIdx + 1);
+    if (!wrongIndices.has(qIdx)) {
+      answers[qNum] = q.correctAnswer;
+    } else {
+      const opts: ('a' | 'b' | 'c' | 'd')[] = ['a', 'b', 'c', 'd'];
+      const otherOpts = opts.filter(o => o !== q.correctAnswer);
+      const wrongChoice = otherOpts[(qIdx + numSeed) % otherOpts.length];
+      answers[qNum] = wrongChoice;
+    }
+  });
+
+  return answers;
+};
+
+/**
+ * Extracts the numerical Pre-Test score from a participant object safely.
+ */
+export const getAppPreTestScore = (app: any): number | null => {
+  if (!app) return null;
+  if (app.preTestScore !== undefined && app.preTestScore !== null && app.preTestScore !== '') {
+    const n = Number(app.preTestScore);
+    if (!isNaN(n)) return n;
+  }
+  const rawScore = (app as any)?.pretestscore ?? (app as any)?.pre_test_score;
+  if (rawScore !== undefined && rawScore !== null && rawScore !== '') {
+    const n = Number(rawScore);
+    if (!isNaN(n)) return n;
+  }
+  const rawData = app.preTestData || (app as any)?.pretestdata || (app as any)?.pre_test_data;
+  if (rawData) {
+    try {
+      const p = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+      if (p && p.score !== undefined && p.score !== null && p.score !== '') {
+        const n = Number(p.score);
+        if (!isNaN(n)) return n;
+      }
+    } catch (e) {}
+  }
+  return null;
+};
+
+/**
+ * Extracts the numerical Post-Test score from a participant object safely.
+ */
+export const getAppPostTestScore = (app: any): number | null => {
+  if (!app) return null;
+  if (app.postTestScore !== undefined && app.postTestScore !== null && app.postTestScore !== '') {
+    const n = Number(app.postTestScore);
+    if (!isNaN(n)) return n;
+  }
+  const rawScore = (app as any)?.posttestscore ?? (app as any)?.post_test_score;
+  if (rawScore !== undefined && rawScore !== null && rawScore !== '') {
+    const n = Number(rawScore);
+    if (!isNaN(n)) return n;
+  }
+  const rawData = app.postTestData || (app as any)?.posttestdata || (app as any)?.post_test_data;
+  if (rawData) {
+    try {
+      const p = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+      if (p && p.score !== undefined && p.score !== null && p.score !== '') {
+        const n = Number(p.score);
+        if (!isNaN(n)) return n;
+      }
+    } catch (e) {}
+  }
+  return null;
+};
+
+/**
+ * Safely extracts the submitted tasks/assignments array from a participant object.
+ */
+export const getAppTasksList = (app: any): any[] => {
+  if (!app) return [];
+  const rawTasks = app.tugas || (app as any)?.tasks || (app as any)?.penugasan;
+  if (!rawTasks) return [];
+  if (Array.isArray(rawTasks)) return rawTasks;
+  try {
+    const parsed = typeof rawTasks === 'string' ? JSON.parse(rawTasks) : rawTasks;
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch (e) {
+    return [];
+  }
+};
+
+/**
+ * Safely extracts attendance records map from a participant object.
+ */
+export const getAppAttendanceMap = (app: any): Record<string, any> => {
+  if (!app) return {};
+  const rawAtt = app.kehadiran || (app as any)?.presensi || (app as any)?.attendance;
+  if (!rawAtt) return {};
+  if (typeof rawAtt === 'object' && rawAtt !== null && !Array.isArray(rawAtt)) return rawAtt;
+  try {
+    const parsed = typeof rawAtt === 'string' ? JSON.parse(rawAtt) : rawAtt;
+    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+};
+
 

@@ -9,6 +9,7 @@ import {
   DEFAULT_50_QUESTIONS 
 } from '../../data/trainingQuestions';
 import { JATI1_36_SESSIONS } from '../../pages/PelatihanPage';
+import { getAppPreTestScore, getAppPostTestScore, getAppTasksList, getAppAttendanceMap } from '../../utils/trainingUtils';
 
 interface TestSubmissionViewerModalProps {
   isOpen: boolean;
@@ -45,62 +46,54 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   }
 
   // Parse Pre Test Data
+  const rawPreData = application.preTestData || (application as any)?.pretestdata || (application as any)?.pre_test_data;
+  const preScore = getAppPreTestScore(application);
   let preTestData: any = null;
-  if (application.preTestData) {
+  if (rawPreData) {
     try {
-      preTestData = typeof application.preTestData === 'string' ? JSON.parse(application.preTestData) : application.preTestData;
+      preTestData = typeof rawPreData === 'string' ? JSON.parse(rawPreData) : rawPreData;
     } catch (e) {
       preTestData = null;
     }
   }
-  if (!preTestData && application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== '') {
+  if (!preTestData && preScore !== null) {
     preTestData = {
       testType: 'pre_test',
-      score: Number(application.preTestScore),
+      score: preScore,
       answers: {},
-      submittedAt: application.preTestSubmittedAt || 'Selesai'
+      submittedAt: application.preTestSubmittedAt || (application as any)?.pretestsubmittedat || 'Selesai'
     };
+  } else if (preTestData && (preTestData.score === undefined || preTestData.score === null) && preScore !== null) {
+    preTestData.score = preScore;
   }
 
   // Parse Post Test Data
+  const rawPostData = application.postTestData || (application as any)?.posttestdata || (application as any)?.post_test_data;
+  const postScore = getAppPostTestScore(application);
   let postTestData: any = null;
-  if (application.postTestData) {
+  if (rawPostData) {
     try {
-      postTestData = typeof application.postTestData === 'string' ? JSON.parse(application.postTestData) : application.postTestData;
+      postTestData = typeof rawPostData === 'string' ? JSON.parse(rawPostData) : rawPostData;
     } catch (e) {
       postTestData = null;
     }
   }
-  if (!postTestData && application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== '') {
+  if (!postTestData && postScore !== null) {
     postTestData = {
       testType: 'post_test',
-      score: Number(application.postTestScore),
+      score: postScore,
       answers: {},
-      submittedAt: application.postTestSubmittedAt || 'Selesai'
+      submittedAt: application.postTestSubmittedAt || (application as any)?.posttestsubmittedat || 'Selesai'
     };
+  } else if (postTestData && (postTestData.score === undefined || postTestData.score === null) && postScore !== null) {
+    postTestData.score = postScore;
   }
 
   // Parse Tugas (Submitted assignments)
-  let submittedTasks: any[] = [];
-  if (application.tugas) {
-    try {
-      submittedTasks = typeof application.tugas === 'string' ? JSON.parse(application.tugas) : application.tugas;
-      if (!Array.isArray(submittedTasks)) submittedTasks = [submittedTasks];
-    } catch (e) {
-      submittedTasks = [];
-    }
-  }
+  const submittedTasks: any[] = getAppTasksList(application);
 
   // Parse Kehadiran (Attendance)
-  let attendanceMap: Record<string, any> = {};
-  if (application.kehadiran) {
-    try {
-      attendanceMap = typeof application.kehadiran === 'string' ? JSON.parse(application.kehadiran) : application.kehadiran;
-      if (typeof attendanceMap !== 'object' || attendanceMap === null) attendanceMap = {};
-    } catch (e) {
-      attendanceMap = {};
-    }
-  }
+  const attendanceMap: Record<string, any> = getAppAttendanceMap(application);
 
   const currentTestData = activeTab === 'pre_test' ? preTestData : postTestData;
   const currentAnswers: Record<string | number, any> = 
