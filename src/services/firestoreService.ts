@@ -2245,12 +2245,48 @@ export const firestoreService = {
         }
       }
 
+      if (combined.length === 0 && Array.isArray((INITIAL_SPREADSHEET_DATA as any).training) && (INITIAL_SPREADSHEET_DATA as any).training.length > 0) {
+        combined = [...(INITIAL_SPREADSHEET_DATA as any).training];
+      }
+
       const cleanTrainings = consolidateTrainingApplications(combined);
       try {
         safeStorageSet('training_applications', cleanTrainings);
       } catch (e) {}
       return cleanTrainings;
     }, 30000);
+  },
+
+  async restoreSolo70TrainingParticipants(): Promise<{ success: boolean; count: number }> {
+    clearFirestoreCache('training_applications');
+    const solo70 = ((INITIAL_SPREADSHEET_DATA as any).training || []).map((t: any, idx: number) => ({
+      ...t,
+      id: t.id || `train-jm1-solo-${idx + 1}`
+    }));
+    
+    safeStorageSet('training_applications', solo70);
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.docs.forEach(docSnap => {
+            batch.delete(docSnap.ref);
+          });
+          solo70.forEach((item: any) => {
+            batch.set(doc(db, 'training_applications', String(item.id)), cleanData(item));
+          });
+          await batch.commit();
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.warn('Firestore restoreSolo70TrainingParticipants warning:', err);
+      }
+    }
+
+    window.dispatchEvent(new Event('training_applications_updated'));
+    return { success: true, count: solo70.length };
   },
 
   async createTrainingApplication(appData: any): Promise<any> {

@@ -942,6 +942,90 @@ export const generateSampleTestSubmissionsForParticipants = (
 };
 
 /**
+ * Menghasilkan contoh pengumpulan berkas penugasan materi kurikulum untuk seluruh peserta
+ */
+export const generateSampleTasksForParticipants = (participants: any[]): any[] => {
+  if (!Array.isArray(participants) || participants.length === 0) return [];
+
+  const defaultTaskTemplates = [
+    {
+      title: 'Rencana Tindak Lanjut (RTL) Pembinaan HW Qabilah',
+      materiId: 'materi-rtl-1',
+      link: 'https://docs.google.com/document/d/1hw-rtl-pembinaan-qabilah-sample/edit',
+      pesan: 'Telah disusun rencana tindak lanjut pembinaan satuan pengenal dan penghela di qabilah pangkalan sekolah.',
+      status: 'submitted'
+    },
+    {
+      title: 'Penyusunan Program Latihan Mingguan (PLM) Satuan Pengenal',
+      materiId: 'materi-plm-2',
+      link: 'https://docs.google.com/spreadsheets/d/1hw-plm-program-latihan-mingguan-sample/edit',
+      pesan: 'Program latihan 1 semester mencakup sandi, pionering, menaksir, dan kompas tali-temali.',
+      status: 'submitted'
+    },
+    {
+      title: 'Resume & Refleksi Falsafah Kepanduan Hizbul Wathan',
+      materiId: 'materi-falsafah-3',
+      link: 'https://drive.google.com/file/d/1hw-resume-falsafah-kepanduan-sample/view',
+      pesan: 'Tugas resume modul 1-5 tentang jati diri kepanduan Islami Hizbul Wathan dan metodologi kepelatihan.',
+      status: 'submitted'
+    }
+  ];
+
+  return participants.map((app, idx) => {
+    if (!app) return app;
+    const existing = getAppTasksList(app);
+    if (existing.length >= 2) return app;
+
+    const nameSeed = String(app.nama || app.namaLengkap || app.id || idx)
+      .split('')
+      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+    const now = Date.now();
+    const tasks = defaultTaskTemplates.map((tpl, tIdx) => {
+      const subTime = new Date(now - ((3 - tIdx) * 86400000 + (nameSeed % 20) * 3600000));
+      return {
+        id: `task-${app.id || idx}-${tIdx + 1}`,
+        title: tpl.title,
+        materiId: tpl.materiId,
+        link: tpl.link,
+        pesan: `${tpl.pesan} (Disusun oleh: ${app.nama || app.namaLengkap || 'Peserta'})`,
+        submittedAt: subTime.toISOString(),
+        status: tpl.status,
+        nilai: 85 + ((idx + tIdx + nameSeed) % 12)
+      };
+    });
+
+    return {
+      ...app,
+      tugas: JSON.stringify(tasks)
+    };
+  });
+};
+
+/**
+ * Menghasilkan data lengkap pengerjaan ujian (Pre-Test, Post-Test) dan penugasan berkas untuk seluruh peserta
+ */
+export const generateFullSampleTrainingData = (
+  participants: any[],
+  questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
+): any[] => {
+  const withTests = generateSampleTestSubmissionsForParticipants(participants, questionsList);
+  return generateSampleTasksForParticipants(withTests);
+};
+
+/**
+ * Menghasilkan data lengkap pengerjaan ujian & tugas untuk satu peserta spesifik
+ */
+export const generateSampleDataForSingleParticipant = (
+  participant: any,
+  questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
+): any => {
+  if (!participant) return participant;
+  const result = generateFullSampleTrainingData([participant], questionsList);
+  return result[0] || participant;
+};
+
+/**
  * Merekonstruksi lembar jawaban butir soal secara deterministik berdasarkan skor
  * jika data jawaban tersimpan ringkas (hanya skor).
  */

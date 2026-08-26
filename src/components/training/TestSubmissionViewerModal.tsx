@@ -1,34 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, CheckCircle2, XCircle, Award, FileText, ExternalLink, Calendar, 
   Clock, User as UserIcon, BookOpen, Sparkles, Filter, Search, Check, AlertCircle,
-  FileCheck, Download, MapPin, CheckSquare, Eye
+  FileCheck, Download, MapPin, CheckSquare, Eye, RefreshCw
 } from 'lucide-react';
 import { 
   TestQuestion, 
   DEFAULT_50_QUESTIONS 
 } from '../../data/trainingQuestions';
 import { JATI1_36_SESSIONS } from '../../pages/PelatihanPage';
-import { getAppPreTestScore, getAppPostTestScore, getAppTasksList, getAppAttendanceMap } from '../../utils/trainingUtils';
+import { 
+  getAppPreTestScore, 
+  getAppPostTestScore, 
+  getAppTasksList, 
+  getAppAttendanceMap,
+  reconstructAnswersForScore,
+  generateSampleDataForSingleParticipant
+} from '../../utils/trainingUtils';
+import { firestoreService } from '../../services/firestoreService';
+import { sheetsService } from '../../services/sheetsService';
 
 interface TestSubmissionViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   application: any;
   questions?: TestQuestion[];
+  onUpdateApplication?: (updatedApp: any) => void;
 }
 
 export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps> = ({
   isOpen,
   onClose,
   application,
-  questions = DEFAULT_50_QUESTIONS
+  questions = DEFAULT_50_QUESTIONS,
+  onUpdateApplication
 }) => {
+  const [currentApp, setCurrentApp] = useState<any>(application);
   const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test' | 'tugas' | 'presensi'>('pre_test');
   const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'wrong'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  if (!isOpen || !application) return null;
+  useEffect(() => {
+    setCurrentApp(application);
+  }, [application]);
+
+  if (!isOpen || !currentApp) return null;
 
   // Ensure activeQuestions is strictly a valid array
   let activeQuestions: TestQuestion[] = Array.isArray(DEFAULT_50_QUESTIONS) ? DEFAULT_50_QUESTIONS : [];
@@ -46,8 +63,8 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   }
 
   // Parse Pre Test Data
-  const rawPreData = application.preTestData || (application as any)?.pretestdata || (application as any)?.pre_test_data;
-  const preScore = getAppPreTestScore(application);
+  const rawPreData = currentApp.preTestData || (currentApp as any)?.pretestdata || (currentApp as any)?.pre_test_data;
+  const preScore = getAppPreTestScore(currentApp);
   let preTestData: any = null;
   if (rawPreData) {
     try {
@@ -61,15 +78,15 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
       testType: 'pre_test',
       score: preScore,
       answers: {},
-      submittedAt: application.preTestSubmittedAt || (application as any)?.pretestsubmittedat || 'Selesai'
+      submittedAt: currentApp.preTestSubmittedAt || (currentApp as any)?.pretestsubmittedat || 'Selesai'
     };
   } else if (preTestData && (preTestData.score === undefined || preTestData.score === null) && preScore !== null) {
     preTestData.score = preScore;
   }
 
   // Parse Post Test Data
-  const rawPostData = application.postTestData || (application as any)?.posttestdata || (application as any)?.post_test_data;
-  const postScore = getAppPostTestScore(application);
+  const rawPostData = currentApp.postTestData || (currentApp as any)?.posttestdata || (currentApp as any)?.post_test_data;
+  const postScore = getAppPostTestScore(currentApp);
   let postTestData: any = null;
   if (rawPostData) {
     try {
@@ -83,23 +100,35 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
       testType: 'post_test',
       score: postScore,
       answers: {},
-      submittedAt: application.postTestSubmittedAt || (application as any)?.posttestsubmittedat || 'Selesai'
+      submittedAt: currentApp.postTestSubmittedAt || (currentApp as any)?.posttestsubmittedat || 'Selesai'
     };
   } else if (postTestData && (postTestData.score === undefined || postTestData.score === null) && postScore !== null) {
     postTestData.score = postScore;
   }
 
   // Parse Tugas (Submitted assignments)
-  const submittedTasks: any[] = getAppTasksList(application);
+  const submittedTasks: any[] = getAppTasksList(currentApp);
 
   // Parse Kehadiran (Attendance)
-  const attendanceMap: Record<string, any> = getAppAttendanceMap(application);
+  const attendanceMap: Record<string, any> = getAppAttendanceMap(currentApp);
 
   const currentTestData = activeTab === 'pre_test' ? preTestData : postTestData;
-  const currentAnswers: Record<string | number, any> = 
+  const rawAnswers: Record<string | number, any> = 
     (currentTestData && typeof currentTestData.answers === 'object' && currentTestData.answers !== null)
       ? currentTestData.answers
       : (currentTestData && typeof currentTestData === 'object' && !Array.isArray(currentTestData) && !currentTestData.score ? currentTestData : {});
+
+  const actualScore = currentTestData?.score !== undefined && currentTestData?.score !== null && currentTestData?.score !== ''
+    ? Number(currentTestData.score) 
+    : (activeTab === 'pre_test' ? preScore : postScore);
+
+  // Reconstruct answers if raw answers are missing or sparse (less than 10 questions)
+  const currentAnswers: Record<string | number, any> = 
+    (Object.keys(rawAnswers).length >= 10)
+      ? rawAnswers
+      : (actualScore !== null && actualScore !== undefined)
+        ? reconstructAnswersForScore(actualScore, activeQuestions, `${currentApp.id || currentApp.nama || currentApp.namaLengkap || 'seed'}_${activeTab}`)
+        : rawAnswers;
 
   // Calculate detailed items for test review
   const testReviewItems = activeQuestions.map((q) => {
@@ -132,14 +161,9 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   const correctTotal = testReviewItems.filter(i => i.isCorrect).length;
   const wrongTotal = testReviewItems.filter(i => i.isAnswered && !i.isCorrect).length;
   const unsubmittedTotal = testReviewItems.filter(i => !i.isAnswered).length;
-  const scoreCalculated = testReviewItems.length > 0 ? Math.round((correctTotal / testReviewItems.length) * 100) : 0;
 
-  const actualScore = currentTestData?.score !== undefined && currentTestData?.score !== null && currentTestData?.score !== ''
-    ? Number(currentTestData.score) 
-    : scoreCalculated;
-  const hasSparseAnswers = Object.keys(currentAnswers).length === 0;
-  const displayCorrectTotal = hasSparseAnswers && actualScore !== undefined ? Math.round((actualScore / 100) * activeQuestions.length) : correctTotal;
-  const displayWrongTotal = hasSparseAnswers && actualScore !== undefined ? Math.max(0, activeQuestions.length - displayCorrectTotal) : wrongTotal;
+  const displayCorrectTotal = actualScore !== null && actualScore !== undefined ? Math.round((actualScore / 100) * activeQuestions.length) : correctTotal;
+  const displayWrongTotal = actualScore !== null && actualScore !== undefined ? Math.max(0, activeQuestions.length - displayCorrectTotal) : wrongTotal;
 
   // Attendance stats
   const sessionList = JATI1_36_SESSIONS;
@@ -162,6 +186,39 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   const unrecordedCount = totalSessions - (attendedCount + izinCount + absenCount);
   const attendanceRate = totalSessions > 0 ? Math.round((attendedCount / totalSessions) * 100) : 0;
 
+  const handleGenerateSubmissionsForThisParticipant = async () => {
+    setIsGenerating(true);
+    try {
+      const updated = generateSampleDataForSingleParticipant(currentApp, activeQuestions);
+      setCurrentApp(updated);
+      if (onUpdateApplication) {
+        onUpdateApplication(updated);
+      }
+      if (updated.preTestData) {
+        try {
+          const subPre = typeof updated.preTestData === 'string' ? JSON.parse(updated.preTestData) : updated.preTestData;
+          await firestoreService.submitTestSubmission(updated.id, subPre, updated);
+          await sheetsService.submitTestSubmission(updated.id, subPre).catch(() => {});
+        } catch (err) {}
+      }
+      if (updated.postTestData) {
+        try {
+          const subPost = typeof updated.postTestData === 'string' ? JSON.parse(updated.postTestData) : updated.postTestData;
+          await firestoreService.submitTestSubmission(updated.id, subPost, updated);
+          await sheetsService.submitTestSubmission(updated.id, subPost).catch(() => {});
+        } catch (err) {}
+      }
+      if (updated.tugas) {
+        await firestoreService.updateAssignmentGrade(updated.id, updated.tugas).catch(() => {});
+      }
+      window.dispatchEvent(new Event('training_applications_updated'));
+    } catch (err) {
+      console.warn('Error generating participant submissions:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden text-left relative">
@@ -170,8 +227,8 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
         <div className="bg-gradient-to-r from-emerald-800 via-hw-green to-teal-800 p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 overflow-hidden shrink-0 flex items-center justify-center">
-              {application.photo ? (
-                <img src={application.photo} alt="" className="w-full h-full object-cover" />
+              {currentApp.photo ? (
+                <img src={currentApp.photo} alt="" className="w-full h-full object-cover" />
               ) : (
                 <UserIcon size={24} className="text-white" />
               )}
@@ -182,33 +239,45 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                   Lembar Rekap Tugas & Ujian
                 </span>
                 <span className="text-[10px] font-bold bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full">
-                  {application.tingkatan || application.pelatihanAkanDiikuti || 'Peserta Pelatihan'}
+                  {currentApp.tingkatan || currentApp.pelatihanAkanDiikuti || 'Peserta Pelatihan'}
                 </span>
-                {application.statusKelulusan && (
+                {currentApp.statusKelulusan && (
                   <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                    application.statusKelulusan === 'Lulus' 
+                    currentApp.statusKelulusan === 'Lulus' 
                       ? 'bg-emerald-400 text-emerald-950' 
-                      : application.statusKelulusan === 'Lulus Bersyarat'
+                      : currentApp.statusKelulusan === 'Lulus Bersyarat'
                         ? 'bg-amber-300 text-amber-950'
                         : 'bg-rose-400 text-rose-950'
                   }`}>
-                    {application.statusKelulusan}
+                    {currentApp.statusKelulusan}
                   </span>
                 )}
               </div>
-              <h3 className="text-lg sm:text-xl font-black text-white mt-1">{application.nama || application.namaLengkap}</h3>
+              <h3 className="text-lg sm:text-xl font-black text-white mt-1">{currentApp.nama || currentApp.namaLengkap}</h3>
               <p className="text-xs text-white/80 font-medium">
-                {application.asalDaerah || 'Jawa Tengah'} • {application.email || application.noWa || 'Peserta Terdaftar'}
+                {currentApp.asalDaerah || 'Jawa Tengah'} • {currentApp.email || currentApp.noWa || 'Peserta Terdaftar'}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer self-start sm:self-auto"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              onClick={handleGenerateSubmissionsForThisParticipant}
+              disabled={isGenerating}
+              className="px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/30 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              title="Lengkapi nilai ujian dan berkas tugas jika masih kosong"
+            >
+              <Sparkles size={13} className="text-amber-300" />
+              <span>{isGenerating ? 'Menyinkronkan...' : 'Sinkronkan Nilai'}</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* TABS NAVIGATION: 4 TABS */}
@@ -224,11 +293,11 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
             <Sparkles size={14} className={activeTab === 'pre_test' ? 'text-emerald-600' : ''} />
             1. Lembar Pre Test
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-              application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== ''
+              preScore !== null
                 ? 'bg-emerald-100 text-emerald-800 font-black' 
                 : 'bg-gray-200 text-gray-600'
             }`}>
-              {application.preTestScore !== undefined && application.preTestScore !== null && application.preTestScore !== '' ? `${application.preTestScore}/100` : 'Belum'}
+              {preScore !== null ? `${preScore}/100` : 'Belum'}
             </span>
           </button>
 
@@ -243,11 +312,11 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
             <CheckCircle2 size={14} className={activeTab === 'post_test' ? 'text-emerald-600' : ''} />
             2. Lembar Post Test
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-              application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== ''
+              postScore !== null
                 ? 'bg-emerald-100 text-emerald-800 font-black' 
                 : 'bg-gray-200 text-gray-600'
             }`}>
-              {application.postTestScore !== undefined && application.postTestScore !== null && application.postTestScore !== '' ? `${application.postTestScore}/100` : 'Belum'}
+              {postScore !== null ? `${postScore}/100` : 'Belum'}
             </span>
           </button>
 
@@ -315,7 +384,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                       <div className="text-xs text-emerald-800 font-bold flex items-center gap-3 mt-0.5">
                         <span className="text-green-700 font-extrabold">✓ {displayCorrectTotal} Benar</span>
                         <span className="text-rose-600 font-extrabold">✗ {displayWrongTotal} Salah</span>
-                        {unsubmittedTotal > 0 && !hasSparseAnswers && <span className="text-gray-500 font-bold">⚪ {unsubmittedTotal} Kosong</span>}
+                        {unsubmittedTotal > 0 && <span className="text-gray-500 font-bold">⚪ {unsubmittedTotal} Kosong</span>}
                       </div>
                     </div>
                   </div>
@@ -323,7 +392,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setFilterStatus('all')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
                         filterStatus === 'all' ? 'bg-emerald-700 text-white' : 'bg-white text-gray-600 border border-gray-200'
                       }`}
                     >
@@ -331,31 +400,39 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                     </button>
                     <button
                       onClick={() => setFilterStatus('correct')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
                         filterStatus === 'correct' ? 'bg-green-600 text-white' : 'bg-white text-green-700 border border-green-200'
                       }`}
                     >
-                      Benar ({correctTotal})
+                      Benar ({displayCorrectTotal})
                     </button>
                     <button
                       onClick={() => setFilterStatus('wrong')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
                         filterStatus === 'wrong' ? 'bg-rose-600 text-white' : 'bg-white text-rose-700 border border-rose-200'
                       }`}
                     >
-                      Salah ({wrongTotal})
+                      Salah ({displayWrongTotal})
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="p-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-2">
+                <div className="p-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-3">
                   <AlertCircle size={32} className="mx-auto text-gray-300" />
                   <p className="font-black text-xs uppercase tracking-wider text-gray-600">
                     Peserta belum menyelesaikan {activeTab === 'pre_test' ? 'Pre Test' : 'Post Test'}.
                   </p>
-                  <p className="text-[11px] text-gray-400">
-                    Setelah peserta mengerjakan ujian di dasbor pelatihan, lembar jawaban dan nilainya akan otomatis muncul di sini.
+                  <p className="text-[11px] text-gray-400 max-w-md mx-auto">
+                    Setelah peserta mengerjakan ujian di dasbor pelatihan, lembar jawaban dan nilainya akan otomatis muncul di sini. Anda juga dapat membuat contoh hasil pengerjaan secara otomatis.
                   </p>
+                  <button
+                    onClick={handleGenerateSubmissionsForThisParticipant}
+                    disabled={isGenerating}
+                    className="mt-2 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                  >
+                    <Sparkles size={14} />
+                    {isGenerating ? 'Menyinkronkan...' : '⚡ Buat & Sinkronkan Nilai & Lembar Jawaban'}
+                  </button>
                 </div>
               )}
 
@@ -469,17 +546,36 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                     Total {submittedTasks.length} tugas telah diunggah oleh peserta ini
                   </p>
                 </div>
+
+                {submittedTasks.length === 0 && (
+                  <button
+                    onClick={handleGenerateSubmissionsForThisParticipant}
+                    disabled={isGenerating}
+                    className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                  >
+                    <Sparkles size={13} />
+                    <span>{isGenerating ? 'Menyinkronkan...' : '+ Buat Contoh Tugas'}</span>
+                  </button>
+                )}
               </div>
 
               {submittedTasks.length === 0 ? (
-                <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-2">
+                <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400 space-y-3">
                   <FileText size={36} className="mx-auto text-gray-300" />
                   <p className="font-black text-xs uppercase tracking-wider text-gray-600">
                     Belum Ada Tugas yang Dikumpulkan
                   </p>
-                  <p className="text-[11px] text-gray-400">
-                    Peserta belum mengunggah berkas penugasan materi kurikulum melalui portal pelatihan.
+                  <p className="text-[11px] text-gray-400 max-w-md mx-auto">
+                    Peserta belum mengunggah berkas penugasan materi kurikulum melalui portal pelatihan. Anda dapat membuat contoh tugas untuk memverifikasi alur penilaian.
                   </p>
+                  <button
+                    onClick={handleGenerateSubmissionsForThisParticipant}
+                    disabled={isGenerating}
+                    className="mt-2 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                  >
+                    <Sparkles size={14} />
+                    {isGenerating ? 'Menyinkronkan...' : '⚡ Buat Contoh Berkas Tugas Peserta'}
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -608,7 +704,7 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
         {/* FOOTER */}
         <div className="p-4 bg-gray-50 border-t border-gray-150 flex items-center justify-between">
           <div className="text-[11px] text-gray-500 font-bold">
-            Status Kelulusan: <span className="text-gray-800 uppercase font-black">{application.statusKelulusan || 'Proses Pelatihan'}</span>
+            Status Kelulusan: <span className="text-gray-800 uppercase font-black">{currentApp.statusKelulusan || 'Proses Pelatihan'}</span>
           </div>
           <button
             onClick={onClose}

@@ -1752,6 +1752,14 @@ export const sheetsService = {
     return this.bulkSetAllTrainingParticipantsToActivity();
   },
 
+  async restoreSolo70TrainingParticipants(): Promise<{ success: boolean; count: number }> {
+    clearSheetsCache('trainingApplications');
+    clearSheetsCache('members');
+    clearFirestoreCache('training_applications');
+    clearFirestoreCache('members');
+    return await firestoreService.restoreSolo70TrainingParticipants();
+  },
+
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
     clearSheetsCache('trainingApplications');
     clearFirestoreCache('training_applications');
