@@ -22,7 +22,8 @@ import {
   CreditCard,
   Camera,
   Check,
-  Calendar
+  Calendar,
+  Building2
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { sheetsService } from '../services/sheetsService';
@@ -1005,6 +1006,12 @@ export default function ProfilePage() {
 
           {/* Account Actions */}
           <div className="grid grid-cols-1 gap-3 pb-10">
+            <Link 
+              to="/kwarda-ptma" 
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-teal-600/20 hover:scale-[1.02] transition-all"
+            >
+              <Building2 size={18} /> Portal Kwarda & Qabilah PTMA
+            </Link>
             <button 
               onClick={() => {
                 setIsEditing(true);

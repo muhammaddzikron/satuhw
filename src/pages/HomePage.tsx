@@ -1037,8 +1037,9 @@ export default function HomePage() {
             <h3 className="font-display font-bold text-gray-800">Menu Utama</h3>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
           <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-amber-500" />
+          <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
           <MenuCard to="/gallery" icon={ImageIcon} label="Galeri" color="bg-pink-500" />
           <MenuCard to="/playlist" icon={Music} label="Musik" color="bg-rose-500" />
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
@@ -1057,12 +1058,13 @@ export default function HomePage() {
             <h3 className="font-display font-bold text-gray-800">Dasbor Anggota</h3>
           </div>
           
-          <div className="grid grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
+            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda/PTMA" color="bg-emerald-600" />
             <MenuCard to="/materi" state={{ filter: 'umum' }} icon={BookOpen} label="Umum" color="bg-hw-green" />
             <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Sugli" color="bg-orange-500" />
             <MenuCard to="/materi" state={{ filter: 'kwarda' }} icon={MapPin} label="Kwarda" color="bg-blue-500" />
             <MenuCard to="/pelatihan" icon={GraduationCap} label="Pelatihan" color="bg-emerald-700" />
-            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+            {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'kwarda') && (
               <MenuCard to="/admin" icon={Shield} label="Admin" color="bg-hw-dark" />
             )}
             <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />

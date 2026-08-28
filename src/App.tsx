@@ -16,7 +16,8 @@ import {
   LayoutDashboard, 
   GraduationCap, 
   CreditCard, 
-  Calendar
+  Calendar,
+  Building2
 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
@@ -51,7 +52,7 @@ const Header = React.memo(() => {
   const isFullWidth = location.pathname === '/admin' || location.pathname === '/kwarda-ptma';
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-xs isolate">
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-2.5 shadow-xs isolate">
       <div className={cn("mx-auto flex items-center justify-between", isFullWidth ? "max-w-7xl" : "max-w-md")}>
         <Link to="/" className="flex items-center gap-3 group cursor-pointer touch-manipulation">
           <img 
@@ -65,6 +66,19 @@ const Header = React.memo(() => {
           </div>
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            to="/kwarda-ptma"
+            className={cn(
+              "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+              location.pathname === '/kwarda-ptma'
+                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                : "bg-emerald-50 text-emerald-800 border-emerald-200/70 hover:bg-emerald-100/80"
+            )}
+            title="Portal Organisasi Kwarda & Qabilah PTMA se-Jawa Tengah"
+          >
+            <Building2 size={15} />
+            <span>Kwarda / PTMA</span>
+          </Link>
           <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer touch-manipulation" title="Notifikasi">
             <Bell size={20} />
           </button>
@@ -244,16 +258,16 @@ const Navigation = () => {
                 active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kta'} 
               />
               <NavigationLink 
+                to="/kwarda-ptma" 
+                icon={Building2} 
+                label="Kwarda" 
+                active={location.pathname === '/kwarda-ptma' || (location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kwarda-ptma')} 
+              />
+              <NavigationLink 
                 to="/admin?tab=pelatihan" 
                 icon={GraduationCap} 
                 label="Pelatihan" 
                 active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'pelatihan'} 
-              />
-              <NavigationLink 
-                to="/admin?tab=kegiatan" 
-                icon={Calendar} 
-                label="Kegiatan" 
-                active={location.pathname === '/admin' && new URLSearchParams(location.search).get('tab') === 'kegiatan'} 
               />
               <NavigationLink 
                 to="/admin?tab=materi" 
@@ -290,6 +304,12 @@ const Navigation = () => {
                   active={location.pathname === '/kta'} 
                 />
                 <NavigationLink 
+                  to="/kwarda-ptma" 
+                  icon={Building2} 
+                  label="Kwarda" 
+                  active={location.pathname === '/kwarda-ptma'} 
+                />
+                <NavigationLink 
                   to="/pelatihan" 
                   icon={GraduationCap} 
                   label="Pelatihan" 
@@ -312,6 +332,12 @@ const Navigation = () => {
             ) : (
               /* Guest/Unauthenticated view */
               <>
+                <NavigationLink 
+                  to="/kwarda-ptma" 
+                  icon={Building2} 
+                  label="Kwarda" 
+                  active={location.pathname === '/kwarda-ptma'} 
+                />
                 <NavigationLink 
                   to="/login" 
                   icon={LogIn} 
