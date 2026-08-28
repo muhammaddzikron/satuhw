@@ -13,7 +13,10 @@ import {
   Sparkles,
   ExternalLink,
   BookOpen,
-  FolderOpen
+  FolderOpen,
+  Copy,
+  Check,
+  Share2
 } from 'lucide-react';
 import { KwardaPtmaEntity, MateriOrgItem } from '../../types';
 import { PengurusListPanel } from './PengurusListPanel';
@@ -22,6 +25,7 @@ import { QabilahListPanel } from './QabilahListPanel';
 import { KegiatanListPanel } from './KegiatanListPanel';
 import { MateriKwardaListPanel } from './MateriKwardaListPanel';
 import { kwardaPtmaService } from '../../services/kwardaPtmaService';
+import { getKwardaPtmaByCode } from '../../utils/kwardaPtmaUtils';
 import { formatDate } from '../../lib/utils';
 
 interface OrgDetailWorkspaceProps {
@@ -46,17 +50,20 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
   const [totalAnggota, setTotalAnggota] = useState(0);
   const [kegiatanCount, setKegiatanCount] = useState(0);
   const [materiCount, setMateriCount] = useState(0);
+  const [totalAllMateriCount, setTotalAllMateriCount] = useState(0);
   const [recentKegiatan, setRecentKegiatan] = useState<any[]>([]);
   const [recentMateri, setRecentMateri] = useState<MateriOrgItem[]>([]);
+  const [copiedMateriId, setCopiedMateriId] = useState<string | null>(null);
 
   const loadStats = async () => {
     try {
-      const [pengurus, sugli, qabilah, kegiatan, materi] = await Promise.all([
+      const [pengurus, sugli, qabilah, kegiatan, materi, allMateri] = await Promise.all([
         kwardaPtmaService.getPengurusByOrg(org.code),
         kwardaPtmaService.getDewanSugliByOrg(org.code),
         org.type === 'Kwarda' ? kwardaPtmaService.getQabilahByOrg(org.code) : Promise.resolve([]),
         kwardaPtmaService.getKegiatanByOrg(org.code),
-        kwardaPtmaService.getMateriByOrg(org.code)
+        kwardaPtmaService.getMateriByOrg(org.code),
+        kwardaPtmaService.getAllMateri()
       ]);
 
       setPengurusCount(pengurus.length);
@@ -65,10 +72,20 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
       setTotalAnggota(qabilah.reduce((acc, curr) => acc + (Number(curr.jumlahAnggota) || 0), 0));
       setKegiatanCount(kegiatan.length);
       setMateriCount(materi.length);
+      setTotalAllMateriCount(allMateri.length);
       setRecentKegiatan(kegiatan.slice(0, 3));
-      setRecentMateri(materi.slice(0, 3));
+      // Display latest shared materials across all Kwarda / PTMA entities (visible to all users with role kwarda)
+      setRecentMateri(allMateri.slice(0, 5));
     } catch (err) {
       console.error('Failed to load workspace stats:', err);
+    }
+  };
+
+  const handleCopyDriveLink = (id: string, url: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedMateriId(id);
+      setTimeout(() => setCopiedMateriId(null), 2500);
     }
   };
 
@@ -386,17 +403,22 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
 
                 {/* Recent Materi Kwarda */}
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                      <BookOpen className="text-violet-600" size={20} />
-                      Materi & Arsip Google Drive Terbaru
-                    </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                        <BookOpen className="text-violet-600" size={20} />
+                        <span>Materi & Arsip Google Drive Terbaru</span>
+                      </h3>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Bank materi & arsip Google Drive bersama dari seluruh Kwarda & Qabilah PTMA se-Jawa Tengah (dapat dilihat oleh semua role Kwarda).
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setActiveSubTab('materi')}
-                      className="text-xs font-bold text-violet-600 hover:text-violet-700 cursor-pointer"
+                      className="text-xs font-bold text-violet-600 hover:text-violet-700 whitespace-nowrap self-start sm:self-auto cursor-pointer"
                     >
-                      Buka Tab Materi →
+                      Buka Semua Materi ({totalAllMateriCount}) →
                     </button>
                   </div>
 
@@ -415,34 +437,77 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {recentMateri.map((mat) => (
-                        <div
-                          key={mat.id}
-                          className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-bold text-violet-700 bg-violet-100/80 px-2 py-0.5 rounded-md">
-                              {mat.kategoriMateri || 'Kepanduan HW'}
-                            </span>
-                            <h4 className="text-xs sm:text-sm font-bold text-gray-900 mt-1 truncate">
-                              {mat.namaMateri}
-                            </h4>
+                      {recentMateri.map((mat) => {
+                        const originEntity = getKwardaPtmaByCode(mat.orgCode);
+                        const originName = originEntity ? originEntity.name : `Kwarda/PTMA (${mat.orgCode})`;
+                        const isOwnOrg = mat.orgCode === org.code;
+
+                        return (
+                          <div
+                            key={mat.id}
+                            className="p-3.5 bg-gray-50/80 hover:bg-violet-50/30 transition-colors rounded-2xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                  isOwnOrg 
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : 'bg-violet-50 text-violet-800 border-violet-200'
+                                }`}>
+                                  {originName}
+                                </span>
+                                <span className="text-[10px] font-medium text-gray-600 bg-gray-200/70 px-2 py-0.5 rounded-md">
+                                  {mat.kategoriMateri || 'Kepanduan HW'}
+                                </span>
+                                {mat.pemateri && (
+                                  <span className="text-[10px] text-gray-500 hidden md:inline">
+                                    • Oleh: <span className="font-semibold text-gray-700">{mat.pemateri}</span>
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+                                {mat.namaMateri}
+                              </h4>
+                              {mat.keterangan && (
+                                <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5 font-normal">
+                                  {mat.keterangan}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                              {mat.linkDrive && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyDriveLink(mat.id, mat.linkDrive)}
+                                    className="p-2 text-gray-400 hover:text-gray-700 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-colors cursor-pointer"
+                                    title="Salin Link Google Drive"
+                                  >
+                                    {copiedMateriId === mat.id ? (
+                                      <Check size={14} className="text-emerald-600" />
+                                    ) : (
+                                      <Copy size={14} />
+                                    )}
+                                  </button>
+
+                                  <a
+                                    href={mat.linkDrive}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-xl text-xs font-bold transition-colors shadow-2xs border border-blue-200/70"
+                                    title="Buka Berkas di Google Drive"
+                                  >
+                                    <FolderOpen size={13} className="text-blue-600" />
+                                    <span>Buka Drive</span>
+                                    <ExternalLink size={11} />
+                                  </a>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          {mat.linkDrive && (
-                            <a
-                              href={mat.linkDrive}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
-                              title="Buka di Google Drive"
-                            >
-                              <FolderOpen size={13} className="text-blue-600" />
-                              <span>Buka Drive</span>
-                              <ExternalLink size={12} />
-                            </a>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

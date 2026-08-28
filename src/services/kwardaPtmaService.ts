@@ -614,6 +614,35 @@ export const kwardaPtmaService = {
   // ---------------------------------------------------------------------------
   // MATERI KWARDA / PTMA
   // ---------------------------------------------------------------------------
+  async getAllMateri(): Promise<MateriOrgItem[]> {
+    let localData: MateriOrgItem[] = [];
+    try {
+      const raw = safeStorageGet<MateriOrgItem[]>('hw_kwarda_ptma_materi', []);
+      if (raw && Array.isArray(raw)) localData = raw;
+    } catch {}
+
+    if (!localData || localData.length === 0) {
+      localData = [...INITIAL_SEED_MATERI];
+      safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(localData));
+    }
+
+    try {
+      const snap = await withTimeout(getDocs(collection(db, 'kwarda_ptma_materi')), 4000);
+      if (!snap.empty) {
+        const firestoreList = snap.docs.map(d => ({ id: d.id, ...d.data() } as MateriOrgItem));
+        const mergedMap = new Map<string, MateriOrgItem>();
+        localData.forEach(p => mergedMap.set(p.id, p));
+        firestoreList.forEach(p => mergedMap.set(p.id, p));
+        localData = Array.from(mergedMap.values());
+        safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(localData));
+      }
+    } catch (err) {
+      console.warn('[FIRESTORE] Using local storage for all materi:', err);
+    }
+
+    return localData.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
   async getMateriByOrg(orgCode: string): Promise<MateriOrgItem[]> {
     const normCode = orgCode.trim().padStart(2, '0');
     let localData: MateriOrgItem[] = [];

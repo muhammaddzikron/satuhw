@@ -15,11 +15,19 @@ import {
   Copy,
   Check,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Globe2,
+  Building2,
+  Filter
 } from 'lucide-react';
 import { MateriOrgItem, KwardaPtmaEntity } from '../../types';
 import { kwardaPtmaService } from '../../services/kwardaPtmaService';
-import { SUGGESTED_KATEGORI_MATERI, isValidProposalUrl } from '../../utils/kwardaPtmaUtils';
+import { 
+  SUGGESTED_KATEGORI_MATERI, 
+  isValidProposalUrl, 
+  getKwardaPtmaByCode, 
+  getKwardaPtmaMasterList 
+} from '../../utils/kwardaPtmaUtils';
 import { formatDate } from '../../lib/utils';
 
 interface MateriKwardaListPanelProps {
@@ -28,12 +36,16 @@ interface MateriKwardaListPanelProps {
 }
 
 export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ org, canManage }) => {
-  const [items, setItems] = useState<MateriOrgItem[]>([]);
+  const [allItems, setAllItems] = useState<MateriOrgItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MateriOrgItem | null>(null);
 
-  // Search & Filter
+  // Scope filter: 'all' (semua kwarda se-jateng) vs 'org' (kwarda ini saja)
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'org'>('all');
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('ALL');
+
+  // Search & Category Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKategoriFilter, setSelectedKategoriFilter] = useState('Semua');
 
@@ -53,11 +65,13 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
   // Copy feedback state
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const masterList = useMemo(() => getKwardaPtmaMasterList(), []);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await kwardaPtmaService.getMateriByOrg(org.code);
-      setItems(data);
+      const data = await kwardaPtmaService.getAllMateri();
+      setAllItems(data);
     } catch (err) {
       console.error('Failed to load materi kwarda:', err);
     } finally {
@@ -131,7 +145,7 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
     try {
       const payload: MateriOrgItem = {
         id: editingItem ? editingItem.id : '',
-        orgCode: org.code,
+        orgCode: editingItem ? editingItem.orgCode : org.code,
         namaMateri: namaMateri.trim(),
         kategoriMateri: finalKategori,
         linkDrive: linkDrive.trim(),
@@ -154,7 +168,7 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
   const handleDelete = async () => {
     if (!itemToDelete) return;
     try {
-      await kwardaPtmaService.deleteMateri(itemToDelete.id, org.code);
+      await kwardaPtmaService.deleteMateri(itemToDelete.id, itemToDelete.orgCode || org.code);
       setItemToDelete(null);
       loadData();
     } catch (err) {
@@ -170,36 +184,56 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
     }
   };
 
-  // Filtered items
+  // Filtered items based on scope, org dropdown, category, and search query
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
-      // 1. Kategori filter
+    const normOrgCode = (org.code || '').padStart(2, '0');
+
+    return allItems.filter(item => {
+      const itemOrgNorm = (item.orgCode || '').padStart(2, '0');
+
+      // 1. Scope filter
+      if (scopeFilter === 'org') {
+        if (itemOrgNorm !== normOrgCode) return false;
+      } else if (selectedOrgFilter !== 'ALL') {
+        if (itemOrgNorm !== selectedOrgFilter) return false;
+      }
+
+      // 2. Kategori filter
       if (selectedKategoriFilter !== 'Semua') {
         if (item.kategoriMateri !== selectedKategoriFilter) return false;
       }
 
-      // 2. Search query
+      // 3. Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
+        const originEnt = getKwardaPtmaByCode(item.orgCode);
+        const originName = (originEnt?.name || '').toLowerCase();
         const matchName = item.namaMateri.toLowerCase().includes(q);
         const matchKategori = (item.kategoriMateri || '').toLowerCase().includes(q);
         const matchPemateri = (item.pemateri || '').toLowerCase().includes(q);
         const matchKet = (item.keterangan || '').toLowerCase().includes(q);
-        return matchName || matchKategori || matchPemateri || matchKet;
+        const matchOrigin = originName.includes(q) || (item.orgCode || '').includes(q);
+        return matchName || matchKategori || matchPemateri || matchKet || matchOrigin;
       }
 
       return true;
     });
-  }, [items, selectedKategoriFilter, searchQuery]);
+  }, [allItems, scopeFilter, selectedOrgFilter, selectedKategoriFilter, searchQuery, org.code]);
 
   // Unique categories for filter pills
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
-    items.forEach(i => {
+    allItems.forEach(i => {
       if (i.kategoriMateri) set.add(i.kategoriMateri);
     });
     return Array.from(set);
-  }, [items]);
+  }, [allItems]);
+
+  // Counts
+  const ownOrgCount = useMemo(() => {
+    const normCode = (org.code || '').padStart(2, '0');
+    return allItems.filter(i => (i.orgCode || '').padStart(2, '0') === normCode).length;
+  }, [allItems, org.code]);
 
   return (
     <div className="space-y-6">
@@ -211,11 +245,11 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
               <BookOpen size={20} />
             </span>
             <h3 className="text-base font-bold text-gray-900">
-              Materi {org.type === 'Kwarda' ? 'Kwarda' : 'Qabilah PTMA'}
+              Bank Materi & Arsip Google Drive (Role Kwarda)
             </h3>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Bank materi resmi, modul diklat, pedoman keorganisasian, dan berkas arsip Google Drive untuk {org.name}.
+            Repositori materi resmi, modul kepanduan, dan arsip berkas Google Drive yang dapat diakses oleh seluruh pemegang akun Role Kwarda / Qabilah PTMA se-Jawa Tengah.
           </p>
         </div>
 
@@ -226,19 +260,64 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-xs transition-all cursor-pointer shrink-0"
           >
             <Plus size={16} />
-            <span>Tambah Materi</span>
+            <span>Tambah Materi Baru</span>
           </button>
         )}
       </div>
 
+      {/* Scope Selector Bar (Semua Kwarda vs Kwarda Ini) */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-gray-100/80 rounded-2xl border border-gray-200/80 w-fit">
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter('all');
+            setSelectedOrgFilter('ALL');
+          }}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            scopeFilter === 'all'
+              ? 'bg-white text-gray-900 shadow-xs'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Globe2 size={15} className={scopeFilter === 'all' ? 'text-emerald-600' : 'text-gray-400'} />
+          <span>Semua Materi Kwarda se-Jateng</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+            scopeFilter === 'all' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
+          }`}>
+            {allItems.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter('org');
+          }}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            scopeFilter === 'org'
+              ? 'bg-white text-gray-900 shadow-xs'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Building2 size={15} className={scopeFilter === 'org' ? 'text-emerald-600' : 'text-gray-400'} />
+          <span>Materi Khusus {org.name}</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+            scopeFilter === 'org' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
+          }`}>
+            {ownOrgCount}
+          </span>
+        </button>
+      </div>
+
       {/* Search & Category Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          {/* Search box */}
           <div className="relative flex-1 w-full">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari nama materi, kategori, atau pemateri..."
+              placeholder="Cari materi, kategori, pemateri, atau asal kwarda..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50/80 border border-gray-200 rounded-xl text-xs text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -254,11 +333,30 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
             )}
           </div>
 
-          <div className="text-xs font-bold text-gray-500 whitespace-nowrap">
-            Total: <span className="text-emerald-700 font-black">{filteredItems.length}</span> materi
+          {/* Org selector dropdown when in 'all' scope */}
+          {scopeFilter === 'all' && (
+            <div className="w-full md:w-64 shrink-0">
+              <select
+                value={selectedOrgFilter}
+                onChange={(e) => setSelectedOrgFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="ALL">Semua Kwarda & Qabilah PTMA</option>
+                {masterList.map(item => (
+                  <option key={item.code} value={item.code}>
+                    {item.code}. {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="text-xs font-bold text-gray-500 whitespace-nowrap self-end md:self-auto">
+            Menampilkan: <span className="text-emerald-700 font-black">{filteredItems.length}</span> materi
           </div>
         </div>
 
+        {/* Category Pills */}
         {availableCategories.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
             <button
@@ -303,14 +401,14 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
           </div>
           <div className="max-w-md mx-auto">
             <h4 className="text-sm font-bold text-gray-900">
-              {searchQuery || selectedKategoriFilter !== 'Semua' 
+              {searchQuery || selectedKategoriFilter !== 'Semua' || selectedOrgFilter !== 'ALL'
                 ? 'Tidak Ada Materi Yang Cocok' 
-                : 'Belum Ada Materi'}
+                : 'Belum Ada Berkas Materi'}
             </h4>
             <p className="text-xs text-gray-500 mt-1">
-              {searchQuery || selectedKategoriFilter !== 'Semua'
-                ? 'Coba gunakan kata kunci pencarian lain atau ubah filter kategori.'
-                : `Belum ada materi atau arsip Google Drive yang ditambahkan untuk ${org.name}.`}
+              {searchQuery || selectedKategoriFilter !== 'Semua' || selectedOrgFilter !== 'ALL'
+                ? 'Coba gunakan kata kunci pencarian lain atau sesuaikan filter asal Kwarda / kategori.'
+                : `Belum ada materi atau arsip Google Drive yang diunggah.`}
             </p>
           </div>
           {canManage && !searchQuery && selectedKategoriFilter === 'Semua' && (
@@ -335,186 +433,223 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
                 <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                   <th className="py-3.5 px-4 w-12 text-center">No</th>
                   <th className="py-3.5 px-4">Nama Materi & Keterangan</th>
-                  <th className="py-3.5 px-4 w-44">Kategori</th>
-                  <th className="py-3.5 px-4 w-60">Link Google Drive</th>
-                  <th className="py-3.5 px-4 w-32">Tanggal</th>
-                  {canManage && <th className="py-3.5 px-4 w-28 text-center">Aksi</th>}
+                  <th className="py-3.5 px-4 w-44">Kwarda / Qabilah Asal</th>
+                  <th className="py-3.5 px-4 w-36">Kategori</th>
+                  <th className="py-3.5 px-4 w-52">Link Google Drive</th>
+                  <th className="py-3.5 px-4 w-28">Tanggal</th>
+                  <th className="py-3.5 px-4 w-24 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs">
-                {filteredItems.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors group">
-                    <td className="py-4 px-4 text-center font-bold text-gray-400">
-                      {index + 1}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="font-bold text-gray-900 group-hover:text-emerald-950 flex items-start gap-2">
-                        <FileText size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                        <div>
-                          <span>{item.namaMateri}</span>
-                          {item.pemateri && (
-                            <p className="text-[11px] text-gray-500 font-normal mt-0.5">
-                              Narasumber / Sumber: <span className="font-semibold text-gray-700">{item.pemateri}</span>
-                            </p>
-                          )}
-                          {item.keterangan && (
-                            <p className="text-[11px] text-gray-400 font-normal mt-0.5 line-clamp-2">
-                              {item.keterangan}
-                            </p>
-                          )}
+                {filteredItems.map((item, index) => {
+                  const originEntity = getKwardaPtmaByCode(item.orgCode);
+                  const originName = originEntity ? originEntity.name : `Kwarda/PTMA (${item.orgCode})`;
+                  const isOwnOrg = (item.orgCode || '').padStart(2, '0') === (org.code || '').padStart(2, '0');
+                  const canEditThisItem = canManage && isOwnOrg;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors group">
+                      <td className="py-4 px-4 text-center font-bold text-gray-400">
+                        {index + 1}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-gray-900 group-hover:text-emerald-950 flex items-start gap-2">
+                          <FileText size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span>{item.namaMateri}</span>
+                            {item.pemateri && (
+                              <p className="text-[11px] text-gray-500 font-normal mt-0.5">
+                                Narasumber: <span className="font-semibold text-gray-700">{item.pemateri}</span>
+                              </p>
+                            )}
+                            {item.keterangan && (
+                              <p className="text-[11px] text-gray-400 font-normal mt-0.5 line-clamp-2">
+                                {item.keterangan}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[11px] font-bold rounded-lg border border-emerald-100">
-                        {item.kategoriMateri || 'Kepanduan HW'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={item.linkDrive}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 text-[11px] font-bold rounded-xl border border-blue-200 transition-colors shrink-0 shadow-2xs group/link"
-                          title="Buka Berkas di Google Drive"
-                        >
-                          <FolderOpen size={13} className="text-blue-600 group-hover/link:scale-110 transition-transform" />
-                          <span>Buka Drive</span>
-                          <ExternalLink size={11} />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(item.id, item.linkDrive)}
-                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                          title="Salin Link Google Drive"
-                        >
-                          {copiedId === item.id ? (
-                            <Check size={14} className="text-emerald-600" />
-                          ) : (
-                            <Copy size={14} />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-gray-500 font-medium whitespace-nowrap text-[11px]">
-                      {item.createdAt ? formatDate(item.createdAt) : '-'}
-                    </td>
-                    {canManage && (
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                          isOwnOrg
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-violet-50 text-violet-800 border-violet-200'
+                        }`}>
+                          {originName}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-[11px] font-bold rounded-lg border border-gray-200/80">
+                          {item.kategoriMateri || 'Kepanduan HW'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={item.linkDrive}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 text-[11px] font-bold rounded-xl border border-blue-200 transition-colors shrink-0 shadow-2xs group/link"
+                            title="Buka Berkas di Google Drive"
+                          >
+                            <FolderOpen size={13} className="text-blue-600 group-hover/link:scale-110 transition-transform" />
+                            <span>Buka Drive</span>
+                            <ExternalLink size={11} />
+                          </a>
                           <button
                             type="button"
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Materi"
+                            onClick={() => handleCopyLink(item.id, item.linkDrive)}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                            title="Salin Link Google Drive"
                           >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setItemToDelete(item)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Materi"
-                          >
-                            <Trash2 size={15} />
+                            {copiedId === item.id ? (
+                              <Check size={14} className="text-emerald-600" />
+                            ) : (
+                              <Copy size={14} />
+                            )}
                           </button>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      <td className="py-4 px-4 text-gray-500 font-medium whitespace-nowrap text-[11px]">
+                        {item.createdAt ? formatDate(item.createdAt) : '-'}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        {canEditThisItem ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Materi"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setItemToDelete(item)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Materi"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-medium italic">
+                            Akses Baca
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Mobile Card View */}
           <div className="block md:hidden space-y-3">
-            {filteredItems.map((item, index) => (
-              <div
-                key={item.id}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs space-y-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5">
-                    <span className="w-6 h-6 bg-emerald-50 text-emerald-700 text-xs font-black rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      {index + 1}
-                    </span>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900 leading-snug">
-                        {item.namaMateri}
-                      </h4>
-                      <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md">
-                        {item.kategoriMateri || 'Kepanduan HW'}
+            {filteredItems.map((item, index) => {
+              const originEntity = getKwardaPtmaByCode(item.orgCode);
+              const originName = originEntity ? originEntity.name : `Kwarda/PTMA (${item.orgCode})`;
+              const isOwnOrg = (item.orgCode || '').padStart(2, '0') === (org.code || '').padStart(2, '0');
+              const canEditThisItem = canManage && isOwnOrg;
+
+              return (
+                <div
+                  key={item.id}
+                  className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-6 h-6 bg-emerald-50 text-emerald-700 text-xs font-black rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        {index + 1}
                       </span>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${
+                            isOwnOrg
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-violet-50 text-violet-800 border-violet-200'
+                          }`}>
+                            {originName}
+                          </span>
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-md">
+                            {item.kategoriMateri || 'Kepanduan HW'}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-gray-900 leading-snug">
+                          {item.namaMateri}
+                        </h4>
+                      </div>
                     </div>
+
+                    {canEditThisItem && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(item)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setItemToDelete(item)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {canManage && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(item)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setItemToDelete(item)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                  {item.pemateri && (
+                    <p className="text-[11px] text-gray-600 bg-gray-50 px-2.5 py-1 rounded-lg">
+                      Narasumber: <span className="font-semibold text-gray-800">{item.pemateri}</span>
+                    </p>
                   )}
-                </div>
 
-                {item.pemateri && (
-                  <p className="text-[11px] text-gray-600 bg-gray-50 px-2.5 py-1 rounded-lg">
-                    Narasumber: <span className="font-semibold text-gray-800">{item.pemateri}</span>
-                  </p>
-                )}
+                  {item.keterangan && (
+                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                      {item.keterangan}
+                    </p>
+                  )}
 
-                {item.keterangan && (
-                  <p className="text-[11px] text-gray-500 leading-relaxed">
-                    {item.keterangan}
-                  </p>
-                )}
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-gray-400">
+                      {item.createdAt ? formatDate(item.createdAt) : ''}
+                    </span>
 
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-gray-400">
-                    {item.createdAt ? formatDate(item.createdAt) : ''}
-                  </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(item.id, item.linkDrive)}
+                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs"
+                        title="Salin Link"
+                      >
+                        {copiedId === item.id ? (
+                          <Check size={14} className="text-emerald-600" />
+                        ) : (
+                          <Copy size={14} />
+                        )}
+                      </button>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleCopyLink(item.id, item.linkDrive)}
-                      className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs"
-                      title="Salin Link"
-                    >
-                      {copiedId === item.id ? (
-                        <Check size={14} className="text-emerald-600" />
-                      ) : (
-                        <Copy size={14} />
-                      )}
-                    </button>
-
-                    <a
-                      href={item.linkDrive}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-[11px] font-bold rounded-xl shadow-xs"
-                    >
-                      <FolderOpen size={13} />
-                      <span>Buka Drive</span>
-                      <ExternalLink size={11} />
-                    </a>
+                      <a
+                        href={item.linkDrive}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-[11px] font-bold rounded-xl shadow-xs"
+                      >
+                        <FolderOpen size={13} />
+                        <span>Buka Drive</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -549,6 +684,10 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
 
             {/* Modal Form */}
             <form onSubmit={handleSave} className="p-5 overflow-y-auto space-y-4 text-xs">
+              <div className="p-3 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-2xl text-[11px] leading-relaxed">
+                ℹ️ Materi yang disimpan akan otomatis terpublikasi di <strong>Bank Materi Kwarda se-Jawa Tengah</strong> dan dapat dipelajari oleh seluruh akun Role Kwarda / Qabilah PTMA.
+              </div>
+
               {formError && (
                 <div className="p-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl flex items-center gap-2 text-xs">
                   <AlertCircle size={16} className="shrink-0" />
@@ -683,7 +822,7 @@ export const MateriKwardaListPanel: React.FC<MateriKwardaListPanelProps> = ({ or
             <div>
               <h3 className="text-sm font-bold text-gray-900">Hapus Materi Ini?</h3>
               <p className="text-xs text-gray-500 mt-1">
-                Materi <strong>&quot;{itemToDelete.namaMateri}&quot;</strong> akan dihapus dari daftar materi {org.name}.
+                Materi <strong>&quot;{itemToDelete.namaMateri}&quot;</strong> akan dihapus dari daftar materi.
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 pt-2">
