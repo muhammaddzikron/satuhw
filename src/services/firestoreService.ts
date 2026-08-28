@@ -6,6 +6,7 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
+  deleteField,
   writeBatch,
   onSnapshot,
   runTransaction
@@ -487,8 +488,29 @@ export const firestoreService = {
       const localTrain = localStorage.getItem('training_applications');
       if (localTrain) {
         const parsed = JSON.parse(localTrain);
-        const cleaned = parsed.filter((t: any) => isValidName(t?.nama || t?.namaLengkap));
+        const cleaned = parsed.filter((t: any) => isValidName(t?.nama || t?.namaLengkap)).map((t: any) => {
+          const appKegiatan = (t.namaKegiatan || t.pelatihanAkanDiikuti || '').toLowerCase();
+          const isSolo = t.activityId === 'act-jm1-solo' || appKegiatan.includes('solo') || appKegiatan.includes('jaya melati 1 solo');
+          if (isSolo && !localStorage.getItem('training_jm1_solo_posttest_cleared_v2')) {
+            const copy = { ...t };
+            delete copy.postTestScore;
+            delete copy.postTestData;
+            delete copy.postTestSubmittedAt;
+            delete copy.posttestscore;
+            delete copy.posttestdata;
+            delete copy.posttestsubmittedat;
+            delete copy.post_test_score;
+            delete copy.post_test_data;
+            delete copy.post_test_submitted_at;
+            copy.statusKelulusan = 'Proses Pelatihan';
+            copy.nilai = '';
+            copy.remark = 'Sedang mengikuti proses pelatihan Jaya Melati 1 Kwarda HW Solo.';
+            return copy;
+          }
+          return t;
+        });
         safeStorageSet('training_applications', cleaned);
+        safeStorageSet('training_jm1_solo_posttest_cleared_v2', 'true');
       }
     } catch (e) {}
   },
@@ -2287,6 +2309,92 @@ export const firestoreService = {
 
     window.dispatchEvent(new Event('training_applications_updated'));
     return { success: true, count: solo70.length };
+  },
+
+  async clearPostTestScoresForTraining(targetActivityId: string = 'act-jm1-solo'): Promise<{ success: boolean; count: number }> {
+    clearFirestoreCache('training_applications');
+    let localStored: any[] = [];
+    try {
+      const stored = localStorage.getItem('training_applications') || '[]';
+      localStored = JSON.parse(stored);
+      if (!Array.isArray(localStored)) localStored = [];
+    } catch (e) {
+      localStored = [];
+    }
+
+    let modifiedCount = 0;
+    const updatedList = localStored.map((app: any) => {
+      if (!app) return app;
+      const appActId = app.activityId || '';
+      const appKegiatan = (app.namaKegiatan || app.pelatihanAkanDiikuti || '').toLowerCase();
+      const isTarget = appActId === targetActivityId || 
+                       appKegiatan.includes('solo') || 
+                       appKegiatan.includes('jaya melati 1 solo') ||
+                       String(app.id || '').startsWith('train-jm1-solo');
+
+      if (isTarget) {
+        modifiedCount++;
+        const copy = { ...app };
+        delete copy.postTestScore;
+        delete copy.postTestData;
+        delete copy.postTestSubmittedAt;
+        delete copy.posttestscore;
+        delete copy.posttestdata;
+        delete copy.posttestsubmittedat;
+        delete copy.post_test_score;
+        delete copy.post_test_data;
+        delete copy.post_test_submitted_at;
+        copy.statusKelulusan = 'Proses Pelatihan';
+        copy.nilai = '';
+        copy.remark = 'Sedang mengikuti proses pelatihan Jaya Melati 1 Kwarda HW Solo.';
+        return copy;
+      }
+      return app;
+    });
+
+    safeStorageSet('training_applications', consolidateTrainingApplications(updatedList));
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          let batchOps = 0;
+          snap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const appActId = data.activityId || '';
+            const appKegiatan = (data.namaKegiatan || data.pelatihanAkanDiikuti || '').toLowerCase();
+            const isTarget = appActId === targetActivityId || 
+                             appKegiatan.includes('solo') || 
+                             appKegiatan.includes('jaya melati 1 solo') ||
+                             docSnap.id.startsWith('train-jm1-solo');
+
+            if (isTarget) {
+              const updates: any = {
+                postTestScore: deleteField(),
+                postTestData: '',
+                postTestSubmittedAt: '',
+                statusKelulusan: 'Proses Pelatihan',
+                nilai: '',
+                remark: 'Sedang mengikuti proses pelatihan Jaya Melati 1 Kwarda HW Solo.'
+              };
+              batch.update(docSnap.ref, updates);
+              batchOps++;
+            }
+          });
+          if (batchOps > 0) {
+            await batch.commit();
+          }
+        }
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.warn('Firestore clearPostTestScores warning:', err);
+      }
+    }
+
+    clearFirestoreCache('training_applications');
+    window.dispatchEvent(new Event('training_applications_updated'));
+    return { success: true, count: modifiedCount };
   },
 
   async createTrainingApplication(appData: any): Promise<any> {

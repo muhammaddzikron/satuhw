@@ -14,6 +14,7 @@ import {
   isTestCurrentlyOpen
 } from '../../data/trainingQuestions';
 import { generateSamplePreTestForParticipants } from '../../utils/trainingUtils';
+import { sheetsService } from '../../services/sheetsService';
 
 interface TestManagementPanelProps {
   settings: any;
@@ -155,6 +156,16 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
     if (!window.confirm('Kembalikan ke 50 butir soal standar Hizbul Wathan beserta kunci jawabannya?')) return;
     setLocalQuestions(DEFAULT_50_QUESTIONS);
     alert('Bank soal telah direset ke 50 soal standar Hizbul Wathan!');
+  };
+
+  const handleClearPostTest = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus / mengosongkan nilai Post-Test seluruh peserta pelatihan Jaya Melati 1 Solo? (Karena Post-Test belum dilaksanakan)')) return;
+    try {
+      await sheetsService.clearPostTestScoresForTraining('act-jm1-solo');
+      alert('Nilai Post-Test seluruh peserta pelatihan Jaya Melati 1 Solo berhasil dikosongkan!');
+    } catch (e: any) {
+      alert('Gagal mengosongkan nilai Post-Test: ' + (e?.message || e));
+    }
   };
 
   const handleSaveAll = async () => {
@@ -595,20 +606,33 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
       {activeTestTab !== 'rekap' && (
         <>
       <div className="bg-gray-50/70 p-5 rounded-3xl border border-gray-200/80 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Settings size={18} className="text-emerald-700" />
             <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               Jadwal & Kontrol Akses {activeTestTab === 'pre_test' ? 'Pre Test' : 'Post Test'}
             </h4>
           </div>
-          <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
-            activeLocalSettings.isOpen 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-              : 'bg-rose-50 border-rose-200 text-rose-700'
-          }`}>
-            {activeLocalSettings.isOpen ? 'Status: DIBUKA' : 'Status: DITUTUP'}
-          </span>
+          <div className="flex items-center gap-2">
+            {activeTestTab === 'post_test' && (
+              <button
+                type="button"
+                onClick={handleClearPostTest}
+                className="px-3 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Kosongkan seluruh nilai Post-Test peserta Solo karena belum dilaksanakan"
+              >
+                <Trash2 size={12} />
+                <span>Kosongkan Nilai Post-Test</span>
+              </button>
+            )}
+            <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
+              activeLocalSettings.isOpen 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}>
+              {activeLocalSettings.isOpen ? 'Status: DIBUKA' : 'Status: DITUTUP'}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

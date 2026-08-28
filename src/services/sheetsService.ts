@@ -1760,6 +1760,12 @@ export const sheetsService = {
     return await firestoreService.restoreSolo70TrainingParticipants();
   },
 
+  async clearPostTestScoresForTraining(targetActivityId: string = 'act-jm1-solo'): Promise<{ success: boolean; count: number }> {
+    clearSheetsCache('trainingApplications');
+    clearFirestoreCache('training_applications');
+    return await firestoreService.clearPostTestScoresForTraining(targetActivityId);
+  },
+
   async updateAttendance(id: string, kehadiran: string): Promise<any> {
     clearSheetsCache('trainingApplications');
     clearFirestoreCache('training_applications');
