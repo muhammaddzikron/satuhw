@@ -49,7 +49,8 @@ import {
   Share,
   Disc,
   Radio,
-  Square
+  Square,
+  Building2
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -1198,6 +1199,28 @@ export default function HomePage() {
                   </span>
                 </div>
                 <p className="text-[9px] text-emerald-100 font-semibold leading-none">Rapat, Silaturahmi, Perkemahan, dll</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
+          </Link>
+
+          {/* 5. Banner Kwarda & Qabilah PTMA */}
+          <Link 
+            to="/kwarda-ptma" 
+            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-emerald-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                <Building2 size={18} />
+              </div>
+              <div className="text-left space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kwarda / Qabilah PTMA</h4>
+                  <span className="bg-white text-emerald-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                    Organisasi
+                  </span>
+                </div>
+                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Struktur Pengurus, Dewan Sugli, Qabilah & Kegiatan Daerah</p>
               </div>
             </div>
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />

@@ -159,3 +159,67 @@ export interface SystemSettings {
   ktaSekretarisNbm?: string;
   [key: string]: any;
 }
+
+export type OrganizationEntityType = 'Kwarda' | 'Qabilah PTMA';
+
+export interface KwardaPtmaEntity {
+  code: string; // '01'..'58'
+  ktaCode: string; // '11.01'..'11.58'
+  name: string; // e.g. 'Kabupaten Klaten' or 'Universitas Muhammadiyah Surakarta (UMS)'
+  type: OrganizationEntityType;
+  order: number; // 1..58
+}
+
+export interface PengurusOrgItem {
+  id: string;
+  orgCode: string; // '01'..'58'
+  jabatan: string; // e.g. 'Ketua', 'Wakil Ketua', 'Sekretaris', 'Bendahara', 'Bidang Organisasi', etc.
+  nama: string; // Nama Lengkap
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DewanSugliOrgItem {
+  id: string;
+  orgCode: string; // '01'..'58'
+  jabatan: string; // e.g. 'Ketua', 'Wakil Ketua', 'Sekretaris', etc.
+  nama: string; // Nama Lengkap
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QabilahOrgItem {
+  id: string;
+  orgCode: string; // '01'..'35' (only for Kwarda)
+  namaQabilah: string;
+  jumlahAnggota: number; // >= 0
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface KegiatanOrgItem {
+  id: string;
+  orgCode: string; // '01'..'58'
+  jenisKegiatan: string; // e.g. 'Pelatihan', 'Perkemahan', 'Musyawarah', 'Rapat', 'Workshop', 'Lomba', 'Kegiatan Sosial', 'Kegiatan Kepanduan', etc.
+  jadwal: string; // Date or datetime string
+  keterangan?: string;
+  linkProposal?: string; // Valid URL to Google Drive or document
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface KwardaPtmaSummaryItem {
+  code: string;
+  name: string;
+  type: OrganizationEntityType;
+  ktaCode: string;
+  order: number;
+  totalQabilah: number;
+  totalAnggota: number;
+  totalPengurus: number;
+  totalDewanSugli: number;
+  totalKegiatan: number;
+}
+

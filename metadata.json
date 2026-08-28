@@ -1,6 +1,6 @@
 {
   "name": "SATU HW JATENG",
-  "description": "Database Materi Hizbul Wathan - Aplikasi panduan dan materi kepanduan Hizbul Wathan.",
+  "description": "Aplikasi Super Apps Hizbul Wathan Jawa Tengah - Manajemen KTA, Pelatihan, Kegiatan, Modul Kwarda & Qabilah PTMA, serta Materi Kepanduan HW.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

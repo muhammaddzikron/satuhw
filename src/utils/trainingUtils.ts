@@ -931,14 +931,13 @@ export const generateSamplePostTestForParticipants = (
 };
 
 /**
- * Menghasilkan contoh hasil Pre-Test dan Post-Test sekaligus untuk seluruh peserta
+ * Menghasilkan contoh hasil Pre-Test untuk seluruh peserta (Post-Test tetap kosong karena belum dilaksanakan)
  */
 export const generateSampleTestSubmissionsForParticipants = (
   participants: any[],
   questionsList: TestQuestion[] = DEFAULT_50_QUESTIONS
 ): any[] => {
-  const withPre = generateSamplePreTestForParticipants(participants, questionsList);
-  return generateSamplePostTestForParticipants(withPre, questionsList);
+  return generateSamplePreTestForParticipants(participants, questionsList);
 };
 
 /**

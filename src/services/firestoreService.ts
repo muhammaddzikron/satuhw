@@ -2311,7 +2311,7 @@ export const firestoreService = {
     return { success: true, count: solo70.length };
   },
 
-  async clearPostTestScoresForTraining(targetActivityId: string = 'act-jm1-solo'): Promise<{ success: boolean; count: number }> {
+  async clearPostTestScoresForTraining(targetActivityId: string = 'all'): Promise<{ success: boolean; count: number }> {
     clearFirestoreCache('training_applications');
     let localStored: any[] = [];
     try {
@@ -2327,10 +2327,15 @@ export const firestoreService = {
       if (!app) return app;
       const appActId = app.activityId || '';
       const appKegiatan = (app.namaKegiatan || app.pelatihanAkanDiikuti || '').toLowerCase();
-      const isTarget = appActId === targetActivityId || 
+      const isTarget = targetActivityId === 'all' ||
+                       !targetActivityId ||
+                       appActId === targetActivityId || 
                        appKegiatan.includes('solo') || 
                        appKegiatan.includes('jaya melati 1 solo') ||
-                       String(app.id || '').startsWith('train-jm1-solo');
+                       String(app.id || '').startsWith('train-jm1-solo') ||
+                       app.postTestScore !== undefined ||
+                       app.postTestData ||
+                       (app as any)?.posttestscore !== undefined;
 
       if (isTarget) {
         modifiedCount++;
@@ -2354,6 +2359,12 @@ export const firestoreService = {
 
     safeStorageSet('training_applications', consolidateTrainingApplications(updatedList));
 
+    // Clear offline test submissions and test keys
+    try {
+      localStorage.removeItem('offline_post_test_submissions');
+      localStorage.removeItem('post_test_submissions');
+    } catch (e) {}
+
     if (!this.getIsQuotaExceeded()) {
       try {
         const snap = await withTimeout(getDocs(collection(db, 'training_applications')), 8000);
@@ -2364,16 +2375,26 @@ export const firestoreService = {
             const data = docSnap.data();
             const appActId = data.activityId || '';
             const appKegiatan = (data.namaKegiatan || data.pelatihanAkanDiikuti || '').toLowerCase();
-            const isTarget = appActId === targetActivityId || 
+            const isTarget = targetActivityId === 'all' ||
+                             !targetActivityId ||
+                             appActId === targetActivityId || 
                              appKegiatan.includes('solo') || 
                              appKegiatan.includes('jaya melati 1 solo') ||
-                             docSnap.id.startsWith('train-jm1-solo');
+                             docSnap.id.startsWith('train-jm1-solo') ||
+                             data.postTestScore !== undefined ||
+                             data.postTestData;
 
             if (isTarget) {
               const updates: any = {
                 postTestScore: deleteField(),
-                postTestData: '',
-                postTestSubmittedAt: '',
+                postTestData: deleteField(),
+                postTestSubmittedAt: deleteField(),
+                posttestscore: deleteField(),
+                posttestdata: deleteField(),
+                posttestsubmittedat: deleteField(),
+                post_test_score: deleteField(),
+                post_test_data: deleteField(),
+                post_test_submitted_at: deleteField(),
                 statusKelulusan: 'Proses Pelatihan',
                 nilai: '',
                 remark: 'Sedang mengikuti proses pelatihan Jaya Melati 1 Kwarda HW Solo.'
@@ -2394,7 +2415,7 @@ export const firestoreService = {
 
     clearFirestoreCache('training_applications');
     window.dispatchEvent(new Event('training_applications_updated'));
-    return { success: true, count: modifiedCount };
+    return { success: true, count: modifiedCount || updatedList.length };
   },
 
   async createTrainingApplication(appData: any): Promise<any> {

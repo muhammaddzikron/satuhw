@@ -38,13 +38,62 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   return false;
 }
 
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  }).format(date);
+export function formatDate(dateInput?: Date | string | number | null): string {
+  if (!dateInput && dateInput !== 0) return '';
+
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(dateInput);
+    } catch {
+      return '';
+    }
+  }
+
+  if (typeof dateInput === 'number') {
+    const d = new Date(dateInput);
+    if (!isNaN(d.getTime())) {
+      try {
+        return new Intl.DateTimeFormat('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }).format(d);
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  }
+
+  const str = String(dateInput).trim();
+  if (!str || str === '-' || str === 'null' || str === 'undefined' || str.includes('...')) return '';
+
+  // Try formatIndonesianDate first with includeDay
+  const formattedIndo = formatIndonesianDate(str, true);
+  if (formattedIndo) return formattedIndo;
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(parsed);
+    } catch {
+      return str;
+    }
+  }
+
+  return str;
 }
 
 export function cleanTempatLahir(tempat?: string | null): string {
@@ -221,12 +270,24 @@ export function formatTempatTanggalLahir(tempat?: string | null, tanggal?: strin
   return '-';
 }
 
-export function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(date);
+export function formatTime(date?: Date | string | number | null): string {
+  if (!date && date !== 0) return '';
+  let d: Date;
+  if (date instanceof Date) {
+    d = date;
+  } else {
+    d = new Date(date);
+  }
+  if (isNaN(d.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(d);
+  } catch {
+    return '';
+  }
 }
 
 export function safeJsonParse<T>(val: any, fallback: T): T {

@@ -159,10 +159,10 @@ export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   };
 
   const handleClearPostTest = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus / mengosongkan nilai Post-Test seluruh peserta pelatihan Jaya Melati 1 Solo? (Karena Post-Test belum dilaksanakan)')) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus / mengosongkan seluruh isi nilai Post-Test peserta pelatihan? (Karena Post-Test belum dilaksanakan)')) return;
     try {
-      await sheetsService.clearPostTestScoresForTraining('act-jm1-solo');
-      alert('Nilai Post-Test seluruh peserta pelatihan Jaya Melati 1 Solo berhasil dikosongkan!');
+      await sheetsService.clearPostTestScoresForTraining('all');
+      alert('Isi nilai Post-Test seluruh peserta pelatihan berhasil dikosongkan!');
     } catch (e: any) {
       alert('Gagal mengosongkan nilai Post-Test: ' + (e?.message || e));
     }

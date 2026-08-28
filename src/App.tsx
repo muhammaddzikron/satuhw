@@ -44,10 +44,11 @@ import DaftarPelatihanPage from './pages/DaftarPelatihanPage';
 import PelatihanPage from './pages/PelatihanPage';
 import KegiatanPage from './pages/KegiatanPage';
 import PelatihNasionalPage from './pages/PelatihNasionalPage';
+import KwardaPtmaPage from './pages/KwardaPtmaPage';
 
 const Header = React.memo(() => {
   const location = useLocation();
-  const isFullWidth = location.pathname === '/admin';
+  const isFullWidth = location.pathname === '/admin' || location.pathname === '/kwarda-ptma';
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-xs isolate">
@@ -362,6 +363,7 @@ const AnimatedRoutes = () => {
       <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
       <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
       <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+      <Route path="/kwarda-ptma" element={<PageTransition fullWidth><KwardaPtmaPage /></PageTransition>} />
       <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -383,6 +385,42 @@ export default function App() {
       console.log('[MATERI HW] Instructions: Please set VITE_GSHEET_API_URL in Settings > Environment Variables.');
       console.log('[MATERI HW] Also ensure the variable is prefixed with "VITE_" so the frontend can read it.');
     }
+
+    // One-time automatic reset of post-test data across client storage
+    try {
+      const stored = localStorage.getItem('training_applications');
+      if (stored) {
+        const apps = JSON.parse(stored);
+        if (Array.isArray(apps) && apps.length > 0) {
+          let hasPostData = false;
+          const cleaned = apps.map((app: any) => {
+            if (app && (app.postTestScore !== undefined || app.postTestData || app.postTestSubmittedAt || app.posttestscore || app.post_test_score)) {
+              hasPostData = true;
+              const copy = { ...app };
+              delete copy.postTestScore;
+              delete copy.postTestData;
+              delete copy.postTestSubmittedAt;
+              delete copy.posttestscore;
+              delete copy.posttestdata;
+              delete copy.posttestsubmittedat;
+              delete copy.post_test_score;
+              delete copy.post_test_data;
+              delete copy.post_test_submitted_at;
+              copy.statusKelulusan = 'Proses Pelatihan';
+              copy.nilai = '';
+              return copy;
+            }
+            return app;
+          });
+          if (hasPostData) {
+            localStorage.setItem('training_applications', JSON.stringify(cleaned));
+            window.dispatchEvent(new Event('training_applications_updated'));
+          }
+        }
+      }
+      localStorage.removeItem('offline_post_test_submissions');
+      localStorage.removeItem('post_test_submissions');
+    } catch (e) {}
   }, []);
 
   // Real-time synchronization of current logged-in user profile from Firestore
