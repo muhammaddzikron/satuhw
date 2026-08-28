@@ -87,22 +87,43 @@ export function resolveUserOrgAccess(user: User | null): {
   // Resolve code from user attributes
   let resolvedCode: string | null = null;
   
-  if ((user as any).kodeKwarda) {
+  // 1. Check Qabilah PTMA / Qabilah origin first
+  const rawQabilah = user.qabilah || (user as any).asalQabilah;
+  const rawKwarda = user.asalKwarda || (user as any).asalDaerah;
+
+  if (rawQabilah) {
+    const qCode = getKwardaCode(rawQabilah);
+    if (qCode && parseInt(qCode, 10) >= 36) {
+      resolvedCode = qCode;
+    }
+  }
+
+  // 2. Check asalKwarda / asalDaerah
+  if (!resolvedCode && rawKwarda) {
+    resolvedCode = getKwardaCode(rawKwarda, rawQabilah);
+  }
+
+  // 3. Check kodeKwarda directly
+  if (!resolvedCode && (user as any).kodeKwarda) {
     resolvedCode = String((user as any).kodeKwarda).padStart(2, '0');
-  } else if (user.ktaNumber || (user as any).nomorKTA) {
+  }
+
+  // 4. Check KTA number
+  if (!resolvedCode && (user.ktaNumber || (user as any).nomorKTA)) {
     const parsedKta = parseKtaNumber(user.ktaNumber || (user as any).nomorKTA);
     if (parsedKta && parsedKta.kodeKwarda) {
       resolvedCode = parsedKta.kodeKwarda;
     }
   }
 
-  if (!resolvedCode && rawRegion) {
-    resolvedCode = getKwardaCode(rawRegion);
+  // 5. Fallback check rawQabilah for general kwarda match
+  if (!resolvedCode && rawQabilah) {
+    resolvedCode = getKwardaCode(rawQabilah);
   }
 
   const assignedOrg = getKwardaPtmaByCode(resolvedCode || undefined);
 
-  // If user has kwarda role AND an assigned org, they are an authorized Org Admin
+  // If user has kwarda role AND an assigned org, they are an authorized Org Admin strictly for that org
   if (hasKwardaRole && assignedOrg) {
     return {
       isSuperAdmin: false,
@@ -112,7 +133,7 @@ export function resolveUserOrgAccess(user: User | null): {
     };
   }
 
-  // Fallback: If user has kwarda role without explicit region, default to first or let them view based on region
+  // Fallback: If user has kwarda role without explicit region in profile
   if (hasKwardaRole) {
     const fallbackOrg = assignedOrg || getKwardaPtmaByCode('01');
     return {
@@ -222,4 +243,16 @@ export const SUGGESTED_JENIS_KEGIATAN = [
   'Apel Milad Hizbul Wathan',
   'Workshop & Diskusi Kepanduan',
   'Penerimaan Anggota Baru (PAB)'
+];
+
+export const SUGGESTED_KATEGORI_MATERI = [
+  'Kepanduan HW',
+  'Al-Islam & Kemuhammadiyahan',
+  'Administrasi & Keorganisasian',
+  'Kepelatihan & Diklat',
+  'Pedoman & Petunjuk Teknis',
+  'Lagu & Mars HW',
+  'Bahan Musyawarah & Raker',
+  'Bahan Ajar Qabilah',
+  'Lainnya'
 ];

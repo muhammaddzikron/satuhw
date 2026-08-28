@@ -55,6 +55,7 @@ export default function KwardaPtmaPage() {
     totalPengurusCount: number;
     totalDewanSugliCount: number;
     totalKegiatanCount: number;
+    totalMateriCount: number;
     items: KwardaPtmaSummaryItem[];
   }>({
     totalKwarda: 35,
@@ -64,6 +65,7 @@ export default function KwardaPtmaPage() {
     totalPengurusCount: 0,
     totalDewanSugliCount: 0,
     totalKegiatanCount: 0,
+    totalMateriCount: 0,
     items: []
   });
   const [loading, setLoading] = useState(true);
@@ -207,8 +209,8 @@ export default function KwardaPtmaPage() {
           </p>
         </div>
 
-        {/* 7 Core Stat Cards for Super Admin */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3 mt-6 pt-6 border-t border-white/10">
+        {/* 8 Core Stat Cards for Super Admin */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5 mt-6 pt-6 border-t border-white/10">
           <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
             <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">Total Kwarda</span>
             <p className="text-xl font-black text-white mt-1">{summaryData.totalKwarda}</p>
@@ -245,10 +247,16 @@ export default function KwardaPtmaPage() {
             <span className="text-[9px] text-gray-300">Sugli & Kafilah</span>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 col-span-2 sm:col-span-1">
-            <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Total Kegiatan</span>
+          <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+            <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Kegiatan</span>
             <p className="text-xl font-black text-white mt-1">{summaryData.totalKegiatanCount}</p>
             <span className="text-[9px] text-gray-300">Agenda aktif</span>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+            <span className="text-[10px] font-bold text-violet-300 uppercase tracking-wider block">Materi Kwarda</span>
+            <p className="text-xl font-black text-white mt-1">{summaryData.totalMateriCount || 0}</p>
+            <span className="text-[9px] text-gray-300">Google Drive arsip</span>
           </div>
         </div>
       </div>
@@ -331,20 +339,21 @@ export default function KwardaPtmaPage() {
                 <th className="py-3.5 px-3 text-center">Pengurus</th>
                 <th className="py-3.5 px-3 text-center">Dewan Sugli</th>
                 <th className="py-3.5 px-3 text-center">Kegiatan</th>
+                <th className="py-3.5 px-3 text-center">Materi</th>
                 <th className="py-3.5 px-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-gray-400">
+                  <td colSpan={11} className="py-16 text-center text-gray-400">
                     <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     <span>Memuat master data Kwarda & Qabilah PTMA...</span>
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-gray-400">
+                  <td colSpan={11} className="py-12 text-center text-gray-400">
                     Tidak ditemukan data yang sesuai dengan filter pencarian.
                   </td>
                 </tr>
@@ -390,6 +399,9 @@ export default function KwardaPtmaPage() {
                     </td>
                     <td className="py-3.5 px-3 text-center font-bold text-amber-700">
                       {item.totalKegiatan}
+                    </td>
+                    <td className="py-3.5 px-3 text-center font-bold text-violet-700">
+                      {item.totalMateri || 0}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button

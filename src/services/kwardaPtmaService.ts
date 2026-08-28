@@ -13,6 +13,7 @@ import {
   DewanSugliOrgItem,
   QabilahOrgItem,
   KegiatanOrgItem,
+  MateriOrgItem,
   KwardaPtmaSummaryItem
 } from '../types';
 import { getKwardaPtmaMasterList, getKwardaPtmaByCode } from '../utils/kwardaPtmaUtils';
@@ -110,6 +111,52 @@ const INITIAL_SEED_KEGIATAN: KegiatanOrgItem[] = [
     jadwal: '2025-09-05',
     keterangan: 'Orientasi calon anggota baru Kafilah Penuntun Hizbul Wathan UMS.',
     linkProposal: 'https://drive.google.com/file/d/sample-pab-ums/view',
+    createdAt: '2025-01-15T08:00:00.000Z'
+  }
+];
+
+const INITIAL_SEED_MATERI: MateriOrgItem[] = [
+  // Banjarnegara (01)
+  {
+    id: 'mat-01-1',
+    orgCode: '01',
+    namaMateri: 'Modul Pedoman & Administrasi Kwartir Daerah HW Banjarnegara',
+    kategoriMateri: 'Administrasi & Keorganisasian',
+    linkDrive: 'https://drive.google.com/drive/folders/sample-materi-kwarda-banjarnegara',
+    keterangan: 'Format baku surat-menyurat, pengarsipan, dan tata laksana administrasi Kwarda.',
+    pemateri: 'Kwarda HW Banjarnegara',
+    createdAt: '2025-01-10T08:00:00.000Z'
+  },
+  // Klaten (14)
+  {
+    id: 'mat-14-1',
+    orgCode: '14',
+    namaMateri: 'Buku Saku Syarat Kenaikan Tingkat (SKT) Pandu Pengenal Klaten',
+    kategoriMateri: 'Kepanduan HW',
+    linkDrive: 'https://drive.google.com/drive/folders/sample-skt-klaten',
+    keterangan: 'Panduan ujian syarat kenaikan tingkat pengenal purwa, madya, dan utama.',
+    pemateri: 'Bidang Diklat Kwarda Klaten',
+    createdAt: '2025-01-12T08:00:00.000Z'
+  },
+  {
+    id: 'mat-14-2',
+    orgCode: '14',
+    namaMateri: 'Materi Pelatihan Jaya Melati 1 (JM1) - Sejarah & Anggaran Dasar HW',
+    kategoriMateri: 'Kepelatihan',
+    linkDrive: 'https://drive.google.com/file/d/sample-jm1-sejarah/view',
+    keterangan: 'Slide presentasi sejarah kepanduan Hizbul Wathan dan AD/ART HW terkini.',
+    pemateri: 'Kwarda Klaten / Kwarwil Jateng',
+    createdAt: '2025-01-12T08:00:00.000Z'
+  },
+  // UMS (36)
+  {
+    id: 'mat-36-1',
+    orgCode: '36',
+    namaMateri: 'Diktat Orientasi & Pengkaderan Pandu Penuntun Kafilah HW UMS',
+    kategoriMateri: 'Pedoman & Petunjuk Teknis',
+    linkDrive: 'https://drive.google.com/drive/folders/sample-diktat-ums',
+    keterangan: 'Bahan kajian kepanduan dan Al-Islam Kemuhammadiyahan untuk kader mahasiswa PTMA.',
+    pemateri: 'Kafilah HW UMS',
     createdAt: '2025-01-15T08:00:00.000Z'
   }
 ];
@@ -565,6 +612,92 @@ export const kwardaPtmaService = {
   },
 
   // ---------------------------------------------------------------------------
+  // MATERI KWARDA / PTMA
+  // ---------------------------------------------------------------------------
+  async getMateriByOrg(orgCode: string): Promise<MateriOrgItem[]> {
+    const normCode = orgCode.trim().padStart(2, '0');
+    let localData: MateriOrgItem[] = [];
+    try {
+      const raw = safeStorageGet<MateriOrgItem[]>('hw_kwarda_ptma_materi', []);
+      if (raw && Array.isArray(raw)) localData = raw;
+    } catch {}
+
+    if (!localData || localData.length === 0) {
+      localData = [...INITIAL_SEED_MATERI];
+      safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(localData));
+    }
+
+    try {
+      const snap = await withTimeout(getDocs(collection(db, 'kwarda_ptma_materi')), 4000);
+      if (!snap.empty) {
+        const firestoreList = snap.docs.map(d => ({ id: d.id, ...d.data() } as MateriOrgItem));
+        const mergedMap = new Map<string, MateriOrgItem>();
+        localData.forEach(p => mergedMap.set(p.id, p));
+        firestoreList.forEach(p => mergedMap.set(p.id, p));
+        localData = Array.from(mergedMap.values());
+        safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(localData));
+      }
+    } catch (err) {
+      console.warn('[FIRESTORE] Using local storage for materi:', err);
+    }
+
+    return localData
+      .filter(item => (item.orgCode || '').padStart(2, '0') === normCode)
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  async addOrUpdateMateri(item: MateriOrgItem): Promise<MateriOrgItem> {
+    const cleanItem: MateriOrgItem = {
+      ...item,
+      id: item.id || `mat-${item.orgCode}-${Date.now()}`,
+      orgCode: item.orgCode.padStart(2, '0'),
+      updatedAt: new Date().toISOString()
+    };
+    if (!cleanItem.createdAt) {
+      cleanItem.createdAt = new Date().toISOString();
+    }
+
+    let list: MateriOrgItem[] = [];
+    try {
+      list = safeStorageGet<MateriOrgItem[]>('hw_kwarda_ptma_materi', []);
+    } catch {}
+    const existingIndex = list.findIndex(p => p.id === cleanItem.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = cleanItem;
+    } else {
+      list.push(cleanItem);
+    }
+    safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(list));
+    window.dispatchEvent(new Event('kwarda_ptma_updated'));
+
+    try {
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_materi', cleanItem.id), cleanItem), 6000);
+    } catch (err) {
+      console.warn('[FIRESTORE] Save materi cached locally:', err);
+    }
+
+    return cleanItem;
+  },
+
+  async deleteMateri(id: string, orgCode: string): Promise<boolean> {
+    let list: MateriOrgItem[] = [];
+    try {
+      list = safeStorageGet<MateriOrgItem[]>('hw_kwarda_ptma_materi', []);
+    } catch {}
+    list = list.filter(item => item.id !== id);
+    safeStorageSet('hw_kwarda_ptma_materi', JSON.stringify(list));
+    window.dispatchEvent(new Event('kwarda_ptma_updated'));
+
+    try {
+      await withTimeout(deleteDoc(doc(db, 'kwarda_ptma_materi', id)), 6000);
+    } catch (err) {
+      console.warn('[FIRESTORE] Delete materi cached locally:', err);
+    }
+
+    return true;
+  },
+
+  // ---------------------------------------------------------------------------
   // SUMMARY METRICS & MONITORING
   // ---------------------------------------------------------------------------
   async getAllSummaryStats(): Promise<{
@@ -575,6 +708,7 @@ export const kwardaPtmaService = {
     totalPengurusCount: number;
     totalDewanSugliCount: number;
     totalKegiatanCount: number;
+    totalMateriCount: number;
     items: KwardaPtmaSummaryItem[];
   }> {
     const masterList = getKwardaPtmaMasterList();
@@ -584,6 +718,7 @@ export const kwardaPtmaService = {
     let sugliList: DewanSugliOrgItem[] = [];
     let qabilahList: QabilahOrgItem[] = [];
     let kegiatanList: KegiatanOrgItem[] = [];
+    let materiList: MateriOrgItem[] = [];
 
     try {
       pengurusList = safeStorageGet<PengurusOrgItem[]>('hw_kwarda_ptma_pengurus', []);
@@ -621,6 +756,15 @@ export const kwardaPtmaService = {
       kegiatanList = [...INITIAL_SEED_KEGIATAN];
     }
 
+    try {
+      materiList = safeStorageGet<MateriOrgItem[]>('hw_kwarda_ptma_materi', []);
+      if (!materiList || materiList.length === 0) {
+        materiList = [...INITIAL_SEED_MATERI];
+      }
+    } catch {
+      materiList = [...INITIAL_SEED_MATERI];
+    }
+
     // Build map for each org
     const pengurusMap = new Map<string, number>();
     pengurusList.forEach(p => {
@@ -648,11 +792,18 @@ export const kwardaPtmaService = {
       kegiatanMap.set(code, (kegiatanMap.get(code) || 0) + 1);
     });
 
+    const materiMap = new Map<string, number>();
+    materiList.forEach(m => {
+      const code = (m.orgCode || '').padStart(2, '0');
+      materiMap.set(code, (materiMap.get(code) || 0) + 1);
+    });
+
     let totalQabilahCount = 0;
     let totalAnggotaCount = 0;
     let totalPengurusCount = 0;
     let totalDewanSugliCount = 0;
     let totalKegiatanCount = 0;
+    let totalMateriCount = 0;
 
     const items: KwardaPtmaSummaryItem[] = masterList.map(entity => {
       const code = entity.code;
@@ -661,12 +812,14 @@ export const kwardaPtmaService = {
       const tPengurus = pengurusMap.get(code) || 0;
       const tSugli = sugliMap.get(code) || 0;
       const tKegiatan = kegiatanMap.get(code) || 0;
+      const tMateri = materiMap.get(code) || 0;
 
       totalQabilahCount += tQabilah;
       totalAnggotaCount += tAnggota;
       totalPengurusCount += tPengurus;
       totalDewanSugliCount += tSugli;
       totalKegiatanCount += tKegiatan;
+      totalMateriCount += tMateri;
 
       return {
         code: entity.code,
@@ -678,7 +831,8 @@ export const kwardaPtmaService = {
         totalAnggota: tAnggota,
         totalPengurus: tPengurus,
         totalDewanSugli: tSugli,
-        totalKegiatan: tKegiatan
+        totalKegiatan: tKegiatan,
+        totalMateri: tMateri
       };
     });
 
@@ -690,6 +844,7 @@ export const kwardaPtmaService = {
       totalPengurusCount,
       totalDewanSugliCount,
       totalKegiatanCount,
+      totalMateriCount,
       items
     };
   }

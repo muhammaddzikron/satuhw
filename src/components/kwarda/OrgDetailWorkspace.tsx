@@ -11,13 +11,16 @@ import {
   CreditCard,
   LayoutDashboard,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  FolderOpen
 } from 'lucide-react';
-import { KwardaPtmaEntity } from '../../types';
+import { KwardaPtmaEntity, MateriOrgItem } from '../../types';
 import { PengurusListPanel } from './PengurusListPanel';
 import { DewanSugliListPanel } from './DewanSugliListPanel';
 import { QabilahListPanel } from './QabilahListPanel';
 import { KegiatanListPanel } from './KegiatanListPanel';
+import { MateriKwardaListPanel } from './MateriKwardaListPanel';
 import { kwardaPtmaService } from '../../services/kwardaPtmaService';
 import { formatDate } from '../../lib/utils';
 
@@ -34,7 +37,7 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
   onBack,
   showBack = false
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'pengurus' | 'sugli' | 'qabilah' | 'kegiatan'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'pengurus' | 'sugli' | 'qabilah' | 'kegiatan' | 'materi'>('dashboard');
 
   // Stats state
   const [pengurusCount, setPengurusCount] = useState(0);
@@ -42,15 +45,18 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
   const [qabilahCount, setQabilahCount] = useState(0);
   const [totalAnggota, setTotalAnggota] = useState(0);
   const [kegiatanCount, setKegiatanCount] = useState(0);
+  const [materiCount, setMateriCount] = useState(0);
   const [recentKegiatan, setRecentKegiatan] = useState<any[]>([]);
+  const [recentMateri, setRecentMateri] = useState<MateriOrgItem[]>([]);
 
   const loadStats = async () => {
     try {
-      const [pengurus, sugli, qabilah, kegiatan] = await Promise.all([
+      const [pengurus, sugli, qabilah, kegiatan, materi] = await Promise.all([
         kwardaPtmaService.getPengurusByOrg(org.code),
         kwardaPtmaService.getDewanSugliByOrg(org.code),
         org.type === 'Kwarda' ? kwardaPtmaService.getQabilahByOrg(org.code) : Promise.resolve([]),
-        kwardaPtmaService.getKegiatanByOrg(org.code)
+        kwardaPtmaService.getKegiatanByOrg(org.code),
+        kwardaPtmaService.getMateriByOrg(org.code)
       ]);
 
       setPengurusCount(pengurus.length);
@@ -58,7 +64,9 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
       setQabilahCount(qabilah.length);
       setTotalAnggota(qabilah.reduce((acc, curr) => acc + (Number(curr.jumlahAnggota) || 0), 0));
       setKegiatanCount(kegiatan.length);
+      setMateriCount(materi.length);
       setRecentKegiatan(kegiatan.slice(0, 3));
+      setRecentMateri(materi.slice(0, 3));
     } catch (err) {
       console.error('Failed to load workspace stats:', err);
     }
@@ -124,8 +132,8 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
         {/* Dynamic Stat Cards */}
         <div className="mt-6 pt-6 border-t border-white/10">
           {org.type === 'Kwarda' ? (
-            /* 5 Cards for Kwarda */
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            /* Cards for Kwarda */
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
                 <div className="flex items-center justify-between text-emerald-300 mb-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider">Total Qabilah</span>
@@ -146,7 +154,7 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
 
               <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
                 <div className="flex items-center justify-between text-teal-300 mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">Pengurus Kwarda</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Pengurus</span>
                   <Users size={16} />
                 </div>
                 <p className="text-xl font-black text-white">{pengurusCount}</p>
@@ -162,25 +170,34 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                 <span className="text-[10px] text-gray-300">Dewan Sugli Daerah</span>
               </div>
 
-              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 col-span-2 sm:col-span-1">
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
                 <div className="flex items-center justify-between text-amber-300 mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">Kegiatan Kwarda</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Kegiatan</span>
                   <Calendar size={16} />
                 </div>
                 <p className="text-xl font-black text-white">{kegiatanCount}</p>
-                <span className="text-[10px] text-gray-300">Agenda & Pelatihan</span>
+                <span className="text-[10px] text-gray-300">Agenda daerah</span>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between text-violet-300 mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Materi Kwarda</span>
+                  <BookOpen size={16} />
+                </div>
+                <p className="text-xl font-black text-white">{materiCount}</p>
+                <span className="text-[10px] text-gray-300">Google Drive modul</span>
               </div>
             </div>
           ) : (
-            /* 3 Cards for Qabilah PTMA */
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            /* Cards for Qabilah PTMA */
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                 <div className="flex items-center justify-between text-indigo-300 mb-1">
-                  <span className="text-xs font-bold uppercase tracking-wider">Pengurus Qabilah PTMA</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Pengurus Qabilah</span>
                   <Users size={18} />
                 </div>
                 <p className="text-2xl font-black text-white">{pengurusCount}</p>
-                <span className="text-[11px] text-gray-300">Struktur pimpinan qabilah kampus</span>
+                <span className="text-[11px] text-gray-300">Struktur pimpinan kampus</span>
               </div>
 
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
@@ -189,16 +206,25 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                   <Shield size={18} />
                 </div>
                 <p className="text-2xl font-black text-white">{sugliCount}</p>
-                <span className="text-[11px] text-gray-300">Kafilah HW Penuntun PTMA</span>
+                <span className="text-[11px] text-gray-300">Kafilah Penuntun PTMA</span>
               </div>
 
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                 <div className="flex items-center justify-between text-amber-300 mb-1">
-                  <span className="text-xs font-bold uppercase tracking-wider">Kegiatan Qabilah PTMA</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Kegiatan PTMA</span>
                   <Calendar size={18} />
                 </div>
                 <p className="text-2xl font-black text-white">{kegiatanCount}</p>
                 <span className="text-[11px] text-gray-300">Agenda & kegiatan qabilah</span>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between text-violet-300 mb-1">
+                  <span className="text-xs font-bold uppercase tracking-wider">Materi PTMA</span>
+                  <BookOpen size={18} />
+                </div>
+                <p className="text-2xl font-black text-white">{materiCount}</p>
+                <span className="text-[11px] text-gray-300">Google Drive arsip & modul</span>
               </div>
             </div>
           )}
@@ -273,6 +299,20 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
           <Calendar size={16} />
           <span>Kegiatan {org.type === 'Kwarda' ? 'Kwarda' : 'PTMA'} ({kegiatanCount})</span>
         </button>
+
+        {/* 1 Fitur Tab setelah Kegiatan: Materi Kwarda / PTMA */}
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('materi')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeSubTab === 'materi'
+              ? 'bg-violet-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <BookOpen size={16} />
+          <span>Materi {org.type === 'Kwarda' ? 'Kwarda' : 'PTMA'} ({materiCount})</span>
+        </button>
       </div>
 
       {/* Main Tab Content */}
@@ -281,8 +321,9 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
           <div className="space-y-6">
             {/* Overview Quick Stats & Info */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left 2 Cols: Recent Kegiatan & Info */}
+              {/* Left 2 Cols: Recent Kegiatan & Materi */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Recent Kegiatan */}
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -343,6 +384,69 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                   )}
                 </div>
 
+                {/* Recent Materi Kwarda */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <BookOpen className="text-violet-600" size={20} />
+                      Materi & Arsip Google Drive Terbaru
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSubTab('materi')}
+                      className="text-xs font-bold text-violet-600 hover:text-violet-700 cursor-pointer"
+                    >
+                      Buka Tab Materi →
+                    </button>
+                  </div>
+
+                  {recentMateri.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 bg-gray-50/70 rounded-2xl border border-dashed border-gray-200">
+                      <p className="text-xs font-medium">Belum ada berkas materi yang ditambahkan.</p>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveSubTab('materi')}
+                          className="mt-2 text-xs font-bold text-violet-600 hover:underline cursor-pointer"
+                        >
+                          + Tambah Materi
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {recentMateri.map((mat) => (
+                        <div
+                          key={mat.id}
+                          className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-bold text-violet-700 bg-violet-100/80 px-2 py-0.5 rounded-md">
+                              {mat.kategoriMateri || 'Kepanduan HW'}
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-bold text-gray-900 mt-1 truncate">
+                              {mat.namaMateri}
+                            </h4>
+                          </div>
+                          {mat.linkDrive && (
+                            <a
+                              href={mat.linkDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+                              title="Buka di Google Drive"
+                            >
+                              <FolderOpen size={13} className="text-blue-600" />
+                              <span>Buka Drive</span>
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Quick Guidelines Card */}
                 <div className="bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 rounded-3xl border border-emerald-100/80 space-y-3">
                   <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
@@ -356,6 +460,7 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                       <li>Data Qabilah menampilkan seluruh pangkalan satuan pandu di daerah beserta jumlah anggota aktif.</li>
                     )}
                     <li>Agenda kegiatan mendukung tautan proposal resmi (Google Drive / Cloud document).</li>
+                    <li>Tab Materi {org.type} memuat nama materi dan link Google Drive langsung untuk berkas panduan & modul.</li>
                   </ul>
                 </div>
               </div>
@@ -422,6 +527,21 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
                         {kegiatanCount}
                       </span>
                     </button>
+
+                    {/* Materi Kwarda Link */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveSubTab('materi')}
+                      className="w-full flex items-center justify-between p-3 bg-violet-50/60 hover:bg-violet-100/70 text-violet-900 rounded-2xl border border-violet-100 transition-all text-xs font-bold text-left cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <BookOpen size={16} className="text-violet-600" />
+                        <span>Materi & Google Drive</span>
+                      </div>
+                      <span className="bg-white text-violet-700 px-2 py-0.5 rounded-lg text-[10px] font-black shadow-2xs">
+                        {materiCount}
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -443,6 +563,10 @@ export const OrgDetailWorkspace: React.FC<OrgDetailWorkspaceProps> = ({
 
         {activeSubTab === 'kegiatan' && (
           <KegiatanListPanel org={org} canManage={canManage} />
+        )}
+
+        {activeSubTab === 'materi' && (
+          <MateriKwardaListPanel org={org} canManage={canManage} />
         )}
       </div>
     </div>

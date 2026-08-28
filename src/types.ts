@@ -210,6 +210,18 @@ export interface KegiatanOrgItem {
   updatedAt?: string;
 }
 
+export interface MateriOrgItem {
+  id: string;
+  orgCode: string; // '01'..'58'
+  namaMateri: string; // Nama Materi / Judul
+  kategoriMateri?: string; // e.g. 'Kepanduan HW', 'Al-Islam & Kemuhammadiyahan', 'Administrasi & Keorganisasian', 'Kepelatihan', 'Pedoman & Petunjuk Teknis', 'Lainnya'
+  linkDrive: string; // Link Google Drive (Folder / Dokumen / Slide / PDF)
+  keterangan?: string; // Deskripsi singkat
+  pemateri?: string; // Nama Pemateri / Narasumber (opsional)
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface KwardaPtmaSummaryItem {
   code: string;
   name: string;
@@ -221,5 +233,6 @@ export interface KwardaPtmaSummaryItem {
   totalPengurus: number;
   totalDewanSugli: number;
   totalKegiatan: number;
+  totalMateri: number;
 }
 

@@ -69,6 +69,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /kwarda_materi/{id} {
+      allow read, write: if true;
+    }
+
     // Default fallback rule for any other collection
     match /{document=**} {
       allow read, write: if true;
