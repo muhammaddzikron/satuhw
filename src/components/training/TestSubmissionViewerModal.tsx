@@ -8,7 +8,7 @@ import {
   TestQuestion, 
   DEFAULT_50_QUESTIONS 
 } from '../../data/trainingQuestions';
-import { JATI1_36_SESSIONS } from '../../pages/PelatihanPage';
+import { JATI1_36_SESSIONS } from '../../data/trainingData';
 import { 
   getAppPreTestScore, 
   getAppPostTestScore, 
