@@ -37,7 +37,13 @@ export function pruneHeavyDataForStorage(data: any): any {
 export function safeStorageSet(key: string, value: any): boolean {
   if (typeof window === 'undefined' || !window.localStorage) return false;
 
-  const rawString = typeof value === 'string' ? value : JSON.stringify(value);
+  let rawString: string;
+  try {
+    rawString = typeof value === 'string' ? value : JSON.stringify(value);
+  } catch (stringifyErr) {
+    console.warn(`[SafeStorage] JSON.stringify failed for key "${key}":`, stringifyErr);
+    return false;
+  }
 
   try {
     localStorage.setItem(key, rawString);
@@ -46,9 +52,18 @@ export function safeStorageSet(key: string, value: any): boolean {
     // Check if quota exceeded
     console.warn(`[SafeStorage] localStorage.setItem for key "${key}" failed, pruning payload to protect quota...`);
 
+    let parsedVal = value;
+    if (typeof value === 'string') {
+      try {
+        parsedVal = JSON.parse(value);
+      } catch {
+        parsedVal = value;
+      }
+    }
+
     try {
       // 1. Try pruning large base64/objects
-      const pruned = pruneHeavyDataForStorage(typeof value === 'string' ? JSON.parse(value) : value);
+      const pruned = pruneHeavyDataForStorage(parsedVal);
       localStorage.setItem(key, JSON.stringify(pruned));
       return true;
     } catch (err2: any) {
@@ -68,7 +83,7 @@ export function safeStorageSet(key: string, value: any): boolean {
           }
         }
         // Try saving pruned version once more
-        const pruned = pruneHeavyDataForStorage(typeof value === 'string' ? JSON.parse(value) : value);
+        const pruned = pruneHeavyDataForStorage(parsedVal);
         localStorage.setItem(key, JSON.stringify(pruned));
         return true;
       } catch (err3) {
