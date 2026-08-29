@@ -1037,9 +1037,8 @@ export default function HomePage() {
             <h3 className="font-display font-bold text-gray-800">Menu Utama</h3>
           </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-amber-500" />
-          <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
           <MenuCard to="/gallery" icon={ImageIcon} label="Galeri" color="bg-pink-500" />
           <MenuCard to="/playlist" icon={Music} label="Musik" color="bg-rose-500" />
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
@@ -1206,27 +1205,29 @@ export default function HomePage() {
             <ChevronRight size={16} className="text-emerald-100 shrink-0" />
           </Link>
 
-          {/* 5. Banner Kwarda & Qabilah PTMA */}
-          <Link 
-            to="/kwarda-ptma" 
-            className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-emerald-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
-                <Building2 size={18} />
-              </div>
-              <div className="text-left space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kwarda / Qabilah PTMA</h4>
-                  <span className="bg-white text-emerald-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
-                    Organisasi
-                  </span>
+          {/* 5. Banner Kwarda & Qabilah PTMA (Hanya muncul jika sudah login) */}
+          {isAuthenticated && (
+            <Link 
+              to="/kwarda-ptma" 
+              className="flex items-center justify-between bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 text-white py-3 px-3.5 rounded-2xl shadow-md shadow-emerald-600/15 hover:shadow-lg transition-all border border-white/20 hover:scale-[1.01] active:scale-[0.99] duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl text-white border border-white/20 shrink-0">
+                  <Building2 size={18} />
                 </div>
-                <p className="text-[9px] text-emerald-100 font-semibold leading-none">Struktur Pengurus, Dewan Sugli, Qabilah & Kegiatan Daerah</p>
+                <div className="text-left space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-xs font-black uppercase tracking-wider font-display text-white">Kwarda / Qabilah PTMA</h4>
+                    <span className="bg-white text-emerald-800 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none tracking-wider">
+                      Organisasi
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-emerald-100 font-semibold leading-none">Struktur Pengurus, Dewan Sugli, Qabilah & Kegiatan Daerah</p>
+                </div>
               </div>
-            </div>
-            <ChevronRight size={16} className="text-emerald-100 shrink-0" />
-          </Link>
+              <ChevronRight size={16} className="text-emerald-100 shrink-0" />
+            </Link>
+          )}
         </div>
 
         {/* Real-time Agenda & Kegiatan Terbaru Cards on Beranda */}

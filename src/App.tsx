@@ -49,6 +49,7 @@ import KwardaPtmaPage from './pages/KwardaPtmaPage';
 
 const Header = React.memo(() => {
   const location = useLocation();
+  const { isAuthenticated } = useAuthStore();
   const isFullWidth = location.pathname === '/admin' || location.pathname === '/kwarda-ptma';
 
   return (
@@ -66,19 +67,21 @@ const Header = React.memo(() => {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <Link
-            to="/kwarda-ptma"
-            className={cn(
-              "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
-              location.pathname === '/kwarda-ptma'
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                : "bg-emerald-50 text-emerald-800 border-emerald-200/70 hover:bg-emerald-100/80"
-            )}
-            title="Portal Organisasi Kwarda & Qabilah PTMA se-Jawa Tengah"
-          >
-            <Building2 size={15} />
-            <span>Kwarda / PTMA</span>
-          </Link>
+          {isAuthenticated && (
+            <Link
+              to="/kwarda-ptma"
+              className={cn(
+                "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                location.pathname === '/kwarda-ptma'
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                  : "bg-emerald-50 text-emerald-800 border-emerald-200/70 hover:bg-emerald-100/80"
+              )}
+              title="Portal Organisasi Kwarda & Qabilah PTMA se-Jawa Tengah"
+            >
+              <Building2 size={15} />
+              <span>Kwarda / PTMA</span>
+            </Link>
+          )}
           <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer touch-manipulation" title="Notifikasi">
             <Bell size={20} />
           </button>
@@ -332,12 +335,6 @@ const Navigation = () => {
             ) : (
               /* Guest/Unauthenticated view */
               <>
-                <NavigationLink 
-                  to="/kwarda-ptma" 
-                  icon={Building2} 
-                  label="Kwarda" 
-                  active={location.pathname === '/kwarda-ptma'} 
-                />
                 <NavigationLink 
                   to="/login" 
                   icon={LogIn} 
