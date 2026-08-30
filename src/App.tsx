@@ -336,12 +336,6 @@ const Navigation = () => {
               /* Guest/Unauthenticated view */
               <>
                 <NavigationLink 
-                  to="/kwarda-ptma" 
-                  icon={Building2} 
-                  label="Kwarda" 
-                  active={location.pathname === '/kwarda-ptma'} 
-                />
-                <NavigationLink 
                   to="/materi" 
                   icon={BookOpen} 
                   label="Materi" 
