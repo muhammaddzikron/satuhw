@@ -21,14 +21,32 @@ interface TestManagementPanelProps {
   onSaveSettings: (updatedSettings: any) => Promise<void>;
   applications?: any[];
   onViewTestApp?: (app: any) => void;
+  onGenerateSamplePreTest?: () => void;
+  onSyncSubmissions?: () => void;
 }
 
 export const TestManagementPanel: React.FC<TestManagementPanelProps> = ({
   settings,
   onSaveSettings,
   applications = [],
-  onViewTestApp
+  onViewTestApp,
+  onGenerateSamplePreTest,
+  onSyncSubmissions
 }) => {
+  // Safe handler for onGenerateSamplePreTest
+  const handleGenerateSamplePreTest = () => {
+    if (typeof onGenerateSamplePreTest === 'function') {
+      onGenerateSamplePreTest();
+    } else if (typeof onSyncSubmissions === 'function') {
+      onSyncSubmissions();
+    } else if (typeof window !== 'undefined' && typeof (window as any).handleSyncAndGenerateTrainingSubmissions === 'function') {
+      (window as any).handleSyncAndGenerateTrainingSubmissions();
+    } else if (typeof window !== 'undefined' && typeof (window as any).onGenerateSamplePreTest === 'function') {
+      (window as any).onGenerateSamplePreTest();
+    } else {
+      console.log('Sample test generator invoked');
+    }
+  };
   const [activeTestTab, setActiveTestTab] = useState<'pre_test' | 'post_test' | 'rekap'>('pre_test');
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingType, setQuickSavingType] = useState<'pre_test' | 'post_test' | null>(null);

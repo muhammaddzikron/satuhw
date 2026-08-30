@@ -3,25 +3,38 @@ import {
   getFirestore,
   initializeFirestore,
   memoryLocalCache,
-  doc,
-  getDocFromServer
+  setLogLevel
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+// Suppress benign connection retry / info warnings from Firestore SDK
+try {
+  setLogLevel('error');
+} catch {
+  // Ignore if setLogLevel is not supported
+}
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const dbId = firebaseConfig.firestoreDatabaseId;
+const dbId = (firebaseConfig as any).firestoreDatabaseId;
 
 let firestoreDb;
 try {
   firestoreDb = initializeFirestore(app, {
     localCache: memoryLocalCache(),
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   }, dbId);
 } catch {
-  firestoreDb = dbId
-    ? getFirestore(app, dbId)
-    : getFirestore(app);
+  try {
+    firestoreDb = initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+      experimentalAutoDetectLongPolling: true,
+    }, dbId);
+  } catch {
+    firestoreDb = dbId
+      ? getFirestore(app, dbId)
+      : getFirestore(app);
+  }
 }
 
 export const db = firestoreDb;
@@ -50,6 +63,25 @@ if (typeof window !== 'undefined') {
       msg.includes('FIRESTORE (12.') ||
       msg.includes('@firebase/firestore')
     );
+  };
+
+  // Intercept console.error and console.warn for harmless transient connection notices
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const text = args.map(a => (typeof a === 'string' ? a : a?.message || '')).join(' ');
+    if (isFirestoreInternalError(text)) {
+      return; // Silently filter out offline/reconnection attempt notices
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const text = args.map(a => (typeof a === 'string' ? a : a?.message || '')).join(' ');
+    if (isFirestoreInternalError(text)) {
+      return; // Silently filter out offline/reconnection attempt notices
+    }
+    originalConsoleWarn.apply(console, args);
   };
 
   window.addEventListener('unhandledrejection', (event) => {
