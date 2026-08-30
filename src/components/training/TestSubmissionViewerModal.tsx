@@ -35,14 +35,16 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   questions = DEFAULT_50_QUESTIONS,
   onUpdateApplication
 }) => {
-  const [currentApp, setCurrentApp] = useState<any>(application);
+  const [currentApp, setCurrentApp] = useState<any>(application || null);
   const [activeTab, setActiveTab] = useState<'pre_test' | 'post_test' | 'tugas' | 'presensi'>('pre_test');
   const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'wrong'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    setCurrentApp(application);
+    if (application) {
+      setCurrentApp(application);
+    }
   }, [application]);
 
   if (!isOpen || !currentApp) return null;
