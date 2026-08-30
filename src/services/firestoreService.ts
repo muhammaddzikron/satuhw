@@ -5107,6 +5107,91 @@ export const firestoreService = {
         await batch.commit();
       }
 
+      // Kwarda / PTMA Pengurus
+      try {
+        const pengurusStr = localStorage.getItem('hw_kwarda_ptma_pengurus') || '[]';
+        const pengurusList: any[] = JSON.parse(pengurusStr);
+        if (pengurusList.length > 0) {
+          const batch = writeBatch(db);
+          pengurusList.forEach(item => {
+            if (item && item.id) {
+              batch.set(doc(db, 'kwarda_ptma_pengurus', String(item.id)), cleanData(item), { merge: true });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Backup kwarda_ptma_pengurus error:', e);
+      }
+
+      // Kwarda / PTMA Dewan Sugli
+      try {
+        const sugliStr = localStorage.getItem('hw_kwarda_ptma_sugli') || '[]';
+        const sugliList: any[] = JSON.parse(sugliStr);
+        if (sugliList.length > 0) {
+          const batch = writeBatch(db);
+          sugliList.forEach(item => {
+            if (item && item.id) {
+              batch.set(doc(db, 'kwarda_ptma_sugli', String(item.id)), cleanData(item), { merge: true });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Backup kwarda_ptma_sugli error:', e);
+      }
+
+      // Kwarda / PTMA Qabilah
+      try {
+        const qabStr = localStorage.getItem('hw_kwarda_ptma_qabilah') || '[]';
+        const qabList: any[] = JSON.parse(qabStr);
+        if (qabList.length > 0) {
+          const batch = writeBatch(db);
+          qabList.forEach(item => {
+            if (item && item.id) {
+              batch.set(doc(db, 'kwarda_ptma_qabilah', String(item.id)), cleanData(item), { merge: true });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Backup kwarda_ptma_qabilah error:', e);
+      }
+
+      // Kwarda / PTMA Kegiatan
+      try {
+        const kegStr = localStorage.getItem('hw_kwarda_ptma_kegiatan') || '[]';
+        const kegList: any[] = JSON.parse(kegStr);
+        if (kegList.length > 0) {
+          const batch = writeBatch(db);
+          kegList.forEach(item => {
+            if (item && item.id) {
+              batch.set(doc(db, 'kwarda_ptma_kegiatan', String(item.id)), cleanData(item), { merge: true });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Backup kwarda_ptma_kegiatan error:', e);
+      }
+
+      // Kwarda / PTMA Materi
+      try {
+        const matStr = localStorage.getItem('hw_kwarda_ptma_materi') || '[]';
+        const matList: any[] = JSON.parse(matStr);
+        if (matList.length > 0) {
+          const batch = writeBatch(db);
+          matList.forEach(item => {
+            if (item && item.id) {
+              batch.set(doc(db, 'kwarda_ptma_materi', String(item.id)), cleanData(item), { merge: true });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Backup kwarda_ptma_materi error:', e);
+      }
+
       return {
         success: true,
         message: 'Seluruh data lokal dan cadangan berhasil diunggah & disinkronkan ke Firestore!',

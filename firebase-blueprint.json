@@ -194,6 +194,85 @@
         "status": { "type": "string" }
       },
       "required": ["id"]
+    },
+    "kwarda_ptma_pengurus": {
+      "title": "Kwarda PTMA Pengurus",
+      "description": "Officers and leadership structure of Kwarda and Qabilah PTMA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgCode": { "type": "string" },
+        "jabatan": { "type": "string" },
+        "nama": { "type": "string" },
+        "sortOrder": { "type": "number" },
+        "noWa": { "type": "string" },
+        "email": { "type": "string" },
+        "nbm": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orgCode", "jabatan", "nama"]
+    },
+    "kwarda_ptma_sugli": {
+      "title": "Kwarda PTMA Dewan Sugli",
+      "description": "Dewan Sugli and Kafilah members for Kwarda and PTMA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgCode": { "type": "string" },
+        "jabatan": { "type": "string" },
+        "nama": { "type": "string" },
+        "sortOrder": { "type": "number" },
+        "noWa": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orgCode", "jabatan", "nama"]
+    },
+    "kwarda_ptma_qabilah": {
+      "title": "Kwarda Qabilah List",
+      "description": "School, madrasah, and pesantren qabilah units in Kwarda regions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgCode": { "type": "string" },
+        "namaQabilah": { "type": "string" },
+        "jumlahAnggota": { "type": "number" },
+        "alamat": { "type": "string" },
+        "namaKetua": { "type": "string" },
+        "noKontak": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orgCode", "namaQabilah"]
+    },
+    "kwarda_ptma_kegiatan": {
+      "title": "Kwarda PTMA Kegiatan",
+      "description": "Regional events, trainings, and activities of Kwarda and PTMA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgCode": { "type": "string" },
+        "jenisKegiatan": { "type": "string" },
+        "jadwal": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "linkProposal": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orgCode", "jenisKegiatan"]
+    },
+    "kwarda_ptma_materi": {
+      "title": "Kwarda PTMA Materi",
+      "description": "Uploaded training modules, books, and resources from Kwarda & PTMA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgCode": { "type": "string" },
+        "namaMateri": { "type": "string" },
+        "kategoriMateri": { "type": "string" },
+        "linkDrive": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "pemateri": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orgCode", "namaMateri", "linkDrive"]
     }
   }
 }

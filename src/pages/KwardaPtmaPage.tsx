@@ -120,40 +120,43 @@ export default function KwardaPtmaPage() {
   }, [summaryData.items, activeFilter, searchQuery]);
 
   // ---------------------------------------------------------------------------
-  // 1. ACCESS DENIED VIEW (For regular / unauthorized users)
+  // 1. DRILLDOWN VIEW (Managing or Viewing a specific org)
   // ---------------------------------------------------------------------------
-  if (!access.canAccessModule) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center p-4">
-        <div className="bg-white max-w-md w-full p-8 rounded-3xl border border-gray-100 shadow-xl text-center space-y-4">
-          <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <Lock size={32} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Akses Terbatas</h2>
-            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-              Modul <strong>Kwarda / Qabilah PTMA</strong> hanya dapat diakses oleh Administrator Super Admin dan Pengurus Resmi Kwarda / Qabilah PTMA terkait.
-            </p>
-          </div>
-          <div className="pt-2">
-            <Link
-              to="/"
-              className="inline-flex items-center justify-center px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              Kembali ke Beranda
-            </Link>
-          </div>
+  if (selectedOrgCode) {
+    const targetOrg = getKwardaPtmaByCode(selectedOrgCode);
+    if (targetOrg) {
+      const canManage = access.isSuperAdmin || (access.isOrgAdmin && access.assignedOrg?.code === targetOrg.code);
+      return (
+        <div className="max-w-6xl mx-auto py-2">
+          <OrgDetailWorkspace 
+            org={targetOrg} 
+            canManage={canManage} 
+            showBack={true} 
+            onBack={() => handleSelectOrg(null)} 
+          />
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // 2. ORG ADMIN VIEW (Kwarda or Qabilah PTMA single entity)
+  // 2. ORG ADMIN DEFAULT VIEW (If org admin navigates without query param)
   // ---------------------------------------------------------------------------
-  if (access.isOrgAdmin && access.assignedOrg) {
+  if (access.isOrgAdmin && access.assignedOrg && !searchParams.get('view_all')) {
     return (
-      <div className="max-w-6xl mx-auto py-2">
+      <div className="max-w-6xl mx-auto py-2 space-y-4">
+        <div className="flex flex-wrap justify-between items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-2xl">
+          <span className="text-xs font-bold text-emerald-800">
+            Anda terautentikasi sebagai Pengurus <strong>{access.assignedOrg.name}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ view_all: 'true' })}
+            className="text-xs font-black text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+          >
+            Lihat Direktori Seluruh Kwarda / PTMA Se-Jateng &rarr;
+          </button>
+        </div>
         <OrgDetailWorkspace 
           org={access.assignedOrg} 
           canManage={true} 
@@ -164,26 +167,7 @@ export default function KwardaPtmaPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // 3. SUPER ADMIN DRILLDOWN VIEW (Managing a specific org)
-  // ---------------------------------------------------------------------------
-  if (access.isSuperAdmin && selectedOrgCode) {
-    const targetOrg = getKwardaPtmaByCode(selectedOrgCode);
-    if (targetOrg) {
-      return (
-        <div className="max-w-6xl mx-auto py-2">
-          <OrgDetailWorkspace 
-            org={targetOrg} 
-            canManage={true} 
-            showBack={true} 
-            onBack={() => handleSelectOrg(null)} 
-          />
-        </div>
-      );
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 4. SUPER ADMIN MONITORING VIEW (Global Dashboard of all 58 Orgs)
+  // 3. GLOBAL DIRECTORY & MONITORING VIEW (All 58 Orgs)
   // ---------------------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto space-y-6 py-2">
@@ -409,7 +393,7 @@ export default function KwardaPtmaPage() {
                         onClick={() => handleSelectOrg(item.code)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer active:scale-95"
                       >
-                        <span>Kelola</span>
+                        <span>{access.isSuperAdmin || (access.isOrgAdmin && access.assignedOrg?.code === item.code) ? 'Kelola' : 'Buka Detail'}</span>
                         <ChevronRight size={14} />
                       </button>
                     </td>

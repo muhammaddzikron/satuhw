@@ -26,6 +26,24 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
   ]);
 };
 
+// Helper to remove undefined fields and ensure document IDs are strings before saving to Firestore
+const cleanData = <T extends Record<string, any>>(obj: T): T => {
+  if (!obj || typeof obj !== 'object') return obj;
+  const result: any = Array.isArray(obj) ? [] : {};
+  for (const key in obj) {
+    if (obj[key] !== undefined && typeof obj[key] !== 'function') {
+      if (key === 'id' && obj[key] !== null && obj[key] !== undefined) {
+        result[key] = String(obj[key]);
+      } else if (typeof obj[key] === 'object' && obj[key] !== null && !((obj[key] as any) instanceof Date)) {
+        result[key] = cleanData(obj[key]);
+      } else {
+        result[key] = obj[key];
+      }
+    }
+  }
+  return result;
+};
+
 // Initial Seed Data for Demo & Pristine Experience
 const INITIAL_SEED_PENGURUS: PengurusOrgItem[] = [
   // Banjarnegara (01)
@@ -230,7 +248,7 @@ export const kwardaPtmaService = {
 
     // 2. Persist to Firestore
     try {
-      await withTimeout(setDoc(doc(db, 'kwarda_ptma_pengurus', cleanItem.id), cleanItem), 6000);
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_pengurus', cleanItem.id), cleanData(cleanItem), { merge: true }), 6000);
     } catch (err) {
       console.warn('[FIRESTORE] Failed to save pengurus in cloud, cached locally:', err);
     }
@@ -270,12 +288,12 @@ export const kwardaPtmaService = {
       const batch = writeBatch(db);
       items.forEach((item, index) => {
         const itemRef = doc(db, 'kwarda_ptma_pengurus', item.id);
-        batch.set(itemRef, {
+        batch.set(itemRef, cleanData({
           ...item,
           orgCode: normCode,
           sortOrder: index + 1,
           updatedAt: new Date().toISOString()
-        }, { merge: true });
+        }), { merge: true });
       });
       await withTimeout(batch.commit(), 8000);
     } catch (err) {
@@ -365,7 +383,7 @@ export const kwardaPtmaService = {
     window.dispatchEvent(new Event('kwarda_ptma_updated'));
 
     try {
-      await withTimeout(setDoc(doc(db, 'kwarda_ptma_sugli', cleanItem.id), cleanItem), 6000);
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_sugli', cleanItem.id), cleanData(cleanItem), { merge: true }), 6000);
     } catch (err) {
       console.warn('[FIRESTORE] Save dewan sugli cached locally:', err);
     }
@@ -403,12 +421,12 @@ export const kwardaPtmaService = {
       const batch = writeBatch(db);
       items.forEach((item, index) => {
         const itemRef = doc(db, 'kwarda_ptma_sugli', item.id);
-        batch.set(itemRef, {
+        batch.set(itemRef, cleanData({
           ...item,
           orgCode: normCode,
           sortOrder: index + 1,
           updatedAt: new Date().toISOString()
-        }, { merge: true });
+        }), { merge: true });
       });
       await withTimeout(batch.commit(), 8000);
     } catch (err) {
@@ -497,7 +515,7 @@ export const kwardaPtmaService = {
     window.dispatchEvent(new Event('kwarda_ptma_updated'));
 
     try {
-      await withTimeout(setDoc(doc(db, 'kwarda_ptma_qabilah', cleanItem.id), cleanItem), 6000);
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_qabilah', cleanItem.id), cleanData(cleanItem), { merge: true }), 6000);
     } catch (err) {
       console.warn('[FIRESTORE] Save qabilah cached locally:', err);
     }
@@ -585,7 +603,7 @@ export const kwardaPtmaService = {
     window.dispatchEvent(new Event('kwarda_ptma_updated'));
 
     try {
-      await withTimeout(setDoc(doc(db, 'kwarda_ptma_kegiatan', cleanItem.id), cleanItem), 6000);
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_kegiatan', cleanItem.id), cleanData(cleanItem), { merge: true }), 6000);
     } catch (err) {
       console.warn('[FIRESTORE] Save kegiatan cached locally:', err);
     }
@@ -700,7 +718,7 @@ export const kwardaPtmaService = {
     window.dispatchEvent(new Event('kwarda_ptma_updated'));
 
     try {
-      await withTimeout(setDoc(doc(db, 'kwarda_ptma_materi', cleanItem.id), cleanItem), 6000);
+      await withTimeout(setDoc(doc(db, 'kwarda_ptma_materi', cleanItem.id), cleanData(cleanItem), { merge: true }), 6000);
     } catch (err) {
       console.warn('[FIRESTORE] Save materi cached locally:', err);
     }

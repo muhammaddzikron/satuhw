@@ -53,6 +53,26 @@ service cloud.firestore {
     }
 
     // Kwarda / Qabilah PTMA Collections
+    match /kwarda_ptma_pengurus/{id} {
+      allow read, write: if true;
+    }
+
+    match /kwarda_ptma_sugli/{id} {
+      allow read, write: if true;
+    }
+
+    match /kwarda_ptma_qabilah/{id} {
+      allow read, write: if true;
+    }
+
+    match /kwarda_ptma_kegiatan/{id} {
+      allow read, write: if true;
+    }
+
+    match /kwarda_ptma_materi/{id} {
+      allow read, write: if true;
+    }
+
     match /kwarda_pengurus/{id} {
       allow read, write: if true;
     }

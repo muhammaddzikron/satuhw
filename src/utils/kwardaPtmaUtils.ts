@@ -46,7 +46,7 @@ export function resolveUserOrgAccess(user: User | null): {
       isSuperAdmin: false,
       isOrgAdmin: false,
       assignedOrg: null,
-      canAccessModule: false
+      canAccessModule: true
     };
   }
 
@@ -148,7 +148,7 @@ export function resolveUserOrgAccess(user: User | null): {
     isSuperAdmin: false,
     isOrgAdmin: false,
     assignedOrg: null,
-    canAccessModule: false
+    canAccessModule: true
   };
 }
 
