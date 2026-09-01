@@ -5,7 +5,7 @@ import {
   memoryLocalCache,
   setLogLevel
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Suppress benign connection retry / info warnings from Firestore SDK
@@ -38,7 +38,40 @@ try {
 }
 
 export const db = firestoreDb;
-export const auth = getAuth(app);
+
+let authInstance: Auth | null = null;
+export const getFirebaseAuth = (): Auth => {
+  if (authInstance) return authInstance;
+  try {
+    authInstance = getAuth(app);
+    return authInstance;
+  } catch {
+    try {
+      authInstance = initializeAuth(app, {
+        persistence: browserLocalPersistence
+      });
+      return authInstance;
+    } catch {
+      return getAuth(app);
+    }
+  }
+};
+
+let directAuth: Auth;
+try {
+  directAuth = getFirebaseAuth();
+} catch {
+  // Fallback proxy in case of async module registration
+  directAuth = new Proxy({} as Auth, {
+    get(_target, prop) {
+      const targetAuth = getFirebaseAuth();
+      const value = (targetAuth as any)[prop];
+      return typeof value === 'function' ? value.bind(targetAuth) : value;
+    }
+  });
+}
+
+export const auth = directAuth;
 
 // Gracefully handle browser lifecycle, backgrounded/closing IndexedDB events, and internal SDK target cleanups
 if (typeof window !== 'undefined') {
