@@ -210,8 +210,10 @@ import {
   Upload,
   RotateCcw,
   Sparkles,
+  Building2,
   Link as LinkIcon
 } from 'lucide-react';
+import KwardaPtmaPage from './KwardaPtmaPage';
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
@@ -4561,6 +4563,7 @@ export default function AdminDashboard() {
               (!isDiklatAdmin) && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
               { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
               (!isDiklatAdmin) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
+              { id: 'kwarda-ptma', label: 'Kwarda / PTMA', icon: Building2, activeClass: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white shadow-lg shadow-teal-500/25 ring-2 ring-teal-400', hoverClass: 'hover:border-teal-300 hover:text-teal-700' },
               (!isDiklatAdmin) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
               (!isDiklatAdmin) && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
               (!isDiklatAdmin) && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
@@ -4593,6 +4596,8 @@ export default function AdminDashboard() {
           exit={{ opacity: 0, y: -10 }}
           className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]"
         >
+          {activeTab === 'kwarda-ptma' && <KwardaPtmaPage />}
+
           {/* ANGGOTA TAB */}
           {activeTab === 'anggota' && (
             <div className="flex flex-col h-full">
