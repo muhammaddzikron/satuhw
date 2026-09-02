@@ -29,14 +29,28 @@ export default function UpgradePage() {
     const fetchFees = async () => {
       try {
         const s = await sheetsService.getSettings();
-        if (Array.isArray(s.upgradeFees)) {
-          const mapped = s.upgradeFees.map((fee: any) => ({
-            id: fee.id,
-            title: fee.label,
-            price: fee.value,
-            description: fee.note
-          }));
-          setRoleOptions(mapped);
+        if (Array.isArray(s.upgradeFees) && s.upgradeFees.length > 0) {
+          const seenIds = new Set<string>();
+          const mapped = s.upgradeFees
+            .map((fee: any, idx: number) => {
+              const rawId = (fee.id || fee.key || fee.label || `role_${idx}`).toString().trim().toLowerCase();
+              const id = rawId || `role_${idx}`;
+              return {
+                id,
+                title: fee.label || fee.title || fee.name || id,
+                price: fee.value || fee.price || 'Rp 50.000',
+                description: fee.note || fee.description || ''
+              };
+            })
+            .filter((item: any) => {
+              if (!item.id || seenIds.has(item.id)) return false;
+              seenIds.add(item.id);
+              return true;
+            });
+
+          if (mapped.length > 0) {
+            setRoleOptions(mapped);
+          }
         }
         if (s.waConfirmation) {
           setWaNumber(s.waConfirmation);
@@ -145,12 +159,13 @@ export default function UpgradePage() {
           const isCurrentRole = user?.role === option.id;
           const isInRolesList = user?.roles?.includes(option.id as any);
           return !isCurrentRole && !isInRolesList;
-        }).map((option) => {
+        }).map((option, idx) => {
           const isRequested = Array.isArray(user?.upgradeRequests) && user.upgradeRequests.includes(option.id);
+          const itemKey = option.id ? `role-option-${option.id}` : `role-option-index-${idx}`;
           
           return (
             <div 
-              key={option.id}
+              key={itemKey}
               className={cn(
                 "p-5 rounded-[2rem] border transition-all relative overflow-hidden",
                 isRequested 

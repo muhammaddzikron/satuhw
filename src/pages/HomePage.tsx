@@ -1037,14 +1037,14 @@ export default function HomePage() {
             <h3 className="font-display font-bold text-gray-800">Menu Utama</h3>
           </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
-          <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
-          <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-purple-600" />
+        <div className="grid grid-cols-3 gap-3">
           <MenuCard to="/about" icon={UserIcon} label="Profil HW" color="bg-amber-500" />
-          <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-cyan-600" />
           <MenuCard to="/gallery" icon={ImageIcon} label="Galeri" color="bg-pink-500" />
           <MenuCard to="/playlist" icon={Music} label="Musik" color="bg-rose-500" />
+          <MenuCard to="/kegiatan" icon={Calendar} label="Kegiatan" color="bg-cyan-600" />
+          <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
+          <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-purple-600" />
+          <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
           <MenuCard onClick={() => setShowSosmedModal(true)} icon={Share2} label="Sosmed" color="bg-blue-500" />
           <MenuCard onClick={() => setShowContactModal(true)} icon={Phone} label="Kontak" color="bg-teal-600" />
         </div>
@@ -1057,18 +1057,20 @@ export default function HomePage() {
             <h3 className="font-display font-bold text-gray-800">Dasbor Anggota</h3>
           </div>
           
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
-            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
+          <div className="grid grid-cols-3 gap-3">
             <MenuCard to="/materi" state={{ filter: 'umum' }} icon={BookOpen} label="Umum" color="bg-hw-green" />
-            <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Sugli" color="bg-orange-500" />
-            <MenuCard to="/materi" state={{ filter: 'kwarda' }} icon={MapPin} label="Kwarda" color="bg-blue-500" />
-            <MenuCard to="/pelatihan" icon={GraduationCap} label="Pelatihan" color="bg-emerald-700" />
+            <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Dewan Sugli" color="bg-orange-500" />
+            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
+            
+            <MenuCard to="/materi" state={{ filter: 'jati1' }} icon={Award} label="Jati 1" color="bg-teal-600" />
+            <MenuCard to="/materi" state={{ filter: 'jati2' }} icon={Award} label="Jati 2" color="bg-indigo-600" />
+            <MenuCard to="/materi" state={{ filter: 'jari1' }} icon={Award} label="Jari 1" color="bg-amber-600" />
+            
+            <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />
+            <MenuCard to="/profile" icon={Users} label="Profil" color="bg-rose-500" />
             {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'kwarda') && (
               <MenuCard to="/admin" icon={Shield} label="Admin" color="bg-hw-dark" />
             )}
-            <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />
-            <MenuCard to="/profile" icon={Users} label="Profil" color="bg-rose-500" />
-            <MenuCard to="/kta" icon={CreditCard} label="KTA Digital" color="bg-emerald-600" />
           </div>
         </section>
       )}
