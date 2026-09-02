@@ -66,7 +66,7 @@ export const KWARDA_QABILAH_JATENG: KwardaMapping[] = [
   { code: '58', name: 'Universitas Muhammadiyah Tegal' }
 ];
 
-function resolveSingleCode(input?: string): string | null {
+export function resolveSingleCode(input?: string): string | null {
   if (!input) return null;
   const clean = input.trim().toLowerCase();
   if (!clean) return null;
@@ -89,6 +89,25 @@ function resolveSingleCode(input?: string): string | null {
     'salatiga': '32',
     'kota salatiga': '32',
     'gombong': '12',
+    'brebes': '06',
+    'bumiayu': '06',
+    'kab brebes': '06',
+    'kab. brebes': '06',
+    'kwarda brebes': '06',
+    'umbs': '52',
+    'ums': '36',
+    'unimma': '37',
+    'ump': '38',
+    'umpwr': '39',
+    'unimus': '40',
+    'umkla': '41',
+    'umku': '42',
+    'aiska': '43',
+    'unimugo': '44',
+    'umkaba': '45',
+    'umuka': '46',
+    'itspku': '47',
+    'umpp': '51',
   };
   if (aliases[clean]) return aliases[clean];
 
@@ -141,6 +160,39 @@ function resolveSingleCode(input?: string): string | null {
   if (kwardaMatch) return kwardaMatch.code;
 
   return null;
+}
+
+/**
+ * Checks if a member/app record matches a target Kwarda or Qabilah name/code.
+ */
+export function isMatchKwarda(app: any, targetKwardaName: string): boolean {
+  if (!app) return false;
+  if (!targetKwardaName || targetKwardaName === 'Semua') return true;
+  const cleanTarget = targetKwardaName.trim();
+  const targetItem = KWARDA_QABILAH_JATENG.find(k => k.name.toLowerCase() === cleanTarget.toLowerCase());
+  const targetCode = targetItem ? targetItem.code : resolveSingleCode(cleanTarget);
+
+  if (!targetCode) return false;
+
+  const appKta = (app.ktaNumber || app.nomorKTA || '').trim();
+  const parsed = parseKtaNumber(appKta);
+  if (parsed && parsed.kodeKwarda === targetCode) {
+    return true;
+  }
+
+  const appCode = resolveSingleCode(app.asalDaerah || app.asalKwarda || app.kwarda) ||
+                  resolveSingleCode(app.qabilah);
+  if (appCode && appCode === targetCode) {
+    return true;
+  }
+
+  const coreTarget = cleanTarget.toLowerCase().replace(/^(kabupaten|kota)\s+/i, '').trim();
+  const cleanApp = `${app.asalDaerah || ''} ${app.asalKwarda || ''} ${app.kwarda || ''} ${app.qabilah || ''} ${app.alamat || ''}`.toLowerCase();
+  if (coreTarget && cleanApp.includes(coreTarget)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

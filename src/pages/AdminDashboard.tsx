@@ -247,7 +247,7 @@ import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/docum
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode } from '../utils/ktaUtils';
 import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
 import { TestSubmissionViewerModal } from '../components/training/TestSubmissionViewerModal';
@@ -731,19 +731,16 @@ export default function AdminDashboard() {
     const counts: { [key: string]: { approved: number; pending: number; total: number } } = {};
     
     // Pre-populate with all 35 Kwardas from KWARDA_QABILAH_JATENG (code '01' to '35')
-    KWARDA_QABILAH_JATENG.forEach(item => {
-      const isPtma = parseInt(item.code, 10) >= 36;
-      if (!isPtma) {
-        counts[item.name] = { approved: 0, pending: 0, total: 0 };
-      }
+    KWARDA_QABILAH_JATENG.slice(0, 35).forEach(item => {
+      counts[item.name] = { approved: 0, pending: 0, total: 0 };
     });
 
     ktaApps.forEach(app => {
-      const reg = app.asalDaerah || '';
-      if (counts[reg]) {
-        if (app.status === 'approved') counts[reg].approved++;
-        else if (app.status === 'pending') counts[reg].pending++;
-        counts[reg].total++;
+      const matchedKwarda = KWARDA_QABILAH_JATENG.slice(0, 35).find(k => isMatchKwarda(app, k.name));
+      if (matchedKwarda && counts[matchedKwarda.name]) {
+        if (app.status === 'approved') counts[matchedKwarda.name].approved++;
+        else if (app.status === 'pending') counts[matchedKwarda.name].pending++;
+        counts[matchedKwarda.name].total++;
       }
     });
     return Object.entries(counts)
@@ -761,25 +758,16 @@ export default function AdminDashboard() {
     const counts: { [key: string]: { approved: number; pending: number; total: number } } = {};
     
     // Pre-populate with all PTMA Qabilahs (code '36' onwards)
-    KWARDA_QABILAH_JATENG.forEach(item => {
-      const isPtma = parseInt(item.code, 10) >= 36;
-      if (isPtma) {
-        counts[item.name] = { approved: 0, pending: 0, total: 0 };
-      }
+    KWARDA_QABILAH_JATENG.slice(35).forEach(item => {
+      counts[item.name] = { approved: 0, pending: 0, total: 0 };
     });
 
     ktaApps.forEach(app => {
-      const reg = app.asalDaerah || '';
-      const found = KWARDA_QABILAH_JATENG.find(item => item.name === reg);
-      const isPtma = found ? parseInt(found.code, 10) >= 36 : false;
-      
-      if (isPtma && reg) {
-        if (!counts[reg]) {
-          counts[reg] = { approved: 0, pending: 0, total: 0 };
-        }
-        if (app.status === 'approved') counts[reg].approved++;
-        else if (app.status === 'pending') counts[reg].pending++;
-        counts[reg].total++;
+      const matchedQabilah = KWARDA_QABILAH_JATENG.slice(35).find(q => isMatchKwarda(app, q.name));
+      if (matchedQabilah && counts[matchedQabilah.name]) {
+        if (app.status === 'approved') counts[matchedQabilah.name].approved++;
+        else if (app.status === 'pending') counts[matchedQabilah.name].pending++;
+        counts[matchedQabilah.name].total++;
       }
     });
     return Object.entries(counts)
@@ -801,19 +789,16 @@ export default function AdminDashboard() {
         const query = ktaSearchQuery.toLowerCase().trim();
         const matchSearch = !query ||
           (app?.nama || '').toLowerCase().includes(query) ||
+          (app?.namaLengkap || '').toLowerCase().includes(query) ||
           (app?.email || '').toLowerCase().includes(query) ||
           (app?.asalDaerah || '').toLowerCase().includes(query) ||
+          (app?.asalKwarda || '').toLowerCase().includes(query) ||
           (app?.qabilah || '').toLowerCase().includes(query) ||
-          (app?.ktaNumber || '').toLowerCase().includes(query);
+          (app?.ktaNumber || '').toLowerCase().includes(query) ||
+          (app?.nomorKTA || '').toLowerCase().includes(query);
 
         const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
-        
-        const appKwarda = (app?.asalDaerah || app?.qabilah || '').toLowerCase().trim();
-        const filterKwardaLower = ktaFilterKwarda.toLowerCase().trim();
-        const matchKwarda = ktaFilterKwarda === 'Semua' ||
-          appKwarda === filterKwardaLower ||
-          (app?.asalDaerah || '').toLowerCase().trim() === filterKwardaLower ||
-          (app?.qabilah || '').toLowerCase().trim() === filterKwardaLower;
+        const matchKwarda = isMatchKwarda(app, ktaFilterKwarda);
 
         return matchSearch && matchStatus && matchKwarda;
       })
@@ -6072,7 +6057,7 @@ export default function AdminDashboard() {
                               <option value="Semua">Semua Kwarda & Qabilah ({ktaApps.length})</option>
                               <optgroup label="1. Kwarda (Kabupaten / Kota)">
                                 {KWARDA_QABILAH_JATENG.slice(0, 35).map(k => {
-                                  const count = ktaApps.filter(a => (a.asalDaerah || '').toLowerCase().trim() === k.name.toLowerCase().trim()).length;
+                                  const count = ktaApps.filter(a => isMatchKwarda(a, k.name)).length;
                                   return (
                                     <option key={k.code} value={k.name}>
                                       {parseInt(k.code, 10)}. {k.name} ({count} Anggota)
@@ -6082,7 +6067,7 @@ export default function AdminDashboard() {
                               </optgroup>
                               <optgroup label="2. Qabilah PTMA">
                                 {KWARDA_QABILAH_JATENG.slice(35).map(q => {
-                                  const count = ktaApps.filter(a => (a.asalDaerah || a.qabilah || '').toLowerCase().trim() === q.name.toLowerCase().trim()).length;
+                                  const count = ktaApps.filter(a => isMatchKwarda(a, q.name)).length;
                                   return (
                                     <option key={q.code} value={q.name}>
                                       {parseInt(q.code, 10)}. {q.name} ({count} Anggota)
@@ -6442,7 +6427,7 @@ export default function AdminDashboard() {
                                 const foundItem = KWARDA_QABILAH_JATENG.find(x => x.name === item.name);
                                 const codeNum = foundItem ? parseInt(foundItem.code, 10) : '';
                                 
-                                const kwardaMembers = ktaApps.filter(a => (a.asalDaerah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
+                                const kwardaMembers = ktaApps.filter(a => isMatchKwarda(a, item.name));
                                 const approvedKtas = kwardaMembers
                                   .filter(a => a.status === 'approved' && a.ktaNumber)
                                   .sort((a,b) => compareKtaNumbers(a, b))
@@ -6538,7 +6523,7 @@ export default function AdminDashboard() {
                                 const foundItem = KWARDA_QABILAH_JATENG.find(x => x.name === item.name);
                                 const codeNum = foundItem ? parseInt(foundItem.code, 10) : '';
 
-                                const qabilahMembers = ktaApps.filter(a => (a.asalDaerah || a.qabilah || '').toLowerCase().trim() === item.name.toLowerCase().trim());
+                                const qabilahMembers = ktaApps.filter(a => isMatchKwarda(a, item.name));
                                 const approvedKtas = qabilahMembers
                                   .filter(a => a.status === 'approved' && a.ktaNumber)
                                   .sort((a,b) => compareKtaNumbers(a, b))

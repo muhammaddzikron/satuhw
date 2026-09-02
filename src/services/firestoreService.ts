@@ -1872,6 +1872,7 @@ export const firestoreService = {
       clearFirestoreCache('kta_applications');
     }
     return cachedFirestoreFetch('kta_applications', async () => {
+      let ktas: any[] = [];
       if (!this.getIsQuotaExceeded()) {
         try {
           const snap = await withTimeout(getDocs(collection(db, 'kta_applications')), 8000);
@@ -1889,7 +1890,7 @@ export const firestoreService = {
               cleanKtas.push(k);
             }
           }
-          let ktas = cleanKtas;
+          ktas = cleanKtas;
 
           const membersStored = localStorage.getItem('mock_members');
           if (membersStored && ktas.length > 0) {
@@ -1919,9 +1920,6 @@ export const firestoreService = {
               });
             } catch (e) {}
           }
-          ktas = ensureUniqueKtaNumbers(ktas);
-          safeStorageSet('kta_applications', ktas);
-          return ktas;
         } catch (err) {
           this.checkQuotaError(err);
           if (!this.getIsQuotaExceeded()) {
@@ -1929,18 +1927,94 @@ export const firestoreService = {
           }
         }
       }
-      const stored = localStorage.getItem('kta_applications') || '[]';
-      try {
-        const parsed = JSON.parse(stored);
-        const cleanList = parsed.filter((k: any) => {
-          if (!k) return false;
-          const name = (k.nama || k.namaLengkap || '').trim();
-          return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
-        });
-        return ensureUniqueKtaNumbers(cleanList);
-      } catch (e) {
-        return [];
+
+      if (ktas.length === 0) {
+        const stored = localStorage.getItem('kta_applications') || '[]';
+        try {
+          const parsed = JSON.parse(stored);
+          ktas = parsed.filter((k: any) => {
+            if (!k) return false;
+            const name = (k.nama || k.namaLengkap || '').trim();
+            return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
+          });
+        } catch (e) {
+          ktas = [];
+        }
       }
+
+      // Merge all registered members from getMasterMembersList() so that all registrants appear in KTA management
+      let allMembers: User[] = [];
+      try {
+        allMembers = getMasterMembersList();
+      } catch (e) {}
+
+      const existingKtaKeys = new Set<string>();
+      ktas.forEach((k: any) => {
+        if (k.id) existingKtaKeys.add(`id:${String(k.id).toLowerCase().trim()}`);
+        if (k.userId) existingKtaKeys.add(`id:${String(k.userId).toLowerCase().trim()}`);
+        if (k.email && !k.email.startsWith('member_') && !k.email.startsWith('user_')) existingKtaKeys.add(`email:${k.email.toLowerCase().trim()}`);
+        if (k.ktaNumber && k.ktaNumber !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${k.ktaNumber.trim()}`);
+        if (k.nomorKTA && k.nomorKTA !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${k.nomorKTA.trim()}`);
+        const kName = (k.nama || k.namaLengkap || '').toLowerCase().trim();
+        const kRegion = (k.asalDaerah || k.qabilah || '').toLowerCase().trim();
+        if (kName && kRegion) existingKtaKeys.add(`name_region:${kName}:::${kRegion}`);
+      });
+
+      allMembers.forEach((m: any) => {
+        if (!m) return;
+        const mName = (m.namaLengkap || m.nama || '').trim();
+        if (!mName || mName === 'Tanpa Nama' || mName === '-' || mName.toLowerCase() === 'anggota hw') return;
+
+        const mId = m.id ? String(m.id).toLowerCase().trim() : '';
+        const mEmail = m.email ? String(m.email).toLowerCase().trim() : '';
+        const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+        const mRegion = (m.asalKwarda || m.asalDaerah || m.qabilah || '').toLowerCase().trim();
+
+        const isPresent = (
+          (mId && existingKtaKeys.has(`id:${mId}`)) ||
+          (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_') && existingKtaKeys.has(`email:${mEmail}`)) ||
+          (mKta && mKta !== 'KTA-HW.JT.XXXX' && existingKtaKeys.has(`kta:${mKta}`)) ||
+          (mName && mRegion && existingKtaKeys.has(`name_region:${mName.toLowerCase()}:::${mRegion}`))
+        );
+
+        if (!isPresent) {
+          const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          const isApproved = Boolean(m.isVerified || mKta || m.status === 'approved');
+          ktas.push({
+            id: ktaId,
+            userId: m.id || ktaId,
+            nama: mName,
+            namaLengkap: mName,
+            email: m.email || '',
+            noWa: m.noHp || m.noWa || '',
+            asalDaerah: m.asalKwarda || m.asalDaerah || '',
+            qabilah: m.qabilah || '',
+            tingkatan: m.golongan || m.tingkatan || 'Dewasa',
+            tempatLahir: m.tempatLahir || '',
+            tanggalLahir: m.tanggalLahir || '',
+            jenisKelamin: m.jenisKelamin || 'L',
+            alamat: m.alamat || '',
+            nbm: m.nbm || '',
+            photo: m.photo || '',
+            status: isApproved ? 'approved' : (m.status || 'pending'),
+            statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
+            statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
+            ktaNumber: mKta || '',
+            nomorKTA: mKta || '',
+            jenisKta: m.jenisKta || 'Digital',
+            createdAt: m.createdAt || new Date().toISOString()
+          });
+
+          if (mId) existingKtaKeys.add(`id:${mId}`);
+          if (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_')) existingKtaKeys.add(`email:${mEmail}`);
+          if (mKta && mKta !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${mKta}`);
+          if (mName && mRegion) existingKtaKeys.add(`name_region:${mName.toLowerCase()}:::${mRegion}`);
+        }
+      });
+
+      ktas = ensureUniqueKtaNumbers(ktas);
+      safeStorageSet('kta_applications', ktas);
+      return ktas;
     }, 30000);
   },
 

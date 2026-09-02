@@ -1352,6 +1352,7 @@ export const sheetsService = {
           if (!a.status && match.status) a.status = match.status;
           if (!a.statusPembayaran && match.statusPembayaran) a.statusPembayaran = match.statusPembayaran;
           if (!a.nomorKTA && (match.nomorKTA || match.ktaNumber)) a.nomorKTA = match.nomorKTA || match.ktaNumber;
+          if (!a.asalDaerah && (match.asalDaerah || match.asalKwarda)) a.asalDaerah = match.asalDaerah || match.asalKwarda;
         }
       });
 
@@ -1361,6 +1362,76 @@ export const sheetsService = {
         const key3 = String(fa.userId || '').toLowerCase().trim();
         if ((!key1 || !sheetKeys.has(key1)) && (!key2 || !sheetKeys.has(key2)) && (!key3 || !sheetKeys.has(key3))) {
           apps.push(fa);
+        }
+      });
+
+      // Also ensure all registered members from getMasterMembersList are present
+      let allMembers: User[] = [];
+      try {
+        allMembers = getMasterMembersList();
+      } catch (e) {}
+
+      const existingAppKeys = new Set<string>();
+      apps.forEach((a: any) => {
+        if (a.id) existingAppKeys.add(`id:${String(a.id).toLowerCase().trim()}`);
+        if (a.userId) existingAppKeys.add(`id:${String(a.userId).toLowerCase().trim()}`);
+        if (a.email && !a.email.startsWith('member_') && !a.email.startsWith('user_')) existingAppKeys.add(`email:${a.email.toLowerCase().trim()}`);
+        if (a.ktaNumber && a.ktaNumber !== 'KTA-HW.JT.XXXX') existingAppKeys.add(`kta:${a.ktaNumber.trim()}`);
+        if (a.nomorKTA && a.nomorKTA !== 'KTA-HW.JT.XXXX') existingAppKeys.add(`kta:${a.nomorKTA.trim()}`);
+        const aName = (a.nama || a.namaLengkap || '').toLowerCase().trim();
+        const aRegion = (a.asalDaerah || a.qabilah || '').toLowerCase().trim();
+        if (aName && aRegion) existingAppKeys.add(`name_region:${aName}:::${aRegion}`);
+      });
+
+      allMembers.forEach((m: any) => {
+        if (!m) return;
+        const mName = (m.namaLengkap || m.nama || '').trim();
+        if (!mName || mName === 'Tanpa Nama' || mName === '-' || mName.toLowerCase() === 'anggota hw') return;
+
+        const mId = m.id ? String(m.id).toLowerCase().trim() : '';
+        const mEmail = m.email ? String(m.email).toLowerCase().trim() : '';
+        const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
+        const mRegion = (m.asalKwarda || m.asalDaerah || m.qabilah || '').toLowerCase().trim();
+
+        const isPresent = (
+          (mId && existingAppKeys.has(`id:${mId}`)) ||
+          (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_') && existingAppKeys.has(`email:${mEmail}`)) ||
+          (mKta && mKta !== 'KTA-HW.JT.XXXX' && existingAppKeys.has(`kta:${mKta}`)) ||
+          (mName && mRegion && existingAppKeys.has(`name_region:${mName.toLowerCase()}:::${mRegion}`))
+        );
+
+        if (!isPresent) {
+          const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          const isApproved = Boolean(m.isVerified || mKta || m.status === 'approved');
+          apps.push({
+            id: ktaId,
+            userId: m.id || ktaId,
+            nama: mName,
+            namaLengkap: mName,
+            email: m.email || '',
+            noWa: m.noHp || m.noWa || '',
+            asalDaerah: m.asalKwarda || m.asalDaerah || '',
+            qabilah: m.qabilah || '',
+            tingkatan: m.golongan || m.tingkatan || 'Dewasa',
+            tempatLahir: m.tempatLahir || '',
+            tanggalLahir: m.tanggalLahir || '',
+            jenisKelamin: m.jenisKelamin || 'L',
+            alamat: m.alamat || '',
+            nbm: m.nbm || '',
+            photo: m.photo || '',
+            status: isApproved ? 'approved' : (m.status || 'pending'),
+            statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
+            statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
+            ktaNumber: mKta || '',
+            nomorKTA: mKta || '',
+            jenisKta: m.jenisKta || 'Digital',
+            createdAt: m.createdAt || new Date().toISOString()
+          });
+
+          if (mId) existingAppKeys.add(`id:${mId}`);
+          if (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_')) existingAppKeys.add(`email:${mEmail}`);
+          if (mKta && mKta !== 'KTA-HW.JT.XXXX') existingAppKeys.add(`kta:${mKta}`);
+          if (mName && mRegion) existingAppKeys.add(`name_region:${mName.toLowerCase()}:::${mRegion}`);
         }
       });
 
