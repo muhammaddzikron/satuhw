@@ -2,6 +2,14 @@ import React from 'react';
 import { User as UserIcon, Globe } from 'lucide-react';
 import { cn, getCorsSafeUrl, formatTempatTanggalLahir } from '../lib/utils';
 import { KTAApplication, SystemSettings } from '../types';
+import { 
+  DEFAULT_LOCAL_KTA_FRONT, 
+  DEFAULT_LOCAL_KTA_BACK, 
+  LOCAL_KTA_FRONT_BASE64, 
+  LOCAL_KTA_BACK_BASE64, 
+  getSafeKtaFront, 
+  getSafeKtaBack 
+} from '../assets/ktaTemplates';
 
 export interface KTACardProps {
   application?: Partial<KTAApplication> | any;
@@ -32,8 +40,8 @@ function truncateText(str: string | undefined | null, maxLen: number): string {
   return str.substring(0, maxLen - 1) + '…';
 }
 
-export const DEFAULT_KTA_TEMPLATE_FRONT = 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
-export const DEFAULT_KTA_TEMPLATE_BACK = 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+export const DEFAULT_KTA_TEMPLATE_FRONT = DEFAULT_LOCAL_KTA_FRONT;
+export const DEFAULT_KTA_TEMPLATE_BACK = DEFAULT_LOCAL_KTA_BACK;
 
 export const KTACard: React.FC<KTACardProps> = ({
   application,
@@ -47,8 +55,8 @@ export const KTACard: React.FC<KTACardProps> = ({
   const app = application || member || defaultSampleApp;
   const settings: Partial<SystemSettings> = rawSettings || {};
   
-  const ktaFrontBg = settings.ktaTemplateFront || DEFAULT_KTA_TEMPLATE_FRONT;
-  const ktaBackBg = settings.ktaTemplateBack || DEFAULT_KTA_TEMPLATE_BACK;
+  const ktaFrontBg = getSafeKtaFront(settings.ktaTemplateFront || (settings as any).ktaFrontBg);
+  const ktaBackBg = getSafeKtaBack(settings.ktaTemplateBack || (settings as any).ktaBackBg);
 
   // Photo resolution
   const photoUrl = photoOverride || app.photo || app.foto || '';
@@ -69,16 +77,14 @@ export const KTACard: React.FC<KTACardProps> = ({
         {/* Master Template Background Image (Full Bleed) */}
         {ktaFrontBg && (
           <img 
-            src={getCorsSafeUrl(ktaFrontBg)} 
+            src={ktaFrontBg.startsWith('http') ? getCorsSafeUrl(ktaFrontBg) : ktaFrontBg} 
             alt="" 
             className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" 
-            crossOrigin="anonymous" 
+            crossOrigin={ktaFrontBg.startsWith('http') ? "anonymous" : undefined}
             onError={(e) => {
               const img = e.currentTarget;
-              if (img.getAttribute('crossOrigin') === 'anonymous') {
-                img.removeAttribute('crossOrigin');
-                img.src = ktaFrontBg;
-              }
+              img.removeAttribute('crossOrigin');
+              img.src = LOCAL_KTA_FRONT_BASE64;
             }}
           />
         )}
@@ -200,16 +206,14 @@ export const KTACard: React.FC<KTACardProps> = ({
       {/* Master Template Background Image (Belakang) - Full Bleed */}
       {ktaBackBg ? (
         <img 
-          src={getCorsSafeUrl(ktaBackBg)} 
+          src={ktaBackBg.startsWith('http') ? getCorsSafeUrl(ktaBackBg) : ktaBackBg} 
           alt="" 
           className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" 
-          crossOrigin="anonymous" 
+          crossOrigin={ktaBackBg.startsWith('http') ? "anonymous" : undefined}
           onError={(e) => {
             const img = e.currentTarget;
-            if (img.getAttribute('crossOrigin') === 'anonymous') {
-              img.removeAttribute('crossOrigin');
-              img.src = ktaBackBg;
-            }
+            img.removeAttribute('crossOrigin');
+            img.src = LOCAL_KTA_BACK_BASE64;
           }}
         />
       ) : (

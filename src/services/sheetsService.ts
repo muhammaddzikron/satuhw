@@ -7,6 +7,7 @@ import { getMasterMembersList } from './masterMembersService';
 import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl, normalizeDateForInput } from '../lib/utils';
+import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, DEFAULT_JM1_SOLO_ACTIVITY, migrateParticipantToJayaMelati1Solo } from '../utils/trainingUtils';
 import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { 
@@ -2282,19 +2283,8 @@ export const sheetsService = {
 
     const fsSettings = await firestoreService.getSettings();
 
-    const cleanKtaFront = (url?: string) => {
-      if (!url || typeof url !== 'string' || url.includes('1OsI7x7zw') || url.includes('design_card-depan.jpg')) {
-        return 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
-      }
-      return url.trim();
-    };
-
-    const cleanKtaBack = (url?: string) => {
-      if (!url || typeof url !== 'string' || url.includes('1yeEeoE') || url.includes('hwjateng.com/wp-content/uploads/2026/07/belakang.png') || url.includes('design_card-belakang.jpg')) {
-        return 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
-      }
-      return url.trim();
-    };
+    const cleanKtaFront = (url?: string) => getSafeKtaFront(url);
+    const cleanKtaBack = (url?: string) => getSafeKtaBack(url);
 
     if (!IS_API_VALID) {
       const parsed = fsSettings || localParsed || { 
@@ -2302,8 +2292,8 @@ export const sheetsService = {
         orgName: 'HW Org', 
         waConfirmation: '628',
         lastBackup: '-',
-        ktaTemplateFront: DEFAULT_KTA_TEMPLATE_FRONT,
-        ktaTemplateBack: DEFAULT_KTA_TEMPLATE_BACK,
+        ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+        ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -2385,8 +2375,8 @@ export const sheetsService = {
         appName: 'HW App', 
         orgName: 'HW Org', 
         lastBackup: '-',
-        ktaTemplateFront: DEFAULT_KTA_TEMPLATE_FRONT,
-        ktaTemplateBack: DEFAULT_KTA_TEMPLATE_BACK,
+        ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+        ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',

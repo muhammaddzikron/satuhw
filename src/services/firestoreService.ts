@@ -28,6 +28,7 @@ import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFir
 import { normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { normalizeDateForInput } from '../lib/utils';
+import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 
 // Helper to prevent Firestore SDK calls from hanging the application UI when offline or rate-limited
 const withTimeout = <T>(promise: Promise<T>, ms: number = 12000): Promise<T> => {
@@ -3115,19 +3116,8 @@ export const firestoreService = {
       clearFirestoreCache('settings');
     }
     return cachedFirestoreFetch('settings', async () => {
-      const cleanKtaFront = (url?: string) => {
-        if (!url || typeof url !== 'string' || url.includes('1OsI7x7zw') || url.includes('design_card-depan.jpg')) {
-          return 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
-        }
-        return url.trim();
-      };
-
-      const cleanKtaBack = (url?: string) => {
-        if (!url || typeof url !== 'string' || url.includes('1yeEeoE') || url.includes('hwjateng.com/wp-content/uploads/2026/07/belakang.png') || url.includes('design_card-belakang.jpg')) {
-          return 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
-        }
-        return url.trim();
-      };
+      const cleanKtaFront = (url?: string) => getSafeKtaFront(url);
+      const cleanKtaBack = (url?: string) => getSafeKtaBack(url);
 
       if (!this.getIsQuotaExceeded()) {
         try {
@@ -3172,10 +3162,10 @@ export const firestoreService = {
       return {
         ktaPrefix: '11.',
         ktaCounter: 100,
-        ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-        ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
-        ktaFrontBg: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-        ktaBackBg: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+        ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+        ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
+        ktaFrontBg: DEFAULT_LOCAL_KTA_FRONT,
+        ktaBackBg: DEFAULT_LOCAL_KTA_BACK,
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',

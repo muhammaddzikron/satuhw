@@ -249,6 +249,7 @@ import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode } from '../utils/ktaUtils';
 import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
+import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
 import { TestSubmissionViewerModal } from '../components/training/TestSubmissionViewerModal';
 export { KWARDA_QABILAH_JATENG };
@@ -417,8 +418,8 @@ export default function AdminDashboard() {
     waConfirmation: '628',
     gSheetApiUrl: typeof window !== 'undefined' ? (localStorage.getItem('VITE_GSHEET_API_URL') || import.meta.env.VITE_GSHEET_API_URL || '') : '',
     lastBackup: '-',
-    ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-    ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+    ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+    ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
     ktaKetuaNama: 'TAUFIQ',
     ktaKetuaNbm: 'NBM 1015096',
     ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -677,8 +678,8 @@ export default function AdminDashboard() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
   
-  const ktaFrontBg = settings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
-  const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+  const ktaFrontBg = getSafeKtaFront(settings.ktaTemplateFront);
+  const ktaBackBg = getSafeKtaBack(settings.ktaTemplateBack);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
@@ -6613,8 +6614,8 @@ export default function AdminDashboard() {
                           if (confirm('Yakin ingin mereset kedua template ke Master Template Default HW Jateng?')) {
                             setSettings((prev: any) => ({
                               ...prev,
-                              ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-                              ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg'
+                              ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+                              ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK
                             }));
                           }
                         }}
@@ -6705,7 +6706,7 @@ export default function AdminDashboard() {
                               onClick={() => {
                                 setSettings((prev: any) => ({
                                   ...prev,
-                                  ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png'
+                                  ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT
                                 }));
                               }}
                               className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl text-[10px] font-bold uppercase transition-all shrink-0 cursor-pointer"
@@ -6783,7 +6784,7 @@ export default function AdminDashboard() {
                               onClick={() => {
                                 setSettings((prev: any) => ({
                                   ...prev,
-                                  ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg'
+                                  ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK
                                 }));
                               }}
                               className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl text-[10px] font-bold uppercase transition-all shrink-0 cursor-pointer"

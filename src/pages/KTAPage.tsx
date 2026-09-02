@@ -37,6 +37,7 @@ import LoadingPage from './LoadingPage';
 import { jsPDF } from 'jspdf';
 import { KTACard } from '../components/KTACard';
 import { CopyAccountButton } from '../components/CopyAccountButton';
+import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 
 const TINGKATAN_LIST = [
   'Tunas Athfal', 
@@ -163,8 +164,8 @@ export default function KTAPage() {
   const [flipped, setFlipped] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [settings, setSettings] = useState<any>({
-    ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
-    ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+    ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+    ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
     ktaKetuaNama: 'TAUFIQ',
     ktaKetuaNbm: 'NBM 1015096',
     ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -174,8 +175,8 @@ export default function KTAPage() {
     ktaTandaTanganSekretaris: '',
     ktaStempelImage: ''
   });
-  const ktaFrontBg = settings.ktaTemplateFront || 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U';
-  const ktaBackBg = settings.ktaTemplateBack || 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1';
+  const ktaFrontBg = getSafeKtaFront(settings.ktaTemplateFront || settings.ktaFrontBg);
+  const ktaBackBg = getSafeKtaBack(settings.ktaTemplateBack || settings.ktaBackBg);
   
   // Photo preview
   const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photo || initialApp?.photo || null);
