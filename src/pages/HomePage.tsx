@@ -1038,9 +1038,6 @@ export default function HomePage() {
           </div>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          {isAuthenticated && (
-            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
-          )}
           <MenuCard to="/materi" icon={BookOpen} label="Materi HW" color="bg-hw-green" />
           <MenuCard onClick={() => setShowTrainingModal(true)} icon={GraduationCap} label="Pelatihan" color="bg-orange-500" />
           <MenuCard to={isAuthenticated ? "/kta" : "/register"} icon={CreditCard} label="KTA Digital" color="bg-purple-600" />
@@ -1061,7 +1058,7 @@ export default function HomePage() {
           </div>
           
           <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
-            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda/PTMA" color="bg-emerald-600" />
+            <MenuCard to="/kwarda-ptma" icon={Building2} label="Kwarda / PTMA" color="bg-emerald-600" />
             <MenuCard to="/materi" state={{ filter: 'umum' }} icon={BookOpen} label="Umum" color="bg-hw-green" />
             <MenuCard to="/materi" state={{ filter: 'sugli' }} icon={Shield} label="Sugli" color="bg-orange-500" />
             <MenuCard to="/materi" state={{ filter: 'kwarda' }} icon={MapPin} label="Kwarda" color="bg-blue-500" />
