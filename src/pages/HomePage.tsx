@@ -491,7 +491,7 @@ export default function HomePage() {
         map.set(act.id, act);
       }
     });
-    return Array.from(map.values()).filter(isOnlyTrainingActivity);
+    return Array.from(map.values()).filter(act => isOnlyTrainingActivity(act) && String(act.status || '').trim().toLowerCase() !== 'tutup' && String(act.status || '').trim().toLowerCase() !== 'selesai');
   }, [trainingActivities, activitiesList]);
 
   useEffect(() => {
@@ -1233,8 +1233,8 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Real-time Agenda & Kegiatan Terbaru Cards on Beranda */}
-        {activitiesList && activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a)).length > 0 && (
+        {/* Real-time Agenda & Kegiatan Terbaru Cards on Beranda (Hanya Kegiatan dengan Status Buka) */}
+        {activitiesList && activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a) && String(a.status || 'Buka').trim().toLowerCase() !== 'tutup' && String(a.status || 'Buka').trim().toLowerCase() !== 'selesai').length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -1247,7 +1247,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2.5">
-              {sortActivitiesNewestFirst(activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a))).slice(0, 2).map((act: any, idx: number) => {
+              {sortActivitiesNewestFirst(activitiesList.filter(a => a.isPublished !== false && !isOnlyTrainingActivity(a) && String(a.status || 'Buka').trim().toLowerCase() !== 'tutup' && String(a.status || 'Buka').trim().toLowerCase() !== 'selesai')).slice(0, 2).map((act: any, idx: number) => {
                 const title = act.namaKegiatan || act.title || `Kegiatan HW ${idx + 1}`;
                 const loc = act.lokasi || act.location || 'Jawa Tengah';
                 const date = act.tanggal || act.startDate || 'Segera';

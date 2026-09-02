@@ -9249,29 +9249,1159 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 onClick={() => handleDeleteActivity(act.id, act.namaKegiatan || act.title || act.jenisPelatihan)}
-                                className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 roundxúÏ]€r9zæüß@îîEÌòî([∂G#…€ñd[£√h$zú‘÷÷»Ü»6˚4}∞§’™*πO•*UπLUû"œìH!?ÄÓfÄn4O"-± Ÿ çˇ√¯ ¸MÙÊçâr4o|tÂÿA≥Îò:∫2…2b˘Õ±‚°>võm‘=ﬂÒöÆc–É+ﬂ°“œ^≈yÑv:ˆõ»7˛JvÔ⁄/Ô—˙˙à›–Ø∏ugΩÅcóW±≥Æ_À.©∏†ÙÙ⁄⁄ΩåÙ&¡ı¬k·∫‹ëªı?†ÀOÔPG{á6∑—˘·Â·EGCù√ãÌ}Gª@Î(˙ÚQ;8∫@XœWuá{ÅÒ’n/√nw—ÓÓ.ZuâOº Ø¢gœP£ÿ6hÍôÿ˜œ∞EvW|˜HÛ∂˘rEÙp¥âÔìBÂ:ºq/@‘ÈÿËˆPΩMÛ]ﬂulﬂ¯J m:u∫ÜIû#„Îœ—	v«}éŒ˜O jÉ)˝ØŸsLdÈ€ÏªÁ\GÿıèΩ=ìÛó–å´€fó◊Ñÿ‹/P∑ﬂÏ{¯∂πµÅ‹ÊK‰9°≠Ωπ	#§Îx:‹«ˇ´⁄¬é®j•oçZ	ﬂÉlì_⁄Fña7Øõ≤J†àùÆ';åM‹Úë=‘
-]óx=Ïxp÷∞˚ÕkÉ>ó?{HÎ:7LcÄéIﬂ¿∂∑w÷i%ÚìÙÈ˘äÕÜ5øäËZ¡˜éwéΩ¿ËPv‡£ø˝≠˙ƒ
-Ò™x@—ècÔ∞›á“dÌÓ!üóÂÂ6H+¿^ü-÷…h•üTÆ ëƒ7°cP &‹¿åá˙s‘Ôo‡&'L√&M€±	∫n^¡H†¢øn‚0p‡Æ^Ëo{TõÈÉk(–πæπ!S¥%öÀqŸÿ„"Xa›ª≤wIˇ$“EçD+hÆk=LoÒO?hôƒÓÉ{tŒUƒ⁄Œ:/P^c\ñAx	vòJ™®YäÕí€›;‹2Ù˚4Ï«¸±±Ö„ﬂW7C¶ï©ÆÂ@îZÆâÖÁ®nãT⁄≥D©1Û„KUQ	Ù=CGÙ?™|êt§äVv35eè¬ç_ŸhqwÔ`ÃË&•8πtLÁıFzà(	hoìjﬁÊ‰WõÄ÷F∂∫0V®¶8_â∑ùzáÿê‡c+5àT\èX[ß=®–`›π¶7É6ìB≈“ƒ0¥…∂ﬂ√&i˛∞•Ï¥F`¬Û´ãMcD–¡0a`ËO—>›Û%¥L<@Ø_°»Ü"è¯ñ7ÿh@›db√∂oÒ#˜¬	p@ˆ{◊±W¥EΩ"˘ıLCˇﬂ˛˚ø†Ûî7mw4jyk– —0.’ÁNUMÿÌõ{Áét ó=@‡¥Á9>a‡J∆éº^&∏1o∏c«wÏ>ï®©–»6 Dàv`ìˆ`5.’!ˆàçQ.∂ ô&˙ÿ∆pˇ⁄òÀ∫·jÄ˚è˚ﬂˇ˛◊T≥ìÜŒ	dçÿ8Ú5]O©µSG«Êœ.±Åßj˜’1õÂÊàE<lÍÀªhf–`ÎËîÿ:æO)—‡ØáË€!6«Ä“'(‰‹H◊ ”˜≈VÃ	DÑôıÿÉL€∆ésx”#¶z
- â!ë—MKâì»Ô9‡¬˘àu√o±æAç˝À_«Q7(íK◊#X˜Ñu†µá’ø 9?x?Bæ”%¡Ù…òòË¿3é®p(H	yL@#Çï±2∫\ç∑H¢ÃXæ/$√è è+ƒ70tÃN"LIt@õ÷nEÃ
-⁄«ûé~5»5j¸j¯FA‚[T˙~è⁄1M9ÜÈöNoH…î®)p⁄–IÛ6˛R¡ã@€\‹7lúäŸ!ÙY®ÿ¿Æ˚–7ÃÆﬂ…Gtz¿pDØFª®Åì±Ÿ'®â⁄H(}Ï ÖæÁ•ˇ(-ÿ#AËŸÂÒ*Ì¨∫.D®îª`•ﬁg{Û%äŸ≤Õ— èxòı7ÈqæÜ„…Ñ)ìDjË˚0ˆ!£µYQ®ú‚€hmUﬁ+#†˛‘ﬁpo˛\ °“∆O C1Ä≠Ï˝˝›H∫ﬂ£ˆ=˙ü˛/ƒz<M0ﬁ(˘ÒÒÛÍ}πH5|≤–lﬂÛf?P8'uüÍÎ∫P”‡eeÁVëœï}8j≈KË5÷<À±ùj~`Ùa-á˛È˜±ÈÈ∑»up £∞Q8π÷
-úáöz˛2†DTc’–õG´kh≠6K8∫¯±´ÖPF∂$◊T(ú+âÕ¢Ä≥ÈŒ@ë®ÕV66‡·=À˝ΩÃ`=˜'€=ª?!l êu3√_L4F@Y0:ËÏcÛ¯¨ f„•IGâ´ÄÜçêµ1.Íw&ŒØâß™⁄] wZ+$?Ü¨rµ'(â˚¢¶)ÄpÆ»¯	w©*õ$æ¢ÎAÄﬁ85–w<„ÑgvJ πèˇùPÍ:"∞¯∂BK2≥§–ÜÕsÓq§:3Fmmd1Dôvp≥€‹ÕñxWñŒÖ W{òıQ÷◊äK†ø(Z?iU·é=Ø¢åUA¨pI-e⁄t≥$æàΩåX˘éØwÛr9†S∆ÿ˘Ëé–¨“ô%.T6\RÒ|*B«—'«VqbîrSá∫!
-)wEuo•‰È'`nr‰∑sÉ§¿?¥7#'+fødp‰dir©;7ùU*Î@$ÁƒÓf=∂ŸJ⁄…’¬TZJ¿ÆúLÏƒ$Ω¡Éâ	EŒ¯É≠<°ê;°§ífW,∫ò≥Lu[y¡à∫ú’UÍÿ¨…Ç–˚Ú5%“ÄˇÄ¯√¿qQ”ü≈˚™A}ÀCTœçm¬7‹∞Èi˘d¿ÍJïÕl3Ãò‰*±‡Øõÿ‹-x*Q≥;¡Ä`Ω¥/«ßƒ+7¢:ªySÑ$¡i
-’Ô,ãÒ™<‰„◊læB◊Õv°Å±≤wÊÏ¨É∫•≠Ï≈‹|ÔéWJ>ˆßåƒKÁÊcJî°g˙¨çSF∂;/è2~9û—»ıöØVˆ:8p√Í'ÉÛ^Ÿí±
-Ó]GøM∑FH£≈ﬁmÃ¯˙ƒ2rﬁ–Î
-´Çm€Fÿæç(∑mdát¶æÇz£üô—oÙ£@¡Ò>Ù™Y∏inº2]8∏S@î≈xJaDéÏR∞cA©nîµZ©1j^Ú≈¯(_⁄uÛ4Ä©içäÄNÓãÊyÒ Ÿêî“ØA†Òö;p'Ê#ÆË˜∑J¡m‘Ü’Gæ◊€óuè∞ÏÆ¨ÍÄˇq∫_HG|•ln$˚°¥ùz+9¶3n"=ƒ‚≠Û’µVoÄ=-hlP∂µü˚`?k™RqsÈ”ËRÂ+ áô»%NÕøoá˝"\Ïñ»>w∞ÌbEcóN–.8nV◊ ˛vˆÓt˝C|‰˛7*v˙ÉX¬"*Ø’iìÚ•äŒWoM∆ê*>˘¥XRÒèÀî*>â¬†\ ˘ËLUyÕë“\ZRsZSùÿ\Pƒ’fg™˘≤±Œ84zö"äÅ3
-“K£·‹ÃÏònZ"›g¡Î€Ò¯r∞ ÈFﬁøä3&…!+N≈ìé˝SbÎ5∏gV∂2I?≥Â†È'”]mæ¿)ébÙsåv¡hî:#ùl∆(Dsµ)G˛âó3Aw–yqØATª_Ÿ√À2‘/J◊7enT&®Ÿ’ìcc*D5˝(·"Ê≠•†®fÆgÖæ6{6h»Ÿ≥A√ÌS9ÎE?RRõ~dƒvT4•ƒ‰ã˜”<ﬁ∂ùsNÅ—;2B¸.plj)æ G{®]ÊÁ©Îˆx¶îZŸ,ijT¨oïYLaê Ÿw∂Ua{?bÇT{¥1î>¯=“±gàz§LzÂ[h’¶]K€™¢“ä€“Ìo∏Ù‡)-ﬂ4⁄œëÀà 
-M¶>ÖûæõÈ%∂y∂Ç®ÀhæÕ·%÷\…í–øõ¥`€qqÍoæLãtõÌt5ØsMÙ¬b√˙ØÇAﬂêØûcü–âùHiΩ™PZ*™J‰≤æ‡kº´∏oîˆz=T´8ï”Ö•a7ä§8˝~"ú÷{Ëo∏Ã}ürK’^…I°$%◊À≤î^ìÕ@m‡ÒgÌ‚@Cœ–/⁄ª£Ì#:Ôúj,ó@÷$rê$=¿êëbM7∞D)
-KÜË¢gk€ÑG;ú^£å√eÆÎEè0:g9‘z∑RóÏ¨k∂a·Äú{‡ôŸ=íÿ˙¥ª”˙§záñ´ùú†”ü¥ìÀºòÍ~≤ÂN∑Ω©Ç€-‘9ºÏ–ƒßGóóG?ü°_è?^«H7„´AÆ!÷ßõ˜4◊Õ záÌﬁªñ·˚ ∫∂Äx,DLIÃi<π{G7‹•!E’xÔ)ı˜k¶™Üöf—x¥}7◊ÆÙeøápåÓVﬂΩ”<–-√gPE ∑¯o[6|˝%æî—±Ò˘‚Èhœ;¯~Ëm…uhæ◊>ùt˛≤µÒó_>ACﬂ^f˚ì´@µÙ√4BvLáÉÇiV®Ø’DgiÆGæä&c˘ÙkT⁄EÙ∫—^{∫kûﬁQ]Ù»€‘oh>.∏Í>æ"óÅ„—…Z4V„á˛KJ˛ÍsVªc¥¨Tkì+‚G\+TMÏFÁ≥gÔsWQíÍπÙ•˜£>OT Zfl∂–áÌ‡ËÏCÙÜˇ¡cs<…~QéûT"ıxπÒêwhçÑaC´õËØlJü”iÎØ‡;¸’=«Ö#°«ºô™y <Å©¥yº⁄Ê5ÂÑ£9CP√ÒN!y˛ídìJû1≠ﬂHó›∏]¡l±x¬Nu?âî§,LîdY'JÜÊYt⁄YBGÚΩ„Y˘≥=ÿté 34È<ã¿Lã=≈ù¡ã¬”ti≥eM(Oë–ù É…L£Ï\jg ãBwã¸à»{ÓßŒå∆6}≤ñ€‰‘N2Ÿ9 {ìxÑ9áN–_ˇªgoÓôÿ%≈ˇ≤]M 84qóò™Å6√ﬂ◊•“;cªˆµ·¿PcÉéÅµùuV¢†&√vC—
-’‡÷Öj˘öëÎ—¬Óä0-(Ç›∫ÙZp.J≠Õ÷…≠Y‰ãä2Ì|HÓPI™„≤… zâxª+tk§3ÿFo∂D-*.vp„≤Ÿ}eâx
-“)÷$@ìà7ö¯µë˙êÉAöM)%∑êZ^fmnVëÊºD$‹ÄõÕbtB{peè˝)À$∫Ω#ûã=Då‘(äœGÌH˝ê!À:4? Ó„ÄMñØ£C˙ÿ7‚î6r(““∞G∞†G<ÁúÓ"®D8ıàÖΩa-t^ån©≠aN±ií^Ù†nlµ[≠÷|îéEt#¥‘’é‡–ò˛W<w∏I7@æPﬂà#„ÆÍxÖõ≥,ﬁKû-Ó’v:◊¡h¬&€“t#∑Øú*¬˘¿¬,HBÃTvü"ªƒ_	≥äö≠sVu«V“ÈIŒ¬ÏËä	 rû∞t7SÌŒ⁄°èñM»yiX.À*ç´:ûôÙ@Êg6j{—B⁄¡:◊.:G˚GÁ⁄YGΩIí˛Ã?Z-EΩ-nô®Ω¡óÒ¢7d›6ﬂÃ;Ñ´‹H≤›âÅ|°7˜Ö∫Raûp1lîﬂ(^óô$q+`W.ïDF≤LSK 1…p+RÇ¢®d íá/¸d—*
-ÊDÚΩJ´‹mZ-53wø%≥E©ò^h=≤ùK Í‰¨wT/zãVs∫z§ñWi*Ñ¥aÀ¨]XΩˇ-ﬂË¢,y¢U6›™Ÿ˝æ‰}≠∫j}n±§_ÛÔÛ®ﬁY˜9Û/£Ãf”gò4ˇÙj„Î‡œyõ@◊ç'π@(ŒÀ,U&å âœ"XFàî∆%ÃEDZìx“.„ºì¿"FnÅì¢≥wßÛ⁄%ﬁ{fd˚Óí`Ø7¯%$ﬁ≠xÇSvh≤"‘rœ*ê†"Ÿ=ªpŒ2H√óV∑•fBß;ãPÇJ∂ı∂u≈ÚÅ7€j¶î÷Èw¥ã§Çe…iÆ„Ì&ÚÂFº( °ª”¨¸∆k¥mcu≠fô]+*“±Ô∏£ÒÚÜ>c\]T<\UØÙhzÑ6πeÿ=3‘âﬂ¯}çñÖ•…wÀ§‡É‚'ççÁ®Ω%ΩÜÌ	LâIæ¿ù¢MzÒ]yÕ›\rQŒïÔ7SŒÄü2ÈZ]È‚3A!îﬁOÊÿÂ-Ä˛iµËµœ+.£∞⁄F•x´,¢k±î‡UU€˙CãÌ™nÄÛô?C¥Ãù~˚¨ÿxÌ]ú‡Å·—"R?ÔÁ©®F§~´ïBTˇ|}À∞i	Èﬂ¨Ñì "Ëv†»Äê›ƒÛ≥jä6„–¢¢Ø¸æ“€ÓãÛßô”ec+„®1kîò 0ÁØ	WnÿÊΩ∫¸dç≈g°”ﬁ];Ÿ»TL·"s˜2Óä¿≈}JÛTÁsêÌ>ZŸªìgïΩ {˙x5ô1ÚhÏV◊VyÅ≤òû=ck¶Ë6ŸÑ™àæ«\*^÷Vk1¢;◊M≥∆îäÏqm∫T)üLN¥´y6Œ6›ä"HÕ∆…˙»‘ËqéÈ!3´y≈M&5äWœ#õóuó©´·1èÂ/+ƒÈ^VÙ¶eÿõ
- ÷°ô0`ÿ#˜sB◊ö&®„≤ò0xw∫à“?§z}ô3√PWË‹öLOÏëãπêÇgm˚#π¡ñkíVœL–=<h"ú|Õùø% «~öÄEâÑç7ÌM	ùÙ–Úˇâÿ_†´Ge((yﬂñ\Ãn\≤6ƒˆÅa√¿ò¢ÿE≈? ÷ñ»‚É‹Íéü‡Aï	æ≈Ëî=j£?\Ò
-,QQõŸ¢6£¢6ÎÂçZuémùΩúC7º®q^U„‰/æö+“?@º»Ú*T≠>ôËq=”«x\Úí¬ª⁄ÿGZ0∏¬Ê ^˙W-<ûÉGMlZD¸≠ˆÌËO~;˝V˜ˆ–Bõ›ŒæM˙ø<ßÓ$_ÂÑu…Dﬂ∑∑ÜG±˜¯
-ül«;j¥ÁŒŸˆ∂_§ÍÆ≈X4z!ÃVï<?•¸Nâ}À÷Å*e§^≤öàø|6ﬂGS_MÙ≤Öé:®s°ù—ù ⁄˘˘…—æFwÌà÷—4ÒÍ˙Ã™"'Ë¶îá‹Ræ÷ËänZpl.éÙRµÙ3eÿºíÂHfˇi9/;õ∏cå≈HÖÃ"c≠G ®/°≤Bwπ◊&M≤ºb&€;(©òº£nº}≤`=rmãz&ô@îúJÕN¨
-3&âºﬁ√BY6#ööæKf>Ö</?UÆÍœ«%Æ±·£Ú%3súxw:SHüx2Y=\™	ú≈!ÜöÎô◊'s2â?39/˝ß*ËÂP
-¸5¿â^Æ;>p‰˚	ÀvñÔ), #yı3z˚vÜ‡K◊¥( Ãs–MI>∏V æfz© ñ~π¯åñÆÍ[Öÿ2Óä¿Ç'M ÊøË˜˘∆π˙À˛F˜’âaö&ÓÊ«ﬁê+8¥¥‹o)ô_üÒb≈æ[Rvö5Ω∞ãE‰í"µJyD%nu+‚Vµ˝Œ—ØGù™⁄≥Yñq8G≥
-.{ËD<RzU–VUñuiRˆ,>¡öG÷‘©’2‰~#,Î7∆°
-$ñÁReóL¬©äRg?JnuÍ»Q`–fú¯Õ≥Ü‘3â/îúÛ/*ú∑®ìï\ì{o–åA¡ZÙ»QëºzrﬁpHøoh∆ré™ZdI-uà¨‚÷=EÀí'_˙hyÊ1Ú´÷hÈ—≈·Oá˚¬»8Êi.}À„f3z‹≥™ÅfÚZ’@sG3!‚ÿ7ºûI ¬®éc‚!Õv≈_A5Z±úK1†Ω…Lû∑Ò‘[¥QR€'Oÿ'M◊YΩ ÉªÇ}G∞rZdﬂ:Ç;´ÛfàS˜a˛òn¸ò®Kº!ˆÖ{6ÊïæØ*K˝ÿÜnsrC'2eÚ(-Xn-/Ôíd§≤Ic*Ê’F˛eUØ«3fu;‚ÿ±Øœ¢	;ôJ◊R©.î}›¢€PKl‘ìmZ€‘«_B–ì ∞oœ&yµm—,l–ìÒ©a|ûåéƒË¿ ]{√uK^£Ã¿–ºâf©µëLX4)áóm€¿¨Õ‘RÏ∏XŸãfÈR∂kÚ9π4P~ÆL>0WïÅf*|*≤˘Y∑‘—I&⁄x1çÜ[ SøôYµ‹¡ôL™Ehh6öí”ÑC&•]©<XSDRß QùKFªg-Î.R‹è ]\ñΩÓ”œâ8ˇ°≈^X(sÈ;‚ÚnbÙ¬¿I›ƒ◊sÊ'∆ﬁjª¯>ﬂ1ˆÇu¿%∆qZi‘ âÆ’Õºü˜R;{L0¸h!Ë©}ÏÈÖvÒÃÀªw¢Ãµ`Ì2„@î£4„eÆN<µ‚—ËayâÕﬁñ±Ûπ”v˛6?~nn¿GòSï⁄ˆ!üœñíú(V–èŒ–
-‚d#¬“GK9Ú≈gÛΩœ•Ä¸ÑØ1Í–Ëf ¨$Iõ-%ùññvmòË„gTUö;p'_;XlËUtTêv∂êK∂äxRèÚ€-tzx˙.y·lC”ıuFä`-´–ü^·≤⁄ºÄüÿ≠ÁidiæèQÆÉH ,ÈGÙ:ñÿº√^(»¸Qœ",è)(´Rj⁄E ~0[⁄Ä∫á>ô∑ö*ÅÔ£{9jüb˛ŸG+$(Õ<ö°4€h·’ 0˙–q˘24â‘ümB…I˘ñ«&ΩdÕ:»Ô„˘Ãı¶ÛqbÖπ‡+–sg ¥8’„¯˚íyÙKÚQ÷êIøfÚ…ÖŸ]'ú¨N59Q¢…â“LNñd23[,HÔçÚúNa+ÚlPÆAãx;k≠4
-ñ'ÈX}94‘b≠ëWä§/xµ/g5}ÁÉØ}W¶Ä⁄-t™u/éD˛)Ü÷èy9·2<LX	¡˝L∆ßIû¬πââû,PûÓ)ìÒ|óy¸Í°	dFﬁbÖ«∆∫ıÖ÷®j‚O3˜Ê=+i±º›áãGé°ß˙Nô´‚ëúúÜQÅSU\ÿbIK¡W≠–ZŸ˚ˇ◊p«Mƒ‘^1›WD<xrbÿCt‡‡•¨”¸QCÏœG[È¥ŒOﬁtV\òÍ(»,CÅÎoØØ≥BZ}«ÈÛw≠Kﬁ[≥ AMÊ–b≈4bß·—G6¨[6≤oΩQ‰∆Ã<fŸl°„√GZG;mîd∂0Ò∆ÒÖ	a*T=˙¨T%Nú6*âq¥>›ú§ì ÃcÁN’âp™◊µpıÒ‘õ°éÂ2#'bˇ>=U◊©ÍJÁ
-ÃY«ó,ñ[˝pA–âé·¨‚ÿÇPMV€îƒ…[∆z6‚Î◊πè+?Ã˘Eoèüí £“ñEÇÂûèÒ÷2ô|TÓ˚”Å¬9_˝EÌˇ|÷9gõ›áG!ˆ£NX∞D˛w$≠ƒ˝>fø”^7?2ù≈£yl<πÿ5'÷Qá}‘ûë;÷„ÚI¨˘ïALΩ≠jÃ˜≥wÁl9/Î…´é¶`≥çëL7Á)”Õ) tÛ…=õ{*Sèè ˇ–ßQø,#:s‚ÙeióóGŒPGª<.:d˛¿π÷|ﬂË€Ï¥®GÜŸ°—É''Ì·ù¥Nÿ%ú;íQæˆ:~÷eQ‰ÀÂhπ"´:jÕ’ìŒ‚îØàwﬂ6⁄ÒÈFZ∆√Ãz˛.7¢;Î¥Ñ|{›≈5!%í_“	É–ùù⁄LÆ˝¯›˝èﬂ}˜ˇ   ˇˇ 43˘…
+                                className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUB TAB 2: PESERTA TERDAFTAR / DAFTAR HADIR */}
+              {activitySubTab === 'peserta' && (
+                <div className="space-y-4">
+                  {/* Filter & Export Action Bar - Fully Responsive for Mobile, iPad, Laptop, PC */}
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
+                      <span className="text-xs font-black text-gray-500 uppercase tracking-wider shrink-0">Pilih Kegiatan:</span>
+                      <select
+                        value={selectedActivityForParticipants || 'semua'}
+                        onChange={(e) => setSelectedActivityForParticipants(e.target.value)}
+                        className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none w-full sm:w-auto focus:ring-2 focus:ring-hw-green/20"
+                      >
+                        <option value="semua">Semua Kegiatan ({activityApplicationsList.length} Peserta)</option>
+                        {activitiesList.map(a => (
+                          <option key={a.id} value={a.id}>{a.namaKegiatan}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Export & Action Buttons */}
+                    <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={handleRestoreSolo70Participants}
+                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Kembalikan data Pelatihan di Solo sejumlah 76 peserta resmi dan hapus lainnya"
+                      >
+                        <RotateCcw size={15} />
+                        <span>üîÑ Pulihkan Peserta Solo (76 Peserta)</span>
+                      </button>
+                      <button
+                        onClick={handleClearPostTestScores}
+                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Hapus / Kosongkan seluruh nilai Post-Test peserta Solo (karena belum dilaksanakan)"
+                      >
+                        <Trash2 size={15} />
+                        <span>üóëÔ∏è Kosongkan Post-Test</span>
+                      </button>
+                      <button
+                        onClick={() => setIsAddParticipantModalOpen(true)}
+                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Tambah / Mendaftar Peserta Baru Manual"
+                      >
+                        <UserPlus size={15} />
+                        <span>+ Mendaftar Peserta</span>
+                      </button>
+                      <button
+                        onClick={exportActivityParticipantsToExcel}
+                        className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Export Daftar Hadir ke Excel (CSV)"
+                      >
+                        <FileSpreadsheet size={15} />
+                        <span>Export Excel</span>
+                      </button>
+                      <button
+                        onClick={exportActivityParticipantsToPDF}
+                        className="px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="Export Daftar Hadir ke PDF"
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Responsive Container */}
+                  <div className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs">
+                    {/* 1. Mobile Card View (Visible on small screens) */}
+                    <div className="block md:hidden divide-y divide-gray-100">
+                      {paginatedActivityApps.map((app, index) => {
+                        const itemIndex = (activityPage - 1) * activityPageSize + index;
+                        return (
+                          <div key={app.id || index} className="p-4 space-y-2 hover:bg-gray-50/80 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">#{itemIndex + 1} ‚Ä¢ {app.namaKegiatan || 'Kegiatan HW'}</span>
+                                <h4 className="text-sm font-black text-gray-900">{app.namaLengkap}</h4>
+                              </div>
+                              <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                                {app.tanggalDaftar ? new Date(app.tanggalDaftar).toLocaleDateString('id-ID') : '-'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-gray-100">
+                              <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Unsur / Utusan</span>
+                                <p className="font-bold text-gray-800">{app.unsur || app.asalKwarda || '-'}</p>
+                                {(app.utusan || app.qabilahPtma) && (
+                                  <p className="text-[10px] text-emerald-700 font-bold">{app.utusan || app.qabilahPtma}</p>
+                                )}
+                              </div>
+
+                              <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Jabatan</span>
+                                <p className="font-bold text-gray-800">{app.jabatan || '-'}</p>
+                                {app.kategoriUndangan && app.kategoriUndangan !== 'Tidak Ada / Umum' && (
+                                  <span className="inline-block text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded-md font-extrabold border border-emerald-200 mt-0.5">
+                                    {app.kategoriUndangan}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-between text-xs border-t border-gray-100">
+                              <span className="font-mono font-bold text-gray-900">{app.noHp || '-'}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditActivityParticipantModal(app)}
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg border border-emerald-200 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Pencil size={11} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteActivityParticipant(app.id)}
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg border border-rose-200 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Trash2 size={11} /> Hapus
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[900px]">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                            <th className="p-4 pl-6 w-12 text-center">No</th>
+                            <th className="p-4">Peserta Kegiatan</th>
+                            <th className="p-4">Unsur / Utusan</th>
+                            <th className="p-4">Jabatan</th>
+                            <th className="p-4">Kontak / No WA</th>
+                            <th className="p-4 text-center">Status</th>
+                            <th className="p-4 text-right pr-6">Tindakan</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
+                          {paginatedActivityApps.map((app: any, index: number) => {
+                            const itemIndex = (activityPage - 1) * activityPageSize + index;
+                            return (
+                              <tr key={app.id || index} className="hover:bg-gray-50/80 transition-colors">
+                                <td className="p-4 pl-6 text-center font-bold text-gray-400">
+                                  {itemIndex + 1}
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 overflow-hidden flex items-center justify-center font-black shrink-0">
+                                      {app.photo || app.foto ? (
+                                        <img src={app.photo || app.foto} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        (app.namaLengkap || app.nama || 'P').charAt(0).toUpperCase()
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-gray-900 leading-snug">{app.namaLengkap || app.nama || 'Peserta Tanpa Nama'}</div>
+                                      <div className="text-[10px] text-gray-400 font-mono">{app.nbm ? `NBM: ${app.nbm}` : (app.email || '-')}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <div className="font-bold text-gray-800">{app.unsur || app.asalKwarda || '-'}</div>
+                                  {(app.utusan || app.qabilahPtma) && (
+                                    <div className="text-[10px] text-emerald-700 font-bold">{app.utusan || app.qabilahPtma}</div>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <div className="font-bold text-gray-800">{app.jabatan || '-'}</div>
+                                  {app.kategoriUndangan && app.kategoriUndangan !== 'Tidak Ada / Umum' && (
+                                    <span className="inline-block text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded-md font-extrabold border border-emerald-200 mt-0.5">
+                                      {app.kategoriUndangan}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <div className="font-mono font-bold text-gray-900">{app.noHp || '-'}</div>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    {app.status || 'Terdaftar'}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right pr-6">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleOpenEditActivityParticipantModal(app)}
+                                      className="p-1.5 bg-gray-50 hover:bg-emerald-50 text-gray-600 hover:text-emerald-800 rounded-lg border border-gray-200 transition-colors cursor-pointer"
+                                      title="Edit Data Peserta"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteActivityParticipant(app.id)}
+                                      className="p-1.5 bg-gray-50 hover:bg-rose-50 text-gray-600 hover:text-rose-700 rounded-lg border border-gray-200 transition-colors cursor-pointer"
+                                      title="Hapus Peserta"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {totalActivityPages > 1 && (
+                      <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
+                        <div className="text-xs font-bold text-gray-500">
+                          Halaman {activityPage} dari {totalActivityPages}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                            disabled={activityPage === 1}
+                            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span className="px-3 py-1 text-xs font-bold text-gray-700">
+                            {activityPage} / {totalActivityPages}
+                          </span>
+                          <button
+                            onClick={() => setActivityPage(p => Math.min(totalActivityPages, p + 1))}
+                            disabled={activityPage === totalActivityPages}
+                            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* KWARDA & QABILAH PTMA TAB */}
+          {activeTab === 'kwarda-ptma' && (
+            <div className="p-4 sm:p-6">
+              <KwardaPtmaPage />
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* ALL MODALS                                                                */}
+      {/* ========================================================================= */}
+
+      {/* 1. TEST SUBMISSION VIEWER MODAL */}
+      {viewingTestApp && (
+        <TestSubmissionViewerModal
+          isOpen={true}
+          onClose={() => setViewingTestApp(null)}
+          application={viewingTestApp}
+          questions={Array.isArray(settings?.trainingQuestions) && settings.trainingQuestions.length > 0 ? settings.trainingQuestions : DEFAULT_50_QUESTIONS}
+          onUpdateApplication={(updatedApp) => {
+            setTrainingApps(prev => {
+              const updated = prev.map(a => a.id === updatedApp.id ? updatedApp : a);
+              safeStorageSet('training_applications', consolidateTrainingApplications(updated));
+              return updated;
+            });
+            setViewingTestApp(updatedApp);
+          }}
+        />
+      )}
+
+      {/* 2. GRADING MODAL */}
+      {isGradingModalOpen && selectedTrainingApp && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  Form Penilaian & Kelulusan
+                </span>
+                <h3 className="text-base font-black text-gray-900 mt-1">{selectedTrainingApp.nama || selectedTrainingApp.namaLengkap}</h3>
+              </div>
+              <button onClick={() => setIsGradingModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nilai Akhir (0-100)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={gradeInput}
+                  onChange={(e) => setGradeInput(e.target.value)}
+                  placeholder="Contoh: 85"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Status Kelulusan</label>
+                <select
+                  value={graduationStatusInput}
+                  onChange={(e) => setGraduationStatusInput(e.target.value)}
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                >
+                  <option value="Lulus">Lulus</option>
+                  <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                  <option value="Tidak Lulus">Tidak Lulus</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Catatan / Evaluasi Pelatih</label>
+                <textarea
+                  rows={3}
+                  value={remarkInput}
+                  onChange={(e) => setRemarkInput(e.target.value)}
+                  placeholder="Masukkan catatan penilaian..."
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setIsGradingModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveGradeAndRemark}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save size={14} /> Simpan Penilaian
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. ADD PARTICIPANT MODAL */}
+      {isAddParticipantModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <UserPlus size={18} className="text-emerald-700" />
+                Tambah Peserta Pelatihan
+              </h3>
+              <button onClick={() => setIsAddParticipantModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex gap-2 border-b border-gray-100 pb-2">
+              <button
+                type="button"
+                onClick={() => setAddParticipantMode('select')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${addParticipantMode === 'select' ? 'bg-emerald-800 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                Pilih dari Anggota
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddParticipantMode('manual')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${addParticipantMode === 'manual' ? 'bg-emerald-800 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                Input Manual
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {addParticipantMode === 'select' ? (
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Cari & Pilih Anggota</label>
+                  <input
+                    type="text"
+                    placeholder="Ketik nama atau NBM anggota..."
+                    value={addParticipantSearchQuery}
+                    onChange={(e) => setAddParticipantSearchQuery(e.target.value)}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium mb-2"
+                  />
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+                    {members
+                      .filter((m: any) => {
+                        const q = addParticipantSearchQuery.toLowerCase();
+                        const name = (m.namaLengkap || m.nama || '').toLowerCase();
+                        const nbm = (m.nomorKTA || m.ktaNumber || m.nbm || '').toLowerCase();
+                        return name.includes(q) || nbm.includes(q);
+                      })
+                      .slice(0, 15)
+                      .map((m: any) => (
+                        <div
+                          key={m.id}
+                          onClick={() => {
+                            setAddParticipantSelectedMemberId(m.id);
+                            setAddParticipantForm(prev => ({
+                              ...prev,
+                              nama: m.namaLengkap || m.nama || '',
+                              nbm: m.nomorKTA || m.ktaNumber || m.nbm || '',
+                              email: m.email || '',
+                              noWa: m.noHp || m.noWa || '',
+                              tempatLahir: m.tempatLahir || '',
+                              tanggalLahir: m.tanggalLahir || '',
+                              jenisKelamin: m.jenisKelamin || 'L',
+                              asalDaerah: m.asalKwarda || m.asalDaerah || '',
+                              qabilah: m.qabilah || ''
+                            }));
+                          }}
+                          className={`p-2.5 text-xs flex items-center justify-between cursor-pointer hover:bg-emerald-50 transition-colors ${addParticipantSelectedMemberId === m.id ? 'bg-emerald-100 font-black text-emerald-900' : 'text-gray-700'}`}
+                        >
+                          <div>
+                            <div className="font-bold">{m.namaLengkap || m.nama}</div>
+                            <div className="text-[10px] text-gray-400">{m.nomorKTA || m.nbm || m.email}</div>
+                          </div>
+                          {addParticipantSelectedMemberId === m.id && <Check size={14} className="text-emerald-700" />}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Nama Lengkap</label>
+                  <input
+                    type="text"
+                    value={addParticipantForm.nama}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, nama: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="Nama Lengkap"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">NBM / Nomor KTA</label>
+                  <input
+                    type="text"
+                    value={addParticipantForm.nbm}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, nbm: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="NBM"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={addParticipantForm.email}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, email: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">No WhatsApp</label>
+                  <input
+                    type="text"
+                    value={addParticipantForm.noWa}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, noWa: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="0812..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Jenjang Pelatihan</label>
+                  <select
+                    value={addParticipantForm.pelatihanAkanDiikuti}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, pelatihanAkanDiikuti: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  >
+                    <option value="Jati 1">Jaya Melati 1 (Jati 1)</option>
+                    <option value="Jati 2">Jaya Melati 2 (Jati 2)</option>
+                    <option value="Jari 1">Jaya Pandu Mandiri 1 (Jari 1)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Golongan Pelatih</label>
+                  <select
+                    value={addParticipantForm.pelatihGolongan}
+                    onChange={(e) => setAddParticipantForm(f => ({ ...f, pelatihGolongan: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  >
+                    <option value="Tunas Athfal">Tunas Athfal</option>
+                    <option value="Pengenal">Pengenal</option>
+                    <option value="Penghela">Penghela</option>
+                    <option value="Penuntun">Penuntun</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsAddParticipantModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleAddParticipant}
+                disabled={isSubmittingAddParticipant}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Save size={14} /> {isSubmittingAddParticipant ? 'Menyimpan...' : 'Simpan Peserta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. EDIT TRAINING APPLICATION MODAL */}
+      {isEditTrainingModalOpen && editingTrainingApp && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveEditTraining} className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <Pencil size={18} className="text-emerald-700" />
+                Edit Data Peserta Pelatihan
+              </h3>
+              <button type="button" onClick={() => setIsEditTrainingModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Peserta</label>
+                <input
+                  type="text"
+                  value={editingTrainingApp.nama || editingTrainingApp.namaLengkap || ''}
+                  onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, nama: e.target.value, namaLengkap: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">NBM</label>
+                  <input
+                    type="text"
+                    value={editingTrainingApp.nbm || ''}
+                    onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, nbm: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">No WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editingTrainingApp.noWa || ''}
+                    onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, noWa: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Nilai Pre-Test</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editingTrainingApp.preTestScore ?? ''}
+                    onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, preTestScore: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="0-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Nilai Post-Test</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editingTrainingApp.postTestScore ?? ''}
+                    onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, postTestScore: e.target.value }))}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    placeholder="0-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Status Kelulusan</label>
+                <select
+                  value={editingTrainingApp.statusKelulusan || 'Lulus'}
+                  onChange={(e) => setEditingTrainingApp((prev: any) => ({ ...prev, statusKelulusan: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                >
+                  <option value="Lulus">Lulus</option>
+                  <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                  <option value="Tidak Lulus">Tidak Lulus</option>
+                  <option value="Proses">Proses</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsEditTrainingModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save size={14} /> Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 5. EDIT ACTIVITY PARTICIPANT MODAL */}
+      {isEditActivityParticipantModalOpen && editingActivityParticipant && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <form onSubmit={handleSaveActivityParticipant} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <Pencil size={18} className="text-emerald-700" />
+                Edit Peserta Kegiatan
+              </h3>
+              <button type="button" onClick={() => setIsEditActivityParticipantModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Peserta</label>
+                <input
+                  type="text"
+                  value={editingActivityParticipant.nama || editingActivityParticipant.namaLengkap || ''}
+                  onChange={(e) => setEditingActivityParticipant((prev: any) => ({ ...prev, nama: e.target.value, namaLengkap: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">No WhatsApp</label>
+                <input
+                  type="text"
+                  value={editingActivityParticipant.noHp || ''}
+                  onChange={(e) => setEditingActivityParticipant((prev: any) => ({ ...prev, noHp: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Unsur / Utusan</label>
+                <input
+                  type="text"
+                  value={editingActivityParticipant.unsur || editingActivityParticipant.asalKwarda || ''}
+                  onChange={(e) => setEditingActivityParticipant((prev: any) => ({ ...prev, unsur: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Jabatan</label>
+                <input
+                  type="text"
+                  value={editingActivityParticipant.jabatan || ''}
+                  onChange={(e) => setEditingActivityParticipant((prev: any) => ({ ...prev, jabatan: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsEditActivityParticipantModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save size={14} /> Simpan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 6. TRAINING REJECT MODAL */}
+      {isTrainingRejectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-base font-black text-rose-700 flex items-center gap-2">
+              <AlertCircle size={18} />
+              Tolak Pendaftaran Pelatihan
+            </h3>
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Alasan Penolakan</label>
+              <textarea
+                rows={3}
+                value={trainingRejectReason}
+                onChange={(e) => setTrainingRejectReason(e.target.value)}
+                placeholder="Masukkan alasan penolakan berkas..."
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                onClick={() => setIsTrainingRejectModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleRejectTraining}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Konfirmasi Tolak
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. KTA REJECT MODAL */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-base font-black text-rose-700 flex items-center gap-2">
+              <AlertCircle size={18} />
+              Tolak Pengajuan KTA
+            </h3>
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Alasan Penolakan</label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Masukkan alasan penolakan..."
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                onClick={() => setIsRejectModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleRejectKTA}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Tolak KTA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. EDIT KTA MODAL */}
+      {isEditKtaModalOpen && editingKtaApp && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveEditKTA} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">Edit Pengajuan KTA</h3>
+              <button type="button" onClick={() => setIsEditKtaModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={editingKtaApp.nama || editingKtaApp.namaLengkap || ''}
+                  onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, nama: e.target.value, namaLengkap: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nomor KTA / NBM</label>
+                <input
+                  type="text"
+                  value={editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || ''}
+                  onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, ktaNumber: e.target.value, nomorKTA: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsEditKtaModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Simpan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 9. VIEW KTA MODAL */}
+      {isViewKtaModalOpen && viewingKtaApp && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">Kartu Tanda Anggota (KTA)</h3>
+              <button onClick={() => setIsViewKtaModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex justify-center p-2">
+              <KTACard
+                member={{
+                  ...viewingKtaApp,
+                  namaLengkap: viewingKtaApp.nama || viewingKtaApp.namaLengkap,
+                  nomorKTA: viewingKtaApp.ktaNumber || viewingKtaApp.nomorKTA || 'KTA-HW-0000',
+                  tingkatan: viewingKtaApp.tingkatan || viewingKtaApp.golongan || 'Penghela',
+                  asalKwarda: viewingKtaApp.asalDaerah || viewingKtaApp.asalKwarda || 'Jawa Tengah',
+                  qabilah: viewingKtaApp.qabilah || 'Kwarwil HW Jawa Tengah',
+                  photo: viewingKtaApp.photo || viewingKtaApp.foto || ''
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. MEMBER MODAL (Add/Edit Anggota) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">
+                {editingMember ? 'Edit Data Anggota' : 'Tambah Anggota Baru'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={formData.namaLengkap}
+                  onChange={(e) => setFormData(f => ({ ...f, namaLengkap: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(f => ({ ...f, email: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nomor KTA / NBM</label>
+                <input
+                  type="text"
+                  value={formData.ktaNumber}
+                  onChange={(e) => setFormData(f => ({ ...f, ktaNumber: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">No WhatsApp / HP</label>
+                <input
+                  type="text"
+                  value={formData.noHp}
+                  onChange={(e) => setFormData(f => ({ ...f, noHp: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Golongan</label>
+                <select
+                  value={formData.golongan}
+                  onChange={(e) => setFormData(f => ({ ...f, golongan: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                >
+                  <option value="Athfal">Athfal</option>
+                  <option value="Pengenal">Pengenal</option>
+                  <option value="Penghela">Penghela</option>
+                  <option value="Penuntun">Penuntun</option>
+                  <option value="Pelatih">Pelatih</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Asal Kwarda</label>
+                <input
+                  type="text"
+                  value={formData.asalKwarda}
+                  onChange={(e) => setFormData(f => ({ ...f, asalKwarda: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveMember}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save size={14} /> Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 11. MATERI MODAL */}
+      {isMateriModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">
+                {editingMateri ? 'Edit Materi Pelatihan' : 'Tambah Materi Pelatihan'}
+              </h3>
+              <button onClick={() => setIsMateriModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Judul Materi</label>
+                <input
+                  type="text"
+                  value={materiFormData.judul}
+                  onChange={(e) => setMateriFormData(f => ({ ...f, judul: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Kategori</label>
+                <select
+                  value={materiFormData.kategori}
+                  onChange={(e) => setMateriFormData(f => ({ ...f, kategori: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                >
+                  <option value="umum">Umum</option>
+                  <option value="Jati 1">Jaya Melati 1 (Jati 1)</option>
+                  <option value="Jati 2">Jaya Melati 2 (Jati 2)</option>
+                  <option value="Jari 1">Jaya Pandu Mandiri 1 (Jari 1)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Link Drive / Berkas</label>
+                <input
+                  type="text"
+                  value={materiFormData.driveUrl}
+                  onChange={(e) => setMateriFormData(f => ({ ...f, driveUrl: e.target.value }))}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setIsMateriModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveMateri}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Simpan Materi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. KEGIATAN / ACTIVITY MODAL */}
+      {isActivityModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <form onSubmit={handleSaveActivity} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">
+                {editingKegiatan ? 'Edit Agenda Kegiatan' : 'Tambah Agenda Kegiatan'}
+              </h3>
+              <button type="button" onClick={() => setIsActivityModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Kegiatan</label>
+                <input
+                  type="text"
+                  value={kegiatanFormData.namaKegiatan}
+                  onChange={(e) => setKegiatanFormData(f => ({ ...f, namaKegiatan: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Lokasi</label>
+                <input
+                  type="text"
+                  value={kegiatanFormData.lokasi}
+                  onChange={(e) => setKegiatanFormData(f => ({ ...f, lokasi: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  value={kegiatanFormData.tanggal}
+                  onChange={(e) => setKegiatanFormData(f => ({ ...f, tanggal: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsActivityModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Simpan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 13. CONTENT MODAL */}
+      {isContentModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">
+                {editingContent ? 'Edit Konten' : 'Tambah Konten Baru'}
+              </h3>
+              <button onClick={() => setIsContentModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Judul / Teks 1</label>
+                <input
+                  type="text"
+                  value={contentFormData.field1}
+                  onChange={(e) => setContentFormData(f => ({ ...f, field1: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Keterangan / Teks 2</label>
+                <input
+                  type="text"
+                  value={contentFormData.field2}
+                  onChange={(e) => setContentFormData(f => ({ ...f, field2: e.target.value }))}
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setIsContentModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveContent}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 14. ASSIGN TASK MODAL */}
+      {showAssignTaskModal && assigningMateri && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900">Tugaskan Materi ke Peserta</h3>
+              <button onClick={() => setShowAssignTaskModal(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-600 font-medium">
+              Materi: <span className="font-bold text-gray-900">{assigningMateri.judul}</span>
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setShowAssignTaskModal(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
