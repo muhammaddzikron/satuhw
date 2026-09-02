@@ -2772,6 +2772,7 @@ export default function AdminDashboard() {
     });
 
     return () => {
+      window.removeEventListener('training_applications_updated', handleTrainingUpdated);
       unsubMembers();
       unsubCategories();
       unsubActivities();
