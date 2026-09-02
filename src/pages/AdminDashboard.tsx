@@ -10085,49 +10085,101 @@ export default function AdminDashboard() {
 
       {/* 9. VIEW KTA MODAL */}
       {isViewKtaModalOpen && viewingKtaApp && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 className="text-base font-black text-gray-900">Kartu Tanda Anggota (KTA)</h3>
-                <p className="text-xs text-gray-500 font-semibold">{viewingKtaApp.nama || viewingKtaApp.namaLengkap} - {viewingKtaApp.ktaNumber || viewingKtaApp.nomorKTA || 'KTA'}</p>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-gray-100 flex flex-col max-h-[92vh] my-auto space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+              <div className="min-w-0 pr-2">
+                <h3 className="text-sm sm:text-base font-black text-gray-900 truncate font-display">
+                  Kartu Tanda Anggota (KTA)
+                </h3>
+                <p className="text-xs text-gray-500 font-bold truncate">
+                  {viewingKtaApp.nama || viewingKtaApp.namaLengkap || 'Anggota'} • <span className="font-mono text-emerald-700 font-black">{viewingKtaApp.ktaNumber || viewingKtaApp.nomorKTA || 'KTA'}</span>
+                </p>
               </div>
-              <button onClick={() => setIsViewKtaModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+              <button 
+                onClick={() => setIsViewKtaModalOpen(false)} 
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Tutup"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Toggle Front & Back */}
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFlippedAdmin(false)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  !flippedAdmin ? 'bg-hw-green text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Tampilan Depan
-              </button>
-              <button
-                type="button"
-                onClick={() => setFlippedAdmin(true)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  flippedAdmin ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Tampilan Belakang
-              </button>
+            {/* Stacked Cards Preview: Front on top, Back underneath */}
+            <div className="overflow-y-auto pr-1 space-y-4 max-h-[60vh] scrollbar-thin">
+              <div className="bg-stone-900 rounded-2xl p-4 sm:p-5 flex flex-col items-center gap-5 border border-stone-800 shadow-inner">
+                {/* 1. TAMPILAN DEPAN (FRONT) */}
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-1.5 self-start px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span>Tampilan Depan (Front)</span>
+                  </div>
+                  <div className="w-full flex justify-center overflow-x-auto py-1">
+                    <KTACard
+                      id="kta-front-card-admin-view"
+                      application={viewingKtaApp}
+                      settings={settings}
+                      side="front"
+                      idSuffix="admin-modal-front"
+                    />
+                  </div>
+                </div>
+
+                {/* Divider Line */}
+                <div className="w-full border-t border-white/10 my-1"></div>
+
+                {/* 2. TAMPILAN BELAKANG (BACK) */}
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-1.5 self-start px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    <span>Tampilan Belakang (Back)</span>
+                  </div>
+                  <div className="w-full flex justify-center overflow-x-auto py-1">
+                    <KTACard
+                      id="kta-back-card-admin-view"
+                      application={viewingKtaApp}
+                      settings={settings}
+                      side="back"
+                      idSuffix="admin-modal-back"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Card Preview Container */}
-            <div className="flex justify-center p-4 bg-stone-900 rounded-2xl border border-stone-800 shadow-inner">
-              <div className="w-full max-w-[340px] aspect-[856/540]">
-                <KTACard
-                  application={viewingKtaApp}
-                  settings={settings}
-                  side={flippedAdmin ? 'back' : 'front'}
-                  idSuffix="admin-modal-view"
-                />
+            {/* Actions & Download PDF */}
+            <div className="border-t border-gray-100 pt-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+              <p className="text-[10px] text-gray-500 font-semibold text-center sm:text-left leading-tight">
+                💡 Skala cetak <strong>1:1 (85.6mm × 53.98mm)</strong> di tengah kertas A4.
+              </p>
+              
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsViewKtaModalOpen(false)}
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-full sm:w-auto text-center"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPDFAdmin}
+                  disabled={isGeneratingPdfAdmin}
+                  className="px-5 py-2.5 bg-hw-green hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
+                >
+                  {isGeneratingPdfAdmin ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Memproses PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} />
+                      <span>Download KTA PDF (Skala 1:1 A4)</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

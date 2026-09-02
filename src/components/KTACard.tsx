@@ -61,7 +61,7 @@ export const KTACard: React.FC<KTACardProps> = ({
       <div 
         id={id}
         className={cn(
-          "w-[350px] h-[220.72px] aspect-[856/540] rounded-[20px] overflow-hidden border border-gray-200/80 p-3.5 flex flex-col justify-between relative shadow-md select-none bg-white text-gray-800 kta-card-printable",
+          "w-[350px] max-w-full h-auto aspect-[856/540] rounded-[20px] overflow-hidden border border-gray-200/80 p-3.5 flex flex-col justify-between relative shadow-md select-none bg-white text-gray-800 kta-card-printable shrink-0",
           className
         )}
         style={{ boxSizing: 'border-box' }}
@@ -192,7 +192,7 @@ export const KTACard: React.FC<KTACardProps> = ({
     <div 
       id={id}
       className={cn(
-        "w-[350px] h-[220.72px] aspect-[856/540] rounded-[20px] overflow-hidden border border-gray-200/80 relative shadow-md select-none bg-white text-gray-800 kta-card-printable",
+        "w-[350px] max-w-full h-auto aspect-[856/540] rounded-[20px] overflow-hidden border border-gray-200/80 relative shadow-md select-none bg-white text-gray-800 kta-card-printable shrink-0",
         className
       )}
       style={{ boxSizing: 'border-box' }}

@@ -1070,14 +1070,14 @@ export default function KTAPage() {
               </span>
             </div>
 
-            {/* Side-by-Side Cards Display */}
-            <div className="flex flex-col items-center gap-6 overflow-x-auto pb-2 print-area">
-              <div className="flex flex-wrap justify-center gap-6 w-full">
-                {/* FRONT CARD */}
-                <div className="flex flex-col items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">
-                    TAMPILAN DEPAN (FRONT)
-                  </span>
+            {/* Stacked Cards Display: Front on top, Back underneath */}
+            <div className="flex flex-col items-center gap-6 w-full print-area">
+              {/* FRONT CARD */}
+              <div className="flex flex-col items-center gap-2 w-full">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest font-mono print:hidden self-start px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                  TAMPILAN DEPAN (FRONT)
+                </span>
+                <div className="w-full flex justify-center overflow-x-auto py-1">
                   <KTACard 
                     id="kta-front-card-view"
                     application={myApplication} 
@@ -1087,12 +1087,17 @@ export default function KTAPage() {
                     photoOverride={photoPreview || myApplication.photo || user?.photo}
                   />
                 </div>
+              </div>
 
-                {/* BACK CARD */}
-                <div className="flex flex-col items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono print:hidden">
-                    TAMPILAN BELAKANG (BACK)
-                  </span>
+              {/* Divider */}
+              <div className="w-full border-t border-white/10"></div>
+
+              {/* BACK CARD */}
+              <div className="flex flex-col items-center gap-2 w-full">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest font-mono print:hidden self-start px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-full">
+                  TAMPILAN BELAKANG (BACK)
+                </span>
+                <div className="w-full flex justify-center overflow-x-auto py-1">
                   <KTACard 
                     id="kta-back-card-view"
                     application={myApplication} 
@@ -1136,7 +1141,7 @@ export default function KTAPage() {
                 ) : (
                   <>
                     <Download size={16} />
-                    <span>Download KTA (PDF Resmi)</span>
+                    <span>Download KTA PDF (Skala 1:1 A4)</span>
                   </>
                 )}
               </button>
