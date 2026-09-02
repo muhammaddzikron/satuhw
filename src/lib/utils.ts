@@ -382,8 +382,13 @@ export function getCorsSafeUrl(url: string | null | undefined, version?: string 
     ? String(version) 
     : String(Math.floor(Date.now() / 300000)); // 5-minute rolling timestamp cache buster
 
-  // Local / relative assets
-  if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('http://localhost') || resolvedUrl.startsWith('https://localhost')) {
+  // Local / relative assets or direct hwjateng.com domain
+  if (
+    resolvedUrl.startsWith('/') || 
+    resolvedUrl.startsWith('http://localhost') || 
+    resolvedUrl.startsWith('https://localhost') ||
+    resolvedUrl.includes('hwjateng.com')
+  ) {
     const sep = resolvedUrl.includes('?') ? '&' : '?';
     return `${resolvedUrl}${sep}_v=${cacheVersion}`;
   }
