@@ -430,15 +430,18 @@ export const firestoreService = {
               id: 'app_settings',
               ktaPrefix: '11.',
               ktaCounter: 100,
-              ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-              ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
+              ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
+              ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+              ktaFrontBg: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
+              ktaBackBg: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
               ktaKetuaNama: 'TAUFIQ',
               ktaKetuaNbm: 'NBM 1015096',
               ktaSekretarisNama: 'MUHAMMAD DZIKRON',
               ktaSekretarisNbm: 'NBM 1029863',
               ktaKotaPenerbit: 'Semarang',
               ktaTandaTanganKetua: '',
-              ktaTandaTanganSekretaris: ''
+              ktaTandaTanganSekretaris: '',
+              ktaStempelImage: ''
             };
 
         await setDoc(doc(db, 'settings', 'app_settings'), cleanData(defaultSettings));
@@ -3038,6 +3041,20 @@ export const firestoreService = {
       clearFirestoreCache('settings');
     }
     return cachedFirestoreFetch('settings', async () => {
+      const cleanKtaFront = (url?: string) => {
+        if (!url || typeof url !== 'string' || url.includes('1OsI7x7zw') || url.includes('design_card-depan.jpg')) {
+          return 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
+        }
+        return url.trim();
+      };
+
+      const cleanKtaBack = (url?: string) => {
+        if (!url || typeof url !== 'string' || url.includes('1yeEeoE') || url.includes('hwjateng.com/wp-content/uploads/2026/07/belakang.png') || url.includes('design_card-belakang.jpg')) {
+          return 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+        }
+        return url.trim();
+      };
+
       if (!this.getIsQuotaExceeded()) {
         try {
           const docSnap = await getDoc(doc(db, 'settings', 'app_settings'));
@@ -3048,6 +3065,10 @@ export const firestoreService = {
             if (Array.isArray(settings.trainingActivities)) {
               settings.trainingActivities = settings.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
             }
+            settings.ktaTemplateFront = cleanKtaFront(settings.ktaTemplateFront || settings.ktaFrontBg);
+            settings.ktaTemplateBack = cleanKtaBack(settings.ktaTemplateBack || settings.ktaBackBg);
+            settings.ktaFrontBg = cleanKtaFront(settings.ktaTemplateFront || settings.ktaFrontBg);
+            settings.ktaBackBg = cleanKtaBack(settings.ktaTemplateBack || settings.ktaBackBg);
             safeStorageSet('hw_settings', settings);
             return settings;
           }
@@ -3067,19 +3088,28 @@ export const firestoreService = {
           if (Array.isArray(parsed.trainingActivities)) {
             parsed.trainingActivities = parsed.trainingActivities.filter((a: any) => !isActivityDeleted(a, dIds, dTitles));
           }
+          parsed.ktaTemplateFront = cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg);
+          parsed.ktaTemplateBack = cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg);
+          parsed.ktaFrontBg = cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg);
+          parsed.ktaBackBg = cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg);
           return parsed;
         } catch (e) {}
       }
       return {
         ktaPrefix: '11.',
         ktaCounter: 100,
-        ktaFrontBg: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-        ktaBackBg: 'https://hwjateng.com/wp-content/uploads/2026/07/belakang.png',
+        ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
+        ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
+        ktaFrontBg: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
+        ktaBackBg: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',
         ktaSekretarisNbm: 'NBM 1029863',
-        ktaKotaPenerbit: 'Semarang'
+        ktaKotaPenerbit: 'Semarang',
+        ktaTandaTanganKetua: '',
+        ktaTandaTanganSekretaris: '',
+        ktaStempelImage: ''
       };
     }, 60000);
   },

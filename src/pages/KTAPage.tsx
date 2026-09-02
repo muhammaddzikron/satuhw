@@ -163,8 +163,8 @@ export default function KTAPage() {
   const [flipped, setFlipped] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [settings, setSettings] = useState<any>({
-    ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-    ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+    ktaTemplateFront: 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U',
+    ktaTemplateBack: 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1',
     ktaKetuaNama: 'TAUFIQ',
     ktaKetuaNbm: 'NBM 1015096',
     ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -174,8 +174,8 @@ export default function KTAPage() {
     ktaTandaTanganSekretaris: '',
     ktaStempelImage: ''
   });
-  const ktaFrontBg = settings.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
-  const ktaBackBg = settings.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+  const ktaFrontBg = settings.ktaTemplateFront || 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U';
+  const ktaBackBg = settings.ktaTemplateBack || 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1';
   
   // Photo preview
   const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photo || initialApp?.photo || null);

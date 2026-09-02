@@ -83,6 +83,9 @@ const cachedFetch = async <T>(cacheKey: string, fetchFn: () => Promise<T>, ttl: 
 };
 
 
+export const DEFAULT_KTA_TEMPLATE_FRONT = 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U';
+export const DEFAULT_KTA_TEMPLATE_BACK = 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1';
+
 // Initialize mock data on load if not present and trigger Firestore sync
 export const initMockData = () => {
   if (typeof window === 'undefined') return;
@@ -2208,12 +2211,36 @@ export const sheetsService = {
 
     const fsSettings = await firestoreService.getSettings();
 
+    const cleanKtaFront = (url?: string) => {
+      if (!url || typeof url !== 'string' || url.includes('1OsI7x7zw') || url.includes('design_card-depan.jpg')) {
+        return 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png';
+      }
+      return url.trim();
+    };
+
+    const cleanKtaBack = (url?: string) => {
+      if (!url || typeof url !== 'string' || url.includes('1yeEeoE') || url.includes('hwjateng.com/wp-content/uploads/2026/07/belakang.png') || url.includes('design_card-belakang.jpg')) {
+        return 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg';
+      }
+      return url.trim();
+    };
+
     if (!IS_API_VALID) {
       const parsed = fsSettings || localParsed || { 
         appName: 'HW App', 
         orgName: 'HW Org', 
         waConfirmation: '628',
         lastBackup: '-',
+        ktaTemplateFront: DEFAULT_KTA_TEMPLATE_FRONT,
+        ktaTemplateBack: DEFAULT_KTA_TEMPLATE_BACK,
+        ktaKetuaNama: 'TAUFIQ',
+        ktaKetuaNbm: 'NBM 1015096',
+        ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+        ktaSekretarisNbm: 'NBM 1029863',
+        ktaKotaPenerbit: 'Semarang',
+        ktaTandaTanganKetua: '',
+        ktaTandaTanganSekretaris: '',
+        ktaStempelImage: '',
         trainingTypes: DEFAULT_TYPES,
         trainingActivities: DEFAULT_ACTIVITIES,
         trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
@@ -2222,6 +2249,18 @@ export const sheetsService = {
       };
       const result = {
         ...parsed,
+        ktaTemplateFront: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+        ktaTemplateBack: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
+        ktaFrontBg: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+        ktaBackBg: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
+        ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
+        ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
+        ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
+        ktaSekretarisNbm: parsed.ktaSekretarisNbm || 'NBM 1029863',
+        ktaKotaPenerbit: parsed.ktaKotaPenerbit || 'Semarang',
+        ktaTandaTanganKetua: parsed.ktaTandaTanganKetua || '',
+        ktaTandaTanganSekretaris: parsed.ktaTandaTanganSekretaris || '',
+        ktaStempelImage: parsed.ktaStempelImage || '',
         trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
         trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
         trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
@@ -2245,8 +2284,10 @@ export const sheetsService = {
         orgName: apiSettings.orgName || fsSettings?.orgName || 'HW Org',
         waConfirmation: apiSettings.waConfirmation || fsSettings?.waConfirmation || '628',
         lastBackup: apiSettings.lastBackup || fsSettings?.lastBackup || '-',
-        ktaTemplateFront: apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-        ktaTemplateBack: apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+        ktaTemplateFront: cleanKtaFront(apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || apiSettings.ktaFrontBg || fsSettings?.ktaFrontBg),
+        ktaTemplateBack: cleanKtaBack(apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || apiSettings.ktaBackBg || fsSettings?.ktaBackBg),
+        ktaFrontBg: cleanKtaFront(apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || apiSettings.ktaFrontBg || fsSettings?.ktaFrontBg),
+        ktaBackBg: cleanKtaBack(apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || apiSettings.ktaBackBg || fsSettings?.ktaBackBg),
         ktaKetuaNama: apiSettings.ktaKetuaNama || fsSettings?.ktaKetuaNama || 'TAUFIQ',
         ktaKetuaNbm: apiSettings.ktaKetuaNbm || fsSettings?.ktaKetuaNbm || 'NBM 1015096',
         ktaSekretarisNama: apiSettings.ktaSekretarisNama || fsSettings?.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
@@ -2273,8 +2314,8 @@ export const sheetsService = {
         appName: 'HW App', 
         orgName: 'HW Org', 
         lastBackup: '-',
-        ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-        ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+        ktaTemplateFront: DEFAULT_KTA_TEMPLATE_FRONT,
+        ktaTemplateBack: DEFAULT_KTA_TEMPLATE_BACK,
         ktaKetuaNama: 'TAUFIQ',
         ktaKetuaNbm: 'NBM 1015096',
         ktaSekretarisNama: 'MUHAMMAD DZIKRON',
@@ -2291,8 +2332,10 @@ export const sheetsService = {
       };
       return {
         ...parsed,
-        ktaTemplateFront: parsed.ktaTemplateFront || 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png',
-        ktaTemplateBack: parsed.ktaTemplateBack || 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg',
+        ktaTemplateFront: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+        ktaTemplateBack: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
+        ktaFrontBg: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+        ktaBackBg: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
         ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
         ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
         ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',

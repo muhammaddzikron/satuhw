@@ -6683,7 +6683,7 @@ export default function AdminDashboard() {
                             <KTACard 
                               application={{
                                 ktaNumber: '11.02.0027',
-                                nama: 'Catur Teddy Pamungkas',
+                                nama: 'CATUR TEDDY PAMUNGKAS',
                                 tempatLahir: 'Banyumas',
                                 tanggalLahir: '2012-09-17',
                                 asalDaerah: 'Kabupaten Banyumas',
@@ -6718,7 +6718,7 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => {
-                                setSettings(prev => ({
+                                setSettings((prev: any) => ({
                                   ...prev,
                                   ktaTemplateFront: 'https://hwjateng.com/wp-content/uploads/2026/07/depan.png'
                                 }));
@@ -6767,7 +6767,7 @@ export default function AdminDashboard() {
                             <KTACard 
                               application={{
                                 ktaNumber: '11.02.0027',
-                                nama: 'Catur Teddy Pamungkas'
+                                nama: 'CATUR TEDDY PAMUNGKAS'
                               }} 
                               settings={settings} 
                               side="back" 
@@ -6796,7 +6796,7 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => {
-                                setSettings(prev => ({
+                                setSettings((prev: any) => ({
                                   ...prev,
                                   ktaTemplateBack: 'https://hwjateng.com/wp-content/uploads/2026/07/Belakang.jpg'
                                 }));
@@ -6825,6 +6825,176 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* 3. PEJABAT PENANDATANGAN, KOTA PENERBIT & STEMPEL */}
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-5">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">
+                          3. Pengaturan Pejabat Penerbit, Tanda Tangan & Stempel KTA
+                        </h4>
+                      </div>
+                      <span className="px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black uppercase rounded-full">
+                        Data Pejabat & Legalitas
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Kota Penerbit */}
+                      <div className="space-y-2 md:col-span-3">
+                        <label className="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">
+                          Kota Penerbit KTA
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.ktaKotaPenerbit || ''}
+                          onChange={(e) => setSettings({ ...settings, ktaKotaPenerbit: e.target.value })}
+                          placeholder="Contoh: Semarang"
+                          className="w-full max-w-sm bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-hw-green/20"
+                        />
+                        <p className="text-[10px] text-gray-400 font-medium">Ditampilkan pada tanggal penerbitan kartu, contoh: <em>{settings.ktaKotaPenerbit || 'Semarang'}, 07 Agustus 2026</em></p>
+                      </div>
+
+                      {/* Ketua Box */}
+                      <div className="bg-stone-50/60 p-4 rounded-2xl border border-stone-200/70 space-y-3">
+                        <h5 className="text-[11px] font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Ketua Kwarwil</span>
+                        </h5>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">Nama Ketua</label>
+                          <input
+                            type="text"
+                            value={settings.ktaKetuaNama || ''}
+                            onChange={(e) => setSettings({ ...settings, ktaKetuaNama: e.target.value })}
+                            placeholder="Contoh: TAUFIQ"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">NBM Ketua</label>
+                          <input
+                            type="text"
+                            value={settings.ktaKetuaNbm || ''}
+                            onChange={(e) => setSettings({ ...settings, ktaKetuaNbm: e.target.value })}
+                            placeholder="Contoh: NBM 1015096"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5 pt-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">Tanda Tangan Ketua (PNG Transparan)</label>
+                          <label className="w-full px-3 py-2 bg-white border border-dashed border-gray-300 hover:border-hw-green rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 text-[11px] font-bold text-gray-600">
+                            <Upload size={13} className="text-hw-green" />
+                            <span>Unggah TTD</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => handleKtaImageUpload(e, 'ktaTandaTanganKetua')} 
+                              className="hidden" 
+                            />
+                          </label>
+                          {settings.ktaTandaTanganKetua && (
+                            <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-gray-100">
+                              <img src={settings.ktaTandaTanganKetua} alt="TTD Ketua" className="h-6 object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => handleResetKtaField('ktaTandaTanganKetua')}
+                                className="text-[10px] text-red-500 font-bold hover:underline"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Sekretaris Box */}
+                      <div className="bg-stone-50/60 p-4 rounded-2xl border border-stone-200/70 space-y-3">
+                        <h5 className="text-[11px] font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Sekretaris Kwarwil</span>
+                        </h5>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">Nama Sekretaris</label>
+                          <input
+                            type="text"
+                            value={settings.ktaSekretarisNama || ''}
+                            onChange={(e) => setSettings({ ...settings, ktaSekretarisNama: e.target.value })}
+                            placeholder="Contoh: MUHAMMAD DZIKRON"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">NBM Sekretaris</label>
+                          <input
+                            type="text"
+                            value={settings.ktaSekretarisNbm || ''}
+                            onChange={(e) => setSettings({ ...settings, ktaSekretarisNbm: e.target.value })}
+                            placeholder="Contoh: NBM 1029863"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5 pt-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">Tanda Tangan Sekretaris (PNG Transparan)</label>
+                          <label className="w-full px-3 py-2 bg-white border border-dashed border-gray-300 hover:border-hw-green rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 text-[11px] font-bold text-gray-600">
+                            <Upload size={13} className="text-hw-green" />
+                            <span>Unggah TTD</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => handleKtaImageUpload(e, 'ktaTandaTanganSekretaris')} 
+                              className="hidden" 
+                            />
+                          </label>
+                          {settings.ktaTandaTanganSekretaris && (
+                            <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-gray-100">
+                              <img src={settings.ktaTandaTanganSekretaris} alt="TTD Sekretaris" className="h-6 object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => handleResetKtaField('ktaTandaTanganSekretaris')}
+                                className="text-[10px] text-red-500 font-bold hover:underline"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stempel Box */}
+                      <div className="bg-stone-50/60 p-4 rounded-2xl border border-stone-200/70 space-y-3">
+                        <h5 className="text-[11px] font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Stempel Resmi Kwarwil</span>
+                        </h5>
+                        <p className="text-[10px] text-gray-500 leading-tight">
+                          Unggah gambar stempel resmi dengan format PNG transparan untuk dicantumkan di atas tanda tangan pejabat.
+                        </p>
+                        <div className="space-y-1.5 pt-1">
+                          <label className="w-full px-3 py-2.5 bg-white border border-dashed border-gray-300 hover:border-hw-green rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 text-[11px] font-bold text-gray-600">
+                            <Upload size={13} className="text-hw-green" />
+                            <span>Unggah Stempel (PNG)</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => handleKtaImageUpload(e, 'ktaStempelImage')} 
+                              className="hidden" 
+                            />
+                          </label>
+                          {settings.ktaStempelImage && (
+                            <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-gray-100">
+                              <img src={settings.ktaStempelImage} alt="Stempel Kwarwil" className="h-10 object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => handleResetKtaField('ktaStempelImage')}
+                                className="text-[10px] text-red-500 font-bold hover:underline"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Guidance Box */}
                   <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-3xl text-xs text-amber-900 font-semibold leading-relaxed flex items-start gap-3">
                     <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
@@ -6833,7 +7003,7 @@ export default function AdminDashboard() {
                         💡 Panduan Dimensi & Format Template:
                       </p>
                       <p className="text-[11px] leading-relaxed">
-                        Master Template KTA disarankan memiliki ukuran ideal <strong>1050 x 660 piksel</strong> (rasio ID card standar 856:540). Bagian tengah pada template depan sebaiknya bersih agar tulisan data anggota dapat dibaca dengan jelas. Setelah mengunggah file gambar baru, pastikan untuk menekan tombol <strong>Simpan Perubahan</strong> agar perubahan tersimpan di sistem.
+                        Master Template KTA disarankan memiliki ukuran ideal <strong>1050 x 660 piksel</strong> (rasio ID card standar 856:540). Bagian tengah pada template depan sebaiknya bersih agar tulisan data anggota dapat dibaca dengan jelas. Setelah mengunggah file gambar baru atau mengubah data pejabat, pastikan untuk menekan tombol <strong>Simpan Perubahan</strong> agar konfigurasi tersimpan permanen di sistem.
                       </p>
                     </div>
                   </div>
