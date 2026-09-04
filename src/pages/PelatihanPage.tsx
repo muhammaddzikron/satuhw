@@ -328,7 +328,7 @@ export default function PelatihanPage() {
       window.removeEventListener('hw_settings_updated', handleSettingsUpdated);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [selectedLevel, isAuthenticated, user]);
+  }, [selectedLevel, isAuthenticated, user?.id, user?.role, (user as any)?.adminType]);
 
   useEffect(() => {
     const isRealAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'sugli' || user?.role === 'kwarda' || user?.role === 'admin_diklat' || user?.role === 'diklat' || (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com';
@@ -337,7 +337,7 @@ export default function PelatihanPage() {
     } else {
       setPerspective('peserta');
     }
-  }, [user]);
+  }, [user?.role, user?.email, (user as any)?.adminType]);
 
   const program = perspective === 'peserta' 
     ? (TRAINING_PROGRAMS.find(p => p.id === 'Jati 1') || TRAINING_PROGRAMS[0])

@@ -4109,6 +4109,22 @@ export const firestoreService = {
         const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
         const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
 
+        const rawRegType = (a.registrationType || a.jenisPendaftaran || prev.registrationType || prev.jenisPendaftaran || '').toString().toLowerCase().trim();
+        const finalRegType = (rawRegType === 'external' || rawRegType === 'eksternal') ? 'external' : 'internal';
+        
+        let finalExtLinks: any[] = [];
+        if (finalRegType === 'external') {
+          if (Array.isArray(a.externalLinks) && a.externalLinks.length > 0) {
+            finalExtLinks = a.externalLinks;
+          } else if (Array.isArray(a.linkEksternal) && a.linkEksternal.length > 0) {
+            finalExtLinks = a.linkEksternal;
+          } else if (Array.isArray(prev.externalLinks) && prev.externalLinks.length > 0) {
+            finalExtLinks = prev.externalLinks;
+          } else if (a.externalUrl || a.linkPendaftaran) {
+            finalExtLinks = [{ id: '1', label: 'Formulir Pendaftaran', url: (a.externalUrl || a.linkPendaftaran).trim() }];
+          }
+        }
+
         map.set(a.id, {
           ...merged,
           namaKegiatan: finalTitle,
@@ -4131,7 +4147,14 @@ export const firestoreService = {
           rekeningPembayaran: finalRekening,
           rekeningPembiayaan: finalRekening,
           konfirmasiPembayaran: finalKonfirmasi,
-          noWhatsappPanitia: finalKonfirmasi
+          noWhatsappPanitia: finalKonfirmasi,
+          registrationType: finalRegType,
+          jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal',
+          externalLinks: finalExtLinks,
+          linkEksternal: finalExtLinks,
+          externalUrl: finalExtLinks[0]?.url || '',
+          linkPendaftaran: finalExtLinks[0]?.url || '',
+          status: a.status || prev.status || 'Buka'
         });
       }
     });
@@ -4300,10 +4323,56 @@ export const firestoreService = {
       kategori: catVal,
       category: catVal,
       status: activityData.status || existingAct.status || 'Buka',
-      registrationType: activityData.registrationType || existingAct.registrationType || 'internal',
-      jenisPendaftaran: activityData.jenisPendaftaran || (activityData.registrationType === 'external' ? 'eksternal' : 'internal') || existingAct.jenisPendaftaran || 'internal',
-      externalLinks: activityData.externalLinks || existingAct.externalLinks || [],
-      linkEksternal: activityData.linkEksternal || activityData.externalLinks || existingAct.linkEksternal || [],
+      registrationType: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'external' || r === 'eksternal') return 'external';
+        if (r === 'internal') return 'internal';
+        return existingAct.registrationType || 'internal';
+      })(),
+      jenisPendaftaran: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'external' || r === 'eksternal') return 'eksternal';
+        if (r === 'internal') return 'internal';
+        return existingAct.jenisPendaftaran || 'internal';
+      })(),
+      externalLinks: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'internal') return [];
+        if (r === 'external' || r === 'eksternal') {
+          if (Array.isArray(activityData.externalLinks) && activityData.externalLinks.length > 0) return activityData.externalLinks;
+          if (Array.isArray(activityData.linkEksternal) && activityData.linkEksternal.length > 0) return activityData.linkEksternal;
+          if (activityData.externalUrl || activityData.linkPendaftaran) return [{ id: '1', label: 'Formulir Pendaftaran', url: (activityData.externalUrl || activityData.linkPendaftaran).trim() }];
+          if (Array.isArray(existingAct.externalLinks) && existingAct.externalLinks.length > 0) return existingAct.externalLinks;
+          return [];
+        }
+        return Array.isArray(existingAct.externalLinks) ? existingAct.externalLinks : [];
+      })(),
+      linkEksternal: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'internal') return [];
+        if (r === 'external' || r === 'eksternal') {
+          if (Array.isArray(activityData.externalLinks) && activityData.externalLinks.length > 0) return activityData.externalLinks;
+          if (Array.isArray(activityData.linkEksternal) && activityData.linkEksternal.length > 0) return activityData.linkEksternal;
+          if (activityData.externalUrl || activityData.linkPendaftaran) return [{ id: '1', label: 'Formulir Pendaftaran', url: (activityData.externalUrl || activityData.linkPendaftaran).trim() }];
+          if (Array.isArray(existingAct.externalLinks) && existingAct.externalLinks.length > 0) return existingAct.externalLinks;
+          return [];
+        }
+        return Array.isArray(existingAct.linkEksternal) ? existingAct.linkEksternal : [];
+      })(),
+      externalUrl: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'internal') return '';
+        if (Array.isArray(activityData.externalLinks) && activityData.externalLinks[0]?.url) return activityData.externalLinks[0].url.trim();
+        if (activityData.externalUrl || activityData.linkPendaftaran) return (activityData.externalUrl || activityData.linkPendaftaran).trim();
+        return existingAct.externalUrl || '';
+      })(),
+      linkPendaftaran: (() => {
+        const r = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+        if (r === 'internal') return '';
+        if (Array.isArray(activityData.externalLinks) && activityData.externalLinks[0]?.url) return activityData.externalLinks[0].url.trim();
+        if (activityData.externalUrl || activityData.linkPendaftaran) return (activityData.externalUrl || activityData.linkPendaftaran).trim();
+        return existingAct.linkPendaftaran || '';
+      })(),
       youtubeUrl: youtubeUrlVal,
       videoUrl: youtubeUrlVal,
       themeSongUrl: songUrlVal,

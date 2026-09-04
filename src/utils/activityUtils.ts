@@ -286,6 +286,9 @@ export interface ExternalRegistrationLinkItem {
 
 export const getExternalLinks = (activity: any): ExternalRegistrationLinkItem[] => {
   if (!activity) return [];
+  const regType = String(activity.registrationType || activity.jenisPendaftaran || '').toLowerCase().trim();
+  if (regType === 'internal') return [];
+
   const links = activity.externalLinks || activity.linkEksternal || activity.linksEksternal;
   if (Array.isArray(links)) {
     return links

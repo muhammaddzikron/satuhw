@@ -2597,6 +2597,22 @@ export const sheetsService = {
           const sheetKuota = sheetAct.kuota || sheetAct.quota || sheetAct.kapasitas || 'Terbuka';
           const sheetPenyelenggara = sheetAct.penyelenggara || sheetAct.panitia || 'Kwartir Wilayah HW Jawa Tengah';
 
+          const rawSheetRegType = (sheetAct.registrationtype || sheetAct.registrationType || sheetAct.jenispendaftaran || sheetAct.jenisPendaftaran || '').toString().toLowerCase().trim();
+          const rawSheetExtLinks = sheetAct.externallinks || sheetAct.externalLinks || sheetAct.linkeksternal || sheetAct.linkEksternal || sheetAct.externalurl || sheetAct.externalUrl || sheetAct.linkpendaftaran || sheetAct.linkPendaftaran || '';
+          
+          let parsedSheetLinks: any[] = [];
+          if (Array.isArray(rawSheetExtLinks)) {
+            parsedSheetLinks = rawSheetExtLinks;
+          } else if (typeof rawSheetExtLinks === 'string' && rawSheetExtLinks.trim()) {
+            try {
+              const p = JSON.parse(rawSheetExtLinks);
+              if (Array.isArray(p)) parsedSheetLinks = p;
+              else if (rawSheetExtLinks.startsWith('http')) parsedSheetLinks = [{ id: '1', label: 'Formulir Pendaftaran', url: rawSheetExtLinks.trim() }];
+            } catch (e) {
+              if (rawSheetExtLinks.startsWith('http')) parsedSheetLinks = [{ id: '1', label: 'Formulir Pendaftaran', url: rawSheetExtLinks.trim() }];
+            }
+          }
+
           if (!sheetTitle && !sheetLoc && !sheetDate) return;
 
           const actId = (sheetAct.id || sheetAct.Id || sheetAct.activityId || (`keg-sheet-${idx}-${Date.now().toString().slice(-4)}`)).toString().trim();
@@ -2605,6 +2621,18 @@ export const sheetsService = {
           if (fsAct) {
             const fsTime = new Date(fsAct.updatedAt || fsAct.createdAt || 0).getTime();
             const sheetTime = new Date(sheetAct.updatedAt || sheetAct.createdat || 0).getTime();
+
+            // Determine registration type and links
+            const fsRegType = (fsAct.registrationType || fsAct.jenisPendaftaran || '').toString().toLowerCase().trim();
+            const finalRegType = (fsTime >= sheetTime || !rawSheetRegType)
+              ? (fsRegType === 'external' || fsRegType === 'eksternal' ? 'external' : (fsRegType === 'internal' ? 'internal' : (fsAct.externalLinks && fsAct.externalLinks.length > 0 ? 'external' : 'internal')))
+              : (rawSheetRegType === 'external' || rawSheetRegType === 'eksternal' ? 'external' : (rawSheetRegType === 'internal' ? 'internal' : (parsedSheetLinks.length > 0 ? 'external' : 'internal')));
+
+            const finalExtLinks = finalRegType === 'external'
+              ? ((fsAct.externalLinks && fsAct.externalLinks.length > 0 && fsTime >= sheetTime)
+                  ? fsAct.externalLinks
+                  : (parsedSheetLinks.length > 0 ? parsedSheetLinks : (fsAct.externalLinks || [])))
+              : [];
 
             if (fsTime >= sheetTime && fsTime > 0) {
               const merged = {
@@ -2637,7 +2665,14 @@ export const sheetsService = {
                 rekeningPembayaran: fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan || sheetRekening,
                 rekeningPembiayaan: fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan || sheetRekening,
                 noWhatsappPanitia: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi,
-                konfirmasiPembayaran: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi
+                konfirmasiPembayaran: fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran || sheetKonfirmasi,
+                registrationType: finalRegType,
+                jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal',
+                externalLinks: finalExtLinks,
+                linkEksternal: finalExtLinks,
+                externalUrl: finalExtLinks[0]?.url || '',
+                linkPendaftaran: finalExtLinks[0]?.url || '',
+                status: fsAct.status || sheetAct.status || 'Buka'
               };
               map.set(actId, merged);
             } else {
@@ -2671,12 +2706,21 @@ export const sheetsService = {
                 rekeningPembayaran: sheetRekening || fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan,
                 rekeningPembiayaan: sheetRekening || fsAct.rekeningPembayaran || fsAct.rekeningPembiayaan,
                 noWhatsappPanitia: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran,
-                konfirmasiPembayaran: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran
+                konfirmasiPembayaran: sheetKonfirmasi || fsAct.noWhatsappPanitia || fsAct.konfirmasiPembayaran,
+                registrationType: finalRegType,
+                jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal',
+                externalLinks: finalExtLinks,
+                linkEksternal: finalExtLinks,
+                externalUrl: finalExtLinks[0]?.url || '',
+                linkPendaftaran: finalExtLinks[0]?.url || '',
+                status: sheetAct.status || fsAct.status || 'Buka'
               };
               map.set(actId, merged);
               firestoreService.saveActivity(merged).catch(() => {});
             }
           } else {
+            const rawReg = (rawSheetRegType === 'external' || rawSheetRegType === 'eksternal') ? 'external' : (rawSheetRegType === 'internal' ? 'internal' : (parsedSheetLinks.length > 0 ? 'external' : 'internal'));
+            const extL = rawReg === 'external' ? parsedSheetLinks : [];
             const normalizedSheetAct = {
               ...sheetAct,
               id: actId,
@@ -2707,6 +2751,12 @@ export const sheetsService = {
               rekeningPembiayaan: sheetRekening || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
               noWhatsappPanitia: sheetKonfirmasi || '089688754000',
               konfirmasiPembayaran: sheetKonfirmasi || '089688754000',
+              registrationType: rawReg,
+              jenisPendaftaran: rawReg === 'external' ? 'eksternal' : 'internal',
+              externalLinks: extL,
+              linkEksternal: extL,
+              externalUrl: extL[0]?.url || '',
+              linkPendaftaran: extL[0]?.url || '',
               status: sheetAct.status || 'Buka'
             };
             map.set(actId, normalizedSheetAct);
@@ -2743,6 +2793,14 @@ export const sheetsService = {
     const rekeningVal = activityData.rekeningPembayaran || activityData.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
     const konfirmasiVal = activityData.noWhatsappPanitia || activityData.konfirmasiPembayaran || '089688754000';
 
+    const regTypeInput = (activityData.registrationType || activityData.jenisPendaftaran || '').toString().toLowerCase().trim();
+    const finalRegType = (regTypeInput === 'external' || regTypeInput === 'eksternal') ? 'external' : 'internal';
+    const cleanedLinks = finalRegType === 'external' ? (
+      Array.isArray(activityData.externalLinks) ? activityData.externalLinks.filter((l: any) => l && (l.url?.trim() || l.label?.trim())) :
+      Array.isArray(activityData.linkEksternal) ? activityData.linkEksternal.filter((l: any) => l && (l.url?.trim() || l.label?.trim())) :
+      (activityData.externalUrl || activityData.linkPendaftaran ? [{ id: '1', label: 'Formulir Pendaftaran', url: (activityData.externalUrl || activityData.linkPendaftaran).trim() }] : [])
+    ) : [];
+
     const normalizedPayload = {
       ...activityData,
       id: actId,
@@ -2776,12 +2834,28 @@ export const sheetsService = {
       rekeningPembiayaan: rekeningVal,
       noWhatsappPanitia: konfirmasiVal,
       konfirmasiPembayaran: konfirmasiVal,
+      registrationType: finalRegType,
+      jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal',
+      externalLinks: cleanedLinks,
+      linkEksternal: cleanedLinks,
+      externalUrl: cleanedLinks[0]?.url || '',
+      linkPendaftaran: cleanedLinks[0]?.url || '',
+      status: activityData.status || 'Buka',
       updatedAt: nowIso
     };
 
     const saved = await firestoreService.saveActivity(normalizedPayload);
     if (IS_API_VALID) {
-      this.post({ action: 'saveActivity', ...normalizedPayload }).catch(e => console.warn('saveActivity Sheets API warning:', e));
+      const sheetPayload = {
+        ...normalizedPayload,
+        externalLinks: JSON.stringify(cleanedLinks),
+        linkEksternal: JSON.stringify(cleanedLinks),
+        linkPendaftaran: cleanedLinks[0]?.url || '',
+        externalUrl: cleanedLinks[0]?.url || '',
+        registrationType: finalRegType,
+        jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal'
+      };
+      this.post({ action: 'saveActivity', ...sheetPayload }).catch(e => console.warn('saveActivity Sheets API warning:', e));
     }
     return saved || normalizedPayload;
   },

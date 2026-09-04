@@ -356,30 +356,32 @@ const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
-    <Routes location={location}>
-      <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-      <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-      <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-      <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
-      <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
-      <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
-      <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
-      <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
-      <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-      <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
-      <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
-      <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
-      <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
-      <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
-      <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
-      <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
-      <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
-      <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
-      <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
-      <Route path="/kwarda-ptma" element={<PageTransition fullWidth><KwardaPtmaPage /></PageTransition>} />
-      <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ErrorBoundary resetKeys={[location.pathname, location.search]}>
+      <Routes location={location}>
+        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+        <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
+        <Route path="/materi" element={<PageTransition><MateriPage /></PageTransition>} />
+        <Route path="/quran" element={<PageTransition><QuranPage /></PageTransition>} />
+        <Route path="/tools" element={<PageTransition><ToolsPage /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+        <Route path="/doa" element={<PageTransition><DoaPage /></PageTransition>} />
+        <Route path="/gallery" element={<PageTransition><GalleryPage /></PageTransition>} />
+        <Route path="/sosmed" element={<PageTransition><SosmedPage /></PageTransition>} />
+        <Route path="/upgrade" element={<PageTransition><UpgradePage /></PageTransition>} />
+        <Route path="/playlist" element={<PageTransition><PlaylistPage /></PageTransition>} />
+        <Route path="/kta" element={<PageTransition><KTAPage /></PageTransition>} />
+        <Route path="/daftar-pelatihan" element={<PageTransition><DaftarPelatihanPage /></PageTransition>} />
+        <Route path="/pelatihan" element={<PageTransition><PelatihanPage /></PageTransition>} />
+        <Route path="/kegiatan" element={<PageTransition><KegiatanPage /></PageTransition>} />
+        <Route path="/pelatih-nasional" element={<PageTransition><PelatihNasionalPage /></PageTransition>} />
+        <Route path="/kwarda-ptma" element={<PageTransition fullWidth><KwardaPtmaPage /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition fullWidth><AdminDashboard /></PageTransition>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 };
 
