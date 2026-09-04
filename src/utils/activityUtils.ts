@@ -175,12 +175,12 @@ export const parseDateToTimestamp = (d: any): number => {
   if (cached !== undefined) return cached;
 
   let result = 0;
-  // 1. Try standard ISO or RFC parse
+  // 1. Try standard ISO or RFC parse (e.g. 2026-09-04T04:28:00.000Z or 2026-08-29)
   const direct = Date.parse(str);
   if (!isNaN(direct) && direct > 0) {
     result = direct;
   } else {
-    // 2. Parse Indonesian date strings (e.g. "1 Agu 2026", "12 Agustus 2026", "01/08/2026", "01-08-2026")
+    // 2. Parse Indonesian date strings (single dates or ranges e.g. "23 – 25 Oktober 2026", "29-30 Agustus 2026", "12 Agustus 2026")
     const bulanMap: Record<string, number> = {
       jan: 0, januari: 0, january: 0,
       feb: 1, februari: 1, february: 1,
@@ -190,37 +190,51 @@ export const parseDateToTimestamp = (d: any): number => {
       jun: 5, juni: 5, june: 5,
       jul: 6, juli: 6, july: 6,
       agu: 7, ags: 7, agustus: 7, aug: 7, august: 7,
-      sep: 8, september: 8,
-      okt: 9, oktober: 9, oct: 9, october: 9,
+      sep: 8, sept: 8, september: 8,
+      okt: 9, oktob: 9, oktober: 9, oct: 9, october: 9,
       nov: 10, november: 10,
       des: 11, desember: 11, dec: 11, december: 11
     };
 
-    const parts = str.split(/[\s,./-]+/).filter(Boolean);
-    if (parts.length >= 3) {
-      let day = parseInt(parts[0], 10);
-      let monthStr = parts[1].toLowerCase();
-      let year = parseInt(parts[2], 10);
+    // Normalize dashes and split
+    const cleanStr = str.replace(/[–—]/g, '-');
+    const tokens = cleanStr.toLowerCase().split(/[\s,./-]+/).filter(Boolean);
 
-      // If string format is YYYY-MM-DD
-      if (parts[0].length === 4) {
-        year = parseInt(parts[0], 10);
-        monthStr = parts[1].toLowerCase();
-        day = parseInt(parts[2], 10);
-      }
+    let foundMonth: number | undefined = undefined;
+    let foundYear: number | undefined = undefined;
+    let foundDay: number | undefined = undefined;
 
-      let month = bulanMap[monthStr];
-      if (month === undefined) {
-        const mNum = parseInt(monthStr, 10);
-        if (!isNaN(mNum) && mNum >= 1 && mNum <= 12) {
-          month = mNum - 1;
+    // 1. Locate month and year
+    for (const tok of tokens) {
+      if (foundMonth === undefined) {
+        for (const [key, mIndex] of Object.entries(bulanMap)) {
+          if (tok === key || (key.length >= 3 && tok.startsWith(key))) {
+            foundMonth = mIndex;
+            break;
+          }
         }
       }
+      if (/^\d{4}$/.test(tok) && foundYear === undefined) {
+        foundYear = parseInt(tok, 10);
+      }
+    }
 
-      if (!isNaN(day) && month !== undefined && !isNaN(year)) {
-        if (year < 100) year += 2000;
-        const dt = new Date(year, month, day);
-        if (!isNaN(dt.getTime())) result = dt.getTime();
+    // 2. Locate first day number (1-31)
+    for (const tok of tokens) {
+      if (/^\d{1,2}$/.test(tok)) {
+        const num = parseInt(tok, 10);
+        if (num >= 1 && num <= 31) {
+          foundDay = num;
+          break;
+        }
+      }
+    }
+
+    if (foundMonth !== undefined && foundYear !== undefined) {
+      const day = foundDay !== undefined ? foundDay : 1;
+      const dt = new Date(foundYear, foundMonth, day);
+      if (!isNaN(dt.getTime())) {
+        result = dt.getTime();
       }
     }
   }
@@ -249,7 +263,7 @@ export const sortActivityAppsByDate = (apps: any[], ascending: boolean = true): 
 export const sortActivitiesNewestFirst = (activities: any[]): any[] => {
   if (!Array.isArray(activities)) return [];
   return [...activities].sort((a, b) => {
-    // 1. Check updatedAt or createdAt timestamp first
+    // 1. Compare updatedAt or createdAt timestamp first
     const updatedA = parseDateToTimestamp(a?.updatedAt || a?.createdAt);
     const updatedB = parseDateToTimestamp(b?.updatedAt || b?.createdAt);
     if (updatedA !== updatedB) return updatedB - updatedA;

@@ -54,7 +54,22 @@ export default function KegiatanPage() {
   const location = useLocation();
   const { user } = useAuthStore();
 
-  const isAdmin = Boolean(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.activeRole === 'admin' || user?.activeRole === 'superadmin' || user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.email === 'muhammaddzikron@gmail.com' || user?.email === 'medkom@hwjateng.com' || user?.email === 'admin@hw.org';
+  const isAdmin = Boolean(
+    user && (
+      user.role === 'admin' ||
+      user.role === 'superadmin' ||
+      user.role === 'sugli' ||
+      user.role === 'kwarda' ||
+      user.role === 'admin_diklat' ||
+      user.role === 'diklat' ||
+      user.activeRole === 'admin' ||
+      user.activeRole === 'superadmin' ||
+      (Array.isArray(user.roles) && (user.roles.includes('admin') || user.roles.includes('superadmin') || user.roles.includes('kwarda') || user.roles.includes('sugli'))) ||
+      user.email === 'muhammaddzikron@gmail.com' ||
+      user.email === 'medkom@hwjateng.com' ||
+      user.email === 'admin@hw.org'
+    )
+  );
 
   const [activities, setActivities] = useState<any[]>(() => {
     try {
@@ -233,6 +248,11 @@ export default function KegiatanPage() {
       const found = activities.find(a => a.id === actId);
       const target = found || location.state.activity;
       if (target) {
+        const statusLower = String(target.status || '').trim().toLowerCase();
+        const isClosed = statusLower === 'selesai' || statusLower === 'tutup';
+        if (isClosed && !isAdmin) {
+          return; // Restrict completed/closed activity access to admins only
+        }
         setSelectedActivity(target);
         if (location.state.openRegister) {
           setIsRegisterModalOpen(true);
@@ -241,7 +261,7 @@ export default function KegiatanPage() {
         }
       }
     }
-  }, [location.state, activities]);
+  }, [location.state, activities, isAdmin]);
 
   useEffect(() => {
     if (selectedActivity && activities.length > 0) {
@@ -291,6 +311,13 @@ export default function KegiatanPage() {
       // Exclude training activities from Kegiatan Page
       if (isOnlyTrainingActivity(act)) return false;
 
+      // Completed / Closed activities: Only accessible by Admin
+      const statusLower = String(act.status || '').trim().toLowerCase();
+      const isCompleted = statusLower === 'selesai' || statusLower === 'tutup';
+      if (isCompleted && !isAdmin) {
+        return false;
+      }
+
       const matchesSearch = !q ||
                             (act.namaKegiatan || '').toLowerCase().includes(q) ||
                             (act.lokasi || '').toLowerCase().includes(q);
@@ -307,7 +334,7 @@ export default function KegiatanPage() {
     });
 
     return sortActivitiesNewestFirst(result);
-  }, [activities, searchQuery, selectedCategory, user]);
+  }, [activities, searchQuery, selectedCategory, user, isAdmin]);
 
   const resolveImageUrl = useCallback((url?: string | null) => {
     if (!url || typeof url !== 'string') return 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
@@ -446,6 +473,14 @@ export default function KegiatanPage() {
         rekeningPembiayaan: newActivityForm.rekeningPembayaran,
         konfirmasiPembayaran: newActivityForm.konfirmasiPembayaran,
         noWhatsappPanitia: newActivityForm.konfirmasiPembayaran,
+        status: newActivityForm.status || 'Buka',
+        kuota: newActivityForm.kuota || 'Terbuka',
+        deskripsi: newActivityForm.deskripsi || '',
+        description: newActivityForm.deskripsi || '',
+        penyelenggara: newActivityForm.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
+        themeSongUrl: newActivityForm.themeSongUrl || '',
+        themeSongTitle: newActivityForm.themeSongTitle || '',
+        isPublished: true,
         isPelatihan: false,
         createdBy: editingActivity?.createdBy || user?.email || 'muhammaddzikron@gmail.com',
         creatorName: editingActivity?.creatorName || user?.namaLengkap || 'Panitia HW Jateng',
@@ -456,7 +491,9 @@ export default function KegiatanPage() {
       const saved = await sheetsService.saveActivity(payload);
       const freshActs = await sheetsService.getActivities();
       if (freshActs && freshActs.length > 0) {
-        setActivities(freshActs);
+        setActivities(sortActivitiesNewestFirst(freshActs));
+      } else {
+        setActivities(prev => sortActivitiesNewestFirst([payload, ...(prev || []).filter(a => a.id !== actId)]));
       }
       if (selectedActivity && selectedActivity.id === actId) {
         setSelectedActivity(saved || payload);
@@ -678,10 +715,17 @@ export default function KegiatanPage() {
                       </span>
                     )}
                   </div>
-                  <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md ${
+                  <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1 ${
                     (activity.status === 'Tutup' || activity.status === 'Selesai') ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                   }`}>
-                    {(activity.status === 'Tutup' || activity.status === 'Selesai') ? 'Selesai' : (activity.status || 'Buka')}
+                    {(activity.status === 'Tutup' || activity.status === 'Selesai') ? (
+                      <>
+                        <ShieldCheck size={12} />
+                        Selesai (Khusus Admin)
+                      </>
+                    ) : (
+                      (activity.status || 'Buka')
+                    )}
                   </div>
                 </div>
 
@@ -1831,8 +1875,9 @@ export default function KegiatanPage() {
                       onChange={e => setNewActivityForm({ ...newActivityForm, status: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold outline-none cursor-pointer"
                     >
-                      <option value="Buka">Buka (Menerima Pendaftaran)</option>
-                      <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
+                      <option value="Buka">Buka (Menerima Pendaftaran & Tampil Publik)</option>
+                      <option value="Tutup">Tutup (Pendaftaran Ditutup - Hanya Akses Admin)</option>
+                      <option value="Selesai">Selesai (Acara Selesai - Hanya Akses Admin)</option>
                     </select>
                   </div>
                 </div>

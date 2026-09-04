@@ -58,7 +58,7 @@ import { sheetsService } from '../services/sheetsService';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { Materi, Content } from '../types';
 import { cn, formatDate, formatTime, getCorsSafeUrl, getDriveDirectLink } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivitiesNewestFirst, extractYoutubeId, isExternalRegistration, getExternalLinks } from '../utils/activityUtils';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { formatAudioUrl } from '../utils/audioUtils';
 
@@ -1253,6 +1253,8 @@ export default function HomePage() {
                 const rawImg = act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage;
                 const img = rawImg ? (getDriveDirectLink(rawImg) || rawImg) : '';
                 const cat = act.kategori || act.category || 'Silaturahmi';
+                const isExt = isExternalRegistration(act);
+                const extLinks = getExternalLinks(act);
 
                 const pCount = homeActivityParticipantCountMap[act.id] || 0;
 
@@ -1271,8 +1273,15 @@ export default function HomePage() {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
                           }}
                         />
-                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
-                          {cat}
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap max-w-[70%]">
+                          <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-white/20">
+                            {cat}
+                          </span>
+                          {isExt && (
+                            <span className="bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border border-purple-400/40 flex items-center gap-1">
+                              <ExternalLink size={9} /> Eksternal
+                            </span>
+                          )}
                         </div>
                         {act.status && (
                           <div className={cn(
@@ -1286,10 +1295,15 @@ export default function HomePage() {
                     )}
                     <div className="space-y-1">
                       {!img && (
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
                             {cat}
                           </span>
+                          {isExt && (
+                            <span className="bg-purple-100 text-purple-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <ExternalLink size={10} /> Eksternal
+                            </span>
+                          )}
                           {act.status && (
                             <span className={cn(
                               "text-[9px] font-black uppercase px-2 py-0.5 rounded-md",
@@ -1321,15 +1335,17 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] font-extrabold bg-emerald-50/80 px-2.5 py-1.5 rounded-xl border border-emerald-100 text-emerald-800">
-                      <div className="flex items-center gap-1.5">
-                        <Users size={13} className="text-emerald-600" />
-                        <span>Jumlah Pendaftar Realtime:</span>
+                    {!isExt && (
+                      <div className="flex items-center justify-between text-[10px] font-extrabold bg-emerald-50/80 px-2.5 py-1.5 rounded-xl border border-emerald-100 text-emerald-800">
+                        <div className="flex items-center gap-1.5">
+                          <Users size={13} className="text-emerald-600" />
+                          <span>Jumlah Pendaftar Realtime:</span>
+                        </div>
+                        <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px]">
+                          {pCount} Orang
+                        </span>
                       </div>
-                      <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px]">
-                        {pCount} Orang
-                      </span>
-                    </div>
+                    )}
 
                     <button
                       type="button"

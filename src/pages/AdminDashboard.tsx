@@ -7,7 +7,7 @@ import { KTACard } from '../components/KTACard';
 import { NotificationBell } from '../components/NotificationBell';
 import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks, sortActivitiesNewestFirst } from '../utils/activityUtils';
 import { 
   syncRolesAndPelatihan, 
   PELATIHAN_OPTIONS, 
@@ -235,11 +235,12 @@ import {
   Sparkles,
   Building2,
   ExternalLink,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Tag
 } from 'lucide-react';
 import KwardaPtmaPage from './KwardaPtmaPage';
 import { useAuthStore } from '../store/useAuthStore';
-import { Navigate, Link, useSearchParams } from 'react-router-dom';
+import { Navigate, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService, parseRolesField } from '../services/firestoreService';
 import { User, Materi, Content } from '../types';
@@ -248,6 +249,7 @@ import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas,
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
+import { CopyAccountButton } from '../components/CopyAccountButton';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
 import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode } from '../utils/ktaUtils';
@@ -413,6 +415,7 @@ export default function AdminDashboard() {
   };
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isDiklatAdmin = (user as any)?.adminType === 'diklat' || user?.email === 'diklat' || user?.email === 'diklat@hwjateng.com' || user?.role === 'admin_diklat';
 
   const [settings, setSettings] = useState({
@@ -636,7 +639,15 @@ export default function AdminDashboard() {
     registrationType: 'internal' as 'internal' | 'external',
     externalLinks: [{ id: '1', label: 'Formulir Pendaftaran', url: '' }]
   });
+  const [isSavingActivity, setIsSavingActivity] = useState(false);
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
+  const [previewActivity, setPreviewActivity] = useState<any | null>(null);
+  const [isPreviewActivityModalOpen, setIsPreviewActivityModalOpen] = useState(false);
+
+  const handlePreviewActivity = (act: any) => {
+    setPreviewActivity(act);
+    setIsPreviewActivityModalOpen(true);
+  };
 
   const activityParticipantCountMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -704,6 +715,7 @@ export default function AdminDashboard() {
   const [activeKtaSubTab, setActiveKtaSubTab] = useState<'summary' | 'stats' | 'kwarda' | 'template'>('summary');
   const [editingKtaApp, setEditingKtaApp] = useState<any | null>(null);
   const [isEditKtaModalOpen, setIsEditKtaModalOpen] = useState(false);
+  const [editModalSide, setEditModalSide] = useState<'front' | 'back'>('front');
   const [isResequencingKta, setIsResequencingKta] = useState(false);
   const [previewFlipped, setPreviewFlipped] = useState(false);
   const [isViewKtaModalOpen, setIsViewKtaModalOpen] = useState(false);
@@ -1415,17 +1427,43 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingKtaApp) return;
     try {
-      const appToSave = { ...editingKtaApp };
+      const appToSave = {
+        ...editingKtaApp,
+        nama: (editingKtaApp.nama || editingKtaApp.namaLengkap || '').trim(),
+        namaLengkap: (editingKtaApp.nama || editingKtaApp.namaLengkap || '').trim(),
+        ktaNumber: (editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || '').trim(),
+        nomorKTA: (editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || '').trim(),
+        tempatLahir: (editingKtaApp.tempatLahir || '').trim(),
+        tanggalLahir: (editingKtaApp.tanggalLahir || '').trim(),
+        asalDaerah: (editingKtaApp.asalDaerah || editingKtaApp.asalKwarda || '').trim(),
+        asalKwarda: (editingKtaApp.asalDaerah || editingKtaApp.asalKwarda || '').trim(),
+        qabilah: (editingKtaApp.qabilah || '').trim(),
+        tingkatan: editingKtaApp.tingkatan || editingKtaApp.golongan || 'Pandu Pengenal',
+        golongan: editingKtaApp.tingkatan || editingKtaApp.golongan || 'Pandu Pengenal',
+        alamat: (editingKtaApp.alamat || '').trim(),
+        jenisKta: editingKtaApp.jenisKta || 'Digital',
+        jenisKelamin: editingKtaApp.jenisKelamin || 'Laki-laki',
+        noWa: (editingKtaApp.noWa || editingKtaApp.noHp || '').trim(),
+        noHp: (editingKtaApp.noWa || editingKtaApp.noHp || '').trim(),
+        email: (editingKtaApp.email || '').trim(),
+        status: editingKtaApp.status || 'approved',
+        photo: editingKtaApp.photo || editingKtaApp.foto || '',
+        foto: editingKtaApp.photo || editingKtaApp.foto || '',
+        nbm: (editingKtaApp.nbm || '').trim(),
+        remark: (editingKtaApp.remark || editingKtaApp.rejectionReason || '').trim(),
+        rejectionReason: (editingKtaApp.remark || editingKtaApp.rejectionReason || '').trim(),
+        updatedAt: new Date().toISOString()
+      };
 
       // 1. Optimistic update
       setKtaApps(prev => prev.map(k => String(k.id) === String(appToSave.id) ? appToSave : k));
       setIsEditKtaModalOpen(false);
       setEditingKtaApp(null);
-      showToast('success', 'Data KTA berhasil diperbarui!');
+      showToast('success', `Data KTA untuk ${appToSave.nama} berhasil diperbarui!`);
 
       // 2. Background save & sync
       (async () => {
-        setBackgroundProcessingText('Menyimpan perubahan KTA di latar belakang...');
+        setBackgroundProcessingText('Menyimpan revisi data KTA di latar belakang...');
         try {
           await sheetsService.saveKTAApplication(appToSave);
           if (appToSave.email || appToSave.userId) {
@@ -1436,11 +1474,21 @@ export default function AdminDashboard() {
             if (matchingMember) {
               const updatedMember = {
                 ...matchingMember,
-                ...(appToSave.photo ? { photo: appToSave.photo } : {}),
-                ...(appToSave.nama ? { namaLengkap: appToSave.nama } : {}),
-                ...(appToSave.noWa ? { noHp: appToSave.noWa } : {}),
-                ...(appToSave.asalDaerah ? { asalKwarda: appToSave.asalDaerah } : {}),
-                ...(appToSave.qabilah ? { qabilah: appToSave.qabilah } : {})
+                namaLengkap: appToSave.nama,
+                nama: appToSave.nama,
+                tempatLahir: appToSave.tempatLahir,
+                tanggalLahir: appToSave.tanggalLahir,
+                asalKwarda: appToSave.asalDaerah,
+                qabilah: appToSave.qabilah,
+                tingkatan: appToSave.tingkatan,
+                golongan: appToSave.tingkatan,
+                alamat: appToSave.alamat,
+                jenisKelamin: appToSave.jenisKelamin,
+                ktaNumber: appToSave.ktaNumber,
+                nomorKTA: appToSave.ktaNumber,
+                noHp: appToSave.noWa,
+                noWa: appToSave.noWa,
+                ...(appToSave.photo ? { photo: appToSave.photo, foto: appToSave.photo } : {})
               };
               await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
             }
@@ -2104,6 +2152,7 @@ export default function AdminDashboard() {
       showToast('error', 'Nama kegiatan wajib diisi');
       return;
     }
+    setIsSavingActivity(true);
     try {
       const actId = editingKegiatan ? editingKegiatan.id : `act-${Date.now()}`;
       const isPel = kegiatanFormData.kategori === 'Pelatihan' || 
@@ -2125,6 +2174,8 @@ export default function AdminDashboard() {
         id: actId,
         namaKegiatan: kegiatanFormData.namaKegiatan,
         title: kegiatanFormData.namaKegiatan,
+        kategori: kegiatanFormData.kategori || 'Rapat HW',
+        category: kegiatanFormData.kategori || 'Rapat HW',
         tanggal: kegiatanFormData.tanggal,
         tanggalPelatihan: kegiatanFormData.tanggal,
         startDate: kegiatanFormData.tanggal,
@@ -2133,6 +2184,10 @@ export default function AdminDashboard() {
         location: kegiatanFormData.lokasi,
         biaya: kegiatanFormData.biaya,
         biayaPelatihan: kegiatanFormData.biaya,
+        status: kegiatanFormData.status || 'Buka',
+        kuota: kegiatanFormData.kuota || 'Terbuka',
+        deskripsi: kegiatanFormData.deskripsi || '',
+        description: kegiatanFormData.deskripsi || '',
         gambarUrl: kegiatanFormData.gambarUrl,
         imageUrl: kegiatanFormData.gambarUrl,
         gambar: kegiatanFormData.gambarUrl,
@@ -2146,6 +2201,7 @@ export default function AdminDashboard() {
         themeSong: kegiatanFormData.themeSongUrl,
         themeSongTitle: kegiatanFormData.themeSongTitle,
         themeSongName: kegiatanFormData.themeSongTitle,
+        penyelenggara: kegiatanFormData.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
         rekeningPembayaran: kegiatanFormData.rekeningPembiayaan,
         rekeningPembiayaan: kegiatanFormData.rekeningPembiayaan,
         nomorRekening: kegiatanFormData.rekeningPembiayaan,
@@ -2160,18 +2216,21 @@ export default function AdminDashboard() {
         externalLinks: cleanedExternalLinks,
         linkEksternal: cleanedExternalLinks,
         isPelatihan: isPel,
+        isPublished: true,
+        createdAt: editingKegiatan?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      // Optimistic update
+      // Optimistic update: Place the newest saved/updated activity at the very front/top
       setActivitiesList(prev => {
-        const existing = prev.find(a => a.id === actId);
-        if (existing) {
-          return prev.map(a => a.id === actId ? { ...a, ...payload } : a);
-        }
-        return [payload, ...prev];
+        const without = (prev || []).filter(a => a.id !== actId);
+        return sortActivitiesNewestFirst([payload, ...without]);
       });
+      
+      // Close all activity modal states cleanly
       setIsKegiatanModalOpen(false);
+      setIsActivityModalOpen(false);
+      setEditingKegiatan(null);
       showToast('success', editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
 
       // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
@@ -2197,19 +2256,24 @@ export default function AdminDashboard() {
         }));
       }
 
-      // Background save
+      // Background save to Cloud Firestore / Sheets
       (async () => {
         setBackgroundProcessingText('Menyimpan data kegiatan di latar belakang...');
         try {
           await sheetsService.saveActivity(payload);
           const actData = await sheetsService.getActivities();
-          if (actData) setActivitiesList(actData);
+          if (actData) setActivitiesList(sortActivitiesNewestFirst(actData));
         } finally {
           setBackgroundProcessingText(null);
+          setIsSavingActivity(false);
         }
-      })().catch(err => console.warn('Background save activity warning:', err));
+      })().catch(err => {
+        console.warn('Background save activity warning:', err);
+        setIsSavingActivity(false);
+      });
 
     } catch (err: any) {
+      setIsSavingActivity(false);
       showToast('error', 'Gagal menyimpan kegiatan: ' + (err.message || err));
     }
   };
@@ -6081,7 +6145,7 @@ export default function AdminDashboard() {
                             <th className="p-3.5 min-w-[130px]">Tingkatan & Jenis</th>
                             <th className="p-3.5 min-w-[160px]">Asal Kwarda / Qabilah</th>
                             <th className="p-3.5 min-w-[150px] w-[170px]">Status / No. KTA</th>
-                            <th className="p-3.5 pr-5 text-center min-w-[200px] w-[220px]">Aksi</th>
+                            <th className="p-3.5 pr-5 text-center min-w-[220px] whitespace-nowrap">Aksi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
@@ -6158,21 +6222,23 @@ export default function AdminDashboard() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="p-3.5 pr-5 text-center">
-                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <td className="p-3.5 pr-5 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1.5 flex-nowrap whitespace-nowrap">
                                     {app.status === 'pending' && (
                                       <>
                                         <button
+                                          type="button"
                                           onClick={() => handleApproveKTA(app.id)}
-                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
                                           title="Setujui KTA"
                                         >
                                           <CheckCircle2 size={12} />
                                           <span>Setujui</span>
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={() => handleOpenRejectKTA(app.id)}
-                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shrink-0"
                                           title="Tolak KTA"
                                         >
                                           <XCircle size={12} />
@@ -6180,36 +6246,59 @@ export default function AdminDashboard() {
                                         </button>
                                       </>
                                     )}
-                                    
-                                    <button
-                                      onClick={() => {
-                                        setEditingKtaApp({
-                                          ...app,
-                                          tanggalLahir: normalizeDateForInput(app.tanggalLahir || (app as any).tanggallahir || '')
-                                        });
-                                        setIsEditKtaModalOpen(true);
-                                      }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                      title="Edit Data Anggota KTA"
-                                    >
-                                      <Pencil size={11} />
-                                      <span>Edit</span>
-                                    </button>
 
+                                    {/* 1. Preview */}
                                     <button
+                                      type="button"
                                       onClick={() => {
                                         setViewingKtaApp(app);
                                         setIsViewKtaModalOpen(true);
                                         setFlippedAdmin(false);
                                       }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs shrink-0"
                                       title="Preview KTA"
                                     >
                                       <Eye size={12} />
                                       <span>Preview</span>
                                     </button>
 
+                                    {/* 2. Edit */}
                                     <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingKtaApp({
+                                          ...app,
+                                          nama: app.nama || app.namaLengkap || '',
+                                          namaLengkap: app.nama || app.namaLengkap || '',
+                                          ktaNumber: app.ktaNumber || app.nomorKTA || '',
+                                          tempatLahir: app.tempatLahir || '',
+                                          tanggalLahir: normalizeDateForInput(app.tanggalLahir || (app as any).tanggallahir || ''),
+                                          asalDaerah: app.asalDaerah || app.asalKwarda || '',
+                                          qabilah: app.qabilah || '',
+                                          tingkatan: app.tingkatan || app.golongan || 'Pandu Pengenal',
+                                          alamat: app.alamat || '',
+                                          jenisKta: app.jenisKta || 'Digital',
+                                          jenisKelamin: app.jenisKelamin || 'Laki-laki',
+                                          noWa: app.noWa || app.noHp || '',
+                                          email: app.email || '',
+                                          status: app.status || 'approved',
+                                          photo: app.photo || app.foto || '',
+                                          nbm: app.nbm || '',
+                                          remark: app.remark || app.rejectionReason || ''
+                                        });
+                                        setEditModalSide('front');
+                                        setIsEditKtaModalOpen(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-2xs shrink-0"
+                                      title="Edit & Revisi Data KTA Anggota"
+                                    >
+                                      <Pencil size={11} />
+                                      <span>Edit</span>
+                                    </button>
+
+                                    {/* 3. Delete */}
+                                    <button
+                                      type="button"
                                       onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Pengajuan KTA')}
                                       className="inline-flex items-center justify-center p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-lg transition-all cursor-pointer active:scale-95 shrink-0"
                                       title="Hapus KTA"
@@ -9155,14 +9244,24 @@ export default function AdminDashboard() {
                                   <span>{extLinks.length} Tautan Eksternal</span>
                                 </div>
                               )}
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <button
+                                  type="button"
+                                  onClick={() => handlePreviewActivity(act)}
+                                  className="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                  title="Preview Tampilan Lengkap Kegiatan"
+                                >
+                                  <Eye size={14} /> Preview
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => handleOpenActivityModal(act)}
                                   className="px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                                 >
                                   <Edit size={14} /> Edit
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleDeleteActivity(act.id, act.namaKegiatan || act.title || act.jenisPelatihan)}
                                   className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                                 >
@@ -9949,52 +10048,395 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 8. EDIT KTA MODAL */}
+      {/* 8. EDIT & REVISI KTA MODAL */}
       {isEditKtaModalOpen && editingKtaApp && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSaveEditKTA} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900">Edit Pengajuan KTA</h3>
-              <button type="button" onClick={() => setIsEditKtaModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Lengkap</label>
-                <input
-                  type="text"
-                  value={editingKtaApp.nama || editingKtaApp.namaLengkap || ''}
-                  onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, nama: e.target.value, namaLengkap: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
-                />
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl border border-gray-100 flex flex-col max-h-[92vh] my-auto space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+              <div className="min-w-0 pr-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 rounded-full text-[10px] font-black uppercase tracking-wider mb-1">
+                  <Pencil size={11} />
+                  <span>Revisi Data KTA Anggota</span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900 truncate">
+                  Edit & Revisi Data KTA: {editingKtaApp.nama || editingKtaApp.namaLengkap || 'Anggota'}
+                </h3>
+                <p className="text-xs text-gray-500 font-medium">
+                  Perbaiki kesalahan penulisan identitas, nomor KTA, tingkatan, atau pas foto anggota agar sesuai pada kartu KTA.
+                </p>
               </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Nomor KTA / NBM</label>
-                <input
-                  type="text"
-                  value={editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || ''}
-                  onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, ktaNumber: e.target.value, nomorKTA: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => setIsEditKtaModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Tutup"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Hidden Photo Input */}
+            <input
+              type="file"
+              ref={ktaPhotoInputRef}
+              onChange={handleKtaPhotoChange}
+              accept="image/*"
+              className="hidden"
+            />
+
+            {/* Modal Body - 2 Columns (Form on left, Live Card Preview on right) */}
+            <div className="overflow-y-auto pr-1 grid grid-cols-1 lg:grid-cols-12 gap-5 max-h-[65vh] scrollbar-thin">
+              {/* Left Column: Form Sections (7 cols) */}
+              <form id="edit-kta-form" onSubmit={handleSaveEditKTA} className="lg:col-span-7 space-y-4">
+                {/* SEKSI 1: Nomor KTA & Status */}
+                <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+                    <CreditCard size={14} className="text-hw-green" />
+                    <span>1. Informasi Kartu & Status KTA</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Nomor KTA <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, ktaNumber: e.target.value, nomorKTA: e.target.value }))}
+                        placeholder="Contoh: 11.02.0027"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Status KTA</label>
+                      <select
+                        value={editingKtaApp.status || 'approved'}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, status: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none cursor-pointer"
+                      >
+                        <option value="approved">Resmi Aktif (Disetujui)</option>
+                        <option value="pending">Menunggu Verifikasi</option>
+                        <option value="rejected">Ditolak / Perlu Revisi</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Jenis KTA</label>
+                      <select
+                        value={editingKtaApp.jenisKta || 'Digital'}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, jenisKta: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none cursor-pointer"
+                      >
+                        <option value="Digital">Digital (Elektronik)</option>
+                        <option value="Fisik">Fisik (Cetak)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">NBM (Nomor Baku Muhammadiyah)</label>
+                      <input
+                        type="text"
+                        value={editingKtaApp.nbm || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, nbm: e.target.value }))}
+                        placeholder="Nomor NBM jika ada"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 2: Identitas Anggota */}
+                <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+                    <UserIcon size={14} className="text-hw-green" />
+                    <span>2. Data Identitas Pribadi</span>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Nama Lengkap <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editingKtaApp.nama || editingKtaApp.namaLengkap || ''}
+                      onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, nama: e.target.value, namaLengkap: e.target.value }))}
+                      placeholder="Nama lengkap anggota sesuai identitas"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none uppercase"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={editingKtaApp.tempatLahir || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, tempatLahir: e.target.value }))}
+                        placeholder="Contoh: Semarang"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Tanggal Lahir</label>
+                      <input
+                        type="date"
+                        value={normalizeDateForInput(editingKtaApp.tanggalLahir || '')}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, tanggalLahir: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Jenis Kelamin</label>
+                      <select
+                        value={editingKtaApp.jenisKelamin || 'Laki-laki'}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, jenisKelamin: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none cursor-pointer"
+                      >
+                        <option value="Laki-laki">Laki-laki</option>
+                        <option value="Perempuan">Perempuan</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 3: Asal Wilayah & Kepanduan */}
+                <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+                    <MapPin size={14} className="text-hw-green" />
+                    <span>3. Struktur Wilayah & Tingkatan HW</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Asal Kwarda / Qabilah PTMA <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={editingKtaApp.asalDaerah || editingKtaApp.asalKwarda || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, asalDaerah: e.target.value, asalKwarda: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none cursor-pointer"
+                      >
+                        <option value="">-- Pilih Kwarda / Qabilah --</option>
+                        <optgroup label="1. Kwarda (Kabupaten / Kota)">
+                          {KWARDA_QABILAH_JATENG.slice(0, 35).map(k => (
+                            <option key={k.code} value={k.name}>
+                              {parseInt(k.code, 10)}. {k.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="2. Qabilah PTMA">
+                          {KWARDA_QABILAH_JATENG.slice(35).map(q => (
+                            <option key={q.code} value={q.name}>
+                              {parseInt(q.code, 10)}. {q.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Tingkatan Pandu</label>
+                      <select
+                        value={editingKtaApp.tingkatan || editingKtaApp.golongan || 'Pandu Pengenal'}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, tingkatan: e.target.value, golongan: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none cursor-pointer"
+                      >
+                        <option value="Pandu Athfal">Pandu Athfal</option>
+                        <option value="Pandu Pengenal">Pandu Pengenal</option>
+                        <option value="Pandu Penghela">Pandu Penghela</option>
+                        <option value="Pandu Penuntun">Pandu Penuntun</option>
+                        <option value="Pembina">Pembina</option>
+                        <option value="Anggota Dewasa">Anggota Dewasa</option>
+                        <option value="Pelatih">Pelatih</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Qabilah / Pangkalan / Satuan
+                    </label>
+                    <input
+                      type="text"
+                      value={editingKtaApp.qabilah || ''}
+                      onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, qabilah: e.target.value }))}
+                      placeholder="Contoh: SMP Muhammadiyah 1 / Kafilah Penuntun UMS"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* SEKSI 4: Alamat & Kontak */}
+                <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+                    <Phone size={14} className="text-hw-green" />
+                    <span>4. Alamat & Informasi Kontak</span>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Alamat Lengkap (Tertera di Kartu)</label>
+                    <textarea
+                      rows={2}
+                      value={editingKtaApp.alamat || ''}
+                      onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, alamat: e.target.value }))}
+                      placeholder="Alamat domisili/tempat tinggal anggota"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">No. WhatsApp / HP</label>
+                      <input
+                        type="text"
+                        value={editingKtaApp.noWa || editingKtaApp.noHp || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, noWa: e.target.value, noHp: e.target.value }))}
+                        placeholder="Contoh: 08123456789"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">Email Terdaftar</label>
+                      <input
+                        type="email"
+                        value={editingKtaApp.email || ''}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, email: e.target.value }))}
+                        placeholder="email@contoh.com"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-hw-green/20 focus:border-hw-green outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 5: Pas Foto KTA */}
+                <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+                    <Camera size={14} className="text-hw-green" />
+                    <span>5. Pas Foto Anggota (KTA)</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="w-16 h-20 bg-gray-100 rounded-xl border border-gray-300 overflow-hidden shrink-0 shadow-2xs flex items-center justify-center">
+                      {editingKtaApp.photo || editingKtaApp.foto ? (
+                        <img
+                          src={editingKtaApp.photo || editingKtaApp.foto}
+                          alt="Pas Foto KTA"
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <UserIcon size={24} className="text-gray-400" />
+                      )}
+                    </div>
+                    <div className="space-y-2 flex-1 w-full">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => ktaPhotoInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-2xs"
+                        >
+                          <Upload size={13} />
+                          <span>Unggah / Ganti Foto</span>
+                        </button>
+                        {(editingKtaApp.photo || editingKtaApp.foto) && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingKtaApp((p: any) => ({ ...p, photo: '', foto: '' }))}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                          >
+                            <Trash2 size={12} />
+                            <span>Hapus Foto</span>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-400">
+                        Gunakan pas foto berseragam Hizbul Wathan dengan rasio 3:4 atau 4:6 (Maks. 10MB, dikompres otomatis).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 6: Catatan Revisi / Keterangan Penolakan */}
+                {editingKtaApp.status === 'rejected' && (
+                  <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-200/80 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-rose-700 uppercase tracking-wider">
+                      <AlertCircle size={14} />
+                      <span>Alasan Penolakan / Catatan Revisi</span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={editingKtaApp.remark || editingKtaApp.rejectionReason || ''}
+                      onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, remark: e.target.value, rejectionReason: e.target.value }))}
+                      placeholder="Masukkan catatan perbaikan yang perlu diperbaiki anggota..."
+                      className="w-full p-2 bg-white border border-rose-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-rose-200 focus:border-rose-400 outline-none"
+                    />
+                  </div>
+                )}
+              </form>
+
+              {/* Right Column: Live Real-time Card Preview (5 cols) */}
+              <div className="lg:col-span-5 bg-stone-900 rounded-2xl p-4 flex flex-col items-center justify-between gap-4 border border-stone-800 shadow-inner">
+                <div className="w-full flex items-center justify-between border-b border-stone-800 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-emerald-400 uppercase tracking-wider">
+                    <Sparkles size={13} />
+                    <span>Live Pratinjau KTA</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-stone-800 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setEditModalSide('front')}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editModalSide === 'front'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      Depan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditModalSide('back')}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editModalSide === 'back'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      Belakang
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Container */}
+                <div className="w-full flex items-center justify-center py-2 overflow-hidden">
+                  <div className="scale-[0.8] sm:scale-[0.85] origin-center shadow-2xl rounded-2xl overflow-hidden">
+                    <KTACard
+                      side={editModalSide}
+                      application={editingKtaApp}
+                      settings={settings}
+                    />
+                  </div>
+                </div>
+
+                <div className="w-full bg-stone-800/80 p-2.5 rounded-xl border border-stone-700/50 text-center">
+                  <p className="text-[10px] text-stone-400 font-medium">
+                    Pratinjau kartu KTA otomatis diperbarui seketika mengikuti data yang Anda ketik pada formulir.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditKtaModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer active:scale-95"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+                form="edit-kta-form"
+                className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-hw-green hover:bg-emerald-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer active:scale-95"
               >
-                Simpan
+                <Save size={14} />
+                <span>Simpan Revisi KTA</span>
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -10326,14 +10768,15 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Status Pendaftaran</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Status Kegiatan</label>
                   <select
                     value={kegiatanFormData.status}
                     onChange={(e) => setKegiatanFormData(f => ({ ...f, status: e.target.value }))}
                     className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
                   >
-                    <option value="Buka">Buka (Menerima Pendaftaran)</option>
-                    <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
+                    <option value="Buka">Buka (Menerima Pendaftaran & Tampil Publik)</option>
+                    <option value="Tutup">Tutup (Pendaftaran Ditutup - Hanya Akses Admin)</option>
+                    <option value="Selesai">Selesai (Acara Selesai - Hanya Akses Admin)</option>
                   </select>
                 </div>
               </div>
@@ -10639,14 +11082,377 @@ export default function AdminDashboard() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 cursor-pointer"
+                disabled={isSavingActivity}
+                className="px-6 py-2.5 bg-hw-green hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-2 cursor-pointer"
               >
-                Simpan Kegiatan
+                {isSavingActivity ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan Kegiatan'
+                )}
               </button>
             </div>
           </form>
         </div>
       )}
+
+      {/* 12.5. PREVIEW KEGIATAN MODAL */}
+      <AnimatePresence>
+        {isPreviewActivityModalOpen && previewActivity && (
+          <div 
+            className="fixed inset-0 z-[70] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsPreviewActivityModalOpen(false);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-100 shadow-2xl max-w-xl w-full overflow-hidden max-h-[calc(100dvh-4rem)] flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Banner Image / Poster Header */}
+              <div className="relative h-48 sm:h-56 bg-gray-900 shrink-0">
+                <img 
+                  src={getCorsSafeUrl(previewActivity.gambarUrl || previewActivity.imageUrl || previewActivity.gambar, previewActivity.updatedAt || previewActivity.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} 
+                  alt={previewActivity.namaKegiatan || previewActivity.title} 
+                  className="w-full h-full object-cover opacity-85"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                
+                {/* Close & Preview Tag Toolbar */}
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+                  <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 border border-emerald-400/30">
+                    <Eye size={12} /> Mode Preview Kegiatan (Admin)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewActivityModalOpen(false)}
+                    className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full shadow-lg transition-transform active:scale-90 cursor-pointer border border-white/20"
+                    title="Tutup Preview"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="absolute bottom-3 left-4 right-4 text-white space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-hw-green text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
+                      {previewActivity.kategori || previewActivity.category || 'Silaturahmi'}
+                    </span>
+                    {isExternalRegistration(previewActivity) ? (
+                      <span className="bg-purple-600/90 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                        <LinkIcon size={10} /> Pendaftaran Eksternal ({getExternalLinks(previewActivity).length} Link)
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-600/90 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                        <CheckCircle2 size={10} /> Pendaftaran Internal App
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs ${
+                      (previewActivity.status === 'Tutup' || previewActivity.status === 'Selesai') ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
+                    }`}>
+                      {previewActivity.status || 'Buka'}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black font-display leading-tight line-clamp-2">
+                    {previewActivity.namaKegiatan || previewActivity.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Scrollable Content Body */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 overscroll-contain">
+                {/* Key Facts Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-150 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pelaksanaan</span>
+                    <span className="font-black text-gray-800 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Calendar size={14} className="text-hw-green shrink-0 mt-0.5" />
+                      <span>{previewActivity.tanggal || previewActivity.startDate || '-'}</span>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Lokasi & Tempat</span>
+                    <span className="font-black text-gray-900 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <MapPin size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                      <span>{previewActivity.lokasi || previewActivity.location || '-'}</span>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Infaq / Biaya</span>
+                    <span className="font-black text-purple-700 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Tag size={14} className="shrink-0 mt-0.5" />
+                      <span>{previewActivity.biaya || 'Gratis'}</span>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Kapasitas / Kuota</span>
+                    <span className="font-black text-emerald-800 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Users size={14} className="shrink-0 mt-0.5" />
+                      <span>{previewActivity.kuota || 'Terbuka'}</span>
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Penyelenggara</span>
+                    <span className="font-black text-blue-800 flex items-start gap-1.5 mt-1 leading-snug break-words">
+                      <Award size={14} className="shrink-0 mt-0.5" />
+                      <span>{previewActivity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Deskripsi Kegiatan */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">Deskripsi Kegiatan</h4>
+                  <p className="text-xs text-gray-600 leading-relaxed font-medium bg-white p-4 rounded-2xl border border-gray-150">
+                    {previewActivity.deskripsi || previewActivity.description || 'Tidak ada deskripsi tambahan.'}
+                  </p>
+                </div>
+
+                {/* Themesong Player (Jika Ada) */}
+                {(previewActivity.themeSongUrl || previewActivity.themeSong) && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">Themesong & Audio</h4>
+                    <ThemeSongPlayer
+                      audioUrl={previewActivity.themeSongUrl || previewActivity.themeSong}
+                      title={previewActivity.themeSongTitle || previewActivity.themeSongName || 'Mars / Themesong Kegiatan'}
+                    />
+                  </div>
+                )}
+
+                {/* YouTube Video (Jika Ada) */}
+                {(() => {
+                  const rawVideo = (previewActivity.youtubeUrl || previewActivity.videoUrl || previewActivity.youtube || previewActivity.linkYoutube || '').trim();
+                  const videoId = extractYoutubeId(rawVideo);
+                  if (!videoId) return null;
+                  return (
+                    <div className="bg-gradient-to-br from-rose-50 via-slate-50 to-amber-50 border border-rose-200/80 p-4 rounded-2xl space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-rose-600 text-white rounded-xl shadow-xs">
+                            <Youtube size={18} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black text-gray-900 font-display">Video Dokumentasi & Siaran Kegiatan</h5>
+                            <p className="text-[10px] text-gray-500 font-medium">Video resmi terkait agenda kegiatan ini</p>
+                          </div>
+                        </div>
+                        <a
+                          href={`https://www.youtube.com/watch?v=${videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                        >
+                          <ExternalLink size={12} /> Buka YouTube
+                        </a>
+                      </div>
+                      <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-md border border-rose-200/60">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                          title={`Video ${previewActivity.namaKegiatan}`}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Proposal Download (Jika Ada) */}
+                {(() => {
+                  const proposalLink = previewActivity.proposalUrl || previewActivity.proposal || previewActivity.linkProposal;
+                  if (!proposalLink) return null;
+                  return (
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 p-4 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black text-gray-800">Proposal & Petunjuk Teknis</h5>
+                            <p className="text-[10px] text-emerald-800 font-semibold">Berkas resmi juklak / panduan kegiatan</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDocument(proposalLink, previewActivity.namaKegiatan)}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <Download size={14} /> Unduh Proposal
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Rekening Pembayaran & Info Konfirmasi WA */}
+                <div className="bg-slate-900 text-white p-4.5 rounded-2xl space-y-3.5 border border-slate-800 shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={18} className="text-emerald-400" />
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Info Rekening & Pembayaran</span>
+                    </div>
+                    <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      Resmi HW Jateng
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Rekening Pembayaran</span>
+                    <div className="bg-slate-800/90 border border-slate-700/80 p-3 rounded-xl flex items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-amber-300 font-mono leading-tight break-words">
+                        {previewActivity.rekeningPembayaran || previewActivity.rekeningPembiayaan || previewActivity.nomorRekening || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng'}
+                      </span>
+                      <CopyAccountButton 
+                        accountNumber={String(previewActivity.rekeningPembayaran || previewActivity.rekeningPembiayaan || previewActivity.nomorRekening || '7307427448').replace(/[^0-9]/g, '') || '7307427448'} 
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Konfirmasi Pembayaran</span>
+                      <span className="text-xs font-bold text-gray-200">
+                        {previewActivity.konfirmasiPembayaran || previewActivity.noWhatsappPanitia || '089688754000'}
+                      </span>
+                    </div>
+                    {(() => {
+                      const rawContact = String(previewActivity.konfirmasiPembayaran || previewActivity.noWhatsappPanitia || '089688754000').replace(/[^0-9]/g, '');
+                      const formattedContact = rawContact.startsWith('0') ? '62' + rawContact.slice(1) : (rawContact.startsWith('62') ? rawContact : '6289688754000');
+                      const waText = encodeURIComponent(`Assalamu'alaikum Medkom/Panitia HW Jateng, saya mau konfirmasi pembayaran kegiatan: ${previewActivity.namaKegiatan}`);
+                      return (
+                        <a
+                          href={`https://wa.me/${formattedContact}?text=${waText}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+                        >
+                          <MessageCircle size={14} /> Konfirmasi WA
+                        </a>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Section Pendaftaran (Eksternal vs Internal) */}
+                {isExternalRegistration(previewActivity) ? (
+                  <div className="bg-purple-50/80 border-2 border-purple-200 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-purple-200">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-xs">
+                          <Globe size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Pendaftaran Link Eksternal</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Tautan formulir pendaftaran eksternal yang aktif</p>
+                        </div>
+                      </div>
+                      <span className="bg-purple-200/80 text-purple-900 font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full">
+                        {getExternalLinks(previewActivity).length} Link Tersedia
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {getExternalLinks(previewActivity).map((linkItem, idx) => (
+                        <div key={linkItem.id || idx} className="bg-white p-3 sm:p-3.5 rounded-2xl border border-purple-100 flex items-center justify-between gap-3 shadow-xs">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-black text-xs shrink-0">
+                              {idx + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-xs text-gray-900 block truncate">{linkItem.label}</span>
+                              <span className="text-[10px] text-gray-400 block truncate font-mono">{linkItem.url}</span>
+                            </div>
+                          </div>
+                          <a
+                            href={linkItem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shrink-0 shadow-xs transition-all cursor-pointer"
+                          >
+                            <ExternalLink size={12} /> Buka Form
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50/80 border-2 border-emerald-200 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs">
+                          <Users size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Pendaftaran Internal SuperApps</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Peserta mendaftar langsung di dalam aplikasi HW Jateng</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPreviewActivityModalOpen(false);
+                          setSelectedActivityForParticipants(previewActivity.id);
+                          setActivitySubTab('peserta');
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                      >
+                        <Users size={13} /> Cek {activityParticipantCountMap[previewActivity.id] || 0} Peserta
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="p-4 bg-gray-50 border-t border-gray-150 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPreviewActivityModalOpen(false);
+                    navigate('/kegiatan', { state: { selectedActivityId: previewActivity.id, openDetail: true, activity: previewActivity } });
+                  }}
+                  className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Globe size={14} /> Lihat di Halaman Publik
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPreviewActivityModalOpen(false);
+                      handleOpenActivityModal(previewActivity);
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/20 cursor-pointer"
+                  >
+                    <Edit size={14} /> Edit Kegiatan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewActivityModalOpen(false)}
+                    className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 13. CONTENT MODAL */}
       {isContentModalOpen && (
