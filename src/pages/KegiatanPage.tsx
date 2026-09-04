@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
+import { isParticipantOfActivity, isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst, isExternalRegistration, getExternalLinks, ExternalRegistrationLinkItem } from '../utils/activityUtils';
 import { 
   Calendar, 
   MapPin, 
@@ -36,7 +36,9 @@ import {
   Copy,
   ExternalLink,
   Youtube,
-  Play
+  Play,
+  Globe,
+  Link2
 } from 'lucide-react';
 import { formatAudioUrl, handleAudioFileUpload } from '../utils/audioUtils';
 import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } from '../utils/documentUtils';
@@ -116,6 +118,10 @@ export default function KegiatanPage() {
     youtubeUrl: '',
     deskripsi: '',
     status: 'Buka',
+    registrationType: 'internal' as 'internal' | 'external',
+    externalLinks: [
+      { id: '1', label: 'Formulir Pendaftaran (Google Form)', url: '' }
+    ] as ExternalRegistrationLinkItem[],
     themeSongUrl: '',
     themeSongTitle: '',
     proposalUrl: '',
@@ -396,6 +402,14 @@ export default function KegiatanPage() {
       return;
     }
 
+    if (newActivityForm.registrationType === 'external') {
+      const validLinks = (newActivityForm.externalLinks || []).filter(l => l && l.url && l.url.trim().length > 0);
+      if (validLinks.length === 0) {
+        alert('Untuk mode Pendaftaran Eksternal, silakan masukkan minimal 1 URL/Link Pendaftaran (misal: link Google Form).');
+        return;
+      }
+    }
+
     setIsSavingActivity(true);
     try {
       const actId = editingActivity ? editingActivity.id : `keg-${Date.now()}`;
@@ -414,6 +428,10 @@ export default function KegiatanPage() {
         location: newActivityForm.lokasi,
         biaya: newActivityForm.biaya,
         biayaPelatihan: newActivityForm.biaya,
+        registrationType: newActivityForm.registrationType,
+        jenisPendaftaran: newActivityForm.registrationType === 'external' ? 'eksternal' : 'internal',
+        externalLinks: newActivityForm.externalLinks,
+        linkEksternal: newActivityForm.externalLinks,
         gambarUrl: imgClean,
         imageUrl: imgClean,
         gambar: imgClean,
@@ -458,6 +476,10 @@ export default function KegiatanPage() {
         youtubeUrl: '',
         deskripsi: '',
         status: 'Buka',
+        registrationType: 'internal',
+        externalLinks: [
+          { id: '1', label: 'Formulir Pendaftaran (Google Form)', url: '' }
+        ],
         themeSongUrl: '',
         themeSongTitle: '',
         proposalUrl: '',
@@ -477,6 +499,12 @@ export default function KegiatanPage() {
       return;
     }
     setEditingActivity(act);
+    const isExt = isExternalRegistration(act);
+    const rawLinks = getExternalLinks(act);
+    const parsedLinks = rawLinks.length > 0 ? rawLinks : [
+      { id: '1', label: 'Formulir Pendaftaran (Google Form)', url: '' }
+    ];
+
     setNewActivityForm({
       namaKegiatan: act.namaKegiatan || act.title || act.jenisPelatihan || '',
       kategori: act.kategori || act.category || 'Rapat HW',
@@ -489,6 +517,8 @@ export default function KegiatanPage() {
       youtubeUrl: act.youtubeUrl || act.videoUrl || act.youtube || act.linkYoutube || '',
       deskripsi: act.deskripsi || act.description || '',
       status: act.status || 'Buka',
+      registrationType: isExt ? 'external' : 'internal',
+      externalLinks: parsedLinks,
       themeSongUrl: act.themeSongUrl || act.themeSong || '',
       themeSongTitle: act.themeSongTitle || act.themeSongName || '',
       proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || '',
@@ -616,101 +646,132 @@ export default function KegiatanPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {filteredActivities.map((activity) => (
-            <div
-              key={activity.id}
-              className="bg-white rounded-3xl border border-gray-150 shadow-xs overflow-hidden hover:shadow-md transition-shadow flex flex-col"
-            >
-              <div className="w-full h-48 sm:h-56 relative bg-gray-100 shrink-0 overflow-hidden">
-                <img 
-                  src={resolveImageUrl(activity.gambarUrl)} 
-                  alt={activity.namaKegiatan} 
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
-                  }}
-                />
-                <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md ${
-                  (activity.status === 'Tutup' || activity.status === 'Selesai') ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
-                }`}>
-                  {(activity.status === 'Tutup' || activity.status === 'Selesai') ? 'Selesai' : (activity.status || 'Buka')}
-                </div>
-              </div>
+          {filteredActivities.map((activity) => {
+            const isExt = isExternalRegistration(activity);
+            const extLinks = getExternalLinks(activity);
 
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-3.5">
-                <div className="space-y-2">
-                  <h3 className="text-sm md:text-base font-black text-hw-dark font-display leading-snug">
-                    {activity.namaKegiatan}
-                  </h3>
-                  <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                    {activity.deskripsi}
-                  </p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 pt-1">
-                    <div className="flex items-start gap-1.5 text-emerald-700">
-                      <Calendar size={14} className="shrink-0 mt-0.5" />
-                      <span className="leading-snug break-words">{activity.tanggal}</span>
-                    </div>
-                    <div className="flex items-start gap-1.5 text-hw-dark">
-                      <MapPin size={14} className="shrink-0 text-amber-600 mt-0.5" />
-                      <span className="leading-snug break-words font-extrabold">{activity.lokasi}</span>
-                    </div>
-                    <div className="flex items-start gap-1.5 text-purple-700">
-                      <Tag size={14} className="shrink-0 mt-0.5" />
-                      <span className="leading-snug">Infaq: {activity.biaya || 'Gratis'}</span>
-                    </div>
-                    <div className="flex items-start gap-1.5 text-blue-700">
-                      <Users size={14} className="shrink-0 mt-0.5" />
-                      <span className="leading-snug">{activity.kuota || 'Terbuka'}</span>
-                    </div>
+            return (
+              <div
+                key={activity.id}
+                className="bg-white rounded-3xl border border-gray-150 shadow-xs overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+              >
+                <div className="w-full h-48 sm:h-56 relative bg-gray-100 shrink-0 overflow-hidden">
+                  <img 
+                    src={resolveImageUrl(activity.gambarUrl)} 
+                    alt={activity.namaKegiatan} 
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800';
+                    }}
+                  />
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+                    {isExt ? (
+                      <span className="bg-blue-600/90 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                        <Globe size={11} /> Link Eksternal
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-700/90 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                        <CheckCircle2 size={11} /> Pendaftaran di Aplikasi
+                      </span>
+                    )}
+                  </div>
+                  <div className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md ${
+                    (activity.status === 'Tutup' || activity.status === 'Selesai') ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
+                  }`}>
+                    {(activity.status === 'Tutup' || activity.status === 'Selesai') ? 'Selesai' : (activity.status || 'Buka')}
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-gray-100">
-                  <button
-                    onClick={() => {
-                      setSelectedActivity(activity);
-                      setIsDetailModalOpen(true);
-                    }}
-                    className="flex-1 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-                  >
-                    Detail & Daftar <ChevronRight size={14} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedActivityForParticipants(activity);
-                      setIsParticipantsModalOpen(true);
-                    }}
-                    className="py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                  >
-                    <Users size={14} className="text-emerald-600" />
-                    <span>Pendaftar ({participantCountMap[activity.id] || 0})</span>
-                  </button>
-                  {isAdmin && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleEditActivity(activity)}
-                        title="Edit Kegiatan"
-                        className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteActivity(activity.id, activity.namaKegiatan)}
-                        title="Hapus Kegiatan"
-                        className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3.5">
+                  <div className="space-y-2">
+                    <h3 className="text-sm md:text-base font-black text-hw-dark font-display leading-snug">
+                      {activity.namaKegiatan}
+                    </h3>
+                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                      {activity.deskripsi}
+                    </p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 pt-1">
+                      <div className="flex items-start gap-1.5 text-emerald-700">
+                        <Calendar size={14} className="shrink-0 mt-0.5" />
+                        <span className="leading-snug break-words">{activity.tanggal}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-hw-dark">
+                        <MapPin size={14} className="shrink-0 text-amber-600 mt-0.5" />
+                        <span className="leading-snug break-words font-extrabold">{activity.lokasi}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-purple-700">
+                        <Tag size={14} className="shrink-0 mt-0.5" />
+                        <span className="leading-snug">Infaq: {activity.biaya || 'Gratis'}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-blue-700">
+                        <Users size={14} className="shrink-0 mt-0.5" />
+                        <span className="leading-snug">{activity.kuota || 'Terbuka'}</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => {
+                        setSelectedActivity(activity);
+                        setIsDetailModalOpen(true);
+                      }}
+                      className="flex-1 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/15 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      Detail & Daftar <ChevronRight size={14} />
+                    </button>
+                    {!isExt ? (
+                      <button
+                        onClick={() => {
+                          setSelectedActivityForParticipants(activity);
+                          setIsParticipantsModalOpen(true);
+                        }}
+                        className="py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Users size={14} className="text-emerald-600" />
+                        <span>Pendaftar ({participantCountMap[activity.id] || 0})</span>
+                      </button>
+                    ) : (
+                      extLinks.length > 0 && extLinks[0].url && (
+                        <a
+                          href={extLinks[0].url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200/80 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                          title="Buka Formulir Pendaftaran Eksternal"
+                        >
+                          <ExternalLink size={14} className="text-blue-600" />
+                          <span>Link Daftar ({extLinks.length})</span>
+                        </a>
+                      )
+                    )}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditActivity(activity)}
+                          title="Edit Kegiatan"
+                          className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteActivity(activity.id, activity.namaKegiatan)}
+                          title="Hapus Kegiatan"
+                          className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -960,142 +1021,218 @@ export default function KegiatanPage() {
                   </div>
                 </div>
 
-                {/* DAFTAR PESERTA TERDAFTAR (BAGIAN BAWAH POP UP KEGIATAN) */}
-                <div id="activity-participants-card" className="bg-slate-50 border-2 border-emerald-100/90 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
-                  <div className="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-emerald-100/80">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs">
-                        <Users size={16} />
+                {/* DAFTAR PESERTA ATAU LINK EKSTERNAL (BAGIAN BAWAH POP UP KEGIATAN) */}
+                {isExternalRegistration(selectedActivity) ? (
+                  <div id="activity-external-registration-card" className="bg-blue-50/80 border-2 border-blue-200 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-blue-200">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-xs">
+                          <Globe size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Pendaftaran Online (Link Eksternal)</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Pendaftaran melalui formulir eksternal / Google Form</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Daftar Peserta Terdaftar</h4>
-                        <p className="text-[10px] text-gray-500 font-medium">Daftar anggota resmi yang telah terdaftar</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 border border-emerald-300/80 px-3 py-1 rounded-full shadow-2xs">
-                        {detailParticipantsList.length} Peserta
+                      <span className="text-xs font-black text-blue-800 bg-blue-100 border border-blue-300 px-3 py-1 rounded-full shadow-2xs">
+                        {getExternalLinks(selectedActivity).length} Link Pendaftaran
                       </span>
-                      {selectedActivity.status !== 'Tutup' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDetailModalOpen(false);
-                            setIsRegisterModalOpen(true);
-                          }}
-                          className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95"
+                    </div>
+
+                    <div className="space-y-3">
+                      {getExternalLinks(selectedActivity).map((link, idx) => (
+                        <div 
+                          key={link.id || idx}
+                          className="bg-white p-4 rounded-2xl border border-blue-150 hover:border-blue-400 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                         >
-                          <UserPlus size={13} /> + Daftar
-                        </button>
-                      )}
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-lg bg-blue-100 text-blue-800 text-[10px] font-black flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <h5 className="text-xs sm:text-sm font-black text-gray-900 leading-snug">
+                                {link.label || `Link Pendaftaran #${idx + 1}`}
+                              </h5>
+                            </div>
+                            <p className="text-[11px] text-blue-700 font-mono truncate pl-7">
+                              {link.url}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 pl-7 sm:pl-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(link.url);
+                                alert('Link pendaftaran berhasil disalin ke clipboard!');
+                              }}
+                              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Salin Link"
+                            >
+                              <Copy size={13} />
+                              <span>Salin</span>
+                            </button>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                              <span>Buka Formulir</span>
+                              <ExternalLink size={13} />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3 bg-white/80 rounded-2xl border border-blue-150 text-[11px] text-blue-900 font-medium space-y-1">
+                      <p className="font-bold flex items-center gap-1.5 text-blue-800">
+                        <Info size={14} className="shrink-0" />
+                        <span>Petunjuk Pendaftaran Eksternal:</span>
+                      </p>
+                      <p className="pl-5 text-gray-600 leading-relaxed">
+                        Klik tombol <strong>Buka Formulir</strong> di atas untuk mengisi data pendaftaran di Google Form / sistem panitia. Pastikan Anda telah membaca syarat dan ketentuan kegiatan.
+                      </p>
                     </div>
                   </div>
-
-                  {detailParticipantsList.length === 0 ? (
-                    <div className="py-8 px-4 bg-white rounded-2xl border border-dashed border-gray-300 text-center space-y-2.5 shadow-2xs">
-                      <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
-                        <Users size={22} />
+                ) : (
+                  <div id="activity-participants-card" className="bg-slate-50 border-2 border-emerald-100/90 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-emerald-100/80">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs">
+                          <Users size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-gray-900 font-display">Daftar Peserta Terdaftar</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Daftar anggota resmi yang telah terdaftar di aplikasi</p>
+                        </div>
                       </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-black text-gray-800">Belum ada peserta yang terdaftar</p>
-                        <p className="text-[10px] text-gray-400">Jadilah peserta pertama yang mendaftarkan diri pada kegiatan ini!</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 border border-emerald-300/80 px-3 py-1 rounded-full shadow-2xs">
+                          {detailParticipantsList.length} Peserta
+                        </span>
+                        {selectedActivity.status !== 'Tutup' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDetailModalOpen(false);
+                              setIsRegisterModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95"
+                          >
+                            <UserPlus size={13} /> + Daftar
+                          </button>
+                        )}
                       </div>
-                      {selectedActivity.status !== 'Tutup' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDetailModalOpen(false);
-                            setIsRegisterModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95 mt-1"
-                        >
-                          <UserPlus size={14} /> Daftar Sekarang
-                        </button>
-                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className={cn(
-                        "space-y-2.5",
-                        detailParticipantsList.length > 10 ? "max-h-[620px] overflow-y-auto pr-1.5" : ""
-                      )}>
-                        {detailParticipantsList.map((app, idx) => {
-                          const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
-                          const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
 
-                          return (
-                            <div 
-                              key={app.id || idx} 
-                              id={`participant-card-${idx + 1}`}
-                              className="bg-white hover:bg-emerald-50/30 p-3.5 rounded-2xl border border-slate-200 hover:border-emerald-400 flex items-start justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
-                            >
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-                                  {idx + 1}
-                                </div>
-                                <div className="space-y-1.5 flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h5 className="text-xs sm:text-[13px] font-black text-gray-900 leading-snug truncate">{app.namaLengkap}</h5>
+                    {detailParticipantsList.length === 0 ? (
+                      <div className="py-8 px-4 bg-white rounded-2xl border border-dashed border-gray-300 text-center space-y-2.5 shadow-2xs">
+                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
+                          <Users size={22} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-black text-gray-800">Belum ada peserta yang terdaftar</p>
+                          <p className="text-[10px] text-gray-400">Jadilah peserta pertama yang mendaftarkan diri pada kegiatan ini!</p>
+                        </div>
+                        {selectedActivity.status !== 'Tutup' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDetailModalOpen(false);
+                              setIsRegisterModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95 mt-1"
+                          >
+                            <UserPlus size={14} /> Daftar Sekarang
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className={cn(
+                          "space-y-2.5",
+                          detailParticipantsList.length > 10 ? "max-h-[620px] overflow-y-auto pr-1.5" : ""
+                        )}>
+                          {detailParticipantsList.map((app, idx) => {
+                            const waNum = String(app.noHp || app.noWa || '').replace(/[^0-9]/g, '');
+                            const formattedWa = waNum.startsWith('0') ? '62' + waNum.slice(1) : waNum;
+
+                            return (
+                              <div 
+                                key={app.id || idx} 
+                                id={`participant-card-${idx + 1}`}
+                                className="bg-white hover:bg-emerald-50/30 p-3.5 rounded-2xl border border-slate-200 hover:border-emerald-400 flex items-start justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
+                              >
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                                    {idx + 1}
                                   </div>
-                                  <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                                    <span className="bg-slate-100 border border-slate-200/90 text-slate-700 px-2 py-0.5 rounded-md font-bold truncate max-w-[200px]">
-                                      {app.utusan || app.qabilahPtma || app.unsur || '-'}
-                                    </span>
-                                    <span className="bg-emerald-50 border border-emerald-200/90 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
-                                      {app.jabatan || 'Peserta'}
-                                    </span>
-                                    {app.kategoriUndangan && (
-                                      <span className="bg-amber-50 border border-amber-200 text-amber-900 px-2 py-0.5 rounded-md font-extrabold">
-                                        {app.kategoriUndangan}
+                                  <div className="space-y-1.5 flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h5 className="text-xs sm:text-[13px] font-black text-gray-900 leading-snug truncate">{app.namaLengkap}</h5>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                      <span className="bg-slate-100 border border-slate-200/90 text-slate-700 px-2 py-0.5 rounded-md font-bold truncate max-w-[200px]">
+                                        {app.utusan || app.qabilahPtma || app.unsur || '-'}
                                       </span>
+                                      <span className="bg-emerald-50 border border-emerald-200/90 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                                        {app.jabatan || 'Peserta'}
+                                      </span>
+                                      {app.kategoriUndangan && (
+                                        <span className="bg-amber-50 border border-amber-200 text-amber-900 px-2 py-0.5 rounded-md font-extrabold">
+                                          {app.kategoriUndangan}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {app.tanggalDaftar && (
+                                      <p className="text-[9px] text-gray-400 font-medium">
+                                        Terdaftar: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      </p>
                                     )}
                                   </div>
-                                  {app.tanggalDaftar && (
-                                    <p className="text-[9px] text-gray-400 font-medium">
-                                      Terdaftar: {new Date(app.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </p>
-                                  )}
                                 </div>
+
+                                {formattedWa && (
+                                  <a
+                                    href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-colors"
+                                  >
+                                    <MessageCircle size={12} />
+                                    <span>WA</span>
+                                  </a>
+                                )}
                               </div>
+                            );
+                          })}
+                        </div>
 
-                              {formattedWa && (
-                                <a
-                                  href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-colors"
-                                >
-                                  <MessageCircle size={12} />
-                                  <span>WA</span>
-                                </a>
-                              )}
-                            </div>
-                          );
-                        })}
+                        {detailParticipantsList.length > 10 && (
+                          <p className="text-center text-[10px] text-gray-400 font-medium italic">
+                            Menampilkan {detailParticipantsList.length} peserta (gulir ke bawah untuk melihat lebih banyak)
+                          </p>
+                        )}
+
+                        {selectedActivity.status !== 'Tutup' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDetailModalOpen(false);
+                              setIsRegisterModalOpen(true);
+                            }}
+                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                          >
+                            <UserPlus size={14} />
+                            <span>+ Tambah Pendaftaran Peserta Baru</span>
+                          </button>
+                        )}
                       </div>
-
-                      {detailParticipantsList.length > 10 && (
-                        <p className="text-center text-[10px] text-gray-400 font-medium italic">
-                          Menampilkan {detailParticipantsList.length} peserta (gulir ke bawah untuk melihat lebih banyak)
-                        </p>
-                      )}
-
-                      {selectedActivity.status !== 'Tutup' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDetailModalOpen(false);
-                            setIsRegisterModalOpen(true);
-                          }}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-                        >
-                          <UserPlus size={14} />
-                          <span>+ Tambah Pendaftaran Peserta Baru</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
 
               </div>
 
@@ -1107,18 +1244,38 @@ export default function KegiatanPage() {
                 >
                   Tutup
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsDetailModalOpen(false);
-                    setIsRegisterModalOpen(true);
-                  }}
-                  className="flex-1 py-2.5 sm:py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95 touch-manipulation"
-                >
-                  <UserPlus size={16} />
-                  <span>Daftar Peserta Kegiatan</span>
-                  <ChevronRight size={16} />
-                </button>
+                {isExternalRegistration(selectedActivity) ? (
+                  (() => {
+                    const extLinks = getExternalLinks(selectedActivity);
+                    const primaryLink = extLinks.find(l => l.url && l.url.trim().length > 0)?.url || '#';
+
+                    return (
+                      <a
+                        href={primaryLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl sm:rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95 touch-manipulation"
+                      >
+                        <Globe size={16} />
+                        <span>Buka Formulir Pendaftaran</span>
+                        <ExternalLink size={16} />
+                      </a>
+                    );
+                  })()
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDetailModalOpen(false);
+                      setIsRegisterModalOpen(true);
+                    }}
+                    className="flex-1 py-2.5 sm:py-3 bg-hw-green hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-hw-green/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95 touch-manipulation"
+                  >
+                    <UserPlus size={16} />
+                    <span>Daftar Peserta Kegiatan</span>
+                    <ChevronRight size={16} />
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
@@ -1678,6 +1835,162 @@ export default function KegiatanPage() {
                       <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* PILIHAN MODE PENDAFTARAN (INTERNAL vs EKSTERNAL) */}
+                <div className="bg-slate-50 border-2 border-emerald-100 rounded-2xl p-3.5 sm:p-4 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block mb-1">
+                      Mode Jenis Pendaftaran Kegiatan *
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        (newActivityForm.registrationType || 'internal') === 'internal'
+                          ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-black shadow-xs ring-1 ring-emerald-400'
+                          : 'bg-white border-gray-200 text-gray-700 font-bold hover:bg-gray-50'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="registrationType"
+                          value="internal"
+                          checked={(newActivityForm.registrationType || 'internal') === 'internal'}
+                          onChange={() => setNewActivityForm(prev => ({ ...prev, registrationType: 'internal' }))}
+                          className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <div className="text-[11px] leading-tight">
+                          <span className="block font-black">Link Internal (Aplikasi)</span>
+                          <span className="text-[9px] font-medium text-gray-500 block mt-0.5">Form pendaftaran terintegrasi di aplikasi & tampilkan daftar peserta</span>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        newActivityForm.registrationType === 'external'
+                          ? 'bg-blue-50/90 border-blue-500 text-blue-950 font-black shadow-xs ring-1 ring-blue-400'
+                          : 'bg-white border-gray-200 text-gray-700 font-bold hover:bg-gray-50'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="registrationType"
+                          value="external"
+                          checked={newActivityForm.registrationType === 'external'}
+                          onChange={() => setNewActivityForm(prev => ({ 
+                            ...prev, 
+                            registrationType: 'external',
+                            externalLinks: (prev.externalLinks && prev.externalLinks.length > 0) ? prev.externalLinks : [{ id: '1', label: 'Formulir Pendaftaran', url: '' }]
+                          }))}
+                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="text-[11px] leading-tight">
+                          <span className="block font-black">Link Eksternal (Google Form / Pihak Ketiga)</span>
+                          <span className="text-[9px] font-medium text-gray-500 block mt-0.5">Pendaftaran diarahkan ke link luar, mendukung lebih dari 1 link</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* ISIAN LINK EKSTERNAL JIKA MODE EKSTERNAL TERPILIH */}
+                  {newActivityForm.registrationType === 'external' && (
+                    <div className="space-y-2.5 pt-2 border-t border-blue-200/60">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                          <Globe size={12} className="text-blue-600" />
+                          Daftar Link Pendaftaran Eksternal *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = newActivityForm.externalLinks || [];
+                            setNewActivityForm(prev => ({
+                              ...prev,
+                              externalLinks: [
+                                ...current,
+                                { id: Date.now().toString(), label: `Link Pendaftaran #${current.length + 1}`, url: '' }
+                              ]
+                            }));
+                          }}
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all"
+                        >
+                          <Plus size={11} />
+                          <span>Tambah Link</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {(newActivityForm.externalLinks || [{ id: '1', label: 'Formulir Pendaftaran', url: '' }]).map((link, idx) => (
+                          <div key={link.id || idx} className="bg-white p-2.5 rounded-xl border border-blue-200 shadow-2xs space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-bold text-blue-900 flex items-center gap-1">
+                                <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-800 text-[9px] font-black flex items-center justify-center">
+                                  {idx + 1}
+                                </span>
+                                Link Pendaftaran #{idx + 1}
+                              </span>
+                              {(newActivityForm.externalLinks && newActivityForm.externalLinks.length > 1) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setNewActivityForm(prev => ({
+                                      ...prev,
+                                      externalLinks: (prev.externalLinks || []).filter((_, i) => i !== idx)
+                                    }));
+                                  }}
+                                  className="text-red-600 hover:text-red-800 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer p-1"
+                                  title="Hapus Link Ini"
+                                >
+                                  <Trash2 size={11} />
+                                  <span>Hapus</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] font-bold text-gray-500 block mb-0.5">Nama Pendaftaran / Label *</label>
+                                <input
+                                  type="text"
+                                  value={link.label}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setNewActivityForm(prev => {
+                                      const updated = [...(prev.externalLinks || [])];
+                                      if (updated[idx]) {
+                                        updated[idx] = { ...updated[idx], label: val };
+                                      }
+                                      return { ...prev, externalLinks: updated };
+                                    });
+                                  }}
+                                  placeholder="Contoh: Formulir Pendaftaran Google Form"
+                                  className="w-full bg-slate-50 border border-gray-200 rounded-lg p-2 text-xs font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-gray-500 block mb-0.5">Isian Link URL *</label>
+                                <input
+                                  type="text"
+                                  value={link.url}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setNewActivityForm(prev => {
+                                      const updated = [...(prev.externalLinks || [])];
+                                      if (updated[idx]) {
+                                        updated[idx] = { ...updated[idx], url: val };
+                                      }
+                                      return { ...prev, externalLinks: updated };
+                                    });
+                                  }}
+                                  placeholder="https://forms.gle/... atau https://..."
+                                  className="w-full bg-slate-50 border border-gray-200 rounded-lg p-2 text-xs font-mono font-medium outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-gray-500 italic">
+                        * Masukkan nama/label tombol dan URL tujuan formulir pendaftaran. Anda dapat menambah link pendaftaran lebih dari satu.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

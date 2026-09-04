@@ -7,7 +7,7 @@ import { KTACard } from '../components/KTACard';
 import { NotificationBell } from '../components/NotificationBell';
 import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks } from '../utils/activityUtils';
 import { 
   syncRolesAndPelatihan, 
   PELATIHAN_OPTIONS, 
@@ -234,6 +234,7 @@ import {
   RotateCcw,
   Sparkles,
   Building2,
+  ExternalLink,
   Link as LinkIcon
 } from 'lucide-react';
 import KwardaPtmaPage from './KwardaPtmaPage';
@@ -631,7 +632,9 @@ export default function AdminDashboard() {
     penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
     rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
     noWhatsappPanitia: '089688754000',
-    proposalUrl: ''
+    proposalUrl: '',
+    registrationType: 'internal' as 'internal' | 'external',
+    externalLinks: [{ id: '1', label: 'Formulir Pendaftaran', url: '' }]
   });
   const [selectedActivityForParticipants, setSelectedActivityForParticipants] = useState<string>('semua');
 
@@ -2046,6 +2049,8 @@ export default function AdminDashboard() {
   const handleOpenActivityModal = (activity?: any) => {
     if (activity) {
       setEditingKegiatan(activity);
+      const isExt = isExternalRegistration(activity);
+      const extLinks = getExternalLinks(activity);
       setKegiatanFormData({
         namaKegiatan: activity.namaKegiatan || activity.title || activity.jenisPelatihan || '',
         kategori: activity.kategori || activity.category || 'Rapat HW',
@@ -2062,7 +2067,9 @@ export default function AdminDashboard() {
         penyelenggara: activity.penyelenggara || 'Kwartir Wilayah HW Jawa Tengah',
         rekeningPembiayaan: activity.rekeningPembiayaan || activity.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
         noWhatsappPanitia: activity.noWhatsappPanitia || activity.noKonfirmasi || activity.konfirmasiPembayaran || '089688754000',
-        proposalUrl: activity.proposalUrl || activity.proposal || activity.linkProposal || ''
+        proposalUrl: activity.proposalUrl || activity.proposal || activity.linkProposal || '',
+        registrationType: isExt ? 'external' : 'internal',
+        externalLinks: extLinks.length > 0 ? extLinks : [{ id: '1', label: 'Formulir Pendaftaran', url: '' }]
       });
     } else {
       setEditingKegiatan(null);
@@ -2082,10 +2089,13 @@ export default function AdminDashboard() {
         penyelenggara: 'Kwartir Wilayah HW Jawa Tengah',
         rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
         noWhatsappPanitia: '089688754000',
-        proposalUrl: ''
+        proposalUrl: '',
+        registrationType: 'internal',
+        externalLinks: [{ id: '1', label: 'Formulir Pendaftaran (Google Form)', url: '' }]
       });
     }
     setIsKegiatanModalOpen(true);
+    setIsActivityModalOpen(true);
   };
 
   const handleSaveActivity = async (e: React.FormEvent) => {
@@ -2104,6 +2114,10 @@ export default function AdminDashboard() {
                       kategori: kegiatanFormData.kategori,
                       lokasi: kegiatanFormData.lokasi
                     });
+
+      const cleanedExternalLinks = kegiatanFormData.registrationType === 'external'
+        ? (kegiatanFormData.externalLinks || []).filter(l => l && (l.url.trim() || l.label.trim()))
+        : [];
 
       const payload = {
         ...(editingKegiatan || {}),
@@ -2141,6 +2155,10 @@ export default function AdminDashboard() {
         proposalUrl: kegiatanFormData.proposalUrl,
         proposal: kegiatanFormData.proposalUrl,
         linkProposal: kegiatanFormData.proposalUrl,
+        registrationType: kegiatanFormData.registrationType,
+        jenisPendaftaran: kegiatanFormData.registrationType,
+        externalLinks: cleanedExternalLinks,
+        linkEksternal: cleanedExternalLinks,
         isPelatihan: isPel,
         updatedAt: new Date().toISOString()
       };
@@ -9075,64 +9093,86 @@ export default function AdminDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {activitiesList.filter(a => !isOnlyTrainingActivity(a)).map((act) => (
-                        <div key={act.id} className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-                          <div>
-                            <div className="relative h-40 bg-gray-100 overflow-hidden">
-                              <img src={getCorsSafeUrl(act.gambarUrl, act.updatedAt || act.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} alt={act.namaKegiatan} className="w-full h-full object-cover" />
-                              <div className="absolute top-3 left-3 bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
-                                {act.kategori}
+                      {activitiesList.filter(a => !isOnlyTrainingActivity(a)).map((act) => {
+                        const isExt = isExternalRegistration(act);
+                        const extLinks = getExternalLinks(act);
+                        return (
+                          <div key={act.id} className="bg-white rounded-3xl border border-gray-150 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                            <div>
+                              <div className="relative h-40 bg-gray-100 overflow-hidden">
+                                <img src={getCorsSafeUrl(act.gambarUrl, act.updatedAt || act.id) || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'} alt={act.namaKegiatan} className="w-full h-full object-cover" />
+                                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                                  <span className="bg-hw-dark/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                                    {act.kategori}
+                                  </span>
+                                  {isExt ? (
+                                    <span className="bg-purple-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+                                      <LinkIcon size={10} /> Eksternal ({extLinks.length} link)
+                                    </span>
+                                  ) : (
+                                    <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+                                      <CheckCircle2 size={10} /> Internal App
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
+                                  act.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                                }`}>
+                                  {act.status || 'Buka'}
+                                </span>
                               </div>
-                              <span className={`absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
-                                act.status === 'Tutup' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
-                              }`}>
-                                {act.status || 'Buka'}
-                              </span>
+
+                              <div className="p-5 space-y-3">
+                                <div>
+                                  <h4 className="font-display font-black text-sm text-gray-900 leading-snug">{act.namaKegiatan}</h4>
+                                  <p className="text-xs text-gray-500 line-clamp-2 mt-1">{act.deskripsi}</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                  <div className="break-words leading-snug">📅 {act.tanggal}</div>
+                                  <div className="break-words leading-snug">📍 {act.lokasi}</div>
+                                  <div className="break-words leading-snug">💰 {act.biaya || 'Gratis'}</div>
+                                  <div className="break-words leading-snug">👥 {act.kuota || 'Terbuka'}</div>
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="p-5 space-y-3">
-                              <div>
-                                <h4 className="font-display font-black text-sm text-gray-900 leading-snug">{act.namaKegiatan}</h4>
-                                <p className="text-xs text-gray-500 line-clamp-2 mt-1">{act.deskripsi}</p>
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                                <div className="break-words leading-snug">📅 {act.tanggal}</div>
-                                <div className="break-words leading-snug">📍 {act.lokasi}</div>
-                                <div className="break-words leading-snug">💰 {act.biaya || 'Gratis'}</div>
-                                <div className="break-words leading-snug">👥 {act.kuota || 'Terbuka'}</div>
+                            <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                              {!isExt ? (
+                                <button
+                                  onClick={() => {
+                                    setSelectedActivityForParticipants(act.id);
+                                    setActivitySubTab('peserta');
+                                  }}
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                                  title="Lihat pendaftar kegiatan ini"
+                                >
+                                  <Users size={14} /> Cek Peserta ({activityParticipantCountMap[act.id] || 0})
+                                </button>
+                              ) : (
+                                <div className="flex items-center gap-1.5 text-xs text-purple-800 font-bold bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+                                  <ExternalLink size={13} className="text-purple-600" />
+                                  <span>{extLinks.length} Tautan Eksternal</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenActivityModal(act)}
+                                  className="px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Edit size={14} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteActivity(act.id, act.namaKegiatan || act.title || act.jenisPelatihan)}
+                                  className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Trash2 size={14} /> Hapus
+                                </button>
                               </div>
                             </div>
                           </div>
-
-                          <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedActivityForParticipants(act.id);
-                                setActivitySubTab('peserta');
-                              }}
-                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                              title="Lihat pendaftar kegiatan ini"
-                            >
-                              <Users size={14} /> Cek Peserta ({activityParticipantCountMap[act.id] || 0})
-                            </button>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleOpenActivityModal(act)}
-                                className="px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                              >
-                                <Edit size={14} /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteActivity(act.id, act.namaKegiatan || act.title || act.jenisPelatihan)}
-                                className="px-3 py-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                              >
-                                <Trash2 size={14} /> Hapus
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -10229,59 +10269,379 @@ export default function AdminDashboard() {
       )}
 
       {/* 12. KEGIATAN / ACTIVITY MODAL */}
-      {isActivityModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleSaveActivity} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900">
-                {editingKegiatan ? 'Edit Agenda Kegiatan' : 'Tambah Agenda Kegiatan'}
-              </h3>
-              <button type="button" onClick={() => setIsActivityModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+      {(isActivityModalOpen || isKegiatanModalOpen) && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <form onSubmit={handleSaveActivity} className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-gray-100 space-y-4 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900 font-display flex items-center gap-2">
+                  <Calendar className="text-hw-green" size={20} />
+                  {editingKegiatan ? 'Edit Agenda Kegiatan' : 'Tambah Agenda Kegiatan'}
+                </h3>
+                <p className="text-xs text-gray-500">Kelola informasi kegiatan dan metode pendaftaran peserta</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsActivityModalOpen(false);
+                  setIsKegiatanModalOpen(false);
+                }} 
+                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-3">
+
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1 scrollbar-thin">
+              {/* Nama & Kategori */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Nama Kegiatan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={kegiatanFormData.namaKegiatan}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, namaKegiatan: e.target.value }))}
+                    placeholder="Contoh: Silaturahmi & Rapat Kerja Wilayah HW Jateng"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Kategori Kegiatan</label>
+                  <select
+                    value={kegiatanFormData.kategori}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, kategori: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    {activityCategoriesList.map((cat, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
+                    ))}
+                    {!activityCategoriesList.includes(kegiatanFormData.kategori) && (
+                      <option value={kegiatanFormData.kategori}>{kegiatanFormData.kategori}</option>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Status Pendaftaran</label>
+                  <select
+                    value={kegiatanFormData.status}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, status: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    <option value="Buka">Buka (Menerima Pendaftaran)</option>
+                    <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* DUAL-MODE REGISTRATION TYPE SELECTOR */}
+              <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-hw-green" />
+                    Mode Jenis Pendaftaran
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                    Pilihan Akses
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    kegiatanFormData.registrationType === 'internal'
+                      ? 'bg-white border-hw-green shadow-xs'
+                      : 'bg-white/60 border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="adminRegType"
+                      checked={kegiatanFormData.registrationType === 'internal'}
+                      onChange={() => setKegiatanFormData(f => ({ ...f, registrationType: 'internal' }))}
+                      className="mt-0.5 text-hw-green focus:ring-hw-green"
+                    />
+                    <div>
+                      <span className="block text-xs font-black text-gray-900">Link Internal (Aplikasi)</span>
+                      <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">
+                        Pendaftaran langsung di aplikasi HW Jateng & melihat rekap nama pendaftar di menu Peserta.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    kegiatanFormData.registrationType === 'external'
+                      ? 'bg-white border-purple-600 shadow-xs'
+                      : 'bg-white/60 border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="adminRegType"
+                      checked={kegiatanFormData.registrationType === 'external'}
+                      onChange={() => setKegiatanFormData(f => ({ ...f, registrationType: 'external' }))}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-600"
+                    />
+                    <div>
+                      <span className="block text-xs font-black text-purple-900">Link Eksternal (Google Form)</span>
+                      <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">
+                        Menggunakan tautan formulir pihak ketiga (Google Form, dll). Bisa ditambah lebih dari 1 link.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Dynamic External Links Manager */}
+                {kegiatanFormData.registrationType === 'external' && (
+                  <div className="mt-3 pt-3 border-t border-emerald-100/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-purple-900 flex items-center gap-1.5">
+                        <LinkIcon size={14} className="text-purple-600" />
+                        Daftar Tautan Pendaftaran Eksternal
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKegiatanFormData(f => ({
+                            ...f,
+                            externalLinks: [
+                              ...(f.externalLinks || []),
+                              { id: String(Date.now()), label: `Link Pendaftaran ${(f.externalLinks?.length || 0) + 1}`, url: '' }
+                            ]
+                          }));
+                        }}
+                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                      >
+                        <Plus size={12} /> Tambah Link
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {(kegiatanFormData.externalLinks || []).map((lnk, idx) => (
+                        <div key={lnk.id || idx} className="p-3 bg-white rounded-xl border border-purple-100 shadow-xs space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                              Link #{idx + 1}
+                            </span>
+                            {(kegiatanFormData.externalLinks || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setKegiatanFormData(f => ({
+                                    ...f,
+                                    externalLinks: f.externalLinks.filter((_, i) => i !== idx)
+                                  }));
+                                }}
+                                className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer text-xs flex items-center gap-0.5"
+                                title="Hapus Link Ini"
+                              >
+                                <Trash2 size={12} /> Hapus
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div className="sm:col-span-1">
+                              <label className="text-[10px] font-bold text-gray-600 block mb-0.5">Nama Pendaftaran</label>
+                              <input
+                                type="text"
+                                value={lnk.label}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setKegiatanFormData(f => ({
+                                    ...f,
+                                    externalLinks: f.externalLinks.map((item, i) => i === idx ? { ...item, label: val } : item)
+                                  }));
+                                }}
+                                placeholder="Contoh: Form Google Form Peserta"
+                                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-800"
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="text-[10px] font-bold text-gray-600 block mb-0.5">Isian Link URL</label>
+                              <input
+                                type="url"
+                                value={lnk.url}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setKegiatanFormData(f => ({
+                                    ...f,
+                                    externalLinks: f.externalLinks.map((item, i) => i === idx ? { ...item, url: val } : item)
+                                  }));
+                                }}
+                                placeholder="https://forms.gle/... atau https://docs.google.com/forms/..."
+                                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tanggal & Lokasi & Kuota & Biaya */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Tanggal Kegiatan</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.tanggal}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, tanggal: e.target.value }))}
+                    placeholder="Contoh: 15 - 17 September 2026"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Lokasi Kegiatan</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.lokasi}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, lokasi: e.target.value }))}
+                    placeholder="Contoh: Balai Diklat HW Surakarta"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Biaya Pendaftaran</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.biaya}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, biaya: e.target.value }))}
+                    placeholder="Contoh: Gratis / Rp 150.000,-"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Kuota Peserta</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.kuota}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, kuota: e.target.value }))}
+                    placeholder="Contoh: 100 Peserta / Terbuka"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+              </div>
+
+              {/* Deskripsi Kegiatan */}
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Nama Kegiatan</label>
-                <input
-                  type="text"
-                  value={kegiatanFormData.namaKegiatan}
-                  onChange={(e) => setKegiatanFormData(f => ({ ...f, namaKegiatan: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                <label className="text-xs font-bold text-gray-700 block mb-1">Deskripsi / Penjelasan Kegiatan</label>
+                <textarea
+                  rows={3}
+                  value={kegiatanFormData.deskripsi}
+                  onChange={(e) => setKegiatanFormData(f => ({ ...f, deskripsi: e.target.value }))}
+                  placeholder="Tuliskan gambaran umum, syarat keikutsertaan, agenda, atau arahan untuk peserta..."
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800"
                 />
               </div>
+
+              {/* Poster / Gambar URL */}
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Lokasi</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Link Gambar / Poster Kegiatan</label>
                 <input
                   type="text"
-                  value={kegiatanFormData.lokasi}
-                  onChange={(e) => setKegiatanFormData(f => ({ ...f, lokasi: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  value={kegiatanFormData.gambarUrl}
+                  onChange={(e) => setKegiatanFormData(f => ({ ...f, gambarUrl: e.target.value }))}
+                  placeholder="https://images.unsplash.com/... atau tautan gambar"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
                 />
               </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Tanggal</label>
-                <input
-                  type="date"
-                  value={kegiatanFormData.tanggal}
-                  onChange={(e) => setKegiatanFormData(f => ({ ...f, tanggal: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
-                />
+
+              {/* Penyelenggara & Kontak Panitia & Rekening */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Penyelenggara</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.penyelenggara}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, penyelenggara: e.target.value }))}
+                    placeholder="Kwartir Wilayah HW Jawa Tengah"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">No WhatsApp Panitia / Konfirmasi</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.noWhatsappPanitia}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, noWhatsappPanitia: e.target.value }))}
+                    placeholder="Contoh: 089688754000"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Rekening Pembayaran / Pembiayaan</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.rekeningPembiayaan}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, rekeningPembiayaan: e.target.value }))}
+                    placeholder="Contoh: Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  />
+                </div>
+              </div>
+
+              {/* Link YouTube, Theme Song, Link Proposal */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Video YouTube (Opsional)</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.youtubeUrl}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, youtubeUrl: e.target.value }))}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Theme Song / Audio (Opsional)</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.themeSongUrl}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, themeSongUrl: e.target.value }))}
+                    placeholder="https://... mp3 / audio link"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Dokumen Proposal / Juklak Juknis (Opsional)</label>
+                  <input
+                    type="text"
+                    value={kegiatanFormData.proposalUrl}
+                    onChange={(e) => setKegiatanFormData(f => ({ ...f, proposalUrl: e.target.value }))}
+                    placeholder="https://drive.google.com/... atau link berkas"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 shrink-0">
               <button
                 type="button"
-                onClick={() => setIsActivityModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
+                onClick={() => {
+                  setIsActivityModalOpen(false);
+                  setIsKegiatanModalOpen(false);
+                }}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+                className="px-6 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 cursor-pointer"
               >
-                Simpan
+                Simpan Kegiatan
               </button>
             </div>
           </form>

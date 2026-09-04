@@ -91,6 +91,12 @@ export interface Content {
   image?: string;
 }
 
+export interface ExternalRegistrationLink {
+  id?: string;
+  label: string;
+  url: string;
+}
+
 export interface TrainingActivity {
   id: string;
   namaKegiatan: string;
@@ -99,6 +105,10 @@ export interface TrainingActivity {
   tanggalPelatihan?: string;
   status: 'Buka' | 'Tutup';
   deskripsi?: string;
+  registrationType?: 'internal' | 'external';
+  jenisPendaftaran?: 'internal' | 'eksternal';
+  externalLinks?: ExternalRegistrationLink[];
+  linkEksternal?: ExternalRegistrationLink[];
   fee?: string;
   biaya?: string;
   biayaPelatihan?: string;

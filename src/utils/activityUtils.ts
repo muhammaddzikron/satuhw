@@ -264,4 +264,61 @@ export const sortActivitiesNewestFirst = (activities: any[]): any[] => {
   });
 };
 
+export interface ExternalRegistrationLinkItem {
+  id?: string;
+  label: string;
+  url: string;
+}
+
+export const getExternalLinks = (activity: any): ExternalRegistrationLinkItem[] => {
+  if (!activity) return [];
+  const links = activity.externalLinks || activity.linkEksternal || activity.linksEksternal;
+  if (Array.isArray(links)) {
+    return links
+      .filter((l: any) => l && (typeof l === 'object' ? (l.url || l.link) : l))
+      .map((l: any, idx: number) => {
+        if (typeof l === 'string') {
+          return { id: String(idx + 1), label: `Link Pendaftaran ${idx + 1}`, url: l.trim() };
+        }
+        return {
+          id: l.id || String(idx + 1),
+          label: (l.label || l.nama || l.title || `Link Pendaftaran ${idx + 1}`).trim(),
+          url: (l.url || l.link || '').trim()
+        };
+      });
+  }
+  if (typeof links === 'string' && links.trim()) {
+    try {
+      const parsed = JSON.parse(links);
+      if (Array.isArray(parsed)) {
+        return getExternalLinks({ externalLinks: parsed });
+      }
+    } catch (e) {
+      if (links.startsWith('http://') || links.startsWith('https://')) {
+        return [{ id: '1', label: activity.namaLinkEksternal || 'Link Pendaftaran (Google Form)', url: links.trim() }];
+      }
+    }
+  }
+  // Single external url fallback
+  const singleUrl = activity.externalUrl || activity.linkPendaftaran || activity.googleFormUrl || activity.externalLink;
+  if (singleUrl && typeof singleUrl === 'string' && singleUrl.trim()) {
+    return [{
+      id: '1',
+      label: activity.namaLinkEksternal || 'Link Pendaftaran (Google Form)',
+      url: singleUrl.trim()
+    }];
+  }
+  return [];
+};
+
+export const isExternalRegistration = (activity: any): boolean => {
+  if (!activity) return false;
+  const regType = String(activity.registrationType || activity.jenisPendaftaran || '').toLowerCase().trim();
+  if (regType === 'external' || regType === 'eksternal') return true;
+  if (regType === 'internal') return false;
+  // If not explicitly set, check if externalLinks exists and has valid urls
+  const links = getExternalLinks(activity);
+  return links.length > 0 && links.some(l => l.url.trim().length > 0);
+};
+
 
