@@ -173,18 +173,40 @@ export function parseRolesField(rolesVal: any, roleVal: any): UserRole[] {
   return result;
 }
 
-export function applyMemberOverrides(member: any): any {
-  if (!member) return member;
-  let customOverrides: Record<string, any> = {};
+let _cachedMemberOverrides: Record<string, any> | null = null;
+let _cachedMemberOverridesTime = 0;
+
+export function invalidateMemberOverridesCache() {
+  _cachedMemberOverrides = null;
+  _cachedMemberOverridesTime = 0;
+}
+
+function getMemberCustomOverrides(): Record<string, any> {
+  const now = Date.now();
+  if (_cachedMemberOverrides && (now - _cachedMemberOverridesTime < 10000)) {
+    return _cachedMemberOverrides;
+  }
   try {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const stored = localStorage.getItem('member_custom_edits');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') customOverrides = parsed;
+        if (parsed && typeof parsed === 'object') {
+          _cachedMemberOverrides = parsed;
+          _cachedMemberOverridesTime = now;
+          return parsed;
+        }
       }
     }
   } catch (e) {}
+  _cachedMemberOverrides = {};
+  _cachedMemberOverridesTime = now;
+  return _cachedMemberOverrides;
+}
+
+export function applyMemberOverrides(member: any, customOverridesParam?: Record<string, any>): any {
+  if (!member) return member;
+  const customOverrides = customOverridesParam || getMemberCustomOverrides();
 
   const mId = member.id ? String(member.id).trim() : '';
   const mIdClean = mId.replace(/^user-/, '');
@@ -215,7 +237,8 @@ export function applyMemberOverrides(member: any): any {
 
 export function applyMemberListOverrides(members: User[]): User[] {
   if (!Array.isArray(members)) return [];
-  return members.map(m => applyMemberOverrides(m));
+  const overrides = getMemberCustomOverrides();
+  return members.map(m => applyMemberOverrides(m, overrides));
 }
 
 const isValidName = (n?: string): boolean => {
@@ -318,7 +341,7 @@ export const firestoreService = {
       }
 
       // 2. Materi
-      const materiSnap = await getDocs(collection(db, 'materi'));
+      const materiSnap = await withTimeout(getDocs(collection(db, 'materi')), 5000);
       if (materiSnap.empty) {
         const localMateriStr = localStorage.getItem('materi');
         let initialMateri: any[] = [];
@@ -353,7 +376,7 @@ export const firestoreService = {
       }
 
       // 3. KTA Applications
-      const ktaSnap = await getDocs(collection(db, 'kta_applications'));
+      const ktaSnap = await withTimeout(getDocs(collection(db, 'kta_applications')), 5000);
       if (ktaSnap.empty) {
         const localKtaStr = localStorage.getItem('kta_applications');
         let initialKta: any[] = [];
@@ -382,14 +405,14 @@ export const firestoreService = {
       }
 
       // 4. Training Applications
-      const trainingSnap = await getDocs(collection(db, 'training_applications'));
+      const trainingSnap = await withTimeout(getDocs(collection(db, 'training_applications')), 5000);
       if (trainingSnap.empty) {
         safeStorageSet('training_applications', []);
         safeStorageSet('training_applications_initialized', 'true');
       }
 
       // 5. Contents
-      const contentsSnap = await getDocs(collection(db, 'contents'));
+      const contentsSnap = await withTimeout(getDocs(collection(db, 'contents')), 5000);
       if (contentsSnap.empty) {
         const localContentsStr = localStorage.getItem('contents');
         let initialContents: any[] = [];
@@ -422,7 +445,7 @@ export const firestoreService = {
       }
 
       // 6. Settings
-      const settingsDoc = await getDoc(doc(db, 'settings', 'app_settings'));
+      const settingsDoc = await withTimeout(getDoc(doc(db, 'settings', 'app_settings')), 5000);
       if (!settingsDoc.exists()) {
         const localSettingsStr = localStorage.getItem('hw_settings');
         const defaultSettings = localSettingsStr

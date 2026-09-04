@@ -83,6 +83,22 @@ const cachedFetch = async <T>(cacheKey: string, fetchFn: () => Promise<T>, ttl: 
   return promise;
 };
 
+export const fetchSheetsApi = async (action: string, params: Record<string, any> = {}, timeoutMs: number = 3500): Promise<any> => {
+  if (!IS_API_VALID || !API_URL) return null;
+  try {
+    const query = new URLSearchParams();
+    query.set('action', action);
+    query.set('_t', Date.now().toString());
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) query.set(k, String(v));
+    });
+    const url = `${API_URL}${API_URL.includes('?') ? '&' : '?'}${query.toString()}`;
+    const res = await axios.get(url, { timeout: timeoutMs });
+    return res.data;
+  } catch (e) {
+    return null;
+  }
+};
 
 export const DEFAULT_KTA_TEMPLATE_FRONT = 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U';
 export const DEFAULT_KTA_TEMPLATE_BACK = 'https://drive.google.com/uc?export=view&id=1yeEeoE_SlV0npvu681GYKBxxKzuujiz1';
@@ -862,38 +878,29 @@ export const sheetsService = {
 
   async getMateri(role: string): Promise<Materi[]> {
     return cachedFetch(`materi_${role}`, async () => {
-      if (!IS_API_VALID) {
-        const materiList = await firestoreService.getMateri();
-        return (materiList || [])
-          .map((m: any) => this.mapMateri(m))
-          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
-      }
-      try {
-        const response = await axios.get(`${API_URL}?action=getMateri&role=${role}&_t=${Date.now()}`, { timeout: 15000 });
-        let listData: any[] = [];
-        if (Array.isArray(response.data)) {
-          listData = response.data;
-        } else if (response.data && Array.isArray(response.data.data)) {
-          listData = response.data.data;
-        } else if (response.data && Array.isArray(response.data.materi)) {
-          listData = response.data.materi;
-        }
+      // 1. Instantly retrieve from local Firestore / cache
+      const materiList = await firestoreService.getMateri();
+      const mapped = (materiList || [])
+        .map((m: any) => this.mapMateri(m))
+        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
 
-        if (listData.length > 0) {
-          return listData.map((m: any) => this.mapMateri(m));
-        }
+      // 2. Non-blocking background sync with Google Sheets API if valid
+      if (IS_API_VALID) {
+        fetchSheetsApi('getMateri', { role }, 3000).then((data) => {
+          let listData: any[] = [];
+          if (Array.isArray(data)) listData = data;
+          else if (data && Array.isArray(data.data)) listData = data.data;
+          else if (data && Array.isArray(data.materi)) listData = data.materi;
 
-        const materiList = await firestoreService.getMateri();
-        return (materiList || [])
-          .map((m: any) => this.mapMateri(m))
-          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
-      } catch (error) {
-        console.warn('getMateri API error, falling back to Firestore:', (error as any)?.message || error);
-        const materiList = await firestoreService.getMateri();
-        return (materiList || [])
-          .map((m: any) => this.mapMateri(m))
-          .filter((m: any) => !role || role === 'semua' || m.kategori === role);
+          if (listData.length > 0) {
+            listData.forEach(item => {
+              if (item && item.judul) firestoreService.saveMateri(item).catch(() => {});
+            });
+          }
+        }).catch(() => {});
       }
+
+      return mapped;
     }, 30000);
   },
 
@@ -937,74 +944,81 @@ export const sheetsService = {
 
   async getMembers(forceRefresh = false): Promise<User[]> {
     const fetcher = async () => {
-      let sheetMembers: User[] = [];
-      if (IS_API_VALID) {
-        try {
-          const response = await axios.get(`${API_URL}?action=getMembers&_t=${Date.now()}`, { timeout: 15000 });
-          if (Array.isArray(response.data) && response.data.length > 0) {
-            sheetMembers = response.data.map((m: any) => this.mapUser(m));
-          }
-        } catch (e) {
-          console.warn('getMembers from Google Sheets API warning:', e);
-        }
-      }
-
-      // Always retrieve from unified firestoreService repository which holds the complete, deduped master dataset + Firestore database + KTA apps
+      // 1. Retrieve from unified firestoreService repository immediately (ultra-fast, ~10ms)
       const fsMembers = await firestoreService.getMembers();
       const mappedFs = fsMembers.map((m: any) => this.mapUser(m));
 
-      // Combine spreadsheet members with firestore/local members
       const combinedMap = new Map<string, User>();
-
-      // Put mappedFs first
       mappedFs.forEach((m: User) => {
         const key = (m.id || m.email || m.ktaNumber || m.namaLengkap || '').toLowerCase().trim();
         if (key) combinedMap.set(key, m);
       });
 
-      // Merge sheetMembers
-      sheetMembers.forEach((sm: User) => {
-        const smEmail = (sm.email || '').toLowerCase().trim();
-        const smId = (sm.id || '').trim();
-        const smKta = (sm.ktaNumber || sm.nomorKTA || '').trim();
-        const smPhone = sm.noHp ? sm.noHp.replace(/[^0-9]/g, '') : '';
-        const smName = (sm.namaLengkap || '').toLowerCase().trim();
+      const applySheetMembers = (sheetMembers: User[]) => {
+        if (!Array.isArray(sheetMembers) || sheetMembers.length === 0) return;
+        sheetMembers.forEach((sm: User) => {
+          const smEmail = (sm.email || '').toLowerCase().trim();
+          const smId = (sm.id || '').trim();
+          const smKta = (sm.ktaNumber || sm.nomorKTA || '').trim();
+          const smPhone = sm.noHp ? sm.noHp.replace(/[^0-9]/g, '') : '';
+          const smName = (sm.namaLengkap || '').toLowerCase().trim();
 
-        let matchedKey: string | null = null;
-        for (const [key, ex] of combinedMap.entries()) {
-          const exEmail = (ex.email || '').toLowerCase().trim();
-          const exId = (ex.id || '').trim();
-          const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim();
-          const exPhone = ex.noHp ? ex.noHp.replace(/[^0-9]/g, '') : '';
-          const exName = (ex.namaLengkap || '').toLowerCase().trim();
+          let matchedKey: string | null = null;
+          for (const [key, ex] of combinedMap.entries()) {
+            const exEmail = (ex.email || '').toLowerCase().trim();
+            const exId = (ex.id || '').trim();
+            const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim();
+            const exPhone = ex.noHp ? ex.noHp.replace(/[^0-9]/g, '') : '';
+            const exName = (ex.namaLengkap || '').toLowerCase().trim();
 
-          if (
-            (smId && exId && smId === exId) ||
-            (smEmail && exEmail && smEmail === exEmail) ||
-            (smKta && exKta && smKta === exKta) ||
-            (smPhone && smPhone.length > 5 && exPhone && smPhone === exPhone) ||
-            (smName && exName && smName === exName && smName !== 'anggota hw')
-          ) {
-            matchedKey = key;
-            break;
+            if (
+              (smId && exId && smId === exId) ||
+              (smEmail && exEmail && smEmail === exEmail) ||
+              (smKta && exKta && smKta === exKta) ||
+              (smPhone && smPhone.length > 5 && exPhone && smPhone === exPhone) ||
+              (smName && exName && smName === exName && smName !== 'anggota hw')
+            ) {
+              matchedKey = key;
+              break;
+            }
           }
-        }
 
-        if (matchedKey) {
-          const existing = combinedMap.get(matchedKey)!;
-          combinedMap.set(matchedKey, {
-            ...existing,
-            ...sm,
-            photo: sm.photo || existing.photo,
-            roles: (sm.roles && sm.roles.length > 0) ? sm.roles : existing.roles,
-            role: sm.role || existing.role,
-            password: sm.password || existing.password
-          });
+          if (matchedKey) {
+            const existing = combinedMap.get(matchedKey)!;
+            combinedMap.set(matchedKey, {
+              ...existing,
+              ...sm,
+              photo: sm.photo || existing.photo,
+              roles: (sm.roles && sm.roles.length > 0) ? sm.roles : existing.roles,
+              role: sm.role || existing.role,
+              password: sm.password || existing.password
+            });
+          } else {
+            const newKey = (sm.id || sm.email || sm.ktaNumber || sm.namaLengkap || `sheet-${Math.random()}`).toLowerCase().trim();
+            if (newKey) combinedMap.set(newKey, sm);
+          }
+        });
+      };
+
+      if (IS_API_VALID) {
+        if (forceRefresh) {
+          // Controlled 3.5s timeout for manual refresh
+          const sheetData = await fetchSheetsApi('getMembers', {}, 3500);
+          if (Array.isArray(sheetData) && sheetData.length > 0) {
+            applySheetMembers(sheetData.map((m: any) => this.mapUser(m)));
+          }
         } else {
-          const newKey = (sm.id || sm.email || sm.ktaNumber || sm.namaLengkap || `sheet-${Math.random()}`).toLowerCase().trim();
-          if (newKey) combinedMap.set(newKey, sm);
+          // Non-blocking background sync
+          fetchSheetsApi('getMembers', {}, 3500).then((sheetData) => {
+            if (Array.isArray(sheetData) && sheetData.length > 0) {
+              const mapped = sheetData.map((m: any) => this.mapUser(m));
+              mapped.forEach(m => {
+                if (m && m.email) firestoreService.saveMember(m).catch(() => {});
+              });
+            }
+          }).catch(() => {});
         }
-      });
+      }
 
       const combinedList = Array.from(combinedMap.values());
       const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(combinedList)));
@@ -1016,7 +1030,7 @@ export const sheetsService = {
       clearSheetsCache('members');
       return await fetcher();
     }
-    return cachedFetch('members', fetcher, 15000);
+    return cachedFetch('members', fetcher, 20000);
   },
 
   async saveMember(userData: any): Promise<any> {
@@ -1224,29 +1238,8 @@ export const sheetsService = {
       callback(finalResult);
     });
 
-    // 4. Poll Google Sheets API periodically (every 25s) if API is valid and window is active
-    let pollInterval: any = null;
-    if (IS_API_VALID) {
-      pollInterval = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          this.getMembers(true).then((m) => {
-            if (m && m.length > 0) callback(m);
-          }).catch(() => {});
-        }
-      }, 25000);
-    }
-
-    const onFocus = () => {
-      this.getMembers(true).then((m) => {
-        if (m && m.length > 0) callback(m);
-      }).catch(() => {});
-    };
-    window.addEventListener('focus', onFocus);
-
     return () => {
       if (typeof unsubFs === 'function') unsubFs();
-      if (pollInterval) clearInterval(pollInterval);
-      window.removeEventListener('focus', onFocus);
     };
   },
 
@@ -1320,22 +1313,27 @@ export const sheetsService = {
 
   async getKTAApplications(forceRefresh = false): Promise<any[]> {
     const fetcher = async () => {
-      let sheetApps: any[] = [];
-      if (IS_API_VALID) {
-        try {
-          const response = await axios.get(`${API_URL}?action=getKTAApplications&_t=${Date.now()}`, { timeout: 15000 });
-          if (Array.isArray(response.data)) {
-            sheetApps = response.data;
-          }
-        } catch (e) {
-          console.warn('getKTAApplications API error:', e);
-        }
-      }
-
+      // 1. Immediately retrieve from Firestore / local cache (ultra-fast)
       let fsApps: any[] = [];
       try {
         fsApps = await firestoreService.getKTAApplications();
       } catch (e) {}
+
+      let sheetApps: any[] = [];
+      if (IS_API_VALID) {
+        if (forceRefresh) {
+          const res = await fetchSheetsApi('getKTAApplications', {}, 3500);
+          if (Array.isArray(res)) sheetApps = res;
+        } else {
+          fetchSheetsApi('getKTAApplications', {}, 3500).then((res) => {
+            if (Array.isArray(res) && res.length > 0) {
+              res.forEach(app => {
+                if (app && app.id) firestoreService.saveKTAApplication(app).catch(() => {});
+              });
+            }
+          }).catch(() => {});
+        }
+      }
 
       const apps = [...sheetApps];
       const sheetKeys = new Set(
@@ -1445,7 +1443,7 @@ export const sheetsService = {
       clearSheetsCache('ktaApplications');
       return await fetcher();
     }
-    return cachedFetch('ktaApplications', fetcher, 15000);
+    return cachedFetch('ktaApplications', fetcher, 20000);
   },
 
   subscribeToKTAApplications(callback: (apps: any[]) => void): () => void {
@@ -1461,42 +1459,21 @@ export const sheetsService = {
     }
 
     // 2. Fetch fresh data immediately
-    this.getKTAApplications(true).then((freshApps) => {
+    this.getKTAApplications(false).then((freshApps) => {
       if (freshApps && freshApps.length > 0) {
         callback(freshApps);
       }
     }).catch(() => {});
 
-    // 3. Subscribe to Firestore
+    // 3. Subscribe to Firestore real-time push
     const unsubFs = firestoreService.subscribeToKTAApplications((apps) => {
       const finalApps = ensureUniqueKtaNumbers(apps);
       safeStorageSet('kta_applications', finalApps);
       callback(finalApps);
     });
 
-    // 4. Polling Google Sheets
-    let pollInterval: any = null;
-    if (IS_API_VALID) {
-      pollInterval = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          this.getKTAApplications(true).then((a) => {
-            if (a && a.length > 0) callback(a);
-          }).catch(() => {});
-        }
-      }, 25000);
-    }
-
-    const onFocus = () => {
-      this.getKTAApplications(true).then((a) => {
-        if (a && a.length > 0) callback(a);
-      }).catch(() => {});
-    };
-    window.addEventListener('focus', onFocus);
-
     return () => {
       if (typeof unsubFs === 'function') unsubFs();
-      if (pollInterval) clearInterval(pollInterval);
-      window.removeEventListener('focus', onFocus);
     };
   },
 
@@ -1655,52 +1632,55 @@ export const sheetsService = {
 
   async getTrainingApplications(): Promise<any[]> {
     return cachedFetch('trainingApplications', async () => {
+      // 1. Immediately return Firestore applications (instant)
       const fsTrainings = await firestoreService.getTrainingApplications();
-      if (!IS_API_VALID) {
-        return fsTrainings;
-      }
-      try {
-        const response = await axios.get(`${API_URL}?action=getTrainingApplications&_t=${Date.now()}`, { timeout: 15000 });
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-          const apiTrainings = response.data.map((t: any, idx: number) => {
-            const rawNama = t.nama || t.namaLengkap || t.namalengkap || '';
-            const rawEmail = t.email || '';
-            const rawWa = t.noWa || t.nowa || t.noHp || t.nohp || '';
-            const rawPelatihan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.tingkatan || '';
-            return {
-              ...t,
-              id: t.id || t.Id || `train-api-${idx}`,
-              nama: rawNama,
-              namaLengkap: rawNama,
-              email: rawEmail,
-              noWa: rawWa,
-              noHp: rawWa,
-              tingkatan: t.tingkatan || rawPelatihan,
-              pelatihanAkanDiikuti: rawPelatihan,
-              asalDaerah: t.asalDaerah || t.asaldaerah || t.asalKwarda || '',
-              status: t.status || 'approved',
-              tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString(),
-              preTestScore: t.preTestScore !== undefined ? t.preTestScore : (t.pretestscore !== undefined ? t.pretestscore : undefined),
-              preTestData: t.preTestData || t.pretestdata || '',
-              preTestSubmittedAt: t.preTestSubmittedAt || t.pretestsubmittedat || '',
-              postTestScore: t.postTestScore !== undefined ? t.postTestScore : (t.posttestscore !== undefined ? t.posttestscore : undefined),
-              postTestData: t.postTestData || t.posttestdata || '',
-              postTestSubmittedAt: t.postTestSubmittedAt || t.posttestsubmittedat || ''
-            };
-          }).filter((t: any) => {
-            const name = (t.nama || t.namaLengkap || '').trim();
-            const email = (t.email || '').toLowerCase().trim();
-            return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
-          });
+      
+      // 2. Non-blocking background sync with Google Sheets if valid
+      if (IS_API_VALID) {
+        fetchSheetsApi('getTrainingApplications', {}, 3500).then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+            const apiTrainings = data.map((t: any, idx: number) => {
+              const rawNama = t.nama || t.namaLengkap || t.namalengkap || '';
+              const rawEmail = t.email || '';
+              const rawWa = t.noWa || t.nowa || t.noHp || t.nohp || '';
+              const rawPelatihan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.tingkatan || '';
+              return {
+                ...t,
+                id: t.id || t.Id || `train-api-${idx}`,
+                nama: rawNama,
+                namaLengkap: rawNama,
+                email: rawEmail,
+                noWa: rawWa,
+                noHp: rawWa,
+                tingkatan: t.tingkatan || rawPelatihan,
+                pelatihanAkanDiikuti: rawPelatihan,
+                asalDaerah: t.asalDaerah || t.asaldaerah || t.asalKwarda || '',
+                status: t.status || 'approved',
+                tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString(),
+                preTestScore: t.preTestScore !== undefined ? t.preTestScore : (t.pretestscore !== undefined ? t.pretestscore : undefined),
+                preTestData: t.preTestData || t.pretestdata || '',
+                preTestSubmittedAt: t.preTestSubmittedAt || t.pretestsubmittedat || '',
+                postTestScore: t.postTestScore !== undefined ? t.postTestScore : (t.posttestscore !== undefined ? t.posttestscore : undefined),
+                postTestData: t.postTestData || t.posttestdata || '',
+                postTestSubmittedAt: t.postTestSubmittedAt || t.posttestsubmittedat || ''
+              };
+            }).filter((t: any) => {
+              const name = (t.nama || t.namaLengkap || '').trim();
+              const email = (t.email || '').toLowerCase().trim();
+              return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
+            });
 
-          return consolidateTrainingApplications([...fsTrainings, ...apiTrainings]);
-        }
-        return fsTrainings;
-      } catch (e) {
-        console.warn('getTrainingApplications API error, falling back to Firestore:', (e as any)?.message || e);
-        return fsTrainings;
+            apiTrainings.forEach(app => {
+              if (app && (app.id || app.email)) {
+                firestoreService.createTrainingApplication(app).catch(() => {});
+              }
+            });
+          }
+        }).catch(() => {});
       }
+
+      return fsTrainings;
     }, 20000);
   },
 
@@ -1953,94 +1933,35 @@ export const sheetsService = {
       return c === t;
     };
 
-    if (IS_API_VALID) {
-      try {
-        const response = await axios.get(`${API_URL}?action=getContents${section ? `&section=${section}` : ''}&_t=${Date.now()}`);
-        let apiData: Content[] = [];
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          apiData = response.data;
-        } else if (response.data && Array.isArray(response.data.contents) && response.data.contents.length > 0) {
-          apiData = response.data.contents;
-        }
-        if (apiData.length > 0) {
-          const sanitized = apiData
-            .map(c => {
-            if (isSectionMatch(c.section, 'galeri') && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
-              return {
-                ...c,
-                field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-                field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
-              };
-            }
-            if (c.section === 'playlist') {
-              const anyC = c as any;
-              let field1 = c.field1 || anyC.audiourl || anyC.audioUrl || '';
-              let field2 = c.field2 || anyC.judul || anyC.title || '';
-              let field3 = c.field3 || anyC.pencipta || anyC.creator || '';
-              let field5 = c.field5 || anyC.lirik || anyC.lyrics || '';
-              const lowerTitle = (field2 || '').trim().toLowerCase();
-
-              const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
-              const isHymneHW = lowerTitle.includes('hymne');
-              const isSangSurya = lowerTitle.includes('sang surya');
-              const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
-
-              if (lowerTitle === 'sahabat hw' || field1.toLowerCase().includes('sahabathw')) {
-                if (!field1) field1 = 'https://hwjateng.org/musik/sahabathw.mp3';
-                if (!field2) field2 = 'Sahabat HW';
-                field3 = 'Muhammad Dzikron';
-                if (!field5) {
-                  field5 = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
-                }
-              } else if (isMarsHW) {
-                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
-                  field3 = 'H. Siradj Dahlan';
-                }
-              } else if (isHymneHW) {
-                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
-                  field3 = 'H.M. Affandi';
-                }
-              } else if (isSangSurya) {
-                if (!field3) field3 = 'Djarnawi Hadikusuma';
-              } else if (isMarsAisyiyah) {
-                if (!field3) field3 = 'Ny. Hj. Siti Badilah Zuber';
-              } else {
-                // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
-                if (!field3 || field3.toLowerCase().includes('pandu') || field3.toLowerCase().includes('kwar')) {
-                  field3 = 'Muhammad Dzikron';
-                }
-              }
-              return {
-                ...c,
-                field1,
-                field2,
-                field3,
-                field4: '',
-                field5,
-                pencipta: field3,
-                creator: field3,
-                lirik: field5,
-                lyrics: field5,
-                judul: field2,
-                title: field2,
-                audioUrl: field1,
-                audiourl: field1
-              };
-            }
-            return c;
-          });
-          return section ? sanitized.filter((c: any) => isSectionMatch(c.section, section)) : sanitized;
-        }
-      } catch (error) {
-        console.warn('getContents API error, falling back to Firestore:', (error as any)?.message || error);
+    // 1. Immediately retrieve from Firestore / local cache (ultra-fast)
+    let contents: Content[] = [];
+    try {
+      const fsContents = await firestoreService.getContents();
+      if (fsContents && fsContents.length > 0) {
+        contents = fsContents;
       }
+    } catch (e) {}
+
+    if (contents.length === 0) {
+      contents = this.getMockContents();
     }
-    const fsContents = await firestoreService.getContents();
-    if (fsContents && fsContents.length > 0) {
-      return section ? fsContents.filter((c: any) => isSectionMatch(c.section, section)) : fsContents;
+
+    // 2. Non-blocking background sync with Google Sheets if valid
+    if (IS_API_VALID) {
+      fetchSheetsApi('getContents', section ? { section } : {}, 3500).then((data) => {
+        let apiData: Content[] = [];
+        if (Array.isArray(data) && data.length > 0) apiData = data;
+        else if (data && Array.isArray(data.contents) && data.contents.length > 0) apiData = data.contents;
+        
+        if (apiData.length > 0) {
+          apiData.forEach(c => {
+            if (c && c.section) firestoreService.saveContent(c).catch(() => {});
+          });
+        }
+      }).catch(() => {});
     }
-    const mockData = this.getMockContents();
-    return section ? mockData.filter((c: any) => isSectionMatch(c.section, section)) : mockData;
+
+    return section ? contents.filter((c: any) => isSectionMatch(c.section, section)) : contents;
   },
 
   async getGalleryVideos(): Promise<any[]> {
@@ -2286,136 +2207,64 @@ export const sheetsService = {
     const cleanKtaFront = (url?: string) => getSafeKtaFront(url);
     const cleanKtaBack = (url?: string) => getSafeKtaBack(url);
 
-    if (!IS_API_VALID) {
-      const parsed = fsSettings || localParsed || { 
-        appName: 'HW App', 
-        orgName: 'HW Org', 
-        waConfirmation: '628',
-        lastBackup: '-',
-        ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
-        ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
-        ktaKetuaNama: 'TAUFIQ',
-        ktaKetuaNbm: 'NBM 1015096',
-        ktaSekretarisNama: 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: 'NBM 1029863',
-        ktaKotaPenerbit: 'Semarang',
-        ktaTandaTanganKetua: '',
-        ktaTandaTanganSekretaris: '',
-        ktaStempelImage: '',
-        trainingTypes: DEFAULT_TYPES,
-        trainingActivities: DEFAULT_ACTIVITIES,
-        trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
-        trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
-        upgradeFees: DEFAULT_UPGRADE_FEES
-      };
-      const result = {
-        ...parsed,
-        ktaTemplateFront: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
-        ktaTemplateBack: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
-        ktaFrontBg: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
-        ktaBackBg: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
-        ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
-        ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
-        ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: parsed.ktaSekretarisNbm || 'NBM 1029863',
-        ktaKotaPenerbit: parsed.ktaKotaPenerbit || 'Semarang',
-        ktaTandaTanganKetua: parsed.ktaTandaTanganKetua || '',
-        ktaTandaTanganSekretaris: parsed.ktaTandaTanganSekretaris || '',
-        ktaStempelImage: parsed.ktaStempelImage || '',
-        trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
-        trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
-        trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
-        trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES),
-        preTestSettings: parseTestScheduleSettings(parsed.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
-        postTestSettings: parseTestScheduleSettings(parsed.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
-        trainingQuestions: safeParse(parsed.trainingQuestions, DEFAULT_50_QUESTIONS),
-        assignedTasks: safeParse(parsed.assignedTasks, [])
-      };
-      safeStorageSet('hw_settings', result);
-      return result;
+    const parsed = fsSettings || localParsed || { 
+      appName: 'HW App', 
+      orgName: 'HW Org', 
+      waConfirmation: '628',
+      lastBackup: '-',
+      ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
+      ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
+      ktaKetuaNama: 'TAUFIQ',
+      ktaKetuaNbm: 'NBM 1015096',
+      ktaSekretarisNama: 'MUHAMMAD DZIKRON',
+      ktaSekretarisNbm: 'NBM 1029863',
+      ktaKotaPenerbit: 'Semarang',
+      ktaTandaTanganKetua: '',
+      ktaTandaTanganSekretaris: '',
+      ktaStempelImage: '',
+      trainingTypes: DEFAULT_TYPES,
+      trainingActivities: DEFAULT_ACTIVITIES,
+      trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
+      trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
+      upgradeFees: DEFAULT_UPGRADE_FEES
+    };
+    const result = {
+      ...parsed,
+      ktaTemplateFront: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+      ktaTemplateBack: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
+      ktaFrontBg: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
+      ktaBackBg: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
+      ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
+      ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
+      ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
+      ktaSekretarisNbm: parsed.ktaSekretarisNbm || 'NBM 1029863',
+      ktaKotaPenerbit: parsed.ktaKotaPenerbit || 'Semarang',
+      ktaTandaTanganKetua: parsed.ktaTandaTanganKetua || '',
+      ktaTandaTanganSekretaris: parsed.ktaTandaTanganSekretaris || '',
+      ktaStempelImage: parsed.ktaStempelImage || '',
+      trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
+      trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
+      trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
+      trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
+      upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES),
+      preTestSettings: parseTestScheduleSettings(parsed.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
+      postTestSettings: parseTestScheduleSettings(parsed.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
+      trainingQuestions: safeParse(parsed.trainingQuestions, DEFAULT_50_QUESTIONS),
+      assignedTasks: safeParse(parsed.assignedTasks, [])
+    };
+    safeStorageSet('hw_settings', result);
+
+    // Non-blocking background sync with Google Sheets API if valid
+    if (IS_API_VALID) {
+      fetchSheetsApi('getSettings', {}, 3500).then((apiSettings) => {
+        if (apiSettings && typeof apiSettings === 'object') {
+          const merged = { ...result, ...apiSettings };
+          firestoreService.saveSettings(merged).catch(() => {});
+        }
+      }).catch(() => {});
     }
-    try {
-      const response = await axios.get(`${API_URL}?action=getSettings&_t=${Date.now()}`, { timeout: 15000 });
-      const apiSettings = response.data || {};
-      const merged = {
-        ...fsSettings,
-        ...apiSettings,
-        appName: apiSettings.appName || fsSettings?.appName || 'HW App',
-        orgName: apiSettings.orgName || fsSettings?.orgName || 'HW Org',
-        waConfirmation: apiSettings.waConfirmation || fsSettings?.waConfirmation || '628',
-        lastBackup: apiSettings.lastBackup || fsSettings?.lastBackup || '-',
-        ktaTemplateFront: cleanKtaFront(apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || apiSettings.ktaFrontBg || fsSettings?.ktaFrontBg),
-        ktaTemplateBack: cleanKtaBack(apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || apiSettings.ktaBackBg || fsSettings?.ktaBackBg),
-        ktaFrontBg: cleanKtaFront(apiSettings.ktaTemplateFront || fsSettings?.ktaTemplateFront || apiSettings.ktaFrontBg || fsSettings?.ktaFrontBg),
-        ktaBackBg: cleanKtaBack(apiSettings.ktaTemplateBack || fsSettings?.ktaTemplateBack || apiSettings.ktaBackBg || fsSettings?.ktaBackBg),
-        ktaKetuaNama: apiSettings.ktaKetuaNama || fsSettings?.ktaKetuaNama || 'TAUFIQ',
-        ktaKetuaNbm: apiSettings.ktaKetuaNbm || fsSettings?.ktaKetuaNbm || 'NBM 1015096',
-        ktaSekretarisNama: apiSettings.ktaSekretarisNama || fsSettings?.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: apiSettings.ktaSekretarisNbm || fsSettings?.ktaSekretarisNbm || 'NBM 1029863',
-        ktaKotaPenerbit: apiSettings.ktaKotaPenerbit || fsSettings?.ktaKotaPenerbit || 'Semarang',
-        ktaTandaTanganKetua: apiSettings.ktaTandaTanganKetua || fsSettings?.ktaTandaTanganKetua || '',
-        ktaTandaTanganSekretaris: apiSettings.ktaTandaTanganSekretaris || fsSettings?.ktaTandaTanganSekretaris || '',
-        ktaStempelImage: apiSettings.ktaStempelImage || fsSettings?.ktaStempelImage || '',
-        trainingTypes: safeParse(apiSettings.trainingTypes || fsSettings?.trainingTypes, DEFAULT_TYPES),
-        trainingActivities: safeParse(apiSettings.trainingActivities || fsSettings?.trainingActivities, DEFAULT_ACTIVITIES),
-        trainingLocations: safeParse(apiSettings.trainingLocations || fsSettings?.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
-        trainingDates: safeParse(apiSettings.trainingDates || fsSettings?.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(apiSettings.upgradeFees || fsSettings?.upgradeFees, DEFAULT_UPGRADE_FEES),
-        preTestSettings: parseTestScheduleSettings(apiSettings.preTestSettings || fsSettings?.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
-        postTestSettings: parseTestScheduleSettings(apiSettings.postTestSettings || fsSettings?.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
-        trainingQuestions: safeParse(apiSettings.trainingQuestions || fsSettings?.trainingQuestions, DEFAULT_50_QUESTIONS),
-        assignedTasks: safeParse(apiSettings.assignedTasks || fsSettings?.assignedTasks, [])
-      };
-      safeStorageSet('hw_settings', merged);
-      return merged;
-    } catch (error) {
-      console.warn('getSettings API error, falling back to local settings:', (error as any)?.message || error);
-      const parsed = fsSettings || localParsed || { 
-        appName: 'HW App', 
-        orgName: 'HW Org', 
-        lastBackup: '-',
-        ktaTemplateFront: DEFAULT_LOCAL_KTA_FRONT,
-        ktaTemplateBack: DEFAULT_LOCAL_KTA_BACK,
-        ktaKetuaNama: 'TAUFIQ',
-        ktaKetuaNbm: 'NBM 1015096',
-        ktaSekretarisNama: 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: 'NBM 1029863',
-        ktaKotaPenerbit: 'Semarang',
-        ktaTandaTanganKetua: '',
-        ktaTandaTanganSekretaris: '',
-        ktaStempelImage: '',
-        trainingTypes: DEFAULT_TYPES,
-        trainingActivities: DEFAULT_ACTIVITIES,
-        trainingLocations: ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng'],
-        trainingDates: ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026'],
-        upgradeFees: DEFAULT_UPGRADE_FEES
-      };
-      return {
-        ...parsed,
-        ktaTemplateFront: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
-        ktaTemplateBack: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
-        ktaFrontBg: cleanKtaFront(parsed.ktaTemplateFront || parsed.ktaFrontBg),
-        ktaBackBg: cleanKtaBack(parsed.ktaTemplateBack || parsed.ktaBackBg),
-        ktaKetuaNama: parsed.ktaKetuaNama || 'TAUFIQ',
-        ktaKetuaNbm: parsed.ktaKetuaNbm || 'NBM 1015096',
-        ktaSekretarisNama: parsed.ktaSekretarisNama || 'MUHAMMAD DZIKRON',
-        ktaSekretarisNbm: parsed.ktaSekretarisNbm || 'NBM 1029863',
-        ktaKotaPenerbit: parsed.ktaKotaPenerbit || 'Semarang',
-        ktaTandaTanganKetua: parsed.ktaTandaTanganKetua || '',
-        ktaTandaTanganSekretaris: parsed.ktaTandaTanganSekretaris || '',
-        ktaStempelImage: parsed.ktaStempelImage || '',
-        trainingTypes: safeParse(parsed.trainingTypes, DEFAULT_TYPES),
-        trainingActivities: safeParse(parsed.trainingActivities, DEFAULT_ACTIVITIES),
-        trainingLocations: safeParse(parsed.trainingLocations, ['Gedung Dakwah Muhammadiyah Jateng', 'Kwarda Banyumas', 'Pusdiklat HW Jateng']),
-        trainingDates: safeParse(parsed.trainingDates, ['12-14 Juli 2026', '1-3 Agustus 2026', '15-17 September 2026']),
-        upgradeFees: safeParse(parsed.upgradeFees, DEFAULT_UPGRADE_FEES),
-        preTestSettings: parseTestScheduleSettings(parsed.preTestSettings, DEFAULT_PRE_TEST_SETTINGS),
-        postTestSettings: parseTestScheduleSettings(parsed.postTestSettings, DEFAULT_POST_TEST_SETTINGS),
-        trainingQuestions: safeParse(parsed.trainingQuestions, DEFAULT_50_QUESTIONS),
-        assignedTasks: safeParse(parsed.assignedTasks, [])
-      };
-    }
+
+    return result;
   },
 
   subscribeToSettings(callback: (settings: any) => void): () => void {
@@ -2573,13 +2422,13 @@ export const sheetsService = {
     return cachedFetch('activities', async () => {
       const fsActs = await firestoreService.getActivities();
       if (!IS_API_VALID) return fsActs;
-      try {
-        const response = await axios.get(`${API_URL}?action=getActivities&_t=${Date.now()}`, { timeout: 15000 });
-        if (Array.isArray(response.data) && response.data.length > 0) {
+      
+      fetchSheetsApi('getActivities', {}, 3500).then((sheetData) => {
+        if (Array.isArray(sheetData) && sheetData.length > 0) {
           const map = new Map<string, any>();
           fsActs.forEach(a => { if (a && a.id) map.set(a.id, a); });
 
-        response.data.forEach((sheetAct: any, idx: number) => {
+          sheetData.forEach((sheetAct: any, idx: number) => {
           if (!sheetAct) return;
           const sheetTitle = sheetAct.namakegiatan || sheetAct.namaKegiatan || sheetAct.title || sheetAct.jenispelatihan || sheetAct.jenisPelatihan || sheetAct.judul || '';
           const sheetLoc = sheetAct.lokasipelatihan || sheetAct.lokasiPelatihan || sheetAct.lokasi || sheetAct.location || '';
@@ -2763,14 +2612,10 @@ export const sheetsService = {
             firestoreService.saveActivity(normalizedSheetAct).catch(() => {});
           }
         });
-
-        return sortActivitiesNewestFirst(Array.from(map.values()));
       }
-      return sortActivitiesNewestFirst(fsActs);
-    } catch (e) {
-      console.warn('getActivities Sheets API error:', e);
-      return sortActivitiesNewestFirst(fsActs);
-    }
+    }).catch(() => {});
+
+    return sortActivitiesNewestFirst(fsActs);
   }, 20000);
 },
 
