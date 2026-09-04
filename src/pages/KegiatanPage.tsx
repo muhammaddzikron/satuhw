@@ -45,7 +45,7 @@ import { formatDocumentUrl, handleDocumentFileUpload, handleDownloadDocument } f
 import { getDriveDirectLink, getCorsSafeUrl, cn } from '../lib/utils';
 import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { useAuthStore } from '../store/useAuthStore';
-import { sheetsService } from '../services/sheetsService';
+import { sheetsService, clearSheetsCache } from '../services/sheetsService';
 import { KWARDA_QABILAH_JATENG } from './KTAPage';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 
@@ -144,6 +144,106 @@ export default function KegiatanPage() {
     konfirmasiPembayaran: '089688754000'
   });
   const [isSavingActivity, setIsSavingActivity] = useState(false);
+
+  // Activity Participant Edit / Delete State (Admin)
+  const [editingParticipant, setEditingParticipant] = useState<any | null>(null);
+  const [isEditParticipantModalOpen, setIsEditParticipantModalOpen] = useState(false);
+  const [isSavingParticipant, setIsSavingParticipant] = useState(false);
+
+  const handleStartEditParticipant = (participant: any) => {
+    if (!isAdmin) {
+      alert('Hanya Admin yang memiliki hak akses untuk mengubah data peserta.');
+      return;
+    }
+    setEditingParticipant({
+      ...participant,
+      id: participant.id,
+      activityId: participant.activityId || participant.activity_id || participant.kegiatanId || (selectedActivityForParticipants?.id || selectedActivity?.id || ''),
+      namaLengkap: participant.namaLengkap || participant.nama || '',
+      noHp: participant.noHp || participant.noWa || '',
+      email: participant.email || '',
+      unsur: participant.unsur || participant.asalKwarda || '',
+      utusan: participant.utusan || participant.qabilahPtma || participant.asalKwarda || '',
+      jabatan: participant.jabatan || 'Peserta',
+      kategoriUndangan: participant.kategoriUndangan || participant.kategori || 'Umum / Terbuka'
+    });
+    setIsEditParticipantModalOpen(true);
+  };
+
+  const handleSaveParticipant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingParticipant) return;
+    if (!editingParticipant.namaLengkap?.trim()) {
+      alert('Nama peserta wajib diisi.');
+      return;
+    }
+    if (!editingParticipant.noHp?.trim()) {
+      alert('Nomor WhatsApp / HP wajib diisi.');
+      return;
+    }
+
+    setIsSavingParticipant(true);
+    try {
+      const partToSave = {
+        ...editingParticipant,
+        nama: editingParticipant.namaLengkap.trim(),
+        namaLengkap: editingParticipant.namaLengkap.trim(),
+        noHp: editingParticipant.noHp.trim(),
+        noWa: editingParticipant.noHp.trim(),
+        unsur: editingParticipant.unsur?.trim() || '',
+        utusan: editingParticipant.utusan?.trim() || '',
+        jabatan: editingParticipant.jabatan?.trim() || 'Peserta',
+        kategoriUndangan: editingParticipant.kategoriUndangan?.trim() || 'Umum / Terbuka',
+        updatedAt: new Date().toISOString()
+      };
+
+      // Optimistic state update
+      setActivityApps(prev => (prev || []).map(a => String(a.id) === String(partToSave.id) ? partToSave : a));
+      setIsEditParticipantModalOpen(false);
+      setEditingParticipant(null);
+
+      // Save to Sheets & Firestore
+      await sheetsService.registerActivity(partToSave);
+      clearSheetsCache('activity_applications');
+      const updated = await sheetsService.getActivityApplications();
+      if (updated && updated.length > 0) {
+        setActivityApps(updated);
+      }
+      alert('Data peserta berhasil diperbarui!');
+    } catch (err: any) {
+      alert('Gagal memperbarui data peserta: ' + (err.message || 'Cek koneksi internet'));
+    } finally {
+      setIsSavingParticipant(false);
+    }
+  };
+
+  const handleDeleteParticipant = async (participant: any) => {
+    if (!isAdmin) {
+      alert('Hanya Admin yang memiliki hak akses untuk menghapus data peserta.');
+      return;
+    }
+    const participantName = participant.namaLengkap || participant.nama || 'Peserta';
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus peserta "${participantName}" dari kegiatan ini? Data pendaftaran akan dihapus secara permanen.`)) {
+      return;
+    }
+
+    try {
+      const partId = String(participant.id);
+      // Optimistic state update
+      setActivityApps(prev => (prev || []).filter(a => String(a.id) !== partId));
+
+      // Delete from Sheets & Firestore
+      await sheetsService.deleteActivityApplication(partId);
+      clearSheetsCache('activity_applications');
+      const updated = await sheetsService.getActivityApplications();
+      if (updated) {
+        setActivityApps(updated);
+      }
+      alert(`Peserta "${participantName}" berhasil dihapus dari kegiatan.`);
+    } catch (err: any) {
+      alert('Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi internet'));
+    }
+  };
 
   const handleDownloadThemeSong = async (url: string, fileName?: string) => {
     if (!url) return;
@@ -278,29 +378,37 @@ export default function KegiatanPage() {
     ...activityCategoriesList.filter(c => c !== 'Semua' && c !== 'Kegiatan Saya' && c.toLowerCase() !== 'pelatihan' && c.toLowerCase() !== 'kegiatan pelatihan')
   ], [activityCategoriesList]);
 
-  // High-performance O(N) participant counting
+  // High-performance O(N) participant counting (excluding activities with external registration)
   const participantCountMap = useMemo(() => {
     const map: Record<string, number> = {};
     if (!activityApps?.length) return map;
+    const extActSet = new Set(
+      activities
+        .filter(a => isExternalRegistration(a))
+        .map(a => String(a.id || '').toLowerCase().trim())
+    );
+
     for (const app of activityApps) {
       const actId = String(app.activityId || app.activity_id || app.kegiatanId || app.idKegiatan || '').trim().toLowerCase();
-      if (actId) {
+      if (actId && !extActSet.has(actId)) {
         map[actId] = (map[actId] || 0) + 1;
-        if (actId === 'keg-1') map['keg-silaturahmi-pelatih'] = (map['keg-silaturahmi-pelatih'] || 0) + 1;
-        if (actId === 'keg-silaturahmi-pelatih') map['keg-1'] = (map['keg-1'] || 0) + 1;
+        if (actId === 'keg-1' && !extActSet.has('keg-silaturahmi-pelatih')) map['keg-silaturahmi-pelatih'] = (map['keg-silaturahmi-pelatih'] || 0) + 1;
+        if (actId === 'keg-silaturahmi-pelatih' && !extActSet.has('keg-1')) map['keg-1'] = (map['keg-1'] || 0) + 1;
       }
     }
     return map;
-  }, [activityApps]);
+  }, [activityApps, activities]);
 
   const activeParticipantsList = useMemo(() => {
     if (!selectedActivityForParticipants || !activityApps?.length) return [];
+    if (isExternalRegistration(selectedActivityForParticipants)) return [];
     const filtered = activityApps.filter(app => isParticipantOfActivity(app, selectedActivityForParticipants));
     return sortActivityAppsByDate(filtered, true);
   }, [selectedActivityForParticipants, activityApps]);
 
   const detailParticipantsList = useMemo(() => {
     if (!selectedActivity || !activityApps?.length) return [];
+    if (isExternalRegistration(selectedActivity)) return [];
     const filtered = activityApps.filter(app => isParticipantOfActivity(app, selectedActivity));
     return sortActivityAppsByDate(filtered, true);
   }, [selectedActivity, activityApps]);
@@ -441,6 +549,9 @@ export default function KegiatanPage() {
     try {
       const actId = editingActivity ? editingActivity.id : `keg-${Date.now()}`;
       const imgClean = newActivityForm.gambarUrl.trim();
+      const isExt = newActivityForm.registrationType === 'external';
+      const validLinks = isExt ? (newActivityForm.externalLinks || []).filter(l => l && l.url && l.url.trim().length > 0) : [];
+
       const payload = {
         ...(editingActivity || {}),
         ...newActivityForm,
@@ -455,10 +566,12 @@ export default function KegiatanPage() {
         location: newActivityForm.lokasi,
         biaya: newActivityForm.biaya,
         biayaPelatihan: newActivityForm.biaya,
-        registrationType: newActivityForm.registrationType,
-        jenisPendaftaran: newActivityForm.registrationType === 'external' ? 'eksternal' : 'internal',
-        externalLinks: newActivityForm.registrationType === 'external' ? (newActivityForm.externalLinks || []).filter(l => l && l.url && l.url.trim().length > 0) : [],
-        linkEksternal: newActivityForm.registrationType === 'external' ? (newActivityForm.externalLinks || []).filter(l => l && l.url && l.url.trim().length > 0) : [],
+        registrationType: isExt ? 'external' : 'internal',
+        jenisPendaftaran: isExt ? 'eksternal' : 'internal',
+        externalLinks: validLinks,
+        linkEksternal: validLinks,
+        externalUrl: isExt ? (validLinks[0]?.url?.trim() || '') : '',
+        linkPendaftaran: isExt ? (validLinks[0]?.url?.trim() || '') : '',
         gambarUrl: imgClean,
         imageUrl: imgClean,
         gambar: imgClean,
@@ -488,16 +601,28 @@ export default function KegiatanPage() {
         updatedAt: new Date().toISOString()
       };
 
+      clearSheetsCache('activities');
       const saved = await sheetsService.saveActivity(payload);
-      const freshActs = await sheetsService.getActivities();
-      if (freshActs && freshActs.length > 0) {
-        setActivities(sortActivitiesNewestFirst(freshActs));
-      } else {
-        setActivities(prev => sortActivitiesNewestFirst([payload, ...(prev || []).filter(a => a.id !== actId)]));
-      }
+      clearSheetsCache('activities');
+      const targetSaved = saved || payload;
+
+      setActivities(prev => {
+        const filtered = (prev || []).filter(a => a.id !== actId);
+        return sortActivitiesNewestFirst([targetSaved, ...filtered]);
+      });
       if (selectedActivity && selectedActivity.id === actId) {
-        setSelectedActivity(saved || payload);
+        setSelectedActivity(targetSaved);
       }
+      if (selectedActivityForParticipants && selectedActivityForParticipants.id === actId) {
+        setSelectedActivityForParticipants(targetSaved);
+      }
+
+      // Background fresh sync
+      sheetsService.getActivities().then(freshActs => {
+        if (freshActs && freshActs.length > 0) {
+          setActivities(sortActivitiesNewestFirst(freshActs));
+        }
+      }).catch(() => {});
       alert(editingActivity ? 'Kegiatan berhasil diperbarui dan tersimpan ke Cloud Firestore!' : 'Kegiatan baru berhasil ditambahkan dan tersimpan ke Cloud Firestore!');
       setIsAddActivityModalOpen(false);
       setEditingActivity(null);
@@ -1238,17 +1363,39 @@ export default function KegiatanPage() {
                                   </div>
                                 </div>
 
-                                {formattedWa && (
-                                  <a
-                                    href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-colors"
-                                  >
-                                    <MessageCircle size={12} />
-                                    <span>WA</span>
-                                  </a>
-                                )}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {isAdmin && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditParticipant(app)}
+                                        className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                        title="Edit Data Peserta"
+                                      >
+                                        <Edit3 size={13} className="text-amber-700" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteParticipant(app)}
+                                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                        title="Hapus Peserta"
+                                      >
+                                        <Trash2 size={13} className="text-rose-700" />
+                                      </button>
+                                    </>
+                                  )}
+                                  {formattedWa && (
+                                    <a
+                                      href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivity.namaKegiatan}...`)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-colors"
+                                    >
+                                      <MessageCircle size={12} />
+                                      <span>WA</span>
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -1669,7 +1816,29 @@ export default function KegiatanPage() {
               </div>
 
               <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 overscroll-contain">
-                {activeParticipantsList.length === 0 ? (
+                {isExternalRegistration(selectedActivityForParticipants) ? (
+                  <div className="py-8 text-center space-y-3 bg-blue-50/70 rounded-2xl border border-blue-200 p-6">
+                    <Globe size={36} className="mx-auto text-blue-600" />
+                    <h4 className="text-sm font-black text-blue-950">Pendaftaran Menggunakan Link Eksternal</h4>
+                    <p className="text-xs text-blue-800/80 max-w-sm mx-auto leading-relaxed">
+                      Kegiatan ini menggunakan tautan pendaftaran eksternal (Google Form / Tautan Luar). Data pendaftar internal tidak ditampilkan karena registrasi ditangani secara langsung oleh panitia melalui formulir tersebut.
+                    </p>
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+                      {getExternalLinks(selectedActivityForParticipants).map((link, idx) => (
+                        <a
+                          key={link.id || idx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                        >
+                          <span>{link.label || `Link Pendaftaran #${idx + 1}`}</span>
+                          <ExternalLink size={13} />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : activeParticipantsList.length === 0 ? (
                   <div className="py-12 text-center text-gray-400 space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
                     <Users size={36} className="mx-auto text-gray-300" />
                     <p className="text-xs font-bold text-gray-600">Belum ada pendaftar untuk kegiatan ini.</p>
@@ -1743,16 +1912,42 @@ export default function KegiatanPage() {
                               </div>
                             </div>
 
-                            {user && formattedWa && (
-                              <a
-                                href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
-                              >
-                                <Send size={12} /> WA
-                              </a>
-                            )}
+                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditParticipant(app)}
+                                    className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Edit Data Peserta"
+                                  >
+                                    <Edit3 size={12} className="text-amber-700" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteParticipant(app)}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Hapus Peserta"
+                                  >
+                                    <Trash2 size={12} className="text-rose-700" />
+                                    <span>Hapus</span>
+                                  </button>
+                                </>
+                              )}
+                              {user && formattedWa && (
+                                <a
+                                  href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`Assalamu'alaikum Sdr/i ${app.namaLengkap}, terkait kegiatan ${selectedActivityForParticipants.namaKegiatan}...`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                                  title="Hubungi via WhatsApp"
+                                >
+                                  <Send size={12} />
+                                  <span>WA</span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -2377,6 +2572,176 @@ export default function KegiatanPage() {
                         <CheckCircle2 size={16} /> Simpan Kegiatan
                       </>
                     )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL EDIT DATA PESERTA KEGIATAN (ADMIN) */}
+      <AnimatePresence>
+        {isEditParticipantModalOpen && editingParticipant && (
+          <div 
+            className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsEditParticipantModalOpen(false);
+                setEditingParticipant(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] border border-gray-150 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 sm:p-5 bg-hw-dark text-white flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                    <Edit3 size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-black font-display">Edit Data Peserta Kegiatan</h3>
+                    <p className="text-[10px] text-gray-400">Perbarui rincian pendaftar internal kegiatan</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditParticipantModalOpen(false);
+                    setEditingParticipant(null);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveParticipant} className="p-4 sm:p-5 space-y-3.5 overflow-y-auto max-h-[75vh]">
+                {/* Nama Lengkap */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                    Nama Lengkap Peserta *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingParticipant.namaLengkap || ''}
+                    onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, namaLengkap: e.target.value, nama: e.target.value }))}
+                    placeholder="Contoh: Fulan bin Fulan"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* No WhatsApp */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                    Nomor WhatsApp / HP *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingParticipant.noHp || ''}
+                    onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, noHp: e.target.value, noWa: e.target.value }))}
+                    placeholder="Contoh: 081234567890"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Unsur & Utusan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                      Unsur
+                    </label>
+                    <input
+                      type="text"
+                      value={editingParticipant.unsur || ''}
+                      onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, unsur: e.target.value }))}
+                      placeholder="Contoh: Kwarda HW, Qabilah PTMA"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                      Utusan Asal / Daerah
+                    </label>
+                    <input
+                      type="text"
+                      value={editingParticipant.utusan || ''}
+                      onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, utusan: e.target.value, qabilahPtma: e.target.value, asalKwarda: e.target.value }))}
+                      placeholder="Contoh: Kwarda HW Klaten / UMS"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Jabatan & Kategori Undangan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                      Jabatan
+                    </label>
+                    <input
+                      type="text"
+                      value={editingParticipant.jabatan || ''}
+                      onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, jabatan: e.target.value }))}
+                      placeholder="Contoh: Peserta, Pimpinan, Pendamping"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                      Kategori Undangan / Jenis
+                    </label>
+                    <input
+                      type="text"
+                      value={editingParticipant.kategoriUndangan || ''}
+                      onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, kategoriUndangan: e.target.value, kategori: e.target.value }))}
+                      placeholder="Contoh: Umum, Undangan Khusus"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Email (Opsional) */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 block mb-1">
+                    Email Peserta (Opsional)
+                  </label>
+                  <input
+                    type="email"
+                    value={editingParticipant.email || ''}
+                    onChange={(e) => setEditingParticipant((prev: any) => ({ ...prev, email: e.target.value }))}
+                    placeholder="Contoh: peserta@email.com"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditParticipantModalOpen(false);
+                      setEditingParticipant(null);
+                    }}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingParticipant}
+                    className="px-5 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    {isSavingParticipant ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                    <span>{isSavingParticipant ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
                   </button>
                 </div>
               </form>

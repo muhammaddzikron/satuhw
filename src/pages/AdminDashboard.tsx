@@ -9299,22 +9299,6 @@ export default function AdminDashboard() {
                     {/* Export & Action Buttons */}
                     <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
                       <button
-                        onClick={handleRestoreSolo70Participants}
-                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
-                        title="Kembalikan data Pelatihan di Solo sejumlah 76 peserta resmi dan hapus lainnya"
-                      >
-                        <RotateCcw size={15} />
-                        <span>🔄 Pulihkan Peserta Solo (76 Peserta)</span>
-                      </button>
-                      <button
-                        onClick={handleClearPostTestScores}
-                        className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
-                        title="Hapus / Kosongkan seluruh nilai Post-Test peserta Solo (karena belum dilaksanakan)"
-                      >
-                        <Trash2 size={15} />
-                        <span>🗑️ Kosongkan Post-Test</span>
-                      </button>
-                      <button
                         onClick={() => setIsAddParticipantModalOpen(true)}
                         className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
                         title="Tambah / Mendaftar Peserta Baru Manual"
