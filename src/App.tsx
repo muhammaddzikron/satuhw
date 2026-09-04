@@ -23,6 +23,7 @@ import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
 import { sheetsService } from './services/sheetsService';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { NotificationBell } from './components/NotificationBell';
 
 // Page components
 import HomePage from './pages/HomePage';
@@ -82,9 +83,7 @@ const Header = React.memo(() => {
               <span>Kwarda / PTMA</span>
             </Link>
           )}
-          <button className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer touch-manipulation" title="Notifikasi">
-            <Bell size={20} />
-          </button>
+          <NotificationBell />
         </div>
       </div>
     </header>

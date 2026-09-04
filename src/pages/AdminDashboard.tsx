@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
+import { NotificationBell } from '../components/NotificationBell';
+import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId } from '../utils/activityUtils';
 import { 
@@ -1490,138 +1492,33 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDownloadPDFAdmin = async () => {
+  const handleSaveAsPdfAdmin = async () => {
+    if (!viewingKtaApp || isGeneratingPdfAdmin) return;
+    try {
+      setIsGeneratingPdfAdmin(true);
+      await printKtaAsPdf({
+        application: viewingKtaApp,
+        settings
+      });
+    } catch (err: any) {
+      console.error('Error in Save As PDF Admin:', err);
+      handleDownloadPdfDirectAdmin();
+    } finally {
+      setIsGeneratingPdfAdmin(false);
+    }
+  };
+
+  const handleDownloadPdfDirectAdmin = async () => {
     if (!viewingKtaApp || isGeneratingPdfAdmin) return;
     setIsGeneratingPdfAdmin(true);
     try {
-      const frontEl = (document.getElementById('kta-front-card-admin-view') || 
-                       document.getElementById('kta-front-capture-admin') || 
-                       document.querySelector('.kta-card-printable')) as HTMLElement | null;
-      const backEl = (document.getElementById('kta-back-card-admin-view') || 
-                      document.getElementById('kta-back-capture-admin') || 
-                      document.querySelectorAll('.kta-card-printable')[1]) as HTMLElement | null;
-      
-      if (!frontEl || !backEl) {
-        throw new Error("Elemen kartu tidak ditemukan");
-      }
-
-      // Helper to wait for all images inside an element to load
-      const waitForImages = async (el: HTMLElement) => {
-        const images = Array.from(el.querySelectorAll('img'));
-        await Promise.all(
-          images.map(img => {
-            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-            return new Promise(resolve => {
-              img.onload = resolve;
-              img.onerror = resolve;
-              setTimeout(resolve, 800);
-            });
-          })
-        );
-      };
-
-      await Promise.all([waitForImages(frontEl), waitForImages(backEl)]);
-
-      // Capture front card
-      const frontCanvas = await safeHtml2Canvas(frontEl, {
-        scale: 3, // 300 DPI high quality
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null
+      await downloadKtaPdfBlob({
+        application: viewingKtaApp,
+        settings
       });
-
-      // Capture back card
-      const backCanvas = await safeHtml2Canvas(backEl, {
-        scale: 3, // 300 DPI high quality
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null
-      });
-
-      const frontImgData = safeCanvasToDataURL(frontCanvas);
-      const backImgData = safeCanvasToDataURL(backCanvas);
-
-      if (!frontImgData || !frontImgData.startsWith('data:image/')) {
-        throw new Error("Gagal mengonversi kartu depan ke format gambar");
-      }
-      if (!backImgData || !backImgData.startsWith('data:image/')) {
-        throw new Error("Gagal mengonversi kartu belakang ke format gambar");
-      }
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // Title and Headers (A4 Portrait = 210mm x 297mm)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(15);
-      pdf.setTextColor(15, 118, 110); // hw-green color
-      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 22, { align: 'center' });
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 28, { align: 'center' });
-      pdf.setFontSize(8);
-      pdf.setTextColor(148, 163, 184);
-      pdf.text('Standar Kartu Identitas ID-1 (85.60 mm × 53.98 mm) — Skala 1:1 (Actual Size)', 105, 32, { align: 'center' });
-
-      // Divider line
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setLineWidth(0.4);
-      pdf.line(20, 36, 190, 36);
-
-      // Standard ID-1 card dimensions (85.60 mm x 53.98 mm)
-      const cardWidth = 85.60; 
-      const cardHeight = 53.98;
-      const xPos = (210 - cardWidth) / 2; // Exactly centered (62.20 mm)
-      
-      // FRONT CARD (Top)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 43, { align: 'center' });
-
-      pdf.addImage(frontImgData, 'PNG', xPos, 46, cardWidth, cardHeight);
-      pdf.setDrawColor(203, 213, 225);
-      pdf.setLineWidth(0.2);
-      pdf.rect(xPos, 46, cardWidth, cardHeight); // Cutting border guide
-
-      // BACK CARD (Bottom)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 111, { align: 'center' });
-
-      pdf.addImage(backImgData, 'PNG', xPos, 114, cardWidth, cardHeight);
-      pdf.rect(xPos, 114, cardWidth, cardHeight); // Cutting border guide
-
-      // Footer Print Guidelines
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(20, 180, 170, 48, 3, 3, 'FD');
-      
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(15, 118, 110);
-      pdf.text('PANDUAN CETAK & VERIFIKASI (SKALA 1:1):', 25, 187);
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('1. Cetak dokumen ini pada kertas A4 (Art Paper 230-300 gsm / PVC Card) dengan opsi "100% / Actual Size".', 25, 193);
-      pdf.text('2. Ukuran hasil cetak sesuai standar kartu identitas nasional ID-1 (85.60 mm × 53.98 mm).', 25, 199);
-      pdf.text('3. Potong mengikuti garis tepi tipis kartu depan dan belakang, lalu rekatkan atau lakukan press laminating.', 25, 205);
-      pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 211);
-      pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 217);
-
-      const cleanFileName = (viewingKtaApp?.nama || 'Anggota').replace(/[^a-zA-Z0-9_-]/g, '_');
-      pdf.save(`KTA_HW_${cleanFileName}.pdf`);
     } catch (err: any) {
-      console.error('Error generating PDF:', err);
-      alert('Gagal mengunduh KTA PDF: ' + (err?.message || 'Silakan coba kembali.'));
+      console.error('Error downloading KTA PDF:', err);
+      alert('Gagal mengunduh KTA PDF: ' + (err?.message || 'Silakan coba tombol Save As PDF.'));
     } finally {
       setIsGeneratingPdfAdmin(false);
     }
@@ -4583,30 +4480,22 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {totalNotifications > 0 && (
-            <button 
-              onClick={() => {
-                if (isDiklatAdmin || isPelatihOnly) {
-                  if (pendingTrainingApps.length > 0) setNotifActiveTab('pelatihan');
-                  else setNotifActiveTab('tugas');
-                } else {
-                  if (pendingMembers.length > 0) setNotifActiveTab('pendaftaran');
-                  else if (membersWithUpgradeRequests.length > 0) setNotifActiveTab('upgrade');
-                  else if (pendingKtaApps.length > 0) setNotifActiveTab('kta');
-                  else if (pendingTrainingApps.length > 0) setNotifActiveTab('pelatihan');
-                  else setNotifActiveTab('tugas');
-                }
-                setIsNotificationModalOpen(true);
-              }}
-              className="relative p-3 text-hw-blue bg-hw-blue/10 rounded-xl hover:bg-hw-blue/20 transition-all animate-pulse cursor-pointer"
-              title="Notifikasi Pendaftaran Baru, Upgrade, KTA & Penugasan"
-            >
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                {totalNotifications}
-              </span>
-            </button>
-          )}
+          <NotificationBell 
+            adminData={{
+              pendingMembers,
+              pendingKtaApps,
+              pendingTrainingApps,
+              membersWithUpgradeRequests,
+              submittedTaskApps
+            }}
+            onNavigateTab={(tab) => {
+              if (tab === 'pendaftaran') setActiveTab('pendaftaran');
+              else if (tab === 'upgrade') setActiveTab('upgrade');
+              else if (tab === 'kta') setActiveTab('kta');
+              else if (tab === 'pelatihan') setActiveTab('pelatihan');
+              else if (tab === 'tugas') setActiveTab('tugas');
+            }}
+          />
           <Link 
             to="/" 
             className="hidden sm:flex items-center gap-2 px-4 py-2 border border-gray-100 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all"
@@ -10137,22 +10026,32 @@ export default function AdminDashboard() {
             {/* Actions & Download PDF */}
             <div className="border-t border-gray-100 pt-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
               <p className="text-[10px] text-gray-500 font-semibold text-center sm:text-left leading-tight">
-                💡 Skala cetak <strong>1:1 (85.6mm × 53.98mm)</strong> di tengah kertas A4.
+                💡 Skala cetak <strong>1:1 (85.6mm × 53.98mm)</strong> standar kartu ID-1 di kertas A4.
               </p>
               
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap justify-end">
                 <button
                   type="button"
                   onClick={() => setIsViewKtaModalOpen(false)}
-                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-full sm:w-auto text-center"
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
                 >
                   Tutup
                 </button>
                 <button
                   type="button"
-                  onClick={handleDownloadPDFAdmin}
+                  onClick={handleDownloadPdfDirectAdmin}
                   disabled={isGeneratingPdfAdmin}
-                  className="px-5 py-2.5 bg-hw-green hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Unduh file PDF langsung"
+                >
+                  <Download size={14} />
+                  <span>Unduh File</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAsPdfAdmin}
+                  disabled={isGeneratingPdfAdmin}
+                  className="px-5 py-2.5 bg-hw-green hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isGeneratingPdfAdmin ? (
                     <>
@@ -10161,8 +10060,8 @@ export default function AdminDashboard() {
                     </>
                   ) : (
                     <>
-                      <Download size={14} />
-                      <span>Download KTA PDF (Skala 1:1 A4)</span>
+                      <Printer size={14} />
+                      <span>Save As PDF (Cetak A4)</span>
                     </>
                   )}
                 </button>

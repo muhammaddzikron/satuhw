@@ -38,6 +38,7 @@ import { jsPDF } from 'jspdf';
 import { KTACard } from '../components/KTACard';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
+import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 
 const TINGKATAN_LIST = [
   'Tunas Athfal', 
@@ -707,141 +708,34 @@ export default function KTAPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleSaveAsPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await printKtaAsPdf({
+        application: myApplication,
+        settings
+      });
+      setMessage({
+        type: 'success',
+        text: 'Dialog Save As PDF / Cetak terbuka. Silakan pilih "Save as PDF" atau cetak langsung.'
+      });
+    } catch (err: any) {
+      console.error('Error in Save As PDF:', err);
+      // Fallback to direct PDF generator if print popup fails
+      handleDownloadPdfDirect();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPdfDirect = async () => {
     if (isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      // Prioritize the visible rendered card elements on screen
-      const frontEl = (document.getElementById('kta-front-card-view') || 
-                       document.getElementById('kta-front-capture') || 
-                       document.querySelector('.kta-card-printable')) as HTMLElement | null;
-      const backEl = (document.getElementById('kta-back-card-view') || 
-                      document.getElementById('kta-back-capture') || 
-                      document.querySelectorAll('.kta-card-printable')[1]) as HTMLElement | null;
-      
-      if (!frontEl || !backEl) {
-        throw new Error("Elemen kartu tidak ditemukan di halaman");
-      }
-
-      // Quick helper to ensure images are loaded
-      const waitForImages = async (el: HTMLElement) => {
-        const images = Array.from(el.querySelectorAll('img'));
-        await Promise.all(
-          images.map(img => {
-            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-            return new Promise(resolve => {
-              img.onload = resolve;
-              img.onerror = resolve;
-              setTimeout(resolve, 800);
-            });
-          })
-        );
-      };
-
-      await Promise.all([waitForImages(frontEl), waitForImages(backEl)]);
-
-      // Capture front card
-      const frontCanvas = await safeHtml2Canvas(frontEl, {
-        scale: 3, // High quality 300 DPI
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null
+      await downloadKtaPdfBlob({
+        application: myApplication,
+        settings
       });
-
-      // Capture back card
-      const backCanvas = await safeHtml2Canvas(backEl, {
-        scale: 3, // High quality 300 DPI
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null
-      });
-
-      const frontImgData = safeCanvasToDataURL(frontCanvas);
-      const backImgData = safeCanvasToDataURL(backCanvas);
-
-      if (!frontImgData || !frontImgData.startsWith('data:image/')) {
-        throw new Error("Gagal mengonversi kartu depan ke format gambar");
-      }
-      if (!backImgData || !backImgData.startsWith('data:image/')) {
-        throw new Error("Gagal mengonversi kartu belakang ke format gambar");
-      }
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // Title and Headers (A4 Portrait = 210mm x 297mm)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(15);
-      pdf.setTextColor(15, 118, 110); // hw-green color
-      pdf.text('KARTU TANDA ANGGOTA DIGITAL', 105, 22, { align: 'center' });
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text('Gerakan Kepanduan Hizbul Wathan Jawa Tengah', 105, 28, { align: 'center' });
-      pdf.setFontSize(8);
-      pdf.setTextColor(148, 163, 184);
-      pdf.text('Standar Kartu Identitas ID-1 (85.60 mm × 53.98 mm) — Skala 1:1 (Actual Size)', 105, 32, { align: 'center' });
-
-      // Divider line
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setLineWidth(0.4);
-      pdf.line(20, 36, 190, 36);
-
-      // Standard ID-1 card dimensions (85.60 mm x 53.98 mm)
-      const cardWidth = 85.60; 
-      const cardHeight = 53.98;
-      const xPos = (210 - cardWidth) / 2; // Exactly centered (62.20 mm)
-      
-      // FRONT CARD (Top)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN DEPAN (FRONT)', 105, 43, { align: 'center' });
-
-      pdf.addImage(frontImgData, 'PNG', xPos, 46, cardWidth, cardHeight);
-      pdf.setDrawColor(203, 213, 225);
-      pdf.setLineWidth(0.2);
-      pdf.rect(xPos, 46, cardWidth, cardHeight); // Cutting border guide
-
-      // BACK CARD (Bottom)
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('TAMPILAN BELAKANG (BACK)', 105, 111, { align: 'center' });
-
-      pdf.addImage(backImgData, 'PNG', xPos, 114, cardWidth, cardHeight);
-      pdf.rect(xPos, 114, cardWidth, cardHeight); // Cutting border guide
-
-      // Footer Print Guidelines
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(20, 180, 170, 48, 3, 3, 'FD');
-      
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(15, 118, 110);
-      pdf.text('PANDUAN CETAK & VERIFIKASI (SKALA 1:1):', 25, 187);
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7.5);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text('1. Cetak dokumen ini pada kertas A4 (Art Paper 230-300 gsm / PVC Card) dengan opsi "100% / Actual Size".', 25, 193);
-      pdf.text('2. Ukuran hasil cetak sesuai standar kartu identitas nasional ID-1 (85.60 mm × 53.98 mm).', 25, 199);
-      pdf.text('3. Potong mengikuti garis tepi tipis kartu depan dan belakang, lalu rekatkan atau lakukan press laminating.', 25, 205);
-      pdf.text('4. QR Code di bagian belakang kartu berfungsi untuk verifikasi status keanggotaan resmi secara real-time.', 25, 211);
-      pdf.text('5. Kartu ini merupakan dokumen resmi yang diterbitkan oleh Pimpinan Wilayah Hizbul Wathan Jawa Tengah.', 25, 217);
-
-      const cleanFileName = (myApplication?.nama || 'Anggota').replace(/[^a-zA-Z0-9_-]/g, '_');
-      pdf.save(`KTA_HW_${cleanFileName}.pdf`);
-      
       setMessage({
         type: 'success',
         text: 'KTA Resmi Anda berhasil diunduh dalam format PDF!'
@@ -850,7 +744,7 @@ export default function KTAPage() {
       console.error('Error generating PDF:', err);
       setMessage({
         type: 'error',
-        text: 'Gagal mengunduh KTA PDF. ' + (err?.message || 'Silakan coba kembali.')
+        text: 'Gagal mengunduh KTA PDF: ' + (err?.message || 'Silakan coba tombol Save As PDF.')
       });
     } finally {
       setIsGeneratingPdf(false);
@@ -1121,28 +1015,32 @@ export default function KTAPage() {
                   <span>Ubah Data & Foto</span>
                 </button>
                 <button 
-                  onClick={handlePrint}
+                  type="button"
+                  onClick={handleDownloadPdfDirect}
+                  disabled={isGeneratingPdf}
                   className="px-4 py-3 bg-white/10 hover:bg-white/15 text-stone-200 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                  title="Unduh Berkas PDF langsung"
                 >
-                  <Printer size={14} />
-                  <span>Cetak Kartu</span>
+                  <Download size={14} />
+                  <span>Unduh File PDF</span>
                 </button>
               </div>
 
               <button 
-                onClick={handleDownloadPDF}
+                type="button"
+                onClick={handleSaveAsPdf}
                 disabled={isGeneratingPdf}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-hw-green hover:bg-emerald-600 text-white rounded-2xl disabled:bg-emerald-900/50 transition-all shadow-lg shadow-emerald-900/30 text-xs font-extrabold uppercase tracking-wider cursor-pointer active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-hw-green hover:bg-emerald-600 text-white rounded-2xl disabled:bg-emerald-900/50 transition-all shadow-lg shadow-emerald-900/30 text-xs font-black uppercase tracking-wider cursor-pointer active:scale-95"
               >
                 {isGeneratingPdf ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    <span>Mengunduh PDF...</span>
+                    <span>Menyiapkan PDF...</span>
                   </>
                 ) : (
                   <>
-                    <Download size={16} />
-                    <span>Download KTA PDF (Skala 1:1 A4)</span>
+                    <Printer size={16} />
+                    <span>Save As PDF (Cetak A4 Skala 1:1)</span>
                   </>
                 )}
               </button>
@@ -1152,7 +1050,7 @@ export default function KTAPage() {
           <div className="p-3 bg-blue-50 border border-blue-100/50 rounded-2xl flex items-start gap-2.5 max-w-[850px] mx-auto">
             <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
             <p className="text-[10px] text-blue-700 leading-normal flex-1 font-medium">
-              <strong>Tips Cetak:</strong> Untuk hasil cetak kartu fisik terbaik, silakan pilih <strong>Download KTA (PDF Resmi)</strong> lalu cetak file PDF pada kertas A4 / PVC dengan opsi skala "100% / Actual Size".
+              💡 <strong>Rekomendasi Simpan:</strong> Klik tombol <strong>Save As PDF (Cetak A4 Skala 1:1)</strong> lalu pilih opsi tujuan <em>"Save as PDF" / "Simpan sebagai PDF"</em> pada jendela cetak browser untuk hasil kartu paling tajam dan presisi tanpa kendala download.
             </p>
           </div>
         </div>
