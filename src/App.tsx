@@ -68,21 +68,6 @@ const Header = React.memo(() => {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          {isAuthenticated && (
-            <Link
-              to="/kwarda-ptma"
-              className={cn(
-                "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
-                location.pathname === '/kwarda-ptma'
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-emerald-50 text-emerald-800 border-emerald-200/70 hover:bg-emerald-100/80"
-              )}
-              title="Portal Organisasi Kwarda & Qabilah PTMA se-Jawa Tengah"
-            >
-              <Building2 size={15} />
-              <span>Kwarda / PTMA</span>
-            </Link>
-          )}
           <NotificationBell />
         </div>
       </div>
