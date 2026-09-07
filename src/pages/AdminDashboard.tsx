@@ -2498,6 +2498,103 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDirectParticipantGradeUpdate = async (
+    appId: string, 
+    fields: {
+      preTestScore?: number | null;
+      postTestScore?: number | null;
+      nilai?: string;
+      statusKelulusan?: string;
+      remark?: string;
+    },
+    showSuccessToast = false
+  ) => {
+    if (!appId) return;
+    try {
+      // 1. Optimistic state update
+      setTrainingApps(prev => {
+        const updated = prev.map(a => {
+          if (String(a.id) === String(appId)) {
+            const newApp = { ...a };
+            if (fields.preTestScore !== undefined) {
+              newApp.preTestScore = fields.preTestScore;
+              if (fields.preTestScore !== null) {
+                let pData = newApp.preTestData;
+                try {
+                  if (typeof pData === 'string') pData = JSON.parse(pData);
+                } catch(e) { pData = {}; }
+                pData = { ...(pData || {}), testType: 'pre_test', score: fields.preTestScore, submittedAt: newApp.preTestSubmittedAt || new Date().toISOString() };
+                newApp.preTestData = JSON.stringify(pData);
+                if (!newApp.preTestSubmittedAt) newApp.preTestSubmittedAt = new Date().toISOString();
+              }
+            }
+            if (fields.postTestScore !== undefined) {
+              newApp.postTestScore = fields.postTestScore;
+              if (fields.postTestScore !== null) {
+                let pData = newApp.postTestData;
+                try {
+                  if (typeof pData === 'string') pData = JSON.parse(pData);
+                } catch(e) { pData = {}; }
+                pData = { ...(pData || {}), testType: 'post_test', score: fields.postTestScore, submittedAt: newApp.postTestSubmittedAt || new Date().toISOString() };
+                newApp.postTestData = JSON.stringify(pData);
+                if (!newApp.postTestSubmittedAt) newApp.postTestSubmittedAt = new Date().toISOString();
+              }
+            }
+            if (fields.nilai !== undefined) newApp.nilai = fields.nilai;
+            if (fields.statusKelulusan !== undefined) newApp.statusKelulusan = fields.statusKelulusan;
+            if (fields.remark !== undefined) newApp.remark = fields.remark;
+            return newApp;
+          }
+          return a;
+        });
+        safeStorageSet('training_applications', consolidateTrainingApplications(updated));
+        return updated;
+      });
+
+      // 2. Persist to Firestore & Sheets in background
+      const extraUpdates: any = {};
+      if (fields.preTestScore !== undefined) {
+        extraUpdates.preTestScore = fields.preTestScore;
+        if (fields.preTestScore !== null) {
+          extraUpdates.preTestSubmittedAt = new Date().toISOString();
+          extraUpdates.preTestData = JSON.stringify({ testType: 'pre_test', score: fields.preTestScore, answers: {}, submittedAt: new Date().toISOString() });
+        }
+      }
+      if (fields.postTestScore !== undefined) {
+        extraUpdates.postTestScore = fields.postTestScore;
+        if (fields.postTestScore !== null) {
+          extraUpdates.postTestSubmittedAt = new Date().toISOString();
+          extraUpdates.postTestData = JSON.stringify({ testType: 'post_test', score: fields.postTestScore, answers: {}, submittedAt: new Date().toISOString() });
+        }
+      }
+
+      await firestoreService.updateAssignmentGrade(
+        appId,
+        undefined,
+        fields.nilai,
+        fields.remark,
+        fields.statusKelulusan,
+        extraUpdates
+      );
+
+      if (fields.nilai !== undefined || fields.statusKelulusan !== undefined || fields.remark !== undefined || Object.keys(extraUpdates).length > 0) {
+        await sheetsService.updateGrade(appId, {
+          grade: fields.nilai,
+          remark: fields.remark,
+          statusKelulusan: fields.statusKelulusan,
+          extraUpdates
+        }).catch(() => {});
+      }
+
+      if (showSuccessToast) {
+        showToast('success', 'Nilai & evaluasi peserta berhasil disimpan!');
+      }
+    } catch (err: any) {
+      console.error('Error updating grade inline:', err);
+      showToast('error', 'Gagal memperbarui nilai: ' + (err.message || 'Terjadi kesalahan'));
+    }
+  };
+
   const isValidName = (name?: string) => {
     if (!name) return false;
     const trimmed = name.trim().toLowerCase();
@@ -7995,33 +8092,6 @@ export default function AdminDashboard() {
                                 Belum Lengkap ({incompleteCount})
                               </button>
                             </div>
-
-                            <button
-                              onClick={handleRestoreSolo70Participants}
-                              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
-                              title="Kembalikan data Pelatihan di Solo sejumlah 76 peserta resmi dan hapus lainnya"
-                            >
-                              <RotateCcw size={12} className="text-white" />
-                              <span>🔄 Pulihkan Peserta Solo (76 Peserta)</span>
-                            </button>
-
-                            <button
-                              onClick={handleClearPostTestScores}
-                              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
-                              title="Hapus / Kosongkan seluruh nilai Post-Test peserta Solo (karena belum dilaksanakan)"
-                            >
-                              <Trash2 size={12} className="text-white" />
-                              <span>🗑️ Kosongkan Nilai Post-Test</span>
-                            </button>
-
-                            <button
-                              onClick={handleSyncAndGenerateTrainingSubmissions}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
-                              title="Sinkronkan & Lengkapi Data Pre/Post Test & Tugas untuk seluruh peserta"
-                            >
-                              <Sparkles size={12} className="text-amber-300" />
-                              <span>⚡ Sinkronkan Nilai & Lembar Ujian</span>
-                            </button>
                           </div>
 
                           <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
@@ -8260,7 +8330,7 @@ export default function AdminDashboard() {
                             <button
                               key={prog}
                               onClick={() => setSelectedGradeProg(prog as any)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                                 selectedGradeProg === prog 
                                   ? 'bg-hw-green text-white border-hw-green shadow-xs' 
                                   : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
@@ -8274,41 +8344,15 @@ export default function AdminDashboard() {
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={handleRestoreSolo70Participants}
-                          className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                          title="Kembalikan data Pelatihan di Solo sejumlah 76 peserta resmi dan hapus lainnya"
-                        >
-                          <RotateCcw size={14} className="text-white" />
-                          <span>🔄 Pulihkan Peserta Solo (76 Peserta)</span>
-                        </button>
-
-                        <button
-                          onClick={handleClearPostTestScores}
-                          className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                          title="Hapus / Kosongkan seluruh nilai Post-Test peserta Solo (karena belum dilaksanakan)"
-                        >
-                          <Trash2 size={14} className="text-white" />
-                          <span>🗑️ Kosongkan Nilai Post-Test</span>
-                        </button>
-
-                        <button
-                          onClick={handleSyncAndGenerateTrainingSubmissions}
-                          className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                          title="Sinkronkan & Lengkapi Nilai Pre/Post Test & Tugas Peserta"
-                        >
-                          <Sparkles size={14} className="text-amber-300" />
-                          <span>⚡ Sinkronkan Nilai Pre/Post Test</span>
-                        </button>
-                        <button
                           onClick={exportTrainingGraduationToExcel}
-                          className="px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport Excel (CSV)"
                         >
                           <FileSpreadsheet size={14} /> Export Excel
                         </button>
                         <button
                           onClick={exportTrainingGraduationToPDF}
-                          className="px-3 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-3.5 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="Eksport PDF"
                         >
                           <Download size={14} /> Export PDF
@@ -8332,22 +8376,24 @@ export default function AdminDashboard() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
-                          <table className="w-full text-left border-collapse min-w-[950px]">
+                          <table className="w-full text-left border-collapse min-w-[980px]">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                                <th className="p-4 pl-6">Peserta</th>
-                                <th className="p-4">Pre Test</th>
-                                <th className="p-4">Post Test</th>
-                                <th className="p-4">Nilai Akhir</th>
-                                <th className="p-4">Status Kelulusan</th>
-                                <th className="p-4">Lembar Pengerjaan & Tugas</th>
-                                <th className="p-4">Catatan Pelatih</th>
-                                <th className="p-4 text-right pr-6">Tindakan</th>
+                                <th className="p-4 pl-6 w-[220px]">Peserta</th>
+                                <th className="p-4 w-[120px]">Pre Test</th>
+                                <th className="p-4 w-[120px]">Post Test</th>
+                                <th className="p-4 w-[140px]">Nilai Akhir</th>
+                                <th className="p-4 w-[160px]">Status Kelulusan</th>
+                                <th className="p-4 w-[160px]">Lembar Pengerjaan & Tugas</th>
+                                <th className="p-4 min-w-[180px]">Catatan Pelatih</th>
+                                <th className="p-4 text-right pr-6 w-[120px]">Tindakan</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-700">
                               {enrolled.map((app, idx) => {
                                 const calc = getCalculatedGrading(app);
+                                const preScore = getAppPreTestScore(app);
+                                const postScore = getAppPostTestScore(app);
                                 return (
                                   <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="p-4 pl-6">
@@ -8368,110 +8414,157 @@ export default function AdminDashboard() {
                                       </div>
                                     </td>
 
-                                    {/* PRE TEST SCORE */}
+                                    {/* PRE TEST SCORE DIRECT INPUT */}
                                     <td className="p-4">
-                                      {(() => {
-                                        const pScore = getAppPreTestScore(app);
-                                        return pScore !== null ? (
-                                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-black uppercase border border-emerald-200 inline-flex items-center gap-1">
-                                            <Sparkles size={11} className="text-emerald-600" />
-                                            {pScore} / 100
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
-                                            Belum Tes
-                                          </span>
-                                        );
-                                      })()}
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          key={`pre-${app.id}-${preScore}`}
+                                          defaultValue={preScore !== null ? preScore : ''}
+                                          placeholder="0"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === '' ? null : Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                            if (val !== preScore) {
+                                              handleDirectParticipantGradeUpdate(app.id, { preTestScore: val }, true);
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              (e.target as HTMLInputElement).blur();
+                                            }
+                                          }}
+                                          className="w-16 px-2 py-1 text-xs font-black text-center bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                                          title="Masukkan nilai Pre-Test peserta (0-100)"
+                                        />
+                                        <span className="text-[10px] text-gray-400 font-bold">/100</span>
+                                      </div>
                                     </td>
 
-                                    {/* POST TEST SCORE */}
+                                    {/* POST TEST SCORE DIRECT INPUT */}
                                     <td className="p-4">
-                                      {(() => {
-                                        const pScore = getAppPostTestScore(app);
-                                        return pScore !== null ? (
-                                          <span className="px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg text-xs font-black uppercase border border-teal-200 inline-flex items-center gap-1">
-                                            <CheckCircle2 size={11} className="text-teal-600" />
-                                            {pScore} / 100
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] text-gray-400 font-semibold italic bg-gray-50 px-2 py-0.5 rounded border border-gray-150">
-                                            Belum Tes
-                                          </span>
-                                        );
-                                      })()}
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          key={`post-${app.id}-${postScore}`}
+                                          defaultValue={postScore !== null ? postScore : ''}
+                                          placeholder="0"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === '' ? null : Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                            if (val !== postScore) {
+                                              handleDirectParticipantGradeUpdate(app.id, { postTestScore: val }, true);
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              (e.target as HTMLInputElement).blur();
+                                            }
+                                          }}
+                                          className="w-16 px-2 py-1 text-xs font-black text-center bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                                          title="Masukkan nilai Post-Test peserta (0-100)"
+                                        />
+                                        <span className="text-[10px] text-gray-400 font-bold">/100</span>
+                                      </div>
                                     </td>
                                     
-                                    {/* NILAI AKHIR */}
+                                    {/* NILAI AKHIR DIRECT INPUT */}
                                     <td className="p-4">
                                       <div className="space-y-1">
-                                        <span className="px-2.5 py-1 bg-yellow-50 text-yellow-800 rounded-lg text-xs font-black uppercase border border-yellow-200 inline-block">
-                                          {app.nilai || `${calc.finalPercentage}%`}
-                                        </span>
+                                        <input
+                                          type="text"
+                                          key={`nilai-${app.id}-${app.nilai}`}
+                                          defaultValue={app.nilai || `${calc.finalPercentage}%`}
+                                          placeholder="Contoh: 85%"
+                                          onBlur={(e) => {
+                                            const val = e.target.value.trim();
+                                            if (val && val !== app.nilai) {
+                                              handleDirectParticipantGradeUpdate(app.id, { nilai: val }, true);
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              (e.target as HTMLInputElement).blur();
+                                            }
+                                          }}
+                                          className="w-20 px-2 py-1 text-xs font-black text-center bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-lg focus:bg-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none shadow-2xs"
+                                          title="Nilai Akhir peserta"
+                                        />
                                         <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight leading-none pt-0.5">
                                           Presensi: {calc.attendancePercentage}% | Tugas: {calc.assignmentPercentage}%
                                         </div>
                                       </div>
                                     </td>
 
-                                    {/* STATUS KELULUSAN */}
+                                    {/* STATUS KELULUSAN DIRECT DROPDOWN */}
                                     <td className="p-4">
-                                      {app.statusKelulusan ? (
-                                        <span className={cn(
-                                          "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                                          app.statusKelulusan === 'Lulus' 
-                                            ? "bg-green-50 border-green-100 text-green-700" 
+                                      <select
+                                        value={app.statusKelulusan || ''}
+                                        onChange={(e) => {
+                                          handleDirectParticipantGradeUpdate(app.id, { statusKelulusan: e.target.value }, true);
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border cursor-pointer outline-none shadow-2xs transition-all",
+                                          app.statusKelulusan === 'Lulus'
+                                            ? "bg-green-50 border-green-200 text-green-800"
                                             : app.statusKelulusan === 'Lulus Bersyarat'
-                                              ? "bg-amber-50 border-amber-100 text-amber-700"
-                                              : "bg-red-50 border-red-100 text-red-650"
-                                        )}>
-                                          {app.statusKelulusan}
-                                        </span>
-                                      ) : (
-                                        <div className="space-y-1">
-                                          <span className="text-[10px] text-gray-400 italic block">Belum Diproses</span>
-                                          <span className={cn(
-                                            "px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border inline-block",
-                                            calc.calculatedStatus === 'Lulus'
-                                              ? "bg-green-50/30 border-green-100/50 text-green-600"
-                                              : calc.calculatedStatus === 'Lulus Bersyarat'
-                                                ? "bg-amber-50/30 border-amber-100/50 text-amber-650"
-                                                : "bg-rose-50/30 border-rose-100/50 text-rose-600"
-                                          )}>
-                                            Saran: {calc.calculatedStatus}
-                                          </span>
-                                        </div>
-                                      )}
+                                              ? "bg-amber-50 border-amber-200 text-amber-800"
+                                              : app.statusKelulusan === 'Tidak Lulus'
+                                                ? "bg-rose-50 border-rose-200 text-rose-800"
+                                                : "bg-gray-50 border-gray-200 text-gray-500"
+                                        )}
+                                      >
+                                        <option value="">Belum Diproses</option>
+                                        <option value="Lulus">✓ Lulus</option>
+                                        <option value="Lulus Bersyarat">⚡ Lulus Bersyarat</option>
+                                        <option value="Tidak Lulus">✗ Tidak Lulus</option>
+                                      </select>
                                     </td>
 
                                     {/* VIEW PENGERJAAN TUGAS */}
                                     <td className="p-4">
                                       <button
                                         onClick={() => setViewingTestApp(app)}
-                                        className="px-3 py-1.5 bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 rounded-xl border border-gray-200 hover:border-emerald-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                                        title="Lihat Rincian Jawaban Pre Test, Post Test & Tugas Berkas"
+                                        className="px-3 py-1.5 bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 rounded-xl border border-gray-200 hover:border-emerald-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                                        title="Lihat & Nilai Rincian Jawaban Pre Test, Post Test & Berkas Tugas"
                                       >
                                         <FileText size={13} className="text-emerald-700" />
-                                        View Pengerjaan Tugas
+                                        <span>View Pengerjaan</span>
                                       </button>
                                     </td>
 
+                                    {/* CATATAN PELATIH DIRECT INPUT */}
                                     <td className="p-4">
-                                      {app.remark ? (
-                                        <p className="text-[11px] text-gray-600 font-bold italic truncate max-w-xs" title={app.remark}>
-                                          "{app.remark}"
-                                        </p>
-                                      ) : (
-                                        <span className="text-[10px] text-gray-400">-</span>
-                                      )}
+                                      <input
+                                        type="text"
+                                        key={`remark-${app.id}-${app.remark}`}
+                                        defaultValue={app.remark || ''}
+                                        placeholder="Catatan evaluasi pelatih..."
+                                        onBlur={(e) => {
+                                          const val = e.target.value.trim();
+                                          if (val !== (app.remark || '')) {
+                                            handleDirectParticipantGradeUpdate(app.id, { remark: val }, true);
+                                          }
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            (e.target as HTMLInputElement).blur();
+                                          }
+                                        }}
+                                        className="w-full min-w-[150px] max-w-xs px-2.5 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded-lg text-gray-700 font-medium focus:bg-white focus:border-hw-green focus:ring-1 focus:ring-hw-green outline-none"
+                                        title="Catatan evaluasi atau feedback pelatih"
+                                      />
                                     </td>
 
                                     <td className="p-4 text-right pr-6">
                                       <button
                                         onClick={() => handleOpenGradingModal(app)}
-                                        className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                        className="px-3 py-1.5 bg-hw-green text-white rounded-lg hover:bg-emerald-700 font-black text-[10px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs whitespace-nowrap"
+                                        title="Buka form dialog penilaian lengkap"
                                       >
-                                        Beri Nilai & Kelulusan
+                                        Beri Nilai
                                       </button>
                                     </td>
                                   </tr>

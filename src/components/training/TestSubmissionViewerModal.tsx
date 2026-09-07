@@ -40,12 +40,32 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'wrong'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [tempScore, setTempScore] = useState<string>('');
+  const [footerGrade, setFooterGrade] = useState<string>('');
+  const [footerStatus, setFooterStatus] = useState<string>('');
+  const [footerRemark, setFooterRemark] = useState<string>('');
 
   useEffect(() => {
     if (application) {
       setCurrentApp(application);
+      setFooterGrade(application.nilai || '');
+      setFooterStatus(application.statusKelulusan || '');
+      setFooterRemark(application.remark || '');
     }
   }, [application]);
+
+  useEffect(() => {
+    if (currentApp) {
+      if (activeTab === 'pre_test') {
+        const sc = getAppPreTestScore(currentApp);
+        setTempScore(sc !== null ? String(sc) : '');
+      } else if (activeTab === 'post_test') {
+        const sc = getAppPostTestScore(currentApp);
+        setTempScore(sc !== null ? String(sc) : '');
+      }
+    }
+  }, [activeTab, currentApp]);
 
   if (!isOpen || !currentApp) return null;
 
@@ -187,6 +207,91 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
   }).length;
   const unrecordedCount = totalSessions - (attendedCount + izinCount + absenCount);
   const attendanceRate = totalSessions > 0 ? Math.round((attendedCount / totalSessions) * 100) : 0;
+
+  const handleSaveTabScore = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const scoreNum = Math.min(100, Math.max(0, parseInt(tempScore) || 0));
+    setIsSaving(true);
+    try {
+      let updated = { ...currentApp };
+      if (activeTab === 'pre_test') {
+        const existingData = typeof updated.preTestData === 'string' 
+          ? JSON.parse(updated.preTestData || '{}') 
+          : (updated.preTestData || {});
+        const answers = reconstructAnswersForScore(scoreNum, activeQuestions, `${updated.id}_pre_test`);
+        const subData = {
+          ...existingData,
+          testType: 'pre_test',
+          score: scoreNum,
+          answers,
+          submittedAt: existingData.submittedAt || new Date().toISOString()
+        };
+        updated.preTestScore = scoreNum;
+        updated.preTestData = JSON.stringify(subData);
+        await firestoreService.submitTestSubmission(updated.id, subData, updated);
+        await sheetsService.submitTestSubmission(updated.id, subData).catch(() => {});
+      } else if (activeTab === 'post_test') {
+        const existingData = typeof updated.postTestData === 'string' 
+          ? JSON.parse(updated.postTestData || '{}') 
+          : (updated.postTestData || {});
+        const answers = reconstructAnswersForScore(scoreNum, activeQuestions, `${updated.id}_post_test`);
+        const subData = {
+          ...existingData,
+          testType: 'post_test',
+          score: scoreNum,
+          answers,
+          submittedAt: existingData.submittedAt || new Date().toISOString()
+        };
+        updated.postTestScore = scoreNum;
+        updated.postTestData = JSON.stringify(subData);
+        await firestoreService.submitTestSubmission(updated.id, subData, updated);
+        await sheetsService.submitTestSubmission(updated.id, subData).catch(() => {});
+      }
+      setCurrentApp(updated);
+      if (onUpdateApplication) {
+        onUpdateApplication(updated);
+      }
+      window.dispatchEvent(new Event('training_applications_updated'));
+    } catch (err) {
+      console.error('Error saving tab score:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveFullEvaluation = async () => {
+    setIsSaving(true);
+    try {
+      const updated = {
+        ...currentApp,
+        nilai: footerGrade || currentApp.nilai,
+        statusKelulusan: footerStatus || currentApp.statusKelulusan,
+        remark: footerRemark
+      };
+      await firestoreService.updateAssignmentGrade(
+        updated.id,
+        undefined,
+        updated.nilai,
+        updated.remark,
+        updated.statusKelulusan
+      );
+      await sheetsService.updateGrade(
+        updated.id, 
+        updated.nilai, 
+        updated.statusKelulusan, 
+        updated.remark
+      ).catch(() => {});
+      setCurrentApp(updated);
+      if (onUpdateApplication) {
+        onUpdateApplication(updated);
+      }
+      window.dispatchEvent(new Event('training_applications_updated'));
+    } catch (err) {
+      console.error('Error saving full evaluation:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleGenerateSubmissionsForThisParticipant = async () => {
     setIsGenerating(true);
@@ -391,7 +496,36 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-white/90 p-1.5 rounded-2xl border border-emerald-200 shadow-2xs">
+                      <div className="text-right">
+                        <div className="text-[9px] font-black uppercase text-gray-500">Ubah Nilai</div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={tempScore}
+                            onChange={(e) => setTempScore(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveTabScore();
+                            }}
+                            className="w-14 px-1.5 py-1 text-xs font-black text-center bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-emerald-600"
+                            placeholder="0"
+                          />
+                          <span className="text-[10px] text-gray-400 font-bold">/100</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSaveTabScore()}
+                        disabled={isSaving}
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-xs disabled:opacity-50"
+                        title="Simpan perubahan nilai ujian ini"
+                      >
+                        {isSaving ? 'Menyimpan...' : 'Simpan'}
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => setFilterStatus('all')}
                       className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
@@ -703,17 +837,62 @@ export const TestSubmissionViewerModal: React.FC<TestSubmissionViewerModalProps>
 
         </div>
 
-        {/* FOOTER */}
-        <div className="p-4 bg-gray-50 border-t border-gray-150 flex items-center justify-between">
-          <div className="text-[11px] text-gray-500 font-bold">
-            Status Kelulusan: <span className="text-gray-800 uppercase font-black">{currentApp.statusKelulusan || 'Proses Pelatihan'}</span>
+        {/* FOOTER & EVALUATION CONTROLS */}
+        <div className="p-4 bg-gray-50 border-t border-gray-150 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase text-gray-500">Nilai Akhir:</span>
+              <input
+                type="text"
+                value={footerGrade}
+                onChange={(e) => setFooterGrade(e.target.value)}
+                placeholder="Contoh: 85%"
+                className="w-20 px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-black text-gray-800 text-center outline-none focus:border-hw-green"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase text-gray-500">Status:</span>
+              <select
+                value={footerStatus}
+                onChange={(e) => setFooterStatus(e.target.value)}
+                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-hw-green cursor-pointer"
+              >
+                <option value="">Belum Diproses</option>
+                <option value="Lulus">Lulus</option>
+                <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                <option value="Tidak Lulus">Tidak Lulus</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+              <span className="text-[10px] font-black uppercase text-gray-500 shrink-0">Catatan:</span>
+              <input
+                type="text"
+                value={footerRemark}
+                onChange={(e) => setFooterRemark(e.target.value)}
+                placeholder="Tulis catatan evaluasi..."
+                className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 font-medium outline-none focus:border-hw-green"
+              />
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer"
-          >
-            Tutup
-          </button>
+
+          <div className="flex items-center gap-2 shrink-0 justify-end">
+            <button
+              onClick={handleSaveFullEvaluation}
+              disabled={isSaving}
+              className="px-4 py-2 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer shadow-xs transition-all disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <FileCheck size={14} />
+              {isSaving ? 'Menyimpan...' : 'Simpan Nilai'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
 
       </div>
