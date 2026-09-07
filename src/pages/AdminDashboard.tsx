@@ -6870,7 +6870,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
                         <span className="p-1 bg-emerald-600 text-white rounded-lg text-xs">🏅</span>
-                        <span>Filter Jenis & Kegiatan Pelatihan (Filter Utama)</span>
+                        <span>Filter Kegiatan Pelatihan Aktif (Filter Utama)</span>
                       </label>
                       <span className="text-[9.5px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-200/80 self-start sm:self-auto">
                         ⚡ Mempengaruhi Semua Data: Peserta, Presensi, Penugasan, Penilaian & Piagam
@@ -6909,19 +6909,10 @@ export default function AdminDashboard() {
                         }}
                         className="w-full bg-white border-2 border-emerald-300/80 text-emerald-950 rounded-2xl py-2.5 px-3.5 font-black text-xs sm:text-sm outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-2xs truncate"
                       >
-                        <option value="Semua">🌐 SEMUA JENIS & KEGIATAN PELATIHAN (Semua Data)</option>
-                        
-                        {/* 1. KELOMPOK JENIS PELATIHAN (DIBUAT DI KELOLA JENIS PELATIHAN) */}
-                        <optgroup label="🏷️ KELOMPOK JENIS PELATIHAN (Kelola Jenis Pelatihan)">
-                          {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Jati 1', 'Jati 2', 'Jari 1', 'Jari 2']).map((typ: string, idx: number) => (
-                            <option key={`type-${idx}`} value={`jenis:${typ}`}>
-                              🏅 Jenis Pelatihan: {typ}
-                            </option>
-                          ))}
-                        </optgroup>
+                        <option value="Semua">🌐 SEMUA KEGIATAN PELATIHAN (Semua Data)</option>
 
-                        {/* 2. DAFTAR KEGIATAN PELATIHAN AKTIF */}
-                        {allTrainingActivitiesList.length > 0 && (
+                        {/* DAFTAR KEGIATAN PELATIHAN AKTIF */}
+                        {allTrainingActivitiesList.length > 0 ? (
                           <optgroup label="📍 KEGIATAN PELATIHAN AKTIF (Lokasi & Tanggal)">
                             {[...allTrainingActivitiesList].reverse().map((act: any, idx: number) => {
                               const title = act.namaKegiatan || act.jenisPelatihan || `Kegiatan ${idx + 1}`;
@@ -6934,6 +6925,10 @@ export default function AdminDashboard() {
                               );
                             })}
                           </optgroup>
+                        ) : (
+                          <option value="" disabled>
+                            (Belum ada kegiatan pelatihan aktif yang terdaftar)
+                          </option>
                         )}
                       </select>
                     </div>
