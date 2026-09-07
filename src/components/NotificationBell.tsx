@@ -39,11 +39,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
     window.addEventListener('notifications_read_updated', handleUpdates);
     window.addEventListener('training_applications_updated', handleUpdates);
+    window.addEventListener('kta_applications_updated', handleUpdates);
+    window.addEventListener('member_updated', handleUpdates);
     window.addEventListener('storage', handleUpdates);
 
     return () => {
       window.removeEventListener('notifications_read_updated', handleUpdates);
       window.removeEventListener('training_applications_updated', handleUpdates);
+      window.removeEventListener('kta_applications_updated', handleUpdates);
+      window.removeEventListener('member_updated', handleUpdates);
       window.removeEventListener('storage', handleUpdates);
     };
   }, [updateCount]);

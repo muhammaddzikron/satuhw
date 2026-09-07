@@ -642,6 +642,8 @@ export default function KTAPage() {
               localApps.unshift(createdApp);
             }
             safeStorageSet('kta_applications', localApps);
+            window.dispatchEvent(new Event('kta_applications_updated'));
+            window.dispatchEvent(new Event('notifications_read_updated'));
           }
         } catch (e) {}
         

@@ -79,9 +79,15 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
     const handleReadUpdate = () => refreshItems();
     window.addEventListener('notifications_read_updated', handleReadUpdate);
+    window.addEventListener('training_applications_updated', handleReadUpdate);
+    window.addEventListener('kta_applications_updated', handleReadUpdate);
+    window.addEventListener('member_updated', handleReadUpdate);
     window.addEventListener('storage', handleReadUpdate);
     return () => {
       window.removeEventListener('notifications_read_updated', handleReadUpdate);
+      window.removeEventListener('training_applications_updated', handleReadUpdate);
+      window.removeEventListener('kta_applications_updated', handleReadUpdate);
+      window.removeEventListener('member_updated', handleReadUpdate);
       window.removeEventListener('storage', handleReadUpdate);
     };
   }, [isOpen, adminData, user]);

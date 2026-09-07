@@ -1409,6 +1409,11 @@ export const firestoreService = {
         ktas.push(ktaPayload);
       }
       safeStorageSet('kta_applications', ktas);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('kta_applications_updated'));
+        window.dispatchEvent(new Event('member_updated'));
+      }
     } catch (e) {}
 
     return { user: userPayload as User, ktaApp: ktaPayload };
@@ -2137,6 +2142,9 @@ export const firestoreService = {
       list.unshift(newApp);
     }
     safeStorageSet('kta_applications', list);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('kta_applications_updated'));
+    }
 
     // Sync photo and profile to member profile if match found
     try {
@@ -2234,6 +2242,9 @@ export const firestoreService = {
     }
 
     safeStorageSet('kta_applications', list);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('kta_applications_updated'));
+    }
 
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -2333,6 +2344,9 @@ export const firestoreService = {
     });
 
     safeStorageSet('kta_applications', filtered);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('kta_applications_updated'));
+    }
     return true;
   },
 

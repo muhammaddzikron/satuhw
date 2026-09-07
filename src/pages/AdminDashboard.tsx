@@ -2774,12 +2774,24 @@ export default function AdminDashboard() {
       }
     });
 
+    const unsubKtaApps = sheetsService.subscribeToKTAApplications((ktas: any[]) => {
+      if (Array.isArray(ktas) && ktas.length > 0) {
+        setKtaApps(ktas.filter(k => isValidName(k?.nama || k?.namaLengkap)));
+      }
+    });
+
     const handleTrainingUpdated = () => {
       sheetsService.getTrainingApplications().then(trainings => {
         if (trainings) setTrainingApps((trainings || []).filter(t => isValidTrainingApp(t)));
       }).catch(e => console.warn('getTrainingApplications on event error:', e));
     };
+    const handleKtaUpdated = () => {
+      sheetsService.getKTAApplications().then(ktas => {
+        if (ktas) setKtaApps((ktas || []).filter(k => isValidName(k?.nama || k?.namaLengkap)));
+      }).catch(e => console.warn('getKTAApplications on event error:', e));
+    };
     window.addEventListener('training_applications_updated', handleTrainingUpdated);
+    window.addEventListener('kta_applications_updated', handleKtaUpdated);
 
     const unsubContents = sheetsService.subscribeToContents((freshContents: Content[]) => {
       if (Array.isArray(freshContents)) {
@@ -2801,11 +2813,13 @@ export default function AdminDashboard() {
 
     return () => {
       window.removeEventListener('training_applications_updated', handleTrainingUpdated);
+      window.removeEventListener('kta_applications_updated', handleKtaUpdated);
       unsubMembers();
       unsubCategories();
       unsubActivities();
       unsubApps();
       unsubTrainingApps();
+      unsubKtaApps();
       unsubContents();
     };
   }, []);
