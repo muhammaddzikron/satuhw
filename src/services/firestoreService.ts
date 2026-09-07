@@ -3418,57 +3418,23 @@ export const firestoreService = {
               status: data.status || 'Buka'
             };
           });
-        } else {
-          fsActs = defaults;
         }
 
         const map = new Map<string, any>();
 
-        // Always put defaults into map first as baseline
-        defaults.forEach(a => {
-          if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
-            map.set(a.id, a);
-          }
-        });
-
-        fsActs.forEach(a => {
-          if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
-            const prev = map.get(a.id) || {};
-            const merged = { ...prev, ...a };
-            const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
-            const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
-            const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
-            const finalImg = a.gambarUrl || a.imageUrl || prev.gambarUrl || prev.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
-            const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
-            const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
-            const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
-            const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
-            const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
-
-            map.set(a.id, {
-              ...merged,
-              namaKegiatan: finalTitle,
-              title: finalTitle,
-              lokasi: finalLoc,
-              location: finalLoc,
-              lokasiPelatihan: finalLoc,
-              tanggal: finalDate,
-              startDate: finalDate,
-              tanggalPelatihan: finalDate,
-              gambarUrl: finalImg,
-              imageUrl: finalImg,
-              themeSongUrl: finalSongUrl,
-              themeSongTitle: finalSongTitle,
-              proposalUrl: finalProposal,
-              proposal: finalProposal,
-              linkProposal: finalProposal,
-              rekeningPembayaran: finalRekening,
-              rekeningPembiayaan: finalRekening,
-              konfirmasiPembayaran: finalKonfirmasi,
-              noWhatsappPanitia: finalKonfirmasi
-            });
-          }
-        });
+        if (fsActs.length === 0) {
+          defaults.forEach(a => {
+            if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
+              map.set(a.id, a);
+            }
+          });
+        } else {
+          fsActs.forEach(a => {
+            if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
+              map.set(a.id, a);
+            }
+          });
+        }
 
         const rawList = Array.from(map.values()).filter(a => !isActivityDeleted(a, deletedIds, deletedTitles));
         const list: any[] = [];
@@ -3913,13 +3879,21 @@ export const firestoreService = {
   subscribeToActivityApplications(callback: (apps: any[]) => void): () => void {
     const defaultApps = this.getDefaultActivityApplications();
 
+    let initialDeleted: string[] = [];
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+        initialDeleted = JSON.parse(delStr);
+      }
+    } catch (e) {}
+
     let initialLocal: any[] = [];
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       initialLocal = JSON.parse(stored);
     } catch (e) {}
 
-    const initialMerged = this.deduplicateActivityApps([...defaultApps, ...initialLocal]);
+    const initialMerged = this.deduplicateActivityApps([...defaultApps, ...initialLocal], initialDeleted);
     callback(initialMerged);
 
     try {
@@ -3931,9 +3905,23 @@ export const firestoreService = {
 
         let deletedAppIds: string[] = [];
         try {
+          if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+            const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+            const localDel = JSON.parse(delStr);
+            if (Array.isArray(localDel)) {
+              localDel.forEach((d: string) => {
+                if (d && !deletedAppIds.includes(String(d))) deletedAppIds.push(String(d));
+              });
+            }
+          }
+        } catch (e) {}
+
+        try {
           const s = await this.getSettings();
           if (s && Array.isArray(s.deletedActivityAppIds)) {
-            deletedAppIds = s.deletedActivityAppIds;
+            s.deletedActivityAppIds.forEach((d: string) => {
+              if (d && !deletedAppIds.includes(String(d))) deletedAppIds.push(String(d));
+            });
           }
         } catch (e) {}
 
@@ -4103,82 +4091,26 @@ export const firestoreService = {
     }
 
     const map = new Map<string, any>();
-    // Always populate defaults into map baseline
-    defaults.forEach(a => {
-      if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
-        map.set(a.id, a);
-      }
-    });
+
+    // If no activities at all exist anywhere, populate default baseline
+    if (fsActs.length === 0 && localActs.length === 0) {
+      defaults.forEach(a => {
+        if (!isActivityDeleted(a, deletedIds, deletedTitles)) {
+          map.set(a.id, a);
+        }
+      });
+    }
 
     localActs.forEach(a => {
       if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
-        const prev = map.get(a.id) || {};
-        map.set(a.id, { ...prev, ...a });
+        map.set(a.id, a);
       }
     });
 
     fsActs.forEach(a => {
       if (a && a.id && !isActivityDeleted(a, deletedIds, deletedTitles)) {
         const prev = map.get(a.id) || {};
-        const merged = { ...prev, ...a };
-        const finalLoc = a.lokasi || a.lokasiPelatihan || a.location || prev.lokasi || prev.lokasiPelatihan || '';
-        const finalDate = a.tanggal || a.tanggalPelatihan || a.startDate || prev.tanggal || prev.tanggalPelatihan || '';
-        const finalTitle = a.namaKegiatan || a.title || a.jenisPelatihan || prev.namaKegiatan || prev.title || '';
-        const finalImg = a.gambarUrl || a.imageUrl || prev.gambarUrl || prev.imageUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=800';
-        const finalSongUrl = a.themeSongUrl || a.themeSong || prev.themeSongUrl || prev.themeSong || '';
-        const finalSongTitle = a.themeSongTitle || a.themeSongName || prev.themeSongTitle || prev.themeSongName || '';
-        const finalYoutube = a.youtubeUrl || a.videoUrl || a.youtube || a.linkYoutube || prev.youtubeUrl || prev.videoUrl || prev.youtube || prev.linkYoutube || '';
-        const finalProposal = a.proposalUrl || a.proposal || a.linkProposal || prev.proposalUrl || prev.proposal || prev.linkProposal || '';
-        const finalRekening = a.rekeningPembayaran || a.rekeningPembiayaan || prev.rekeningPembayaran || prev.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng';
-        const finalKonfirmasi = a.konfirmasiPembayaran || a.noWhatsappPanitia || prev.konfirmasiPembayaran || prev.noWhatsappPanitia || '089688754000';
-
-        const rawRegType = (a.registrationType || a.jenisPendaftaran || prev.registrationType || prev.jenisPendaftaran || '').toString().toLowerCase().trim();
-        const finalRegType = (rawRegType === 'external' || rawRegType === 'eksternal') ? 'external' : 'internal';
-        
-        let finalExtLinks: any[] = [];
-        if (finalRegType === 'external') {
-          if (Array.isArray(a.externalLinks) && a.externalLinks.length > 0) {
-            finalExtLinks = a.externalLinks;
-          } else if (Array.isArray(a.linkEksternal) && a.linkEksternal.length > 0) {
-            finalExtLinks = a.linkEksternal;
-          } else if (Array.isArray(prev.externalLinks) && prev.externalLinks.length > 0) {
-            finalExtLinks = prev.externalLinks;
-          } else if (a.externalUrl || a.linkPendaftaran) {
-            finalExtLinks = [{ id: '1', label: 'Formulir Pendaftaran', url: (a.externalUrl || a.linkPendaftaran).trim() }];
-          }
-        }
-
-        map.set(a.id, {
-          ...merged,
-          namaKegiatan: finalTitle,
-          title: finalTitle,
-          lokasi: finalLoc,
-          location: finalLoc,
-          lokasiPelatihan: finalLoc,
-          tanggal: finalDate,
-          startDate: finalDate,
-          tanggalPelatihan: finalDate,
-          gambarUrl: finalImg,
-          imageUrl: finalImg,
-          themeSongUrl: finalSongUrl,
-          themeSongTitle: finalSongTitle,
-          youtubeUrl: finalYoutube,
-          videoUrl: finalYoutube,
-          proposalUrl: finalProposal,
-          proposal: finalProposal,
-          linkProposal: finalProposal,
-          rekeningPembayaran: finalRekening,
-          rekeningPembiayaan: finalRekening,
-          konfirmasiPembayaran: finalKonfirmasi,
-          noWhatsappPanitia: finalKonfirmasi,
-          registrationType: finalRegType,
-          jenisPendaftaran: finalRegType === 'external' ? 'eksternal' : 'internal',
-          externalLinks: finalExtLinks,
-          linkEksternal: finalExtLinks,
-          externalUrl: finalExtLinks[0]?.url || '',
-          linkPendaftaran: finalExtLinks[0]?.url || '',
-          status: a.status || prev.status || 'Buka'
-        });
+        map.set(a.id, { ...prev, ...a });
       }
     });
 
@@ -4629,9 +4561,23 @@ export const firestoreService = {
 
     let deletedAppIds: string[] = [];
     try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
+        const localDel = JSON.parse(delStr);
+        if (Array.isArray(localDel)) {
+          localDel.forEach((d: string) => {
+            if (d && !deletedAppIds.includes(String(d))) deletedAppIds.push(String(d));
+          });
+        }
+      }
+    } catch (e) {}
+
+    try {
       const s = await this.getSettings();
       if (s && Array.isArray(s.deletedActivityAppIds)) {
-        deletedAppIds = s.deletedActivityAppIds;
+        s.deletedActivityAppIds.forEach((d: string) => {
+          if (d && !deletedAppIds.includes(String(d))) deletedAppIds.push(String(d));
+        });
       }
     } catch (e) {}
 
@@ -4755,11 +4701,14 @@ export const firestoreService = {
   },
 
   async deleteActivityApplication(id: string): Promise<boolean> {
+    clearFirestoreCache('activity_applications');
+    const strId = String(id);
+
     try {
       const delStr = localStorage.getItem('deleted_activity_app_ids') || '[]';
       const deletedIds: string[] = JSON.parse(delStr);
-      if (!deletedIds.includes(String(id))) {
-        deletedIds.push(String(id));
+      if (!deletedIds.includes(strId)) {
+        deletedIds.push(strId);
         safeStorageSet('deleted_activity_app_ids', deletedIds);
       }
     } catch (e) {}
@@ -4767,27 +4716,34 @@ export const firestoreService = {
     try {
       const stored = localStorage.getItem('activity_applications') || '[]';
       const localApps = JSON.parse(stored);
-      const filtered = localApps.filter((a: any) => a && String(a.id) !== String(id));
+      const filtered = (Array.isArray(localApps) ? localApps : []).filter((a: any) => a && String(a.id) !== strId);
       safeStorageSet('activity_applications', filtered);
     } catch (e) {}
 
     try {
       const s = await this.getSettings();
       const currentDel = Array.isArray(s.deletedActivityAppIds) ? s.deletedActivityAppIds : [];
-      if (!currentDel.includes(String(id))) {
+      if (!currentDel.includes(strId)) {
         await this.saveSettings({
           ...s,
-          deletedActivityAppIds: [...currentDel, String(id)]
+          deletedActivityAppIds: [...currentDel, strId]
         });
       }
     } catch (e) {}
 
-    try {
-      await deleteDoc(doc(db, 'activity_applications', String(id)));
-    } catch (err: any) {
-      this.checkQuotaError(err);
-      console.error('Firestore deleteActivityApplication error:', err);
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        await withTimeout(deleteDoc(doc(db, 'activity_applications', strId)), 8000);
+      } catch (err: any) {
+        this.checkQuotaError(err);
+        console.error('Firestore deleteActivityApplication error:', err);
+      }
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('activity_applications_updated'));
+    }
+
     return true;
   },
 

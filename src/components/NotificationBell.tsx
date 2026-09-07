@@ -41,14 +41,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     window.addEventListener('training_applications_updated', handleUpdates);
     window.addEventListener('storage', handleUpdates);
 
-    // Light interval check for fresh notifications
-    const interval = setInterval(updateCount, 15000);
-
     return () => {
       window.removeEventListener('notifications_read_updated', handleUpdates);
       window.removeEventListener('training_applications_updated', handleUpdates);
       window.removeEventListener('storage', handleUpdates);
-      clearInterval(interval);
     };
   }, [updateCount]);
 

@@ -17,26 +17,19 @@ import {
   DEFAULT_50_QUESTIONS 
 } from '../data/trainingQuestions';
 
-export let API_URL = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
-export let IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
+// Decoupled from Google Spreadsheet - 100% Firebase Firestore & Local Cache
+export let API_URL = '';
+export let IS_API_VALID = false;
 
 export const updateApiUrlFromStorage = () => {
-  let url = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_GSHEET_API_URL : '';
-  if (typeof window !== 'undefined' && (!url || url === 'undefined' || !url.startsWith('http'))) {
-    url = localStorage.getItem('VITE_GSHEET_API_URL') || '';
-  }
-  API_URL = url;
-  IS_API_VALID = !!(API_URL && API_URL !== 'undefined' && API_URL.startsWith('http'));
+  API_URL = '';
+  IS_API_VALID = false;
 };
 
 // Run on load
 updateApiUrlFromStorage();
 
-if (!IS_API_VALID) {
-  console.log('[SHEETS SERVICE] API_URL is invalid or missing:', API_URL);
-} else {
-  console.log('[SHEETS SERVICE] API_URL is active:', API_URL.substring(0, 30) + '...');
-}
+console.log('[SHEETS SERVICE] Decoupled from spreadsheet. Using Firebase Firestore directly.');
 
 // In-Memory Cache and In-flight Promise Deduplication for ultra-fast response
 interface CacheItem<T> {
@@ -83,21 +76,8 @@ const cachedFetch = async <T>(cacheKey: string, fetchFn: () => Promise<T>, ttl: 
   return promise;
 };
 
-export const fetchSheetsApi = async (action: string, params: Record<string, any> = {}, timeoutMs: number = 3500): Promise<any> => {
-  if (!IS_API_VALID || !API_URL) return null;
-  try {
-    const query = new URLSearchParams();
-    query.set('action', action);
-    query.set('_t', Date.now().toString());
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) query.set(k, String(v));
-    });
-    const url = `${API_URL}${API_URL.includes('?') ? '&' : '?'}${query.toString()}`;
-    const res = await axios.get(url, { timeout: timeoutMs });
-    return res.data;
-  } catch (e) {
-    return null;
-  }
+export const fetchSheetsApi = async (_action: string, _params: Record<string, any> = {}, _timeoutMs: number = 3500): Promise<any> => {
+  return null;
 };
 
 export const DEFAULT_KTA_TEMPLATE_FRONT = 'https://drive.google.com/uc?export=view&id=1OsI7x7zw-2BbckWntz_jkpGZyY94Z-7U';
@@ -944,84 +924,10 @@ export const sheetsService = {
 
   async getMembers(forceRefresh = false): Promise<User[]> {
     const fetcher = async () => {
-      // 1. Retrieve from unified firestoreService repository immediately (ultra-fast, ~10ms)
-      const fsMembers = await firestoreService.getMembers();
+      // Direct fast retrieval from Firestore / cached members
+      const fsMembers = await firestoreService.getMembers(forceRefresh);
       const mappedFs = fsMembers.map((m: any) => this.mapUser(m));
-
-      const combinedMap = new Map<string, User>();
-      mappedFs.forEach((m: User) => {
-        const key = (m.id || m.email || m.ktaNumber || m.namaLengkap || '').toLowerCase().trim();
-        if (key) combinedMap.set(key, m);
-      });
-
-      const applySheetMembers = (sheetMembers: User[]) => {
-        if (!Array.isArray(sheetMembers) || sheetMembers.length === 0) return;
-        sheetMembers.forEach((sm: User) => {
-          const smEmail = (sm.email || '').toLowerCase().trim();
-          const smId = (sm.id || '').trim();
-          const smKta = (sm.ktaNumber || sm.nomorKTA || '').trim();
-          const smPhone = sm.noHp ? sm.noHp.replace(/[^0-9]/g, '') : '';
-          const smName = (sm.namaLengkap || '').toLowerCase().trim();
-
-          let matchedKey: string | null = null;
-          for (const [key, ex] of combinedMap.entries()) {
-            const exEmail = (ex.email || '').toLowerCase().trim();
-            const exId = (ex.id || '').trim();
-            const exKta = (ex.ktaNumber || ex.nomorKTA || '').trim();
-            const exPhone = ex.noHp ? ex.noHp.replace(/[^0-9]/g, '') : '';
-            const exName = (ex.namaLengkap || '').toLowerCase().trim();
-
-            if (
-              (smId && exId && smId === exId) ||
-              (smEmail && exEmail && smEmail === exEmail) ||
-              (smKta && exKta && smKta === exKta) ||
-              (smPhone && smPhone.length > 5 && exPhone && smPhone === exPhone) ||
-              (smName && exName && smName === exName && smName !== 'anggota hw')
-            ) {
-              matchedKey = key;
-              break;
-            }
-          }
-
-          if (matchedKey) {
-            const existing = combinedMap.get(matchedKey)!;
-            combinedMap.set(matchedKey, {
-              ...existing,
-              ...sm,
-              photo: sm.photo || existing.photo,
-              roles: (sm.roles && sm.roles.length > 0) ? sm.roles : existing.roles,
-              role: sm.role || existing.role,
-              password: sm.password || existing.password
-            });
-          } else {
-            const newKey = (sm.id || sm.email || sm.ktaNumber || sm.namaLengkap || `sheet-${Math.random()}`).toLowerCase().trim();
-            if (newKey) combinedMap.set(newKey, sm);
-          }
-        });
-      };
-
-      if (IS_API_VALID) {
-        if (forceRefresh) {
-          // Controlled 3.5s timeout for manual refresh
-          const sheetData = await fetchSheetsApi('getMembers', {}, 3500);
-          if (Array.isArray(sheetData) && sheetData.length > 0) {
-            applySheetMembers(sheetData.map((m: any) => this.mapUser(m)));
-          }
-        } else {
-          // Non-blocking background sync
-          fetchSheetsApi('getMembers', {}, 3500).then((sheetData) => {
-            if (Array.isArray(sheetData) && sheetData.length > 0) {
-              const mapped = sheetData.map((m: any) => this.mapUser(m));
-              mapped.forEach(m => {
-                if (m && m.email) firestoreService.saveMember(m).catch(() => {});
-              });
-            }
-          }).catch(() => {});
-        }
-      }
-
-      const combinedList = Array.from(combinedMap.values());
-      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(combinedList)));
+      const finalResult = sanitizeMemberList(ensureUniqueKtaNumbers(applyMemberListOverrides(mappedFs)));
       safeStorageSet('mock_members', finalResult);
       return finalResult;
     };
@@ -1030,7 +936,7 @@ export const sheetsService = {
       clearSheetsCache('members');
       return await fetcher();
     }
-    return cachedFetch('members', fetcher, 20000);
+    return cachedFetch('members', fetcher, 30000);
   },
 
   async saveMember(userData: any): Promise<any> {
@@ -1319,50 +1225,7 @@ export const sheetsService = {
         fsApps = await firestoreService.getKTAApplications();
       } catch (e) {}
 
-      let sheetApps: any[] = [];
-      if (IS_API_VALID) {
-        if (forceRefresh) {
-          const res = await fetchSheetsApi('getKTAApplications', {}, 3500);
-          if (Array.isArray(res)) sheetApps = res;
-        } else {
-          fetchSheetsApi('getKTAApplications', {}, 3500).then((res) => {
-            if (Array.isArray(res) && res.length > 0) {
-              res.forEach(app => {
-                if (app && app.id) firestoreService.saveKTAApplication(app).catch(() => {});
-              });
-            }
-          }).catch(() => {});
-        }
-      }
-
-      const apps = [...sheetApps];
-      const sheetKeys = new Set(
-        apps.map(a => String(a.id || a.email || a.userId || a.nomorKTA || a.ktaNumber || '').toLowerCase().trim()).filter(Boolean)
-      );
-
-      apps.forEach(a => {
-        const match = fsApps.find(fa => 
-          (fa.id && a.id && String(fa.id) === String(a.id)) ||
-          (fa.email && a.email && fa.email.toLowerCase().trim() === a.email.toLowerCase().trim()) ||
-          (fa.userId && a.userId && String(fa.userId) === String(a.userId))
-        );
-        if (match) {
-          if (!a.photo && match.photo) a.photo = match.photo;
-          if (!a.status && match.status) a.status = match.status;
-          if (!a.statusPembayaran && match.statusPembayaran) a.statusPembayaran = match.statusPembayaran;
-          if (!a.nomorKTA && (match.nomorKTA || match.ktaNumber)) a.nomorKTA = match.nomorKTA || match.ktaNumber;
-          if (!a.asalDaerah && (match.asalDaerah || match.asalKwarda)) a.asalDaerah = match.asalDaerah || match.asalKwarda;
-        }
-      });
-
-      fsApps.forEach(fa => {
-        const key1 = String(fa.id || '').toLowerCase().trim();
-        const key2 = String(fa.email || '').toLowerCase().trim();
-        const key3 = String(fa.userId || '').toLowerCase().trim();
-        if ((!key1 || !sheetKeys.has(key1)) && (!key2 || !sheetKeys.has(key2)) && (!key3 || !sheetKeys.has(key3))) {
-          apps.push(fa);
-        }
-      });
+      const apps = [...fsApps];
 
       // Also ensure all registered members from getMasterMembersList are present
       let allMembers: User[] = [];
@@ -1632,55 +1495,8 @@ export const sheetsService = {
 
   async getTrainingApplications(): Promise<any[]> {
     return cachedFetch('trainingApplications', async () => {
-      // 1. Immediately return Firestore applications (instant)
-      const fsTrainings = await firestoreService.getTrainingApplications();
-      
-      // 2. Non-blocking background sync with Google Sheets if valid
-      if (IS_API_VALID) {
-        fetchSheetsApi('getTrainingApplications', {}, 3500).then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
-            const apiTrainings = data.map((t: any, idx: number) => {
-              const rawNama = t.nama || t.namaLengkap || t.namalengkap || '';
-              const rawEmail = t.email || '';
-              const rawWa = t.noWa || t.nowa || t.noHp || t.nohp || '';
-              const rawPelatihan = t.pelatihanAkanDiikuti || t.pelatihanakandiikuti || t.tingkatan || '';
-              return {
-                ...t,
-                id: t.id || t.Id || `train-api-${idx}`,
-                nama: rawNama,
-                namaLengkap: rawNama,
-                email: rawEmail,
-                noWa: rawWa,
-                noHp: rawWa,
-                tingkatan: t.tingkatan || rawPelatihan,
-                pelatihanAkanDiikuti: rawPelatihan,
-                asalDaerah: t.asalDaerah || t.asaldaerah || t.asalKwarda || '',
-                status: t.status || 'approved',
-                tanggalAjuan: t.tanggalAjuan || t.tanggalajuan || t.tanggalDaftar || new Date().toISOString(),
-                preTestScore: t.preTestScore !== undefined ? t.preTestScore : (t.pretestscore !== undefined ? t.pretestscore : undefined),
-                preTestData: t.preTestData || t.pretestdata || '',
-                preTestSubmittedAt: t.preTestSubmittedAt || t.pretestsubmittedat || '',
-                postTestScore: t.postTestScore !== undefined ? t.postTestScore : (t.posttestscore !== undefined ? t.posttestscore : undefined),
-                postTestData: t.postTestData || t.posttestdata || '',
-                postTestSubmittedAt: t.postTestSubmittedAt || t.posttestsubmittedat || ''
-              };
-            }).filter((t: any) => {
-              const name = (t.nama || t.namaLengkap || '').trim();
-              const email = (t.email || '').toLowerCase().trim();
-              return name && name !== '-' && !name.includes('@') && name.toLowerCase() !== 'tanpa nama' && !sysEmails.includes(email) && t.status !== 'deleted';
-            });
-
-            apiTrainings.forEach(app => {
-              if (app && (app.id || app.email)) {
-                firestoreService.createTrainingApplication(app).catch(() => {});
-              }
-            });
-          }
-        }).catch(() => {});
-      }
-
-      return fsTrainings;
+      // Direct fast retrieval from Firestore / cached training applications
+      return await firestoreService.getTrainingApplications();
     }, 20000);
   },
 

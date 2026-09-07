@@ -2221,17 +2221,14 @@ export default function AdminDashboard() {
         updatedAt: new Date().toISOString()
       };
 
-      // Optimistic update: Place the newest saved/updated activity at the very front/top
+      // Save directly to Cloud Firestore / Sheets
+      const saved = await sheetsService.saveActivity(payload);
+      
+      // Update state with confirmed payload
       setActivitiesList(prev => {
         const without = (prev || []).filter(a => a.id !== actId);
-        return sortActivitiesNewestFirst([payload, ...without]);
+        return sortActivitiesNewestFirst([saved || payload, ...without]);
       });
-      
-      // Close all activity modal states cleanly
-      setIsKegiatanModalOpen(false);
-      setIsActivityModalOpen(false);
-      setEditingKegiatan(null);
-      showToast('success', editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
 
       // Keep React settings state in sync so future saveSettings calls won't overwrite with stale data
       if (isPel) {
@@ -2243,7 +2240,7 @@ export default function AdminDashboard() {
           if (aTitle && normTitle && (aTitle === normTitle || aTitle.includes(normTitle) || normTitle.includes(aTitle))) return false;
           return true;
         });
-        filteredActs.unshift(payload);
+        filteredActs.unshift(saved || payload);
         const locs = Array.isArray(settings.trainingLocations) ? [...settings.trainingLocations] : [];
         if (kegiatanFormData.lokasi && !locs.includes(kegiatanFormData.lokasi)) locs.push(kegiatanFormData.lokasi);
         const dts = Array.isArray(settings.trainingDates) ? [...settings.trainingDates] : [];
@@ -2256,25 +2253,24 @@ export default function AdminDashboard() {
         }));
       }
 
-      // Background save to Cloud Firestore / Sheets
-      (async () => {
-        setBackgroundProcessingText('Menyimpan data kegiatan di latar belakang...');
-        try {
-          await sheetsService.saveActivity(payload);
-          const actData = await sheetsService.getActivities();
-          if (actData) setActivitiesList(sortActivitiesNewestFirst(actData));
-        } finally {
-          setBackgroundProcessingText(null);
-          setIsSavingActivity(false);
+      // Close modal states cleanly and display success
+      setIsKegiatanModalOpen(false);
+      setIsActivityModalOpen(false);
+      setEditingKegiatan(null);
+      showToast('success', editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
+
+      // Sync activities in background
+      try {
+        const actData = await sheetsService.getActivities(true);
+        if (actData && actData.length > 0) {
+          setActivitiesList(sortActivitiesNewestFirst(actData));
         }
-      })().catch(err => {
-        console.warn('Background save activity warning:', err);
-        setIsSavingActivity(false);
-      });
+      } catch (e) {}
 
     } catch (err: any) {
-      setIsSavingActivity(false);
       showToast('error', 'Gagal menyimpan kegiatan: ' + (err.message || err));
+    } finally {
+      setIsSavingActivity(false);
     }
   };
 
@@ -2340,22 +2336,15 @@ export default function AdminDashboard() {
   const handleDeleteActivityParticipant = async (id: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data peserta kegiatan ini?')) return;
     try {
+      const strId = String(id);
       // Optimistic update
-      setActivityApplicationsList(prev => prev.filter(a => String(a.id) !== String(id)));
+      setActivityApplicationsList(prev => prev.filter(a => String(a.id) !== strId));
+      
+      await sheetsService.deleteActivityApplication(strId);
       showToast('success', 'Data peserta berhasil dihapus!');
 
-      // Background delete
-      (async () => {
-        setBackgroundProcessingText('Menghapus data peserta di latar belakang...');
-        try {
-          await sheetsService.deleteActivityApplication(id);
-          const updatedApps = await sheetsService.getActivityApplications();
-          if (updatedApps) setActivityApplicationsList(updatedApps);
-        } finally {
-          setBackgroundProcessingText(null);
-        }
-      })().catch(err => console.warn('Background delete participant warning:', err));
-
+      const updatedApps = await sheetsService.getActivityApplications();
+      if (updatedApps) setActivityApplicationsList(updatedApps);
     } catch (err: any) {
       showToast('error', 'Gagal menghapus data peserta: ' + (err.message || 'Cek koneksi'));
     }
@@ -2568,31 +2557,6 @@ export default function AdminDashboard() {
 
     // Set loading false right away so dashboard is always clickable and responsive
     setLoading(false);
-
-    // Highly deferred background sync tasks so initial transition is silky smooth (4s delay)
-    setTimeout(() => {
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => {
-          sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
-          firestoreService.purgeEmptyData().catch(() => {});
-          const hasMigrated = localStorage.getItem('training_jm1_solo_migrated_v1');
-          if (!hasMigrated) {
-            sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo()
-              .then(() => localStorage.setItem('training_jm1_solo_migrated_v1', 'true'))
-              .catch(err => console.warn('Auto training migration warning:', err));
-          }
-        });
-      } else {
-        sheetsService.syncApprovedKtasToMembers().catch(err => console.warn('Silent auto-sync failed:', err));
-        firestoreService.purgeEmptyData().catch(() => {});
-        const hasMigrated = localStorage.getItem('training_jm1_solo_migrated_v1');
-        if (!hasMigrated) {
-          sheetsService.bulkSetAllTrainingParticipantsToJayaMelati1Solo()
-            .then(() => localStorage.setItem('training_jm1_solo_migrated_v1', 'true'))
-            .catch(err => console.warn('Auto training migration warning:', err));
-        }
-      }
-    }, 4000);
 
     // Progressive background fetch so slow endpoints never block others
     sheetsService.getMembers().then(members => {
@@ -4562,22 +4526,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <NotificationBell 
-            adminData={{
-              pendingMembers,
-              pendingKtaApps,
-              pendingTrainingApps,
-              membersWithUpgradeRequests,
-              submittedTaskApps
-            }}
-            onNavigateTab={(tab) => {
-              if (tab === 'pendaftaran') setActiveTab('pendaftaran');
-              else if (tab === 'upgrade') setActiveTab('upgrade');
-              else if (tab === 'kta') setActiveTab('kta');
-              else if (tab === 'pelatihan') setActiveTab('pelatihan');
-              else if (tab === 'tugas') setActiveTab('tugas');
-            }}
-          />
           <Link 
             to="/" 
             className="hidden sm:flex items-center gap-2 px-4 py-2 border border-gray-100 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all"
