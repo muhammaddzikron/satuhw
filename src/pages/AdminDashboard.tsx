@@ -960,6 +960,8 @@ export default function AdminDashboard() {
   const [assignTaskInstruksi, setAssignTaskInstruksi] = useState('');
   const [assignTaskDeadline, setAssignTaskDeadline] = useState('');
   const [selectedGradeProg, setSelectedGradeProg] = useState<'Jati 1' | 'Jati 2' | 'Jari 1'>('Jati 1');
+  const [penilaianSearchQuery, setPenilaianSearchQuery] = useState('');
+  const [penilaianStatusFilter, setPenilaianStatusFilter] = useState<'all' | 'Lulus' | 'Lulus Bersyarat' | 'Tidak Lulus' | 'belum'>('all');
   const [selectedPiagamProg, setSelectedPiagamProg] = useState<'Jati 1' | 'Jati 2' | 'Jari 1'>('Jati 1');
 
   // Piagam Certificate Preview Modal
@@ -4086,7 +4088,7 @@ export default function AdminDashboard() {
       const name = (app?.nama || app?.namaLengkap || '').trim();
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
+      return isApprovedParticipant(app);
     }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const headers = ['No', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Asal Daerah', 'Qabilah', 'Nilai / Predikat', 'Kehadiran (%)', 'Tugas (%)', 'Status Kelulusan', 'Catatan / Ulasan Pelatih'];
@@ -4094,12 +4096,13 @@ export default function AdminDashboard() {
       const calc = getCalculatedGrading(app);
       const matchMember = members.find(m => (m.id && app.userId && String(m.id) === String(app.userId)) || (m.email && app.email && String(m.email).toLowerCase().trim() === String(app.email).toLowerCase().trim()));
       const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
+      const progName = app.pelatihanAkanDiikuti || app.jenisPelatihan || 'Pelatihan';
 
       return [
         idx + 1,
         app.nama || app.namaLengkap || '-',
         dispNbm,
-        selectedGradeProg,
+        progName,
         app.asalDaerah || '-',
         app.qabilah || '-',
         app.nilai || `${calc.finalPercentage}%`,
@@ -4119,8 +4122,7 @@ export default function AdminDashboard() {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedGradeProg.replace(/\s+/g, '_');
-    link.setAttribute("download", `Data_Kelulusan_Pelatihan_${progSuffix}_${dateStr}.csv`);
+    link.setAttribute("download", `Data_Kelulusan_Pelatihan_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -4133,7 +4135,7 @@ export default function AdminDashboard() {
       const name = (app?.nama || app?.namaLengkap || '').trim();
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
+      return isApprovedParticipant(app);
     }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
     const doc = new jsPDF() as any;
@@ -4152,10 +4154,10 @@ export default function AdminDashboard() {
     });
 
     doc.setFontSize(14);
-    doc.text(`LAPORAN KELULUSAN PELATIHAN ${selectedGradeProg.toUpperCase()}`, 14, 15);
+    doc.text(`LAPORAN EVALUASI & KELULUSAN PELATIHAN`, 14, 15);
     doc.setFontSize(9);
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
-    doc.text(`Tingkat: ${selectedGradeProg} | Total Peserta Evaluasi: ${enrolled.length} Orang`, 14, 26);
+    doc.text(`Total Peserta Evaluasi: ${enrolled.length} Orang`, 14, 26);
 
     autoTable(doc, {
       head: headers,
@@ -4167,8 +4169,7 @@ export default function AdminDashboard() {
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedGradeProg.replace(/\s+/g, '_');
-    doc.save(`Laporan_Kelulusan_Pelatihan_${progSuffix}_${dateStr}.pdf`);
+    doc.save(`Laporan_Kelulusan_Pelatihan_${dateStr}.pdf`);
   };
 
   // 5. Export Piagam Tervalidasi
@@ -8321,28 +8322,40 @@ export default function AdminDashboard() {
                 {/* 4. PENILAIAN & KELULUSAN SUB-TAB */}
                 {trainingSubTab === 'penilaian' && (
                   <div className="space-y-6">
-                    {/* Penilaian Header Toolbar & Program Filter */}
+                    {/* Penilaian Header Toolbar & Search Filter */}
                     <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
-                        <div className="flex items-center gap-1.5">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedGradeProg(prog as any)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                                selectedGradeProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
-                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                              }`}
+                      <div className="flex flex-wrap items-center gap-3 flex-1">
+                        <div className="relative min-w-[240px] max-w-sm flex-1">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Cari nama peserta, NBM, qabilah, daerah..."
+                            value={penilaianSearchQuery}
+                            onChange={(e) => setPenilaianSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none focus:border-hw-green focus:bg-white transition-all"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 shrink-0">
+                          <Filter size={14} className="text-gray-400 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Status Kelulusan</span>
+                            <select
+                              value={penilaianStatusFilter}
+                              onChange={(e) => setPenilaianStatusFilter(e.target.value as any)}
+                              className="bg-transparent text-xs font-bold text-gray-700 outline-none cursor-pointer"
                             >
-                              {prog}
-                            </button>
-                          ))}
+                              <option value="all">Semua Status</option>
+                              <option value="Lulus">Lulus</option>
+                              <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                              <option value="Tidak Lulus">Tidak Lulus</option>
+                              <option value="belum">Belum Diproses</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={exportTrainingGraduationToExcel}
                           className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -8363,16 +8376,34 @@ export default function AdminDashboard() {
                     {/* Grading Table */}
                     {(() => {
                       const sysEmails = ['admin@hwjateng.com', 'materihw@gmail.com', 'medkom@hwjateng.com', 'admin@hw.org'];
+                      const q = penilaianSearchQuery.toLowerCase().trim();
                       const enrolled = trainingApps.filter(app => {
                         const name = (app?.nama || app?.namaLengkap || '').trim();
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
-                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedGradeProg);
+                        if (!isApprovedParticipant(app)) return false;
+
+                        if (penilaianStatusFilter === 'belum') {
+                          if (app.statusKelulusan) return false;
+                        } else if (penilaianStatusFilter !== 'all') {
+                          if (app.statusKelulusan !== penilaianStatusFilter) return false;
+                        }
+
+                        if (q) {
+                          const nbm = (app.nbm || app.ktaNumber || app.nomorKTA || '').toLowerCase();
+                          const asal = (app.asalDaerah || '').toLowerCase();
+                          const qab = (app.qabilah || '').toLowerCase();
+                          if (!name.toLowerCase().includes(q) && !email.includes(q) && !nbm.includes(q) && !asal.includes(q) && !qab.includes(q)) {
+                            return false;
+                          }
+                        }
+
+                        return true;
                       }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return enrolled.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                          Belum ada peserta yang disetujui untuk tingkat {selectedGradeProg}.
+                          {q || penilaianStatusFilter !== 'all' ? 'Tidak ada peserta yang cocok dengan pencarian / filter.' : 'Belum ada data peserta pelatihan yang disetujui.'}
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">
