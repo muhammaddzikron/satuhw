@@ -346,13 +346,19 @@ export const firestoreService = {
         const localMateriStr = localStorage.getItem('materi');
         let initialMateri: any[] = [];
         if (localMateriStr) {
-          initialMateri = JSON.parse(localMateriStr);
-        } else {
+          try {
+            const parsed = JSON.parse(localMateriStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              initialMateri = parsed;
+            }
+          } catch (e) {}
+        }
+        if (initialMateri.length === 0) {
           initialMateri = INITIAL_SPREADSHEET_DATA.materi.map((m: any, idx: number) => ({
             id: m.id || `materi-${1000 + idx}`,
             judul: m.judul || '',
             konten: m.konten || '',
-            kategori: m.kategori || 'umum',
+            kategori: normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim(),
             tanggal: m.tanggal || new Date().toISOString(),
             coverImage: m.coverImage || m.coverimage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
             driveUrl: m.driveUrl || m.driveurl || '',
@@ -1811,18 +1817,39 @@ export const firestoreService = {
   },
 
   // --- MATERI ---
+  subscribeToMateri(callback: (materi: Materi[]) => void): () => void {
+    try {
+      const unsub = onSnapshot(collection(db, 'materi'), async (snap) => {
+        let fsMateri: Materi[] = [];
+        if (!snap.empty) {
+          fsMateri = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
+        }
+        const merged = await this.getMateri(true);
+        callback(merged);
+      }, (err) => {
+        this.checkQuotaError(err);
+        console.warn('subscribeToMateri warning:', err);
+        this.getMateri().then(m => callback(m)).catch(() => callback([]));
+      });
+      return safeUnsub(unsub);
+    } catch (e) {
+      console.error('subscribeToMateri error:', e);
+      this.getMateri().then(m => callback(m)).catch(() => callback([]));
+      return () => {};
+    }
+  },
+
   async getMateri(forceRefresh: boolean = false): Promise<Materi[]> {
     if (forceRefresh) {
       clearFirestoreCache('materi');
     }
     return cachedFirestoreFetch('materi', async () => {
+      let fsMateri: Materi[] = [];
       if (!this.getIsQuotaExceeded()) {
         try {
           const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
           if (!snap.empty) {
-            const materi = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
-            safeStorageSet('materi', materi);
-            return materi;
+            fsMateri = snap.docs.map(d => ({ id: d.id, ...d.data() } as Materi));
           }
         } catch (err) {
           this.checkQuotaError(err);
@@ -1831,25 +1858,197 @@ export const firestoreService = {
           }
         }
       }
-      const stored = localStorage.getItem('materi') || '[]';
+
+      // Check for any deleted IDs in local storage tombstone
+      let deletedIds: string[] = [];
       try {
-        return JSON.parse(stored);
-      } catch {
-        return [];
-      }
+        const dStr = localStorage.getItem('hw_deleted_materi_ids');
+        if (dStr) deletedIds = JSON.parse(dStr);
+      } catch (e) {}
+
+      // Retrieve local stored materi
+      let localStored: Materi[] = [];
+      try {
+        const stored = localStorage.getItem('materi');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) localStored = parsed;
+        }
+      } catch (e) {}
+
+      // Check if any materials were saved in contents collection under section === 'materi'
+      let contentsMateri: Materi[] = [];
+      try {
+        const cStored = localStorage.getItem('contents');
+        if (cStored) {
+          const parsedC = JSON.parse(cStored);
+          if (Array.isArray(parsedC)) {
+            parsedC.forEach((c: any) => {
+              if (c && String(c.section || '').toLowerCase().trim() === 'materi') {
+                const normKat = normalizeTrainingKey(c.field3 || c.kategori) || (c.field3 || c.kategori || 'umum').toLowerCase().trim();
+                contentsMateri.push({
+                  id: String(c.id || Date.now()),
+                  judul: String(c.field2 || c.judul || c.title || 'Materi HW'),
+                  konten: String(c.field5 || c.konten || c.deskripsi || ''),
+                  kategori: normKat,
+                  tanggal: String(c.field4 || c.tanggal || ''),
+                  coverImage: String(c.coverImage || c.field1 || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'),
+                  driveUrl: String(c.driveUrl || (String(c.field1 || '').includes('drive.google.com') ? c.field1 : ''))
+                });
+              }
+            });
+          }
+        }
+      } catch (e) {}
+
+      // Master Map to hold all materials without loss
+      const mergedMap = new Map<string, Materi>();
+
+      // 1. Base curriculum defaults from INITIAL_SPREADSHEET_DATA.materi (36 Jati 1 + 18 Umum)
+      const baseDefaults: any[] = Array.isArray(INITIAL_SPREADSHEET_DATA.materi) ? INITIAL_SPREADSHEET_DATA.materi : [];
+      baseDefaults.forEach((m: any, idx: number) => {
+        if (!m || !m.judul) return;
+        const normKat = normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim();
+        const item: Materi = {
+          id: String(m.id || `materi-default-${idx}`),
+          judul: String(m.judul || ''),
+          konten: String(m.konten || ''),
+          kategori: normKat,
+          tanggal: String(m.tanggal || ''),
+          coverImage: String(m.coverImage || m.coverimage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'),
+          driveUrl: String(m.driveUrl || m.driveurl || ''),
+          linkExternal: String(m.linkExternal || m.linkexternal || '')
+        };
+        const titleKey = item.judul.toLowerCase().trim();
+        mergedMap.set(String(item.id), item);
+        if (titleKey) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // 2. Extra initial modules for other categories (Jati 2, Jari 1, Sugli, Kwarda) so no category is blank
+      const extraCategoriesDefaults: Materi[] = [
+        {
+          id: 'mat-jati2-modul-1',
+          judul: 'Kurikulum Lanjutan Jaya Melati 2: Strategi Manajemen Kwartir & Wilayah',
+          konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, sistem administrasi kwartir tingkat daerah dan wilayah.',
+          kategori: 'jati2',
+          tanggal: '2025-01-15T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+        },
+        {
+          id: 'mat-jari1-modul-1',
+          judul: 'Buku Panduan Jaya Matahari 1: Kader Pandu Penghela & Penuntun HW',
+          konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, navigasi darat lanjutan dan survival di alam bebas.',
+          kategori: 'jari1',
+          tanggal: '2025-01-18T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+        },
+        {
+          id: 'mat-sugli-modul-1',
+          judul: 'Petunjuk Teknis Dewan Sugli: Tata Kerja & Manajemen Kafilah Penuntun HW',
+          konten: 'Pedoman penyelenggaraan dewan kerja penuntun (Dewan Sugli) tingkat Kwarda dan Kwarwil se-Jawa Tengah.',
+          kategori: 'sugli',
+          tanggal: '2025-01-20T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1bAvtgUjiSSbq5YYN9UYHQvW_JZZ6N78J'
+        },
+        {
+          id: 'mat-kwarda-modul-1',
+          judul: 'Pedoman Standarisasi Administrasi & Keorganisasian Kwarda HW se-Jawa Tengah',
+          konten: 'Buku pedoman baku persuratan, pengarsipan berkas KTA, akreditasi qabilah, dan koordinasi program kerja Kwartir Wilayah.',
+          kategori: 'kwarda',
+          tanggal: '2025-01-22T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1mR0e9iYJb0pT9_O1Qk8lq9f_SAMPLE'
+        }
+      ];
+      extraCategoriesDefaults.forEach((item) => {
+        const titleKey = item.judul.toLowerCase().trim();
+        if (!mergedMap.has(item.id)) mergedMap.set(item.id, item);
+        if (titleKey && !mergedMap.has(`title_${titleKey}`)) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // 3. Local storage cached / offline items
+      localStored.forEach((m: any) => {
+        if (!m || !m.judul) return;
+        const normKat = normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim();
+        const item: Materi = {
+          ...m,
+          id: String(m.id || Date.now()),
+          judul: String(m.judul || ''),
+          konten: String(m.konten || ''),
+          kategori: normKat,
+          coverImage: m.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'
+        };
+        const titleKey = item.judul.toLowerCase().trim();
+        mergedMap.set(String(item.id), item);
+        if (titleKey) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // 4. Contents collection materi
+      contentsMateri.forEach((item: Materi) => {
+        const titleKey = item.judul.toLowerCase().trim();
+        mergedMap.set(String(item.id), item);
+        if (titleKey) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // 5. Firestore collection materi (user uploaded & synchronized from database takes HIGHEST precedence)
+      fsMateri.forEach((m: any) => {
+        if (!m || !m.judul) return;
+        const normKat = normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim();
+        const item: Materi = {
+          ...m,
+          id: String(m.id || Date.now()),
+          judul: String(m.judul || ''),
+          konten: String(m.konten || ''),
+          kategori: normKat,
+          coverImage: m.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'
+        };
+        const titleKey = item.judul.toLowerCase().trim();
+        mergedMap.set(String(item.id), item);
+        if (titleKey) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // Deduplicate by ID and exclude deleted items
+      const finalMateriMap = new Map<string, Materi>();
+      mergedMap.forEach((v) => {
+        if (v && v.id && !deletedIds.includes(String(v.id))) {
+          finalMateriMap.set(String(v.id), v);
+        }
+      });
+      const finalList = Array.from(finalMateriMap.values());
+
+      // Persist to localStorage so offline and fast cache is always warm
+      safeStorageSet('materi', finalList);
+      safeStorageSet('hw_materi_cache_umum', finalList.filter(m => m.kategori === 'umum' || m.kategori === 'umum_pandu'));
+
+      return finalList;
     }, 45000);
   },
 
   async saveMateri(item: Materi): Promise<Materi> {
     clearFirestoreCache('materi');
     const rawId = item.id ? String(item.id) : `materi-${Date.now()}`;
+    const normKat = normalizeTrainingKey(item.kategori) || (item.kategori || 'umum').toLowerCase().trim();
     const itemData = cleanData({
       ...item,
-      id: rawId
+      id: rawId,
+      kategori: normKat
     });
+    // Remove from deleted list if re-saved
+    try {
+      const dStr = localStorage.getItem('hw_deleted_materi_ids');
+      if (dStr) {
+        const deletedIds = JSON.parse(dStr);
+        const filteredD = deletedIds.filter((id: string) => id !== rawId);
+        safeStorageSet('hw_deleted_materi_ids', filteredD);
+      }
+    } catch (e) {}
+
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'materi', String(itemData.id)), itemData);
+        await setDoc(doc(db, 'materi', String(itemData.id)), itemData, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore saveMateri error:', err);
@@ -1869,6 +2068,16 @@ export const firestoreService = {
   async deleteMateri(id: string): Promise<boolean> {
     clearFirestoreCache('materi');
     const strId = String(id);
+    // Mark as deleted in tombstone so it won't resurrect from default seed data
+    try {
+      const dStr = localStorage.getItem('hw_deleted_materi_ids');
+      const deletedIds = dStr ? JSON.parse(dStr) : [];
+      if (!deletedIds.includes(strId)) {
+        deletedIds.push(strId);
+        safeStorageSet('hw_deleted_materi_ids', deletedIds);
+      }
+    } catch (e) {}
+
     if (!this.getIsQuotaExceeded()) {
       try {
         await deleteDoc(doc(db, 'materi', strId));
@@ -3167,9 +3376,27 @@ export const firestoreService = {
       if (!this.getIsQuotaExceeded()) {
         try {
           const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
-          if (!snap.empty) {
-            const contents = snap.docs.map(d => ({ id: d.id, ...d.data() } as Content));
-            const sanitized = contents.map(mapContentItem).filter(Boolean) as Content[];
+          const fsContents = !snap.empty ? snap.docs.map(d => ({ id: d.id, ...d.data() } as Content)) : [];
+          
+          let localContents: Content[] = [];
+          try {
+            const stored = localStorage.getItem('contents');
+            if (stored) localContents = JSON.parse(stored);
+          } catch (e) {}
+
+          const contentMap = new Map<string, Content>();
+          if (Array.isArray(localContents)) {
+            localContents.forEach(c => {
+              if (c && c.id) contentMap.set(String(c.id), c);
+            });
+          }
+          fsContents.forEach(c => {
+            if (c && c.id) contentMap.set(String(c.id), { ...contentMap.get(String(c.id)), ...c });
+          });
+
+          if (contentMap.size > 0) {
+            const merged = Array.from(contentMap.values());
+            const sanitized = merged.map(mapContentItem).filter(Boolean) as Content[];
             safeStorageSet('contents', sanitized);
             return sanitized;
           }

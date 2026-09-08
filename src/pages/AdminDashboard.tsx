@@ -239,6 +239,7 @@ import {
   Tag
 } from 'lucide-react';
 import KwardaPtmaPage from './KwardaPtmaPage';
+import ProfilePage from './ProfilePage';
 import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
@@ -523,8 +524,10 @@ export default function AdminDashboard() {
   const isPelatihUser = isRealAdmin || isAppointedJayaMatahariTrainer;
 
   const [activeTab, setActiveTabState] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'akun') return 'akun';
     if (isDiklatAdmin || isPelatihOnly) return 'pelatihan';
-    return searchParams.get('tab') || 'anggota';
+    return tabParam || 'anggota';
   });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -534,7 +537,8 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (isPelatihOnly && activeTab !== 'pelatihan') {
+    const tab = searchParams.get('tab');
+    if (isPelatihOnly && activeTab !== 'pelatihan' && activeTab !== 'akun') {
       setActiveTabState('pelatihan');
       return;
     }
@@ -542,11 +546,10 @@ export default function AdminDashboard() {
       setActiveTabState('pelatihan');
       return;
     }
-    const tab = searchParams.get('tab');
     if (tab && tab !== activeTab) {
       setActiveTabState(tab);
     }
-  }, [searchParams, isDiklatAdmin, isPelatihOnly]);
+  }, [searchParams, isDiklatAdmin, isPelatihOnly, activeTab]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['Semua']);
   const [loading, setLoading] = useState(false);
   const [backgroundProcessingText, setBackgroundProcessingText] = useState<string | null>(null);
@@ -2820,15 +2823,7 @@ export default function AdminDashboard() {
         setContents(freshContents);
         if (selectedContentSectionRef.current) {
           const target = selectedContentSectionRef.current;
-          const isMatch = (cSec: string | undefined) => {
-            const c = (cSec || '').trim().toLowerCase();
-            const t = target.trim().toLowerCase();
-            if (t === 'galeri' || t === 'video' || t === 'gallery') {
-              return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
-            }
-            return c === t;
-          };
-          setContentList(freshContents.filter(c => isMatch(c.section)));
+          setContentList(freshContents.filter(c => isContentSectionMatch(c.section, target)));
         }
       }
     });
@@ -2851,19 +2846,22 @@ export default function AdminDashboard() {
     selectedContentSectionRef.current = selectedContentSection;
   }, [selectedContentSection]);
 
+  const isContentSectionMatch = (cSec: string | undefined, targetSection: string | null) => {
+    if (!targetSection) return false;
+    const c = (cSec || '').trim().toLowerCase();
+    const t = targetSection.trim().toLowerCase();
+    if (t === 'galeri' || t === 'video' || t === 'gallery') {
+      return ['galeri', 'video', 'videos', 'galeri_video', 'galeri-video', 'gallery', 'youtube', 'media'].includes(c);
+    }
+    if (t === 'playlist' || t === 'lagu' || t === 'musik' || t === 'audio') {
+      return ['playlist', 'lagu', 'musik', 'audio', 'songs', 'song', 'music', 'mars', 'daftarlagu', 'dataplaylist'].includes(c);
+    }
+    return c === t;
+  };
+
   const handleSelectSection = (section: string) => {
     setSelectedContentSection(section);
-    // Filter contents for this section with alias support
-    const isMatch = (cSec: string | undefined) => {
-      const c = (cSec || '').trim().toLowerCase();
-      const t = section.trim().toLowerCase();
-      if (t === 'galeri' || t === 'video' || t === 'gallery') {
-        return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
-      }
-      return c === t;
-    };
-    const sectionItems = contents.filter(c => isMatch(c.section));
-    setContentList(sectionItems);
+    setContentList(contents.filter(c => isContentSectionMatch(c.section, section)));
   };
 
   const handleOpenContentModal = (content?: Content) => {
@@ -3034,7 +3032,7 @@ export default function AdminDashboard() {
             const allContents = await sheetsService.getContents();
             if (allContents) {
               setContents(allContents);
-              setContentList(allContents.filter(c => c.section === selectedContentSection));
+              setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
             }
           } finally {
             setBackgroundProcessingText(null);
@@ -3062,7 +3060,7 @@ export default function AdminDashboard() {
             const allContents = await sheetsService.getContents();
             if (allContents) {
               setContents(allContents);
-              setContentList(allContents.filter(c => c.section === selectedContentSection));
+              setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
             }
           } finally {
             setBackgroundProcessingText(null);
@@ -4754,7 +4752,7 @@ export default function AdminDashboard() {
               (!isDiklatAdmin) && { id: 'konten', label: 'Konten', icon: Layout, activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 ring-2 ring-purple-400', hoverClass: 'hover:border-purple-300 hover:text-purple-600' },
               (!isDiklatAdmin) && user?.role === 'superadmin' && { id: 'admin', label: 'Admin', icon: Shield, activeClass: 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400', hoverClass: 'hover:border-indigo-300 hover:text-indigo-600' },
               (!isDiklatAdmin) && user?.role === 'superadmin' && { id: 'pengaturan', label: 'Pengaturan', icon: Settings, activeClass: 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-md shadow-slate-700/25 ring-2 ring-slate-600', hoverClass: 'hover:border-slate-300 hover:text-slate-800' },
-              { id: 'akun', label: 'Akun Saya', icon: Users, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
+              { id: 'akun', label: 'Akun Saya', icon: UserIcon, activeClass: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/25 ring-2 ring-rose-400', hoverClass: 'hover:border-rose-300 hover:text-rose-600' }
             ].filter(Boolean).map((tab: any) => (
               <button
                 key={tab.id}
@@ -9819,6 +9817,39 @@ export default function AdminDashboard() {
           {activeTab === 'kwarda-ptma' && (
             <div className="p-4 sm:p-6">
               <KwardaPtmaPage />
+            </div>
+          )}
+
+          {/* AKUN SAYA TAB */}
+          {activeTab === 'akun' && (
+            <div className="p-4 sm:p-8 max-w-4xl mx-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-6 border-b border-gray-100 bg-gradient-to-r from-rose-50 via-pink-50 to-orange-50 -mx-4 -mt-4 sm:-mx-8 sm:-mt-8 p-4 sm:p-6 rounded-t-[2.5rem]">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center font-bold shadow-md shadow-rose-500/20">
+                    <UserIcon size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-display font-bold text-gray-800">
+                      Profil & Akun Saya
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Kelola biodata diri, foto, identitas KTA, dan kredensial akun ({user?.namaLengkap || user?.email || 'Pengguna'})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+                  title="Buka tampilan penuh di halaman profil terpisah"
+                >
+                  <span>Buka Halaman Penuh</span>
+                  <ExternalLink size={14} />
+                </button>
+              </div>
+              <div className="max-w-xl mx-auto">
+                <ProfilePage />
+              </div>
             </div>
           )}
         </motion.div>

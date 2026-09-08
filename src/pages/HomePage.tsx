@@ -1067,7 +1067,7 @@ export default function HomePage() {
             <MenuCard to="/materi" state={{ filter: 'jari1' }} icon={Award} label="Jari 1" color="bg-amber-600" />
             
             <MenuCard to="/upgrade" icon={Award} label="Upgrade" color="bg-cyan-500" />
-            <MenuCard to="/profile" icon={Users} label="Profil" color="bg-rose-500" />
+            <MenuCard to="/profile" icon={UserIcon} label="Akun Saya" color="bg-rose-500" />
             {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'kwarda') && (
               <MenuCard to="/admin" icon={Shield} label="Admin" color="bg-hw-dark" />
             )}

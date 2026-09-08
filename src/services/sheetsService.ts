@@ -866,7 +866,12 @@ export const sheetsService = {
       const materiList = await firestoreService.getMateri();
       const mapped = (materiList || [])
         .map((m: any) => this.mapMateri(m))
-        .filter((m: any) => !role || role === 'semua' || m.kategori === role);
+        .filter((m: any) => {
+          if (!role || role === 'semua') return true;
+          const k = String(m.kategori || '').toLowerCase().trim();
+          const r = String(role).toLowerCase().trim();
+          return k === r;
+        });
 
       // 2. Non-blocking background sync with Google Sheets API if valid
       if (IS_API_VALID) {
@@ -886,6 +891,13 @@ export const sheetsService = {
 
       return mapped;
     }, 30000);
+  },
+
+  subscribeToMateri(callback: (materi: Materi[]) => void): () => void {
+    return firestoreService.subscribeToMateri((items) => {
+      const mapped = (items || []).map((m: any) => this.mapMateri(m));
+      callback(mapped);
+    });
   },
 
   async saveMateri(materi: any): Promise<any> {

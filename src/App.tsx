@@ -50,7 +50,7 @@ import KwardaPtmaPage from './pages/KwardaPtmaPage';
 
 const Header = React.memo(() => {
   const location = useLocation();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const isFullWidth = location.pathname === '/admin' || location.pathname === '/kwarda-ptma';
 
   return (
@@ -69,6 +69,25 @@ const Header = React.memo(() => {
         </Link>
         <div className="flex items-center gap-2">
           <NotificationBell />
+          {isAuthenticated && (
+            <Link
+              to="/profile"
+              title="Akun Saya"
+              className={cn(
+                "flex items-center gap-1.5 py-1 px-2.5 rounded-full border transition-all text-xs font-bold active:scale-95 touch-manipulation cursor-pointer",
+                location.pathname === '/profile'
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200/80"
+              )}
+            >
+              {user?.photo ? (
+                <img src={user.photo} alt={user.namaLengkap || 'Profil'} className="w-5 h-5 rounded-full object-cover border border-emerald-500" />
+              ) : (
+                <UserIcon size={14} className={location.pathname === '/profile' ? "text-white" : "text-emerald-700"} />
+              )}
+              <span className="text-[11px] font-bold">Akun Saya</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>
