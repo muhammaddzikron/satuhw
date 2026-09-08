@@ -413,24 +413,40 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
       return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
     });
 
-    let currentSeq = 1;
+    // Separate approved/verified members from pending applications
+    const approvedItems: any[] = [];
+    const pendingItems: any[] = [];
+
     for (const item of groupItems as any[]) {
-      const isApprovedOrMember = item.status === 'approved' || item.isVerified === true || Boolean(item.ktaNumber || item.nomorKTA);
-      if (isApprovedOrMember) {
-        if (!item.ktaNumber && !item.nomorKTA) {
-          const newKta = formatKtaNumber(code, currentSeq);
-          item.ktaNumber = newKta;
-          item.nomorKTA = newKta;
-          item.kodeProvinsi = '11';
-          item.kodeKwarda = code;
-          item.nomorUrut = currentSeq;
-        } else {
-          const currentKta = item.ktaNumber || item.nomorKTA;
-          item.ktaNumber = currentKta;
-          item.nomorKTA = currentKta;
-        }
-        currentSeq++;
+      const isApproved = item.status === 'approved' || item.isVerified === true;
+      if (isApproved) {
+        approvedItems.push(item);
+      } else {
+        pendingItems.push(item);
       }
+    }
+
+    // Resequence approved members strictly from 1 to N without any gaps
+    let currentSeq = 1;
+    for (const item of approvedItems) {
+      const newKta = formatKtaNumber(code, currentSeq);
+      item.ktaNumber = newKta;
+      item.nomorKTA = newKta;
+      item.kodeProvinsi = '11';
+      item.kodeKwarda = code;
+      item.nomorUrut = currentSeq;
+      currentSeq++;
+    }
+
+    // Sequence pending applications seamlessly after approved members
+    for (const item of pendingItems) {
+      const candKta = formatKtaNumber(code, currentSeq);
+      item.kodeProvinsi = '11';
+      item.kodeKwarda = code;
+      item.nomorUrut = currentSeq;
+      item.ktaNumber = candKta;
+      item.nomorKTA = candKta;
+      currentSeq++;
     }
   });
 

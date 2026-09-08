@@ -1264,7 +1264,7 @@ export const sheetsService = {
 
         if (!isPresent) {
           const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          const isApproved = Boolean(m.isVerified || mKta || m.status === 'approved');
+          const isApproved = Boolean(m.isVerified === true || (m.status && String(m.status).toLowerCase() === 'approved'));
           apps.push({
             id: ktaId,
             userId: m.id || ktaId,
@@ -1281,7 +1281,7 @@ export const sheetsService = {
             alamat: m.alamat || '',
             nbm: m.nbm || '',
             photo: m.photo || '',
-            status: isApproved ? 'approved' : (m.status || 'pending'),
+            status: isApproved ? 'approved' : ((m.status && String(m.status).toLowerCase() === 'rejected') ? 'rejected' : 'pending'),
             statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
             statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
             ktaNumber: mKta || '',

@@ -4194,7 +4194,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+      return isApprovedParticipant(app) && isGrad;
     });
 
     const headers = ['No', 'No. Seri Piagam', 'Nama Peserta', 'Nomor KTA / NBM', 'Program Pelatihan', 'Predikat Nilai', 'Asal Daerah', 'Qabilah', 'Status Validasi', 'Tanggal Terbit', 'URL Verifikasi'];
@@ -4203,13 +4203,14 @@ export default function AdminDashboard() {
       const dispNbm = app.nbm || app.ktaNumber || app.nomorKTA || matchMember?.ktaNumber || matchMember?.nbm || '-';
       const serialNo = `HW-JT/PLT/${new Date().getFullYear()}/${app.id.slice(0, 4).toUpperCase()}`;
       const verifyUrl = `${window.location.origin}/pelatihan?verify=${app.id}`;
+      const progName = app.trainingTitle || app.program || app.tingkat || 'Pelatihan HW';
 
       return [
         idx + 1,
         serialNo,
         app.nama || app.namaLengkap || '-',
         dispNbm,
-        selectedPiagamProg,
+        progName,
         app.nilai || 'A',
         app.asalDaerah || '-',
         app.qabilah || '-',
@@ -4228,8 +4229,7 @@ export default function AdminDashboard() {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedPiagamProg.replace(/\s+/g, '_');
-    link.setAttribute("download", `Data_Piagam_Tervalidasi_${progSuffix}_${dateStr}.csv`);
+    link.setAttribute("download", `Data_Piagam_Tervalidasi_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -4243,7 +4243,7 @@ export default function AdminDashboard() {
       const email = (app?.email || '').toLowerCase().trim();
       if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
       const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
-      return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+      return isApprovedParticipant(app) && isGrad;
     });
 
     const doc = new jsPDF() as any;
@@ -4261,10 +4261,10 @@ export default function AdminDashboard() {
     });
 
     doc.setFontSize(14);
-    doc.text(`DAFTAR PIAGAM KELULUSAN TERVALIDASI - ${selectedPiagamProg.toUpperCase()}`, 14, 15);
+    doc.text(`DAFTAR PIAGAM KELULUSAN TERVALIDASI`, 14, 15);
     doc.setFontSize(9);
     doc.text(`Kwartir Wilayah Hizbul Wathan Jawa Tengah - Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 21);
-    doc.text(`Tingkat Pelatihan: ${selectedPiagamProg} | Total Piagam Sah: ${graduates.length} Sertifikat`, 14, 26);
+    doc.text(`Total Piagam Sah: ${graduates.length} Sertifikat`, 14, 26);
 
     autoTable(doc, {
       head: headers,
@@ -4276,8 +4276,7 @@ export default function AdminDashboard() {
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
-    const progSuffix = selectedPiagamProg.replace(/\s+/g, '_');
-    doc.save(`Laporan_Piagam_Tervalidasi_${progSuffix}_${dateStr}.pdf`);
+    doc.save(`Laporan_Piagam_Tervalidasi_${dateStr}.pdf`);
   };
 
   const getMemberRegionalCodeIndex = (m: any): number => {
@@ -8626,25 +8625,11 @@ export default function AdminDashboard() {
                 {/* 5. CETAK PIAGAM SUB-TAB */}
                 {trainingSubTab === 'piagam' && (
                   <div className="space-y-6">
-                    {/* Piagam Header Toolbar & Program Filter */}
+                    {/* Piagam Header Toolbar */}
                     <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Tingkat / Program:</span>
-                        <div className="flex items-center gap-1.5">
-                          {['Jati 1', 'Jati 2', 'Jari 1'].map((prog) => (
-                            <button
-                              key={prog}
-                              onClick={() => setSelectedPiagamProg(prog as any)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                                selectedPiagamProg === prog 
-                                  ? 'bg-hw-green text-white border-hw-green shadow-xs' 
-                                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                              }`}
-                            >
-                              {prog}
-                            </button>
-                          ))}
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Award size={18} className="text-hw-green" />
+                        <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Daftar Piagam Kelulusan Tervalidasi</span>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -8673,12 +8658,12 @@ export default function AdminDashboard() {
                         const email = (app?.email || '').toLowerCase().trim();
                         if (!name || name === '-' || name.toLowerCase() === 'tanpa nama' || name.includes('@') || sysEmails.includes(email)) return false;
                         const isGrad = app.statusKelulusan === 'Lulus' || app.statusKelulusan === 'Lulus Bersyarat' || getCalculatedGrading(app).calculatedStatus !== 'Tidak Lulus';
-                        return isApprovedParticipant(app) && isMatchTrainingLevel(app, selectedPiagamProg) && isGrad;
+                        return isApprovedParticipant(app) && isGrad;
                       }).sort((a, b) => (a.nama || a.namaLengkap || '').localeCompare(b.nama || b.namaLengkap || '', 'id', { sensitivity: 'base' }));
 
                       return graduates.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                          Belum ada peserta tingkat {selectedPiagamProg} yang dinyatakan "Lulus" atau "Lulus Bersyarat". Silakan proses penilaian & kelulusan terlebih dahulu pada sub-tab Kelulusan.
+                          Belum ada peserta yang dinyatakan "Lulus" atau "Lulus Bersyarat". Silakan proses penilaian & kelulusan terlebih dahulu pada sub-tab Kelulusan.
                         </div>
                       ) : (
                         <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm">

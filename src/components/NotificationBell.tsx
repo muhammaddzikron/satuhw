@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { NotificationModal } from './NotificationModal';
 import { calculateUnreadCount } from '../utils/notificationUtils';
+import { firestoreService } from '../services/firestoreService';
 
 interface NotificationBellProps {
   className?: string;
@@ -43,12 +44,23 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     window.addEventListener('member_updated', handleUpdates);
     window.addEventListener('storage', handleUpdates);
 
+    // Subscribe to real-time KTA applications in Firestore for instantaneous detection
+    const unsubKta = firestoreService.subscribeToKTAApplications(() => {
+      updateCount();
+    });
+
+    const unsubMembers = firestoreService.subscribeToMembers(() => {
+      updateCount();
+    });
+
     return () => {
       window.removeEventListener('notifications_read_updated', handleUpdates);
       window.removeEventListener('training_applications_updated', handleUpdates);
       window.removeEventListener('kta_applications_updated', handleUpdates);
       window.removeEventListener('member_updated', handleUpdates);
       window.removeEventListener('storage', handleUpdates);
+      if (typeof unsubKta === 'function') unsubKta();
+      if (typeof unsubMembers === 'function') unsubMembers();
     };
   }, [updateCount]);
 

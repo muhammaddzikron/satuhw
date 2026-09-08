@@ -1093,55 +1093,10 @@ export const firestoreService = {
 
     const cleanOwnerId = ownerIdParam ? String(ownerIdParam).trim().toLowerCase() : '';
 
-    // Check if existingKta is valid AND not claimed by another user
-    if (existingKta && isValidKtaNumberFormat(existingKta)) {
-      let isClaimedByOther = false;
-
-      if (sessionAllocatedKtaNumbers.has(existingKta)) {
-        isClaimedByOther = true;
-      } else {
-        // Check local storage and Firestore data for duplicate ownership
-        try {
-          const mems: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
-          const duplicateInLocalMem = mems.some(m => {
-            const num = m.nomorKTA || m.ktaNumber;
-            const mKey = (m.email || m.id || '').toString().trim().toLowerCase();
-            return num === existingKta && (!cleanOwnerId || (mKey && mKey !== cleanOwnerId));
-          });
-          if (duplicateInLocalMem) isClaimedByOther = true;
-
-          if (!isClaimedByOther) {
-            const ktas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
-            const duplicateInLocalKta = ktas.some(k => {
-              const num = k.nomorKTA || k.ktaNumber;
-              const kKey = (k.email || k.userId || k.id || '').toString().trim().toLowerCase();
-              return num === existingKta && (!cleanOwnerId || (kKey && kKey !== cleanOwnerId));
-            });
-            if (duplicateInLocalKta) isClaimedByOther = true;
-          }
-        } catch (e) {}
-      }
-
-      if (!isClaimedByOther) {
-        sessionAllocatedKtaNumbers.add(existingKta);
-        const parsed = parseKtaNumber(existingKta)!;
-        return {
-          nomorKTA: existingKta,
-          ktaNumber: existingKta,
-          kodeProvinsi: '11',
-          kodeKwarda: parsed.kodeKwarda,
-          nomorUrut: parsed.nomorUrut
-        };
-      } else {
-        // Duplicate detected! Reset existingKta so a new unique number will be generated
-        existingKta = undefined;
-      }
-    }
-
     const kodeKwarda = getKwardaCode(asalKwarda, qabilah);
     const counterRef = doc(db, 'kta_counters', kodeKwarda);
 
-    // Initial scan of existing sequence numbers across master members, members & kta_applications & sessionAllocatedKtaNumbers
+    // Initial scan of existing sequence numbers across active members, kta_applications, master members & session allocations
     const existingSeqNumbers: number[] = [];
 
     sessionAllocatedKtaNumbers.forEach(sNum => {
@@ -1170,6 +1125,7 @@ export const firestoreService = {
 
       (memSnap as any).docs?.forEach((d: any) => {
         const data = d.data();
+        if (data.status === 'rejected') return;
         const kNum = data.nomorKTA || data.ktaNumber;
         const parsed = parseKtaNumber(kNum);
         if (parsed && parsed.kodeKwarda === kodeKwarda) {
@@ -1181,6 +1137,7 @@ export const firestoreService = {
 
       (ktaSnap as any).docs?.forEach((d: any) => {
         const data = d.data();
+        if (data.status === 'rejected') return;
         const kNum = data.nomorKTA || data.ktaNumber;
         const parsed = parseKtaNumber(kNum);
         if (parsed && parsed.kodeKwarda === kodeKwarda) {
@@ -1195,6 +1152,7 @@ export const firestoreService = {
     try {
       const mems: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
       mems.forEach(m => {
+        if (m.status === 'rejected') return;
         const kNum = m.nomorKTA || m.ktaNumber;
         const parsed = parseKtaNumber(kNum);
         if (parsed && parsed.kodeKwarda === kodeKwarda) {
@@ -1203,6 +1161,7 @@ export const firestoreService = {
       });
       const ktas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
       ktas.forEach(k => {
+        if (k.status === 'rejected') return;
         const kNum = k.nomorKTA || k.ktaNumber;
         const parsed = parseKtaNumber(kNum);
         if (parsed && parsed.kodeKwarda === kodeKwarda) {
@@ -1211,25 +1170,40 @@ export const firestoreService = {
       });
     } catch (e) {}
 
+    const usedSet = new Set<number>(existingSeqNumbers);
+    const candidate = findNextAvailableNumber(usedSet);
+
+    // If existingKta is provided and valid, verify if it doesn't create gaps or collide
+    if (existingKta && isValidKtaNumberFormat(existingKta)) {
+      const parsed = parseKtaNumber(existingKta);
+      if (parsed && parsed.kodeKwarda === kodeKwarda) {
+        // If the number is already taken by someone else OR skips past the available candidate:
+        // we use the clean candidate to keep the sequence contiguous
+        const isCollision = usedSet.has(parsed.nomorUrut);
+        const isSkipping = parsed.nomorUrut > candidate;
+        if (!isCollision && !isSkipping) {
+          sessionAllocatedKtaNumbers.add(existingKta);
+          return {
+            nomorKTA: existingKta,
+            ktaNumber: existingKta,
+            kodeProvinsi: '11',
+            kodeKwarda: parsed.kodeKwarda,
+            nomorUrut: parsed.nomorUrut
+          };
+        }
+      }
+    }
+
     let finalNumber = '';
-    let allocatedSeq = 1;
+    let allocatedSeq = candidate;
 
     if (!this.getIsQuotaExceeded()) {
       try {
         await runTransaction(db, async (transaction) => {
-          const counterSnap = await transaction.get(counterRef);
-          const usedSet = new Set<number>(existingSeqNumbers);
-
-          if (counterSnap.exists()) {
-            const cData = counterSnap.data();
-            if (Array.isArray(cData.usedNumbers)) {
-              cData.usedNumbers.forEach((num: number) => usedSet.add(Number(num)));
-            }
-          }
-
-          const candidate = findNextAvailableNumber(usedSet);
-          allocatedSeq = candidate;
-          usedSet.add(candidate);
+          const transUsedSet = new Set<number>(existingSeqNumbers);
+          const nextSeq = findNextAvailableNumber(transUsedSet);
+          allocatedSeq = nextSeq;
+          transUsedSet.add(nextSeq);
 
           transaction.set(
             counterRef,
@@ -1237,14 +1211,14 @@ export const firestoreService = {
               id: kodeKwarda,
               kodeKwarda,
               kodeProvinsi: '11',
-              usedNumbers: Array.from(usedSet),
-              lastSequence: Math.max(...Array.from(usedSet)),
+              usedNumbers: Array.from(transUsedSet).sort((a, b) => a - b),
+              lastSequence: Math.max(...Array.from(transUsedSet), 0),
               updatedAt: new Date().toISOString()
             },
             { merge: true }
           );
 
-          finalNumber = formatKtaNumber(kodeKwarda, candidate);
+          finalNumber = formatKtaNumber(kodeKwarda, nextSeq);
         });
       } catch (txErr) {
         console.warn('runTransaction warn/fallback:', txErr);
@@ -1252,7 +1226,6 @@ export const firestoreService = {
     }
 
     if (!finalNumber) {
-      const candidate = findNextAvailableNumber(existingSeqNumbers);
       allocatedSeq = candidate;
       finalNumber = formatKtaNumber(kodeKwarda, candidate);
     }
@@ -1809,6 +1782,9 @@ export const firestoreService = {
             const finalApps = ensureUniqueKtaNumbers(rawApps);
             safeStorageSet('kta_applications', finalApps);
             callback(finalApps);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('kta_applications_updated'));
+            }
           }
         }, (err) => {
           this.checkQuotaError(err);
@@ -2008,7 +1984,7 @@ export const firestoreService = {
 
         if (!isPresent) {
           const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          const isApproved = Boolean(m.isVerified || mKta || m.status === 'approved');
+          const isApproved = Boolean(m.isVerified === true || (m.status && String(m.status).toLowerCase() === 'approved'));
           ktas.push({
             id: ktaId,
             userId: m.id || ktaId,
@@ -2025,7 +2001,7 @@ export const firestoreService = {
             alamat: m.alamat || '',
             nbm: m.nbm || '',
             photo: m.photo || '',
-            status: isApproved ? 'approved' : (m.status || 'pending'),
+            status: isApproved ? 'approved' : ((m.status && String(m.status).toLowerCase() === 'rejected') ? 'rejected' : 'pending'),
             statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
             statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
             ktaNumber: mKta || '',
@@ -2061,6 +2037,32 @@ export const firestoreService = {
               batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
             }
           });
+
+          // Reset and sync Firestore kta_counters for each Kwarda so no holes exist
+          const kwardaSeqMap = new Map<string, number[]>();
+          resequenced.forEach((k: any) => {
+            const parsed = parseKtaNumber(k.nomorKTA || k.ktaNumber);
+            if (parsed && parsed.kodeKwarda) {
+              if (!kwardaSeqMap.has(parsed.kodeKwarda)) {
+                kwardaSeqMap.set(parsed.kodeKwarda, []);
+              }
+              kwardaSeqMap.get(parsed.kodeKwarda)!.push(parsed.nomorUrut);
+            }
+          });
+
+          kwardaSeqMap.forEach((seqs, code) => {
+            const uniqueSorted = Array.from(new Set(seqs)).sort((a, b) => a - b);
+            const counterRef = doc(db, 'kta_counters', code);
+            batch.set(counterRef, {
+              id: code,
+              kodeKwarda: code,
+              kodeProvinsi: '11',
+              usedNumbers: uniqueSorted,
+              lastSequence: uniqueSorted.length > 0 ? Math.max(...uniqueSorted) : 0,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+          });
+
           await batch.commit();
         } catch (err) {
           this.checkQuotaError(err);
@@ -2086,9 +2088,16 @@ export const firestoreService = {
           });
           if (memberUpdated) {
             safeStorageSet('mock_members', members);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('member_updated'));
+            }
           }
         }
       } catch (e) {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('kta_applications_updated'));
+      }
 
       return resequenced;
     } catch (e) {
@@ -4908,11 +4917,7 @@ export const firestoreService = {
         const kStatus = (k.status || '').toString().toLowerCase();
         const ktaNum = (k.ktaNumber || k.KtaNumber || k.ktanumber || '').toString().trim();
 
-        if (ktaNum !== '' && kStatus !== 'approved') {
-          k.status = 'approved';
-        }
-
-        if (k.status?.toLowerCase() !== 'approved') continue;
+        if (kStatus !== 'approved') continue;
 
         const kEmail = (k.email || '').toString().trim().toLowerCase();
         const kName = (k.nama || k.namaLengkap || '').toString().trim();

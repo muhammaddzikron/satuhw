@@ -120,7 +120,10 @@ export function buildAllNotifications(options: {
         m.statusUpgrade === 'pending' || 
         (Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0)
       );
-      pendingKtaApps = ktas.filter((k: any) => k.status === 'pending');
+      pendingKtaApps = ktas.filter((k: any) => {
+        const st = (k.status || '').toString().toLowerCase().trim();
+        return st === 'pending' || st === 'menunggu' || st === 'diproses';
+      });
       pendingTrainingApps = trainings.filter((t: any) => t.status === 'pending');
       submittedTaskApps = trainings.filter((t: any) => 
         (Array.isArray(t.tasks) && t.tasks.some((task: any) => task.submitted)) ||
@@ -138,6 +141,21 @@ export function buildAllNotifications(options: {
         timestamp: 'Perlu Verifikasi',
         link: '/admin?tab=pendaftaran',
         actionType: 'pendaftaran'
+      });
+
+      // Individual itemized member entries for immediate awareness
+      pendingMembers.slice(0, 5).forEach((m: any) => {
+        const name = m.namaLengkap || m.nama || 'Calon Anggota';
+        const daerah = m.asalKwarda || m.asalDaerah || m.qabilah || 'Jawa Tengah';
+        items.push({
+          id: `admin-mem-app-${m.id || name}`,
+          type: 'member',
+          title: `Pendaftar Baru: ${name}`,
+          message: `${name} (${daerah}) telah mendaftar dan menunggu verifikasi admin.`,
+          timestamp: 'Menunggu Verifikasi',
+          link: '/admin?tab=pendaftaran',
+          actionType: 'pendaftaran'
+        });
       });
     }
 
@@ -162,6 +180,21 @@ export function buildAllNotifications(options: {
         timestamp: 'Antrean KTA',
         link: '/admin?tab=kta',
         actionType: 'kta'
+      });
+
+      // Individual itemized KTA entries for immediate awareness and 1-click navigation
+      pendingKtaApps.slice(0, 5).forEach((app: any) => {
+        const applicantName = app.nama || app.namaLengkap || 'Calon Anggota';
+        const kwarda = app.asalDaerah || app.asalKwarda || app.qabilah || 'Jawa Tengah';
+        items.push({
+          id: `admin-kta-app-${app.id || app.userId || applicantName}`,
+          type: 'kta',
+          title: `Pengajuan KTA: ${applicantName}`,
+          message: `Pengajuan KTA oleh ${applicantName} (${kwarda}) siap untuk ditinjau dan disetujui.`,
+          timestamp: 'Menunggu Approval',
+          link: '/admin?tab=kta',
+          actionType: 'kta'
+        });
       });
     }
 
