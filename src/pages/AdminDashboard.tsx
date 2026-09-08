@@ -5214,6 +5214,110 @@ export default function AdminDashboard() {
                                </button>
                              )}
                            </div>
+                        ) : selectedContentSection === 'playlist' ? (
+                          /* DEDICATED PLAYLIST TABLE VIEW */
+                          <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-2xs">
+                            <table className="w-full text-left text-xs text-gray-700 border-collapse">
+                              <thead className="bg-gray-50/90 text-[10px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-200 select-none">
+                                <tr>
+                                  <th className="py-3.5 px-3.5 w-12 text-center">No</th>
+                                  <th className="py-3.5 px-4 min-w-[200px]">Judul Lagu</th>
+                                  <th className="py-3.5 px-4 min-w-[160px]">Pencipta Lagu</th>
+                                  <th className="py-3.5 px-4 min-w-[240px]">Lirik Lagu</th>
+                                  <th className="py-3.5 px-4 min-w-[180px]">Link Audio</th>
+                                  <th className="py-3.5 px-4 w-28 text-center">Aksi</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {(Array.isArray(contentList) ? contentList : []).map((item, i) => {
+                                  const meta = resolveTrackMetadata(item);
+                                  const songUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || '';
+                                  const isDrive = songUrl.includes('drive.google.com');
+
+                                  return (
+                                    <tr key={`playlist-admin-row-${item.id || i}`} className="hover:bg-emerald-50/30 transition-colors">
+                                      <td className="py-3.5 px-3.5 text-center font-mono font-bold text-gray-400">
+                                        #{i + 1}
+                                      </td>
+                                      <td className="py-3.5 px-4 font-bold text-gray-900">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black shrink-0 shadow-2xs">
+                                            <Music size={16} />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="font-bold text-gray-900 text-xs sm:text-sm uppercase tracking-tight truncate">
+                                              {meta.title}
+                                            </p>
+                                            <span className="text-[10px] text-gray-400 font-medium">
+                                              {meta.category}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="py-3.5 px-4 align-top">
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-bold text-xs">
+                                          <UserIcon size={12} className="text-emerald-700 shrink-0" />
+                                          <span className="truncate">{meta.creator || 'Muhammad Dzikron'}</span>
+                                        </div>
+                                      </td>
+                                      <td className="py-3.5 px-4 align-top">
+                                        {meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? (
+                                          <div className="space-y-0.5 max-w-xs">
+                                            <p className="text-[11px] text-gray-600 line-clamp-2 italic font-sans leading-relaxed">
+                                              &quot;{meta.lyrics.substring(0, 80)}...&quot;
+                                            </p>
+                                            <span className="text-[9px] font-bold text-emerald-700 block">
+                                              ✓ {meta.lyrics.length} karakter lirik
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 italic">
+                                            <AlertCircle size={12} /> Lirik belum diisi
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-3.5 px-4 align-top">
+                                        <div className="space-y-0.5 max-w-[200px]">
+                                          <a
+                                            href={songUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[11px] font-mono text-blue-600 hover:underline truncate block"
+                                            title={songUrl}
+                                          >
+                                            {songUrl ? (songUrl.length > 25 ? songUrl.substring(0, 25) + '...' : songUrl) : '-'}
+                                          </a>
+                                          <span className="text-[9px] text-gray-400 font-medium block">
+                                            {isDrive ? 'Google Drive' : (songUrl.endsWith('.mp3') ? 'Direct MP3' : 'Audio URL')}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center align-middle">
+                                        <div className="flex items-center justify-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenContentModal(item)}
+                                            className="p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                                            title="Edit Judul, Pencipta, Link, & Lirik"
+                                          >
+                                            <Edit2 size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteContent(item.id)}
+                                            className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                            title="Hapus Lagu"
+                                          >
+                                            <Trash2 size={15} />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {(Array.isArray(contentList) ? contentList : []).map((item, i) => (
@@ -5235,25 +5339,7 @@ export default function AdminDashboard() {
                                   <h4 className="text-xs font-bold text-gray-800 truncate uppercase">
                                     {selectedContentSection === 'running-text' ? 'Teks Berjalan' : (selectedContentSection === 'galeri' ? (item.field2 || 'Video Youtube') : (item.field2 || item.field1 || item.section))}
                                   </h4>
-                                  {selectedContentSection === 'playlist' ? (() => {
-                                    const meta = resolveTrackMetadata(item);
-                                    return (
-                                      <div className="space-y-0.5">
-                                        <p className="text-[11px] text-emerald-700 truncate font-bold">
-                                          Cipt: {meta.creator || 'Muhammad Dzikron'}
-                                        </p>
-                                        {meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? (
-                                          <p className="text-[9px] text-gray-500 line-clamp-1 italic font-medium">
-                                            Lirik: {meta.lyrics.substring(0, 60)}...
-                                          </p>
-                                        ) : (
-                                          <p className="text-[9px] text-amber-600 font-medium italic">Lirik belum diisi</p>
-                                        )}
-                                      </div>
-                                    );
-                                  })() : (
-                                    <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
-                                  )}
+                                  <p className="text-[9px] text-gray-400 truncate font-black tracking-widest uppercase">{item.field1 || item.section}</p>
                                 </div>
                   <div className="flex gap-1">
                     <button 
@@ -11507,34 +11593,94 @@ export default function AdminDashboard() {
       {/* 13. CONTENT MODAL */}
       {isContentModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+          <div className={`bg-white rounded-3xl ${selectedContentSection === 'playlist' ? 'max-w-lg' : 'max-w-md'} w-full p-6 shadow-2xl border border-gray-100 space-y-4`}>
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-base font-black text-gray-900">
-                {editingContent ? 'Edit Konten' : 'Tambah Konten Baru'}
+                {selectedContentSection === 'playlist'
+                  ? (editingContent ? 'Edit Data & Lirik Lagu Playlist' : 'Tambah Lagu Baru ke Playlist')
+                  : (editingContent ? 'Edit Konten' : 'Tambah Konten Baru')}
               </h3>
               <button onClick={() => setIsContentModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Judul / Teks 1</label>
-                <input
-                  type="text"
-                  value={contentFormData.field1}
-                  onChange={(e) => setContentFormData(f => ({ ...f, field1: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Keterangan / Teks 2</label>
-                <input
-                  type="text"
-                  value={contentFormData.field2}
-                  onChange={(e) => setContentFormData(f => ({ ...f, field2: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
-                />
-              </div>
+              {selectedContentSection === 'playlist' ? (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Judul Lagu <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Sahabat HW, Mars Hizbul Wathan, dll"
+                      value={contentFormData.field2}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field2: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:bg-white focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Pencipta Lagu <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Muhammad Dzikron, H. Siradj Dahlan, dll"
+                      value={contentFormData.field3}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field3: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-emerald-800 focus:bg-white focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Link File Audio (Google Drive / MP3) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: https://drive.google.com/file/d/... atau https://example.com/audio.mp3"
+                      value={contentFormData.field1}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field1: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-800 focus:bg-white focus:border-hw-green outline-none"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Mendukung link share Google Drive terbuka (Viewers) maupun direct link MP3.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Lirik Lagu Lengkap
+                    </label>
+                    <textarea
+                      rows={6}
+                      placeholder="Tuliskan atau tempel bait-bait lirik lagu secara lengkap di sini..."
+                      value={contentFormData.field5}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field5: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:border-hw-green outline-none leading-relaxed font-sans"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Judul / Teks 1</label>
+                    <input
+                      type="text"
+                      value={contentFormData.field1}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field1: e.target.value }))}
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Keterangan / Teks 2</label>
+                    <input
+                      type="text"
+                      value={contentFormData.field2}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field2: e.target.value }))}
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
               <button
