@@ -24,7 +24,7 @@ import {
   ensureUniqueKtaNumbers,
   resequenceKtaNumbers
 } from '../utils/ktaUtils';
-import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { normalizeDateForInput } from '../lib/utils';
@@ -1305,7 +1305,7 @@ export const firestoreService = {
       statusPembayaran: 'Belum Bayar',
       statusAktivasi: 'Belum Aktif',
       isVerified: false,
-      status: 'Pending',
+      status: 'pending',
       role: 'umum',
       roles: ['umum'],
       activeRole: 'umum',
@@ -1438,7 +1438,7 @@ export const firestoreService = {
       asalKwarda: member.asalKwarda || '',
       asalQabilah: member.asalQabilah || member.qabilah || '',
       tanggalDaftar: member.tanggalDaftar || new Date().toISOString(),
-      status: member.status || (member.isVerified ? 'Aktif' : 'Pending'),
+      status: (String(member.status || '').toLowerCase().trim() === 'approved' || member.isVerified) ? 'approved' : (String(member.status || '').toLowerCase().trim() === 'rejected' ? 'rejected' : 'pending'),
       aktif: member.aktif !== undefined ? member.aktif : (member.isVerified || member.statusAktivasi === 'Aktif')
     });
 
@@ -1778,7 +1778,19 @@ export const firestoreService = {
         const q = collection(db, 'kta_applications');
         const unsub = onSnapshot(q, (snap) => {
           if (!snap.empty) {
-            const rawApps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const rawApps = snap.docs.map(d => {
+              const data = d.data() as any;
+              const rawStatus = (data.status || '').toString().trim().toLowerCase();
+              let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+              if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active') {
+                normStatus = 'approved';
+              } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+                normStatus = 'rejected';
+              } else {
+                normStatus = 'pending';
+              }
+              return { id: d.id, ...data, status: normStatus };
+            });
             const finalApps = ensureUniqueKtaNumbers(rawApps);
             safeStorageSet('kta_applications', finalApps);
             callback(finalApps);
@@ -1892,7 +1904,22 @@ export const firestoreService = {
             if (isInvalid) {
               deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
             } else {
-              cleanKtas.push(k);
+              const rawStatus = (item.status || '').toString().trim().toLowerCase();
+              let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+              if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active') {
+                normStatus = 'approved';
+              } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+                normStatus = 'rejected';
+              } else {
+                normStatus = 'pending';
+              }
+
+              // Auto-normalize records stored in Firestore as 'Pending' or 'Menunggu'
+              if (item.status === 'Pending' || item.status === 'Menunggu' || !item.status) {
+                setDoc(doc(db, 'kta_applications', k.id), { status: 'pending' }, { merge: true }).catch(() => {});
+              }
+
+              cleanKtas.push({ ...k, status: normStatus });
             }
           }
           ktas = cleanKtas;
@@ -1941,16 +1968,37 @@ export const firestoreService = {
             if (!k) return false;
             const name = (k.nama || k.namaLengkap || '').trim();
             return name !== '' && name !== 'Tanpa Nama' && name !== '-' && name !== 'KTA-HW.JT.XXXX' && name.toLowerCase() !== 'undefined' && name.toLowerCase() !== 'null';
+          }).map((k: any) => {
+            const rawStatus = (k.status || '').toString().trim().toLowerCase();
+            let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+            if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active') {
+              normStatus = 'approved';
+            } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+              normStatus = 'rejected';
+            } else {
+              normStatus = 'pending';
+            }
+            return { ...k, status: normStatus };
           });
         } catch (e) {
           ktas = [];
         }
       }
 
-      // Merge all registered members from getMasterMembersList() so that all registrants appear in KTA management
+      // Merge all registered members from getMasterMembersList and mock_members so that all registrants appear in KTA management
       let allMembers: User[] = [];
       try {
-        allMembers = getMasterMembersList();
+        const masterList = getMasterMembersList();
+        const storedMembers = typeof localStorage !== 'undefined' ? localStorage.getItem('mock_members') : null;
+        const localMembers = storedMembers ? JSON.parse(storedMembers) : [];
+        const memberMap = new Map<string, User>();
+        [...masterList, ...localMembers].forEach((m: any) => {
+          if (!m) return;
+          const key = (m.id || m.uid || m.email || '').toString().toLowerCase().trim();
+          if (key) memberMap.set(key, m);
+          else if (m.namaLengkap || m.nama) memberMap.set(`${(m.namaLengkap || m.nama).toLowerCase().trim()}:::${(m.asalKwarda || m.asalDaerah || '').toLowerCase().trim()}`, m);
+        });
+        allMembers = Array.from(memberMap.values());
       } catch (e) {}
 
       const existingKtaKeys = new Set<string>();
@@ -2122,10 +2170,13 @@ export const firestoreService = {
       }
     }
 
+    const rawStatus = (appData.status || '').toString().toLowerCase().trim();
+    const normalizedStatus: 'pending' | 'approved' | 'rejected' = (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui') ? 'approved' : (rawStatus === 'rejected' || rawStatus === 'ditolak') ? 'rejected' : 'pending';
+
     const newApp = cleanData({
       ...appData,
       id: appData.id || `kta-${Date.now()}`,
-      status: appData.status || 'pending',
+      status: normalizedStatus,
       tanggalAjuan: appData.tanggalAjuan || new Date().toISOString(),
       ...(ktaInfo ? {
         nomorKTA: ktaInfo.nomorKTA,
@@ -2211,13 +2262,14 @@ export const firestoreService = {
       );
     }
 
-    const updates: any = { status };
+    const normalizedStatus = (status || 'pending').toString().toLowerCase().trim();
+    const updates: any = { status: normalizedStatus };
     if (remark !== undefined) updates.remark = remark;
     if (verifiedAt !== undefined) updates.verifiedAt = verifiedAt;
     if (ktaNumber !== undefined) updates.ktaNumber = ktaNumber;
     if (qrCode !== undefined) updates.qrCode = qrCode;
 
-    if (status === 'approved') {
+    if (normalizedStatus === 'approved') {
       const existingNum = idx >= 0 ? (list[idx].nomorKTA || list[idx].ktaNumber) : (ktaNumber || updates.ktaNumber);
       const targetOwner = idx >= 0 ? (list[idx].email || list[idx].userId || list[idx].id) : id;
       const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : '';
@@ -2555,7 +2607,7 @@ export const firestoreService = {
       ...existingApp,
       ...appData,
       id: targetId,
-      status: appData.status || existingApp?.status || 'pending',
+      status: (appData.status || existingApp?.status || 'pending').toString().toLowerCase().trim(),
       tanggalAjuan: appData.tanggalAjuan || existingApp?.tanggalAjuan || new Date().toISOString(),
       preTestScore: appData.preTestScore !== undefined ? appData.preTestScore : existingApp?.preTestScore,
       preTestData: appData.preTestData || existingApp?.preTestData || '',
@@ -2616,7 +2668,7 @@ export const firestoreService = {
 
   async updateTrainingStatus(id: string, status: string, remark?: string): Promise<any> {
     clearFirestoreCache('training_applications');
-    const updates: any = { status };
+    const updates: any = { status: (status || 'pending').toString().toLowerCase().trim() };
     if (remark !== undefined) updates.remark = remark;
     if (!this.getIsQuotaExceeded()) {
       try {
@@ -3000,20 +3052,68 @@ export const firestoreService = {
     return cachedFirestoreFetch('contents', async () => {
       const mapContentItem = (c: any): Content => {
         if (!c) return c;
-        if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
+        const s = String(c.section || '').toLowerCase().trim();
+        const isGal = ['galeri', 'video', 'videos', 'galeri_video', 'galeri-video', 'gallery', 'youtube', 'media'].includes(s);
+        const isPl = ['playlist', 'lagu', 'musik', 'audio', 'songs', 'song', 'music', 'mars', 'daftarlagu', 'dataplaylist'].includes(s) || !!c.audioUrl || (String(c.field1 || '').endsWith('.mp3'));
+
+        if (isGal) {
+          let f1 = (c.field1 || c.videoUrl || c.url || c.link || '').toString().trim();
+          let f2 = (c.field2 || c.judul || c.title || c.nama || '').toString().trim();
+          const f3 = (c.field3 || c.kategori || c.category || 'Galeri HW').toString().trim();
+          const f4 = (c.field4 || c.tanggal || c.date || '').toString().trim();
+          const f5 = (c.field5 || c.deskripsi || c.description || '').toString().trim();
+
+          const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be');
+          const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be');
+          if (!isUrl1 && isUrl2) {
+            const temp = f1;
+            f1 = f2;
+            f2 = temp;
+          }
+          if (f1.includes('dQw4w9WgXcQ')) {
+            f1 = 'https://www.youtube.com/watch?v=kR2rXyNf9V8';
+            f2 = 'Mars Gerakan Kepanduan Hizbul Wathan';
+          }
+          const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+          const finalTitle = f2 || (f1 && !isUrl1 ? f1 : 'Video Hizbul Wathan');
+          const finalUrl = f1 || (vId ? `https://www.youtube.com/watch?v=${vId}` : '');
+
           return {
             ...c,
-            field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-            field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
+            section: c.section || 'galeri',
+            field1: finalUrl,
+            field2: finalTitle,
+            field3: f3,
+            field4: f4,
+            field5: f5,
+            videoUrl: finalUrl,
+            url: finalUrl,
+            videoId: vId,
+            title: finalTitle,
+            judul: finalTitle,
+            category: f3,
+            kategori: f3,
+            description: f5,
+            deskripsi: f5
           };
         }
-        if (c.section === 'playlist') {
-          let audioUrl = c.field1 || c.audioUrl || c.audiourl || '';
-          let judul = c.field2 || c.judul || c.title || '';
-          let pencipta = c.field3 || c.pencipta || c.creator || '';
-          let lirik = c.field5 || c.lirik || c.lyrics || '';
-          const lowerJudul = judul.trim().toLowerCase();
 
+        if (isPl) {
+          let audioUrl = (c.field1 || c.audioUrl || c.audiourl || c.linkAudio || c.url || '').toString().trim();
+          let judul = (c.field2 || c.judul || c.title || c.namaLagu || c.nama || '').toString().trim();
+          let pencipta = (c.field3 || c.pencipta || c.creator || '').toString().trim();
+          let lirik = (c.field5 || c.lirik || c.lyrics || '').toString().trim();
+          let kategori = (c.field4 || c.kategori || c.category || '').toString().trim();
+
+          const isUrlLike = (u: string) => u.startsWith('http') || u.endsWith('.mp3') || u.includes('drive.google.com') || u.includes('hwjateng.org/musik');
+          if (!isUrlLike(audioUrl) && isUrlLike(judul)) {
+            const temp = audioUrl;
+            audioUrl = judul;
+            judul = temp;
+          }
+          if (!judul) judul = 'Lagu Hizbul Wathan';
+
+          const lowerJudul = judul.trim().toLowerCase();
           const isMarsHW = lowerJudul.includes('mars hizbul wathan') || lowerJudul === 'mars hw' || lowerJudul.includes('mars gerakan kepanduan hizbul wathan') || lowerJudul.includes('mars pandu hw');
           const isHymneHW = lowerJudul.includes('hymne');
           const isSangSurya = lowerJudul.includes('sang surya');
@@ -3039,17 +3139,17 @@ export const firestoreService = {
           } else if (isMarsAisyiyah) {
             if (!pencipta) pencipta = 'Ny. Hj. Siti Badilah Zuber';
           } else {
-            // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
             if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
               pencipta = 'Muhammad Dzikron';
             }
           }
           return {
             ...c,
+            section: c.section || 'playlist',
             field1: audioUrl,
             field2: judul,
             field3: pencipta,
-            field4: c.field4 || '',
+            field4: kategori || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW'),
             field5: lirik,
             audioUrl,
             audiourl: audioUrl,
@@ -3095,28 +3195,59 @@ export const firestoreService = {
 
   async saveContent(item: Content): Promise<Content> {
     clearFirestoreCache('contents');
-    const rawAudio = item.field1 || (item as any).audioUrl || (item as any).audiourl || '';
-    const rawJudul = item.field2 || (item as any).judul || (item as any).title || '';
-    const rawPencipta = item.field3 || (item as any).pencipta || (item as any).creator || '';
-    const rawLirik = item.field5 || (item as any).lirik || (item as any).lyrics || '';
+    const s = String(item.section || '').toLowerCase().trim();
+    const isGal = ['galeri', 'video', 'videos', 'galeri_video', 'galeri-video', 'gallery', 'youtube', 'media'].includes(s);
+    const isPl = ['playlist', 'lagu', 'musik', 'audio', 'songs', 'song', 'music', 'mars', 'daftarlagu', 'dataplaylist'].includes(s) || !!(item as any).audioUrl;
 
-    const itemData = cleanData({
+    let f1 = (item.field1 || (item as any).audioUrl || (item as any).videoUrl || (item as any).url || '').toString().trim();
+    let f2 = (item.field2 || (item as any).judul || (item as any).title || (item as any).nama || '').toString().trim();
+    const f3 = (item.field3 || (item as any).pencipta || (item as any).creator || (item as any).kategori || (item as any).category || '').toString().trim();
+    const f4 = (item.field4 || (item as any).tanggal || (item as any).date || '').toString().trim();
+    const f5 = (item.field5 || (item as any).lirik || (item as any).lyrics || (item as any).deskripsi || (item as any).description || '').toString().trim();
+
+    // Smart detection: if user inverted URL and Title
+    const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be') || f1.endsWith('.mp3');
+    const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be') || f2.endsWith('.mp3');
+    if (!isUrl1 && isUrl2) {
+      const temp = f1;
+      f1 = f2;
+      f2 = temp;
+    }
+
+    const payload: any = {
       ...item,
-      id: item.id || `content-${Date.now()}`,
-      field1: rawAudio,
-      field2: rawJudul,
-      field3: rawPencipta,
-      field4: item.field4 || '',
-      field5: rawLirik,
-      audioUrl: rawAudio,
-      audiourl: rawAudio,
-      judul: rawJudul,
-      title: rawJudul,
-      pencipta: rawPencipta,
-      creator: rawPencipta,
-      lirik: rawLirik,
-      lyrics: rawLirik
-    });
+      id: item.id || (isPl ? `playlist-${Date.now()}` : (isGal ? `galeri-${Date.now()}` : `content-${Date.now()}`)),
+      section: item.section || (isPl ? 'playlist' : (isGal ? 'galeri' : 'konten')),
+      field1: f1,
+      field2: f2,
+      field3: f3,
+      field4: f4,
+      field5: f5,
+      judul: f2,
+      title: f2
+    };
+
+    if (isPl) {
+      payload.audioUrl = f1;
+      payload.audiourl = f1;
+      payload.pencipta = f3 || 'Pandu Hizbul Wathan';
+      payload.creator = f3 || 'Pandu Hizbul Wathan';
+      payload.lirik = f5;
+      payload.lyrics = f5;
+    }
+
+    if (isGal) {
+      payload.videoUrl = f1;
+      payload.url = f1;
+      payload.category = f3 || 'Galeri HW';
+      payload.kategori = f3 || 'Galeri HW';
+      payload.description = f5;
+      payload.deskripsi = f5;
+      const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+      if (vId) payload.videoId = vId;
+    }
+
+    const itemData = cleanData(payload);
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'contents', itemData.id), itemData);

@@ -7,7 +7,7 @@ import { KTACard } from '../components/KTACard';
 import { NotificationBell } from '../components/NotificationBell';
 import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
-import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks, sortActivitiesNewestFirst } from '../utils/activityUtils';
+import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks, sortActivitiesNewestFirst, resolveVideoMetadata } from '../utils/activityUtils';
 import { 
   syncRolesAndPelatihan, 
   PELATIHAN_OPTIONS, 
@@ -701,8 +701,30 @@ export default function AdminDashboard() {
   const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
 
-  // KTA Management States
-  const [ktaApps, setKtaApps] = useState<any[]>([]);
+  // KTA Management States & Normalization
+  const normalizeKtaApp = useCallback((k: any) => {
+    if (!k) return k;
+    const rawStatus = (k.status || '').toString().trim().toLowerCase();
+    let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+    if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active') {
+      normStatus = 'approved';
+    } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+      normStatus = 'rejected';
+    } else {
+      normStatus = 'pending';
+    }
+    return { ...k, status: normStatus };
+  }, []);
+
+  const [ktaAppsRaw, setKtaAppsRaw] = useState<any[]>([]);
+  const ktaApps = ktaAppsRaw;
+  const setKtaApps = useCallback((data: any | ((prev: any[]) => any[])) => {
+    if (typeof data === 'function') {
+      setKtaAppsRaw(prev => (data(prev) || []).map(normalizeKtaApp));
+    } else {
+      setKtaAppsRaw((data || []).map(normalizeKtaApp));
+    }
+  }, [normalizeKtaApp]);
   const [ktaSearchQuery, setKtaSearchQuery] = useState('');
   const [ktaFilterStatus, setKtaFilterStatus] = useState('Semua');
   const [ktaFilterKwarda, setKtaFilterKwarda] = useState('Semua');
@@ -815,7 +837,7 @@ export default function AdminDashboard() {
           (app?.ktaNumber || '').toLowerCase().includes(query) ||
           (app?.nomorKTA || '').toLowerCase().includes(query);
 
-        const matchStatus = ktaFilterStatus === 'Semua' || app?.status === ktaFilterStatus;
+        const matchStatus = ktaFilterStatus === 'Semua' || (app?.status || '').toString().toLowerCase().trim() === ktaFilterStatus.toLowerCase().trim();
         const matchKwarda = isMatchKwarda(app, ktaFilterKwarda);
 
         return matchSearch && matchStatus && matchKwarda;
@@ -2848,20 +2870,40 @@ export default function AdminDashboard() {
     if (content) {
       setEditingContent(content);
       const isPl = selectedContentSection === 'playlist' || content.section === 'playlist';
-      const resolved = isPl ? resolveTrackMetadata(content) : null;
-      setContentFormData({
-        field1: content.field1 || (content as any).audioUrl || (content as any).audiourl || (resolved ? resolved.audioUrl : '') || '',
-        field2: content.field2 || (content as any).judul || (content as any).title || (resolved ? resolved.title : '') || '',
-        field3: content.field3 || (content as any).pencipta || (content as any).creator || (resolved && resolved.creator && resolved.creator !== 'Pandu Hizbul Wathan' ? resolved.creator : '') || '',
-        field4: content.field4 || '',
-        field5: content.field5 || content.lyrics || (content as any).lirik || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
-      });
+      const isGal = selectedContentSection === 'galeri' || content.section === 'galeri';
+      if (isPl) {
+        const resolved = resolveTrackMetadata(content);
+        setContentFormData({
+          field1: content.field1 || (content as any).audioUrl || (content as any).audiourl || (resolved ? resolved.audioUrl : '') || '',
+          field2: content.field2 || (content as any).judul || (content as any).title || (resolved ? resolved.title : '') || '',
+          field3: content.field3 || (content as any).pencipta || (content as any).creator || (resolved && resolved.creator && resolved.creator !== 'Pandu Hizbul Wathan' ? resolved.creator : '') || '',
+          field4: content.field4 || '',
+          field5: content.field5 || content.lyrics || (content as any).lirik || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
+        });
+      } else if (isGal) {
+        const resolved = resolveVideoMetadata(content);
+        setContentFormData({
+          field1: resolved.url || content.field1 || (content as any).videoUrl || (content as any).url || '',
+          field2: (resolved.title && resolved.title !== 'Video Hizbul Wathan') ? resolved.title : (content.field2 || (content as any).judul || (content as any).title || ''),
+          field3: resolved.category || content.field3 || 'Galeri HW',
+          field4: resolved.date || content.field4 || '',
+          field5: resolved.description || content.field5 || ''
+        });
+      } else {
+        setContentFormData({
+          field1: content.field1 || '',
+          field2: content.field2 || '',
+          field3: content.field3 || '',
+          field4: content.field4 || '',
+          field5: content.field5 || ''
+        });
+      }
     } else {
       setEditingContent(null);
       setContentFormData({
         field1: '',
         field2: '',
-        field3: '',
+        field3: selectedContentSection === 'galeri' ? 'Galeri HW' : '',
         field4: '',
         field5: ''
       });
@@ -2872,42 +2914,75 @@ export default function AdminDashboard() {
     const handleSaveContent = async () => {
       if (!selectedContentSection) return;
       
-      // Simple validation for list types
-      if (['galeri', 'playlist'].includes(selectedContentSection)) {
-        if (selectedContentSection === 'galeri' && !contentFormData.field1) {
-          showToast('error', 'URL Video Youtube harus diisi');
+      const isGal = selectedContentSection === 'galeri';
+      const isPl = selectedContentSection === 'playlist';
+
+      // Validation for list types
+      if (isGal) {
+        if (!contentFormData.field1 && !contentFormData.field2) {
+          showToast('error', 'URL Video Youtube atau ID Video harus diisi');
           return;
         }
-        if (selectedContentSection === 'playlist' && !contentFormData.field1) {
+      }
+      if (isPl) {
+        if (!contentFormData.field1) {
           showToast('error', 'Link File Audio (Drive/URL) harus diisi');
           return;
         }
-        if (selectedContentSection === 'playlist' && !contentFormData.field2) {
-          showToast('error', 'Judul harus diisi');
+        if (!contentFormData.field2) {
+          showToast('error', 'Judul lagu harus diisi');
           return;
         }
       }
       
       try {
         const isList = ['galeri', 'playlist'].includes(selectedContentSection);
+        let f1 = (contentFormData.field1 || '').trim();
+        let f2 = (contentFormData.field2 || '').trim();
+        const f3 = (contentFormData.field3 || '').trim();
+        const f4 = (contentFormData.field4 || '').trim();
+        const f5 = (contentFormData.field5 || '').trim();
+
+        // Detect swapped URL and Title
+        const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be') || f1.endsWith('.mp3');
+        const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be') || f2.endsWith('.mp3');
+        if (!isUrl1 && isUrl2) {
+          const temp = f1;
+          f1 = f2;
+          f2 = temp;
+        }
       
         const payload: any = {
           section: selectedContentSection,
           type: isList ? 'list' : 'single',
-          field1: (contentFormData.field1 || '').trim(),
-          field2: (contentFormData.field2 || '').trim(),
-          field3: (contentFormData.field3 || '').trim(),
-          field4: '',
-          field5: (contentFormData.field5 || '').trim(),
-          lirik: (contentFormData.field5 || '').trim(),
-          lyrics: (contentFormData.field5 || '').trim(),
-          pencipta: (contentFormData.field3 || '').trim(),
-          creator: (contentFormData.field3 || '').trim(),
-          judul: (contentFormData.field2 || '').trim(),
-          title: (contentFormData.field2 || '').trim(),
-          audioUrl: (contentFormData.field1 || '').trim(),
-          audiourl: (contentFormData.field1 || '').trim()
+          field1: f1,
+          field2: f2,
+          field3: f3,
+          field4: f4,
+          field5: f5,
+          judul: f2,
+          title: f2
         };
+
+        if (isPl) {
+          payload.audioUrl = f1;
+          payload.audiourl = f1;
+          payload.pencipta = f3 || 'Pandu Hizbul Wathan';
+          payload.creator = f3 || 'Pandu Hizbul Wathan';
+          payload.lirik = f5;
+          payload.lyrics = f5;
+        }
+
+        if (isGal) {
+          payload.videoUrl = f1;
+          payload.url = f1;
+          payload.category = f3 || 'Galeri HW';
+          payload.kategori = f3 || 'Galeri HW';
+          payload.description = f5;
+          payload.deskripsi = f5;
+          const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+          if (vId) payload.videoId = vId;
+        }
 
         if (editingContent) {
           payload.id = editingContent.id;
@@ -2916,7 +2991,7 @@ export default function AdminDashboard() {
           if (!isList && contentList.length > 0) {
             payload.id = contentList[0].id;
           } else {
-            payload.id = selectedContentSection === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString();
+            payload.id = isPl ? `playlist-${Date.now()}` : (isGal ? `galeri-${Date.now()}` : Date.now().toString());
           }
         }
 
@@ -4344,7 +4419,7 @@ export default function AdminDashboard() {
         if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
         
         return matchesSearch && selectedFilters.some(filter => {
-          if (filter === 'Pending Verifikasi') return !m.isVerified;
+          if (filter === 'Pending Verifikasi') return !m.isVerified || (m.status || '').toLowerCase() === 'pending' || (m.status || '').toLowerCase() === 'menunggu';
           if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
           if (filter === 'Perempuan') return m.jenisKelamin === 'P';
           if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
@@ -4505,7 +4580,7 @@ export default function AdminDashboard() {
         (app?.email || '').toLowerCase().includes(query) ||
         (app?.noWa || '').toLowerCase().includes(query) ||
         (app?.asalDaerah || '').toLowerCase().includes(query);
-      const matchStatus = trainingFilterStatus === 'Semua' || app?.status === trainingFilterStatus;
+      const matchStatus = trainingFilterStatus === 'Semua' || (app?.status || '').toString().toLowerCase().trim() === trainingFilterStatus.toLowerCase().trim();
 
       let matchActivity = true;
       if (trainingFilterActivity !== 'Semua') {
@@ -4571,9 +4646,22 @@ export default function AdminDashboard() {
   const totalActivityPages = Math.max(1, Math.ceil(displayedActivityApplications.length / activityPageSize));
 
   const membersWithUpgradeRequests = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0);
-  const pendingMembers = members.filter(m => isValidName(m.namaLengkap || (m as any).nama) && !m.isVerified && m.role !== 'superadmin' && m.role !== 'admin');
-  const pendingKtaApps = ktaApps.filter(k => k && k.status === 'pending' && isValidName(k.nama || k.namaLengkap));
-  const pendingTrainingApps = trainingApps.filter(t => t && t.status === 'pending' && isValidName(t.nama || t.namaLengkap));
+  const pendingMembers = members.filter(m => {
+    if (!isValidName(m.namaLengkap || (m as any).nama)) return false;
+    if (m.role === 'superadmin' || m.role === 'admin') return false;
+    const s = (m.status || '').toString().trim().toLowerCase();
+    return !m.isVerified || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi';
+  });
+  const pendingKtaApps = ktaApps.filter(k => {
+    if (!k || !isValidName(k.nama || k.namaLengkap)) return false;
+    const s = (k.status || '').toString().trim().toLowerCase();
+    return s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi' || s === '';
+  });
+  const pendingTrainingApps = trainingApps.filter(t => {
+    if (!t || !isValidName(t.nama || t.namaLengkap)) return false;
+    const s = (t.status || '').toString().trim().toLowerCase();
+    return s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi' || s === '';
+  });
 
   // Training apps with submitted tasks
   const parseAppTasks = (app: any) => {
@@ -5318,6 +5406,79 @@ export default function AdminDashboard() {
                               </tbody>
                             </table>
                           </div>
+                        ) : selectedContentSection === 'galeri' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {(Array.isArray(contentList) ? contentList : []).map((item, i) => {
+                              const meta = resolveVideoMetadata(item);
+                              const vId = meta.videoId;
+                              const thumbUrl = vId 
+                                ? `https://img.youtube.com/vi/${vId}/mqdefault.jpg` 
+                                : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+
+                              return (
+                                <div 
+                                  key={`section-content-galeri-${item.id || i}`} 
+                                  className="bg-white p-4 rounded-3xl border border-gray-200 flex flex-col justify-between shadow-2xs hover:shadow-xl transition-all group"
+                                >
+                                  <div>
+                                    <div className="w-full aspect-video rounded-2xl bg-gray-900 overflow-hidden relative mb-3">
+                                      <img 
+                                        src={thumbUrl} 
+                                        alt={meta.title} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                      />
+                                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center text-white transition-colors">
+                                        <div className="w-10 h-10 rounded-full bg-red-600/90 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                                          <Youtube size={20} />
+                                        </div>
+                                      </div>
+                                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold">
+                                        {meta.category || 'Galeri HW'}
+                                      </span>
+                                    </div>
+                                    <h4 className="text-xs font-bold text-gray-900 line-clamp-2 uppercase tracking-tight mb-1">
+                                      {meta.title}
+                                    </h4>
+                                    {meta.description && (
+                                      <p className="text-[10px] text-gray-500 line-clamp-2 mb-2 font-medium">
+                                        {meta.description}
+                                      </p>
+                                    )}
+                                    <a 
+                                      href={meta.url} 
+                                      target="_blank" 
+                                      rel="noreferrer" 
+                                      className="text-[10px] text-blue-600 font-mono hover:underline truncate block mb-2"
+                                      title={meta.url}
+                                    >
+                                      {meta.url || '-'}
+                                    </a>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-2">
+                                    <span className="text-[9px] text-gray-400 font-mono font-bold">#{i + 1}</span>
+                                    <div className="flex items-center gap-1">
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleOpenContentModal(item)}
+                                        className="p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                                        title="Edit Video"
+                                      >
+                                        <Edit2 size={15} />
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleDeleteContent(item.id)}
+                                        className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                        title="Hapus Video"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {(Array.isArray(contentList) ? contentList : []).map((item, i) => (
@@ -5984,7 +6145,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         onClick={async () => {
-                          const pendingCount = ktaApps.filter(k => k && k.status === 'pending').length;
+                          const pendingCount = ktaApps.filter(k => k && ((k.status || '').toLowerCase() === 'pending' || !k.status || (k.status || '').toLowerCase() === 'menunggu')).length;
                           if (pendingCount === 0) {
                             alert('Tidak ada data pengajuan KTA yang terpending.');
                             return;
@@ -6021,14 +6182,14 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
-                          {ktaApps.filter(app => app.status === 'pending').length === 0 ? (
+                          {ktaApps.filter(app => (app.status || '').toLowerCase() === 'pending' || !app.status || (app.status || '').toLowerCase() === 'menunggu').length === 0 ? (
                             <tr>
                               <td colSpan={6} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider bg-gray-50/5">
                                 🎉 Tidak ada antrean KTA tertunda! Semua pengajuan telah diverifikasi.
                               </td>
                             </tr>
                           ) : (
-                            ktaApps.filter(app => app.status === 'pending').slice(0, 8).map((app, idx) => (
+                            ktaApps.filter(app => (app.status || '').toLowerCase() === 'pending' || !app.status || (app.status || '').toLowerCase() === 'menunggu').slice(0, 8).map((app, idx) => (
                               <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
                                 <td className="p-3.5 pl-5">
                                   <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs shrink-0">
@@ -6341,11 +6502,11 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  {app.status === 'pending' ? (
+                                  {app.status === 'pending' || (app.status || '').toLowerCase() === 'pending' || (app.status || '').toLowerCase() === 'menunggu' ? (
                                     <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-yellow-150 uppercase tracking-widest animate-pulse">
                                       Belum Verifikasi
                                     </span>
-                                  ) : app.status === 'approved' ? (
+                                  ) : app.status === 'approved' || (app.status || '').toLowerCase() === 'approved' || (app.status || '').toLowerCase() === 'disetujui' ? (
                                     <div className="space-y-1">
                                       <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-green-150 uppercase tracking-widest">
                                         Resmi Aktif
@@ -6369,7 +6530,7 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="p-3.5 pr-5 text-center whitespace-nowrap">
                                   <div className="flex items-center justify-center gap-1.5 flex-nowrap whitespace-nowrap">
-                                    {app.status === 'pending' && (
+                                    {(app.status === 'pending' || (app.status || '').toLowerCase() === 'pending' || (app.status || '').toLowerCase() === 'menunggu') && (
                                       <>
                                         <button
                                           type="button"
@@ -11598,6 +11759,8 @@ export default function AdminDashboard() {
               <h3 className="text-base font-black text-gray-900">
                 {selectedContentSection === 'playlist'
                   ? (editingContent ? 'Edit Data & Lirik Lagu Playlist' : 'Tambah Lagu Baru ke Playlist')
+                  : selectedContentSection === 'galeri'
+                  ? (editingContent ? 'Edit Video Galeri' : 'Tambah Video Baru ke Galeri')
                   : (editingContent ? 'Edit Konten' : 'Tambah Konten Baru')}
               </h3>
               <button onClick={() => setIsContentModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
@@ -11653,6 +11816,70 @@ export default function AdminDashboard() {
                     <textarea
                       rows={6}
                       placeholder="Tuliskan atau tempel bait-bait lirik lagu secara lengkap di sini..."
+                      value={contentFormData.field5}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field5: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:border-hw-green outline-none leading-relaxed font-sans"
+                    />
+                  </div>
+                </>
+              ) : selectedContentSection === 'galeri' ? (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Link / URL Video YouTube <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
+                      value={contentFormData.field1}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field1: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-800 focus:bg-white focus:border-hw-green outline-none"
+                    />
+                    {extractYoutubeId(contentFormData.field1) && (
+                      <div className="mt-2 flex items-center gap-2 p-2 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-800">
+                        <img 
+                          src={`https://img.youtube.com/vi/${extractYoutubeId(contentFormData.field1)}/default.jpg`} 
+                          alt="Thumbnail preview" 
+                          className="w-12 h-9 object-cover rounded-lg shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-bold block truncate">ID Video: {extractYoutubeId(contentFormData.field1)}</span>
+                          <span className="text-[9px] text-emerald-600 block">Siap diputar di Galeri HW</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Judul Video <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Dokumentasi Apel Akbar Pandu HW, Mars HW, dll"
+                      value={contentFormData.field2}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field2: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:bg-white focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Kategori Video
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Kegiatan HW, Pelatihan, Mars & Lagu, Profil HW"
+                      value={contentFormData.field3}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field3: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:bg-white focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Deskripsi / Keterangan Singkat
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Tuliskan ringkasan atau keterangan video ini..."
                       value={contentFormData.field5}
                       onChange={(e) => setContentFormData(f => ({ ...f, field5: e.target.value }))}
                       className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:border-hw-green outline-none leading-relaxed font-sans"

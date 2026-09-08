@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Bell, 
@@ -11,7 +11,9 @@ import {
   ChevronRight, 
   Award,
   CheckCheck,
-  Calendar
+  Check,
+  Calendar,
+  History
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +47,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<'all' | 'admin' | 'my'>('all');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const isAdmin = Boolean(
     user && (
@@ -74,7 +77,10 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   };
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setShowHistory(false);
+      return;
+    }
     refreshItems();
 
     const handleReadUpdate = () => refreshItems();
@@ -92,10 +98,11 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     };
   }, [isOpen, adminData, user]);
 
-  if (!isOpen || typeof document === 'undefined') return null;
+  const userKey = user?.email || user?.id || '';
 
   const handleItemClick = (item: NotificationItem) => {
-    markNotificationAsRead(item.id);
+    markNotificationAsRead(item.id, userKey);
+    setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
     onClose();
 
     if (item.actionType && onNavigateTab) {
@@ -105,10 +112,19 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     }
   };
 
+  const handleMarkSingleRead = (e: React.MouseEvent, item: NotificationItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markNotificationAsRead(item.id, userKey);
+    setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+  };
+
   const handleMarkAllRead = () => {
-    const allIds = notifications.map(n => n.id);
-    markAllNotificationsAsRead(allIds);
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      markAllNotificationsAsRead(unreadIds, userKey);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
   };
 
   const getIcon = (type: NotificationItem['type']) => {
@@ -128,13 +144,25 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     }
   };
 
-  const filteredNotifications = notifications.filter(item => {
-    if (activeFilter === 'admin') return item.id.startsWith('admin-');
-    if (activeFilter === 'my') return item.id.startsWith('user-') || item.id.startsWith('welcome-');
-    return true;
-  });
+  // Counts calculated strictly for unread / unopened items
+  const unreadNotifications = useMemo(() => notifications.filter(n => !n.read), [notifications]);
+  const readNotifications = useMemo(() => notifications.filter(n => n.read), [notifications]);
 
-  const unreadTotal = notifications.filter(n => !n.read).length;
+  const unreadTotal = unreadNotifications.length;
+  const unreadAdminTotal = unreadNotifications.filter(n => n.id.startsWith('admin-')).length;
+  const unreadMyTotal = unreadNotifications.filter(n => n.id.startsWith('user-') || n.id.startsWith('welcome-')).length;
+
+  // By default, only unread items are displayed ("yang sudah pernah dibuka tidak muncul kembali")
+  const displayedNotifications = useMemo(() => {
+    const pool = showHistory ? readNotifications : unreadNotifications;
+    return pool.filter(item => {
+      if (activeFilter === 'admin') return item.id.startsWith('admin-');
+      if (activeFilter === 'my') return item.id.startsWith('user-') || item.id.startsWith('welcome-');
+      return true;
+    });
+  }, [showHistory, readNotifications, unreadNotifications, activeFilter]);
+
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const modalContent = (
     <div 
@@ -166,12 +194,12 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {unreadTotal > 0 && (
+            {unreadTotal > 0 && !showHistory && (
               <button
                 type="button"
                 onClick={handleMarkAllRead}
                 className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Tandai semua telah dibaca"
+                title="Tandai semua telah dibaca (tidak muncul lagi)"
               >
                 <CheckCheck size={14} />
                 <span className="hidden sm:inline">Tandai Dibaca</span>
@@ -194,49 +222,87 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveFilter('all')}
-              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeFilter === 'all' 
                   ? 'bg-white text-emerald-800 shadow-xs' 
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              Semua ({notifications.length})
+              <span>Semua</span>
+              {unreadTotal > 0 && (
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded-full font-black">
+                  {unreadTotal}
+                </span>
+              )}
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('admin')}
-              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeFilter === 'admin' 
                   ? 'bg-white text-emerald-800 shadow-xs' 
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              Admin & Diklat
+              <span>Admin & Diklat</span>
+              {unreadAdminTotal > 0 && (
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded-full font-black">
+                  {unreadAdminTotal}
+                </span>
+              )}
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('my')}
-              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeFilter === 'my' 
                   ? 'bg-white text-emerald-800 shadow-xs' 
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              Pribadi
+              <span>Pribadi</span>
+              {unreadMyTotal > 0 && (
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded-full font-black">
+                  {unreadMyTotal}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* History Banner Indicator */}
+        {showHistory && (
+          <div className="flex items-center justify-between px-3 py-2 bg-amber-50/80 border border-amber-200/60 rounded-xl text-amber-800 text-xs">
+            <div className="flex items-center gap-1.5 font-medium">
+              <History size={14} className="text-amber-600 shrink-0" />
+              <span>Menampilkan notifikasi yang sudah pernah dibuka</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowHistory(false)}
+              className="font-bold underline hover:text-amber-950 cursor-pointer text-[11px]"
+            >
+              Tutup Riwayat
             </button>
           </div>
         )}
 
         {/* Notification List */}
         <div className="max-h-[55vh] overflow-y-auto space-y-2 pr-1">
-          {filteredNotifications.length === 0 ? (
+          {displayedNotifications.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <CheckCircle2 size={36} className="text-emerald-500 mx-auto opacity-70" />
-              <p className="text-xs font-bold text-gray-700">Tidak ada pemberitahuan</p>
-              <p className="text-[11px] text-gray-400">Semua aktivitas dan permohonan telah terpantau rapi.</p>
+              <p className="text-xs font-bold text-gray-700">
+                {showHistory ? 'Tidak ada riwayat pemberitahuan' : 'Tidak ada pemberitahuan baru'}
+              </p>
+              <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                {showHistory 
+                  ? 'Belum ada notifikasi yang pernah dibuka sebelumnya.'
+                  : 'Semua aktivitas dan pemberitahuan yang sudah dibuka tidak akan muncul kembali.'}
+              </p>
             </div>
           ) : (
-            filteredNotifications.map((item) => {
+            displayedNotifications.map((item) => {
               const isUnread = !item.read;
               return (
                 <div
@@ -245,7 +311,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                   className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 relative ${
                     isUnread 
                       ? 'border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70 shadow-2xs' 
-                      : 'border-gray-100 bg-gray-50/60 hover:bg-gray-100/70 opacity-80 hover:opacity-100'
+                      : 'border-gray-100 bg-gray-50/60 hover:bg-gray-100/70 opacity-85 hover:opacity-100'
                   }`}
                 >
                   <div className="p-2 rounded-xl bg-white shadow-2xs border border-gray-150 shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
@@ -271,7 +337,22 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                       {item.message}
                     </p>
                   </div>
-                  <ChevronRight size={15} className="text-gray-300 group-hover:text-emerald-600 transition-colors shrink-0 self-center" />
+                  
+                  {/* Action controls */}
+                  <div className="flex items-center gap-1 shrink-0 self-center">
+                    {isUnread && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleMarkSingleRead(e, item)}
+                        className="p-1.5 rounded-xl text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                        title="Tandai dibaca (hilangkan dari daftar)"
+                        aria-label="Tandai dibaca"
+                      >
+                        <Check size={14} />
+                      </button>
+                    )}
+                    <ChevronRight size={15} className="text-gray-300 group-hover:text-emerald-600 transition-colors shrink-0" />
+                  </div>
                 </div>
               );
             })
@@ -280,16 +361,40 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
         {/* Modal Footer */}
         <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-          <span className="text-[10px] text-gray-400 font-semibold">
-            Status tersinkronisasi sistem Satu HW
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
-          >
-            Tutup
-          </button>
+          <div>
+            {readNotifications.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-[11px] font-bold text-gray-500 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <History size={13} />
+                <span>
+                  {showHistory 
+                    ? 'Kembali ke Baru' 
+                    : `Riwayat dibuka (${readNotifications.length})`}
+                </span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {unreadTotal > 0 && !showHistory && (
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+              >
+                Tandai Semua Dibaca
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -297,3 +402,4 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   return createPortal(modalContent, document.body);
 };
+

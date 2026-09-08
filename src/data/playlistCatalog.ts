@@ -230,7 +230,35 @@ Bahagia dunia dan akhirat!`,
 };
 
 export const resolveTrackMetadata = (track: any) => {
-  const rawTitle = (track?.field2 || track?.title || track?.name || 'Untitled Audio').trim();
+  // 1. Detect audio URL and Title (handles inverted field1/field2 and all field aliases)
+  const f1 = String(track?.field1 || '').trim();
+  const f2 = String(track?.field2 || '').trim();
+  const explicitUrl = String(track?.audioUrl || track?.audiourl || track?.linkAudio || track?.link_audio || track?.link || track?.url || track?.mp3 || track?.fileUrl || track?.driveUrl || '').trim();
+  const explicitTitle = String(track?.judul || track?.title || track?.namaLagu || track?.namalagu || track?.nama || track?.name || track?.track || '').trim();
+
+  const isUrlLike = (s: string) => s.startsWith('http://') || s.startsWith('https://') || s.endsWith('.mp3') || s.includes('drive.google.com') || s.includes('hwjateng.org/musik') || (s.includes('/') && s.includes('.'));
+
+  let audioUrl = explicitUrl;
+  let rawTitle = explicitTitle;
+
+  if (!audioUrl) {
+    if (isUrlLike(f1)) {
+      audioUrl = f1;
+      if (!rawTitle && f2 && !isUrlLike(f2)) rawTitle = f2;
+    } else if (isUrlLike(f2)) {
+      audioUrl = f2;
+      if (!rawTitle && f1 && !isUrlLike(f1)) rawTitle = f1;
+    } else {
+      audioUrl = f1 || f2;
+    }
+  }
+
+  if (!rawTitle) {
+    if (f2 && f2 !== audioUrl && !isUrlLike(f2)) rawTitle = f2;
+    else if (f1 && f1 !== audioUrl && !isUrlLike(f1)) rawTitle = f1;
+    else rawTitle = (f2 && f2 !== audioUrl) ? f2 : ((f1 && f1 !== audioUrl) ? f1 : 'Lagu Hizbul Wathan');
+  }
+
   const lowerTitle = rawTitle.toLowerCase();
 
   // Try matching known HW song dictionary
@@ -257,20 +285,20 @@ export const resolveTrackMetadata = (track: any) => {
   }
 
   // Custom metadata from Admin/Spreadsheet input takes precedence, followed by matched catalog, then fallback
-  let rawCreator = (track?.field3 || track?.pencipta || track?.artist || matched?.creator || '').trim();
+  let rawCreator = (track?.field3 || track?.pencipta || track?.creator || track?.artist || matched?.creator || '').trim();
   
   if (!rawCreator || ['pandu hw', 'pandu hizbul wathan', 'kwarwil hw', 'kwarnas hw', 'kwarpus hw', 'kwarwil hw jateng', 'kwarda hw'].includes(rawCreator.toLowerCase())) {
     rawCreator = defaultCreator;
   } else if (!isMarsHW && !isHymneHW && !isSangSurya && !isMarsAisyiyah) {
-    // Other than Mars HW and Hymne HW, song creator is Muhammad Dzikron
-    if (rawCreator.toLowerCase().includes('hw') || rawCreator.toLowerCase().includes('pandu') || rawCreator.toLowerCase().includes('kwar')) {
+    // Only replace if rawCreator is just generic 'hw' without custom name
+    if (rawCreator.toLowerCase() === 'hw' || rawCreator.toLowerCase() === 'pandu') {
       rawCreator = 'Muhammad Dzikron';
     }
   }
 
   const creator = rawCreator || defaultCreator;
   const category = (track?.field4 || track?.kategori || track?.category || matched?.category || '').trim() || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW');
-  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
+  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || track?.syair || track?.teks || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
 
   // Color theme
   const themes = [

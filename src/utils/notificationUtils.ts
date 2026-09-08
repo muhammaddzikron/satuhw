@@ -11,42 +11,82 @@ export interface NotificationItem {
 
 const STORAGE_KEY = 'hw_read_notifications';
 
-export function getReadNotificationIds(): string[] {
+export function getReadNotificationIds(userEmailOrId?: string): string[] {
   if (typeof window === 'undefined') return [];
   try {
+    const set = new Set<string>();
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) parsed.forEach(id => set.add(String(id)));
+    }
+    if (userEmailOrId) {
+      const safeKey = `hw_read_notifications_${String(userEmailOrId).replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const rawUser = localStorage.getItem(safeKey);
+      if (rawUser) {
+        const parsedUser = JSON.parse(rawUser);
+        if (Array.isArray(parsedUser)) parsedUser.forEach(id => set.add(String(id)));
+      }
+    }
+    return Array.from(set);
   } catch {
     return [];
   }
 }
 
-export function markNotificationAsRead(id: string): void {
+export function markNotificationAsRead(id: string, userEmailOrId?: string): void {
   if (typeof window === 'undefined' || !id) return;
   try {
-    const current = getReadNotificationIds();
+    const current = getReadNotificationIds(userEmailOrId);
     if (!current.includes(id)) {
       const updated = [...current, id];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent('notifications_read_updated', { detail: { id } }));
+      if (userEmailOrId) {
+        const safeKey = `hw_read_notifications_${String(userEmailOrId).replace(/[^a-zA-Z0-9]/g, '_')}`;
+        localStorage.setItem(safeKey, JSON.stringify(updated));
+      }
+      window.dispatchEvent(new CustomEvent('notifications_read_updated', { detail: { id, userEmailOrId } }));
     }
   } catch (e) {
     console.error('Failed to save read notification:', e);
   }
 }
 
-export function markAllNotificationsAsRead(ids: string[]): void {
-  if (typeof window === 'undefined' || !Array.isArray(ids)) return;
+export function markAllNotificationsAsRead(ids: string[], userEmailOrId?: string): void {
+  if (typeof window === 'undefined' || !Array.isArray(ids) || ids.length === 0) return;
   try {
-    const current = getReadNotificationIds();
+    const current = getReadNotificationIds(userEmailOrId);
     const updated = Array.from(new Set([...current, ...ids]));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('notifications_read_updated', { detail: { ids } }));
+    if (userEmailOrId) {
+      const safeKey = `hw_read_notifications_${String(userEmailOrId).replace(/[^a-zA-Z0-9]/g, '_')}`;
+      localStorage.setItem(safeKey, JSON.stringify(updated));
+    }
+    window.dispatchEvent(new CustomEvent('notifications_read_updated', { detail: { ids, userEmailOrId } }));
   } catch (e) {
     console.error('Failed to mark all notifications as read:', e);
   }
+}
+
+export function clearReadNotifications(userEmailOrId?: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    if (userEmailOrId) {
+      const safeKey = `hw_read_notifications_${String(userEmailOrId).replace(/[^a-zA-Z0-9]/g, '_')}`;
+      localStorage.removeItem(safeKey);
+    }
+    window.dispatchEvent(new CustomEvent('notifications_read_updated', { detail: { cleared: true } }));
+  } catch (e) {
+    console.error('Failed to clear read notifications:', e);
+  }
+}
+
+export function isNotificationRead(id: string, readIds: Set<string>, user?: any): boolean {
+  if (readIds.has(id)) return true;
+  const userKey = user?.email || user?.id || '';
+  if (userKey && (readIds.has(`${id}-${userKey}`) || readIds.has(`${id}_${userKey}`))) return true;
+  return false;
 }
 
 function parseJsonSafe(key: string): any[] {
@@ -73,7 +113,8 @@ export function buildAllNotifications(options: {
 }): NotificationItem[] {
   const { user, adminData } = options;
   const items: NotificationItem[] = [];
-  const readIds = new Set(getReadNotificationIds());
+  const userKey = user?.email || user?.id || '';
+  const readIds = new Set(getReadNotificationIds(userKey));
 
   const isAdmin = user && (
     user.role === 'admin' ||
@@ -290,8 +331,9 @@ export function buildAllNotifications(options: {
     myTrainingApps.slice(0, 2).forEach((tApp: any) => {
       const actName = tApp.activityTitle || tApp.trainingName || 'Pelatihan Hizbul Wathan';
       const statusText = tApp.status === 'approved' ? 'Diterima' : tApp.status === 'rejected' ? 'Perlu Perbaikan' : 'Menunggu Konfirmasi';
+      const safeId = tApp.id || tApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
       items.push({
-        id: `user-training-${tApp.id || Math.random().toString(36).slice(2, 7)}`,
+        id: `user-training-${safeId}`,
         type: 'training',
         title: `Status Diklat: ${actName}`,
         message: `Status pendaftaran pelatihan Anda: ${statusText}.`,
@@ -309,8 +351,9 @@ export function buildAllNotifications(options: {
 
     myActApps.slice(0, 2).forEach((aApp: any) => {
       const actName = aApp.activityName || 'Kegiatan HW';
+      const safeActId = aApp.id || aApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
       items.push({
-        id: `user-activity-${aApp.id || Math.random().toString(36).slice(2, 7)}`,
+        id: `user-activity-${safeActId}`,
         type: 'general',
         title: `Pendaftaran: ${actName}`,
         message: `Anda terdaftar dalam kegiatan ${actName}. Status: ${aApp.status || 'Terdaftar'}.`,
@@ -345,7 +388,7 @@ export function buildAllNotifications(options: {
   // Attach read status
   return items.map(item => ({
     ...item,
-    read: readIds.has(item.id)
+    read: isNotificationRead(item.id, readIds, user)
   }));
 }
 

@@ -57,29 +57,35 @@ export const PlaylistPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = Boolean(user) && (user?.role === 'admin' || user?.role === 'superadmin');
 
-  // Normalize playlist data ensuring Sahabat HW is present and all songs except Mars & Hymne are created by Muhammad Dzikron
+  // Normalize playlist data ensuring Sahabat HW is present and all uploaded songs are cleanly mapped
   const sanitizeList = useCallback((list: any[]) => {
-    const seenTitles = new Set<string>();
+    const seenKeys = new Set<string>();
     let hasSahabatHW = false;
 
     const filtered = (list || []).filter((item: any) => {
       if (!item) return false;
-      const title = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
-      if (!title) return false;
-      if (title === 'sahabat hw' || (item.field1 && item.field1.toString().toLowerCase().includes('sahabathw'))) {
+      const meta = resolveTrackMetadata(item);
+      const title = (meta.title || item.field2 || item.judul || item.title || '').toString().trim();
+      if (!title || title.toLowerCase() === 'judul lagu' || title === '-') return false;
+
+      const lowerTitle = title.toLowerCase();
+      if (lowerTitle === 'sahabat hw' || (item.field1 && item.field1.toString().toLowerCase().includes('sahabathw')) || (item.audioUrl && item.audioUrl.toLowerCase().includes('sahabathw'))) {
         hasSahabatHW = true;
       }
-      // Deduplicate items with identical title
-      if (seenTitles.has(title)) return false;
-      seenTitles.add(title);
+
+      // Deduplicate items with identical unique key (title + audioUrl or id)
+      const dedupKey = item.id || (lowerTitle + '::' + (meta.audioUrl || item.field1 || ''));
+      if (seenKeys.has(dedupKey)) return false;
+      seenKeys.add(dedupKey);
       return true;
     }).map(item => {
       if (!item) return item;
-      const title = (item.field2 || item.judul || item.title || '').toString().trim();
+      const meta = resolveTrackMetadata(item);
+      const title = meta.title;
       const lowerTitle = title.toLowerCase();
-      const audio = (item.field1 || item.audioUrl || item.audiourl || '').toString();
-      let creator = (item.field3 || item.pencipta || item.creator || '').toString().trim();
-      let lyrics = (item.field5 || item.lirik || item.lyrics || '').toString().trim();
+      const audio = meta.audioUrl;
+      let creator = meta.creator;
+      let lyrics = meta.lyrics;
 
       const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
       const isHymneHW = lowerTitle.includes('hymne');
@@ -88,7 +94,7 @@ export const PlaylistPage: React.FC = () => {
 
       if (lowerTitle === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
         creator = 'Muhammad Dzikron';
-        if (!lyrics) {
+        if (!lyrics || lyrics.includes('Lirik lagu belum tersedia')) {
           lyrics = `Bersama kita melangkah
 Menembus cakrawala asa
 Sahabat sejati Pandu HW
@@ -101,7 +107,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
         }
         return {
           ...item,
-          field1: item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3',
+          field1: audio || item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3',
           field2: 'Sahabat HW',
           field3: 'Muhammad Dzikron',
           field4: 'Lagu Pandu HW',
@@ -112,7 +118,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
           title: 'Sahabat HW',
           lirik: lyrics,
           lyrics: lyrics,
-          audioUrl: item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3'
+          audioUrl: audio || item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3'
         };
       }
 
@@ -129,15 +135,26 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
       } else if (isMarsAisyiyah) {
         if (!creator) creator = 'Ny. Hj. Siti Badilah Zuber';
       } else {
-        // Selain Mars HW dan Hymne HW, pencipta lagunya adalah Muhammad Dzikron
-        creator = 'Muhammad Dzikron';
+        // Only default to Muhammad Dzikron if creator is not specified
+        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
+          creator = 'Muhammad Dzikron';
+        }
       }
 
       return {
         ...item,
+        field1: audio,
+        field2: title,
         field3: creator,
+        field5: lyrics,
+        title,
+        judul: title,
+        creator,
         pencipta: creator,
-        creator: creator
+        audioUrl: audio,
+        audiourl: audio,
+        lyrics,
+        lirik: lyrics
       };
     });
 
@@ -278,10 +295,12 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
   }, [sanitizeList]);
 
   useEffect(() => {
+    const isPlaylistSec = (s: string) => ['playlist', 'lagu', 'musik', 'audio', 'songs', 'mars', 'song', 'music'].includes((s || '').trim().toLowerCase());
     const unsub = sheetsService.subscribeToContents((contents: any[]) => {
-      const pl = contents.filter((c: any) => c.section === 'playlist');
+      const pl = contents.filter((c: any) => isPlaylistSec(c.section) || (c.audioUrl || (c.field1 && (c.field1.includes('.mp3') || c.field1.includes('drive.google.com')))));
       if (pl.length > 0) {
-        setRawPlaylist(sanitizeList(pl));
+        const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
+        setRawPlaylist(sanitizeList([...mock, ...pl]));
         setLoading(false);
       }
     });

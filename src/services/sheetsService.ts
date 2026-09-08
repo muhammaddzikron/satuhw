@@ -9,7 +9,7 @@ import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl, normalizeDateForInput } from '../lib/utils';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { DEFAULT_TRAINING_TYPES, DEFAULT_UPGRADE_FEES, normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, DEFAULT_JM1_SOLO_ACTIVITY, migrateParticipantToJayaMelati1Solo } from '../utils/trainingUtils';
-import { sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
+import { sortActivitiesNewestFirst, extractYoutubeId, resolveVideoMetadata } from '../utils/activityUtils';
 import { 
   parseTestScheduleSettings, 
   DEFAULT_PRE_TEST_SETTINGS, 
@@ -536,6 +536,10 @@ export const sheetsService = {
     user.role = (synced.primaryRole || 'umum') as UserRole;
     user.pelatihan = synced.pelatihan;
     user.activeRole = (data.activeRole || synced.primaryRole || 'umum') as UserRole;
+
+    const rawStatus = (getVal(['status', 'Status', 'STATUS']) || (isVerified ? 'approved' : 'pending')).toLowerCase().trim();
+    const userStatus = (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || isVerified) ? 'approved' : (rawStatus === 'rejected' || rawStatus === 'ditolak') ? 'rejected' : 'pending';
+    user.status = userStatus;
     
     return user;
   },
@@ -1227,10 +1231,20 @@ export const sheetsService = {
 
       const apps = [...fsApps];
 
-      // Also ensure all registered members from getMasterMembersList are present
+      // Also ensure all registered members from getMasterMembersList and mock_members are present
       let allMembers: User[] = [];
       try {
-        allMembers = getMasterMembersList();
+        const masterList = getMasterMembersList();
+        const storedMembers = typeof localStorage !== 'undefined' ? localStorage.getItem('mock_members') : null;
+        const localMembers = storedMembers ? JSON.parse(storedMembers) : [];
+        const memberMap = new Map<string, User>();
+        [...masterList, ...localMembers].forEach((m: any) => {
+          if (!m) return;
+          const key = (m.id || m.uid || m.email || '').toString().toLowerCase().trim();
+          if (key) memberMap.set(key, m);
+          else if (m.namaLengkap || m.nama) memberMap.set(`${(m.namaLengkap || m.nama).toLowerCase().trim()}:::${(m.asalKwarda || m.asalDaerah || '').toLowerCase().trim()}`, m);
+        });
+        allMembers = Array.from(memberMap.values());
       } catch (e) {}
 
       const existingAppKeys = new Set<string>();
@@ -1297,7 +1311,21 @@ export const sheetsService = {
         }
       });
 
-      const finalApps = ensureUniqueKtaNumbers(apps);
+      // Normalize all statuses to lowercase 'pending' | 'approved' | 'rejected'
+      const normalizedApps = apps.map((a: any) => {
+        const rawStatus = (a.status || '').toString().trim().toLowerCase();
+        let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+        if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active') {
+          normStatus = 'approved';
+        } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+          normStatus = 'rejected';
+        } else {
+          normStatus = 'pending';
+        }
+        return { ...a, status: normStatus };
+      });
+
+      const finalApps = ensureUniqueKtaNumbers(normalizedApps);
       safeStorageSet('kta_applications', finalApps);
       return finalApps;
     };
@@ -1744,25 +1772,65 @@ export const sheetsService = {
       const c = (cSec || '').trim().toLowerCase();
       const t = (targetSec || '').trim().toLowerCase();
       if (t === 'galeri' || t === 'video' || t === 'gallery') {
-        return c === 'galeri' || c === 'video' || c === 'videos' || c === 'galeri_video' || c === 'galeri-video' || c === 'gallery' || c === 'youtube';
+        return ['galeri', 'video', 'videos', 'galeri_video', 'galeri-video', 'gallery', 'youtube', 'media'].includes(c);
+      }
+      if (t === 'playlist' || t === 'lagu' || t === 'musik' || t === 'audio') {
+        return ['playlist', 'lagu', 'musik', 'audio', 'songs', 'mars', 'song', 'music'].includes(c);
       }
       return c === t;
     };
 
-    // 1. Immediately retrieve from Firestore / local cache (ultra-fast)
-    let contents: Content[] = [];
+    // 1. Retrieve from Firestore / local cache
+    let fsContents: Content[] = [];
     try {
-      const fsContents = await firestoreService.getContents();
-      if (fsContents && fsContents.length > 0) {
-        contents = fsContents;
+      const fetched = await firestoreService.getContents();
+      if (Array.isArray(fetched) && fetched.length > 0) {
+        fsContents = fetched;
       }
     } catch (e) {}
 
-    if (contents.length === 0) {
-      contents = this.getMockContents();
-    }
+    // 2. Retrieve mock/default contents and merge so neither defaults nor uploaded items are lost
+    const mockContents = this.getMockContents ? this.getMockContents() : [];
+    const contentMap = new Map<string, Content>();
 
-    // 2. Non-blocking background sync with Google Sheets if valid
+    // Seed with defaults
+    mockContents.forEach((m: any) => {
+      if (!m) return;
+      const key = (m.id || (m.section + '-' + (m.field2 || m.judul || m.field1 || ''))).toString().trim().toLowerCase();
+      if (key) contentMap.set(key, m);
+    });
+
+    // Overwrite or append with Firestore content (user uploaded / persistent)
+    fsContents.forEach((c: any) => {
+      if (!c) return;
+      const titleKey = (c.field2 || c.judul || c.title || '').toString().trim().toLowerCase();
+      const idKey = (c.id || '').toString().trim().toLowerCase();
+      
+      // Match by exact ID or by section + title
+      let existingKey = '';
+      if (idKey && contentMap.has(idKey)) {
+        existingKey = idKey;
+      } else {
+        for (const [k, v] of contentMap.entries()) {
+          const vTitle = (v.field2 || (v as any).judul || (v as any).title || '').toString().trim().toLowerCase();
+          if (c.section === v.section && titleKey && titleKey === vTitle) {
+            existingKey = k;
+            break;
+          }
+        }
+      }
+
+      if (existingKey) {
+        contentMap.set(existingKey, { ...contentMap.get(existingKey), ...c });
+      } else {
+        const newKey = idKey || `content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        contentMap.set(newKey, c);
+      }
+    });
+
+    let contents = Array.from(contentMap.values());
+
+    // 3. Non-blocking background sync with Google Sheets if valid
     if (IS_API_VALID) {
       fetchSheetsApi('getContents', section ? { section } : {}, 3500).then((data) => {
         let apiData: Content[] = [];
@@ -1783,35 +1851,36 @@ export const sheetsService = {
   async getGalleryVideos(): Promise<any[]> {
     const isVideoSection = (s: string | undefined) => {
       const clean = (s || '').trim().toLowerCase();
-      return clean === 'galeri' || clean === 'video' || clean === 'videos' || clean === 'galeri_video' || clean === 'galeri-video' || clean === 'gallery' || clean === 'youtube';
+      return clean === 'galeri' || clean === 'video' || clean === 'videos' || clean === 'galeri_video' || clean === 'galeri-video' || clean === 'gallery' || clean === 'youtube' || clean === 'media';
     };
 
     const videoMap = new Map<string, any>();
 
-    // 1. Load from Contents
+    // 1. Load from Contents (Firestore / local storage / Google Spreadsheet)
     try {
       const allContents = await this.getContents();
       if (Array.isArray(allContents)) {
         allContents.forEach((c: any) => {
-          const rawUrl = (c.field1 || c.videoUrl || c.link || c.url || '').toString().trim();
-          const rawTitle = (c.field2 || c.judul || c.title || c.nama || 'Video Hizbul Wathan').toString().trim();
-          const vId = extractYoutubeId(rawUrl) || extractYoutubeId(rawTitle);
-          if (isVideoSection(c.section) || vId) {
-            const finalUrl = rawUrl || (vId ? `https://www.youtube.com/watch?v=${vId}` : '');
-            const finalTitle = (rawTitle && rawTitle !== rawUrl) ? rawTitle : 'Video Hizbul Wathan';
-            const key = vId || finalUrl || c.id;
-            if (key && (finalUrl || vId)) {
+          if (!c) return;
+          const meta = resolveVideoMetadata(c);
+          const isGalSec = isVideoSection(c.section);
+          if (isGalSec || meta.videoId || (meta.url && (meta.url.includes('youtube.com') || meta.url.includes('youtu.be')))) {
+            const key = meta.videoId || meta.url || c.id;
+            if (key) {
               videoMap.set(key, {
-                id: c.id || `video-${key}`,
+                id: c.id || (meta.videoId ? `video-${meta.videoId}` : `video-${key}`),
                 section: 'galeri',
-                field1: finalUrl,
-                field2: finalTitle,
-                field3: c.field3 || 'Galeri HW',
-                field4: c.field4 || '',
-                field5: c.field5 || '',
-                videoId: vId,
-                title: finalTitle,
-                url: finalUrl,
+                field1: meta.url,
+                field2: meta.title,
+                field3: meta.category,
+                field4: meta.date || '',
+                field5: meta.description || '',
+                videoId: meta.videoId,
+                title: meta.title,
+                url: meta.url,
+                category: meta.category,
+                description: meta.description,
+                date: meta.date || '',
                 source: 'galeri'
               });
             }
@@ -1827,24 +1896,25 @@ export const sheetsService = {
       const activities = await this.getActivities();
       if (Array.isArray(activities)) {
         activities.forEach((act: any) => {
-          const rawUrl = (act.videoUrl || act.linkVideo || act.youtubeUrl || act.linkYoutube || act.video || '').toString().trim();
-          const vId = extractYoutubeId(rawUrl);
-          if (vId) {
-            const finalTitle = act.namaKegiatan || act.judul || act.nama || 'Dokumentasi Kegiatan HW';
-            const finalUrl = rawUrl.startsWith('http') ? rawUrl : `https://www.youtube.com/watch?v=${vId}`;
-            const key = vId;
+          if (!act) return;
+          const meta = resolveVideoMetadata(act);
+          if (meta.videoId) {
+            const key = meta.videoId;
             if (!videoMap.has(key)) {
               videoMap.set(key, {
                 id: `act-vid-${act.id || key}`,
                 section: 'galeri',
-                field1: finalUrl,
-                field2: finalTitle,
-                field3: act.kategori || 'Kegiatan HW',
-                field4: act.tanggal || '',
-                field5: act.deskripsi || '',
-                videoId: vId,
-                title: finalTitle,
-                url: finalUrl,
+                field1: meta.url,
+                field2: act.namaKegiatan || act.judul || act.nama || meta.title || 'Dokumentasi Kegiatan HW',
+                field3: act.kategori || meta.category || 'Kegiatan HW',
+                field4: act.tanggal || meta.date || '',
+                field5: act.deskripsi || meta.description || '',
+                videoId: meta.videoId,
+                title: act.namaKegiatan || act.judul || act.nama || meta.title || 'Dokumentasi Kegiatan HW',
+                url: meta.url,
+                category: act.kategori || meta.category || 'Kegiatan HW',
+                description: act.deskripsi || meta.description || '',
+                date: act.tanggal || meta.date || '',
                 source: 'kegiatan'
               });
             }
@@ -1855,7 +1925,41 @@ export const sheetsService = {
       console.warn('Error loading activities for gallery videos:', e);
     }
 
-    // 3. Fallback defaults if empty
+    // 3. Load from Materi (educational videos)
+    try {
+      const materiList = await this.getMateri('semua');
+      if (Array.isArray(materiList)) {
+        materiList.forEach((m: any) => {
+          if (!m) return;
+          const meta = resolveVideoMetadata({
+            field1: m.videoUrl || m.youtubeUrl || m.link || m.fileUrl || '',
+            field2: m.judul || m.title || m.nama || '',
+            field3: m.kategori || m.category || 'Materi HW',
+            field5: m.deskripsi || m.description || ''
+          });
+          if (meta.videoId && !videoMap.has(meta.videoId)) {
+            videoMap.set(meta.videoId, {
+              id: `materi-vid-${m.id || meta.videoId}`,
+              section: 'galeri',
+              field1: meta.url,
+              field2: meta.title,
+              field3: meta.category,
+              field4: '',
+              field5: meta.description,
+              videoId: meta.videoId,
+              title: meta.title,
+              url: meta.url,
+              category: meta.category,
+              description: meta.description,
+              date: '',
+              source: 'materi'
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 4. Fallback defaults if empty
     if (videoMap.size === 0) {
       const defaults = [
         {
@@ -1864,9 +1968,14 @@ export const sheetsService = {
           field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
           field2: 'Mars Gerakan Kepanduan Hizbul Wathan',
           field3: 'Lagu Resmi HW',
+          field4: '',
+          field5: 'Lagu Mars Resmi Gerakan Kepanduan Hizbul Wathan',
           videoId: 'kR2rXyNf9V8',
           title: 'Mars Gerakan Kepanduan Hizbul Wathan',
           url: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
+          category: 'Lagu Resmi HW',
+          description: 'Lagu Mars Resmi Gerakan Kepanduan Hizbul Wathan',
+          date: '',
           source: 'galeri'
         },
         {
@@ -1875,9 +1984,14 @@ export const sheetsService = {
           field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
           field2: 'Profil Kwartir Wilayah HW Jawa Tengah',
           field3: 'Profil HW Jateng',
+          field4: '',
+          field5: 'Dokumentasi profil Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah',
           videoId: 'mD03u6-T9u8',
           title: 'Profil Kwartir Wilayah HW Jawa Tengah',
           url: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
+          category: 'Profil HW Jateng',
+          description: 'Dokumentasi profil Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah',
+          date: '',
           source: 'galeri'
         }
       ];
@@ -1890,25 +2004,60 @@ export const sheetsService = {
   async saveContent(content: any): Promise<any> {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
+    clearSheetsCache('galeri');
     updateApiUrlFromStorage();
 
-    const normalized = {
+    const sec = (content.section || '').trim().toLowerCase();
+    const isPlaylist = ['playlist', 'lagu', 'musik', 'audio', 'songs', 'mars', 'song', 'music'].includes(sec);
+    const isGallery = ['galeri', 'video', 'videos', 'gallery', 'youtube', 'media'].includes(sec);
+
+    let f1 = (content.field1 || content.audioUrl || content.videoUrl || content.url || '').toString().trim();
+    let f2 = (content.field2 || content.judul || content.title || content.nama || '').toString().trim();
+    const f3 = (content.field3 || content.pencipta || content.creator || content.category || content.kategori || '').toString().trim();
+    const f4 = (content.field4 || content.date || content.tanggal || '').toString().trim();
+    const f5 = (content.field5 || content.lyrics || content.lirik || content.description || content.deskripsi || '').toString().trim();
+
+    // Inverted URL and Title detection
+    const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be') || f1.endsWith('.mp3');
+    const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be') || f2.endsWith('.mp3');
+    if (!isUrl1 && isUrl2) {
+      const temp = f1;
+      f1 = f2;
+      f2 = temp;
+    }
+
+    const normalized: any = {
       ...content,
-      id: content.id || (content.section === 'playlist' ? `playlist-${Date.now()}` : Date.now().toString()),
-      field1: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim(),
-      field2: (content.field2 || content.judul || content.title || '').toString().trim(),
-      field3: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
-      field4: (content.field4 || '').toString().trim(),
-      field5: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
-      pencipta: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
-      creator: (content.field3 || content.pencipta || content.creator || '').toString().trim(),
-      lirik: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
-      lyrics: (content.field5 || content.lyrics || content.lirik || '').toString().trim(),
-      judul: (content.field2 || content.judul || content.title || '').toString().trim(),
-      title: (content.field2 || content.judul || content.title || '').toString().trim(),
-      audioUrl: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim(),
-      audiourl: (content.field1 || content.audioUrl || content.audiourl || '').toString().trim()
+      id: content.id || (isPlaylist ? `playlist-${Date.now()}` : (isGallery ? `galeri-${Date.now()}` : `content-${Date.now()}`)),
+      section: content.section || (isPlaylist ? 'playlist' : (isGallery ? 'galeri' : 'konten')),
+      field1: f1,
+      field2: f2,
+      field3: f3,
+      field4: f4,
+      field5: f5,
+      judul: f2,
+      title: f2
     };
+
+    if (isPlaylist) {
+      normalized.audioUrl = f1;
+      normalized.audiourl = f1;
+      normalized.pencipta = f3 || 'Pandu Hizbul Wathan';
+      normalized.creator = f3 || 'Pandu Hizbul Wathan';
+      normalized.lirik = f5;
+      normalized.lyrics = f5;
+    }
+
+    if (isGallery) {
+      normalized.videoUrl = f1;
+      normalized.url = f1;
+      normalized.category = f3 || 'Galeri HW';
+      normalized.kategori = f3 || 'Galeri HW';
+      normalized.description = f5;
+      normalized.deskripsi = f5;
+      const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+      if (vId) normalized.videoId = vId;
+    }
 
     // Update Firestore first for fast persistent storage
     const saved = await firestoreService.saveContent(normalized);
@@ -1957,6 +2106,7 @@ export const sheetsService = {
   async deleteContent(id: string): Promise<any> {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
+    clearSheetsCache('galeri');
     if (IS_API_VALID) {
       Promise.allSettled([
         this.post({ action: 'deletePlaylistItem', id }),

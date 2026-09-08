@@ -29,7 +29,7 @@ export default function GalleryPage() {
   const fetchAllVideos = async () => {
     try {
       const videos = await sheetsService.getGalleryVideos();
-      if (Array.isArray(videos) && videos.length > 0) {
+      if (Array.isArray(videos)) {
         setVideoList(videos);
       }
     } catch (e) {

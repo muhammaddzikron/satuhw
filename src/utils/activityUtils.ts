@@ -49,16 +49,25 @@ export const extractYoutubeId = (rawUrl: any): string => {
 
   // Extract from iframe tag if passed
   if (url.includes('<iframe') && url.includes('src=')) {
-    const srcMatch = url.match(/src=["']([^"']+)["']/);
+    const srcMatch = url.match(/src=["']([^"']+)["']/i);
     if (srcMatch && srcMatch[1]) url = srcMatch[1];
   }
 
-  // Regex covering watch?v=, youtu.be/, embed/, shorts/, live/, v/
-  const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
-  const match = url.match(ytRegex);
-  if (match && match[1]) {
-    return match[1];
-  }
+  // Match standard youtu.be/ID
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+  if (shortMatch && shortMatch[1]) return shortMatch[1];
+
+  // Match shorts/ID, embed/ID, live/ID, v/ID
+  const pathMatch = url.match(/(?:shorts|embed|live|v)\/([a-zA-Z0-9_-]{11})/i);
+  if (pathMatch && pathMatch[1]) return pathMatch[1];
+
+  // Match watch?v=ID or &v=ID (even with preceding query params like ?feature=share&v=ID)
+  const paramMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+  if (paramMatch && paramMatch[1]) return paramMatch[1];
+
+  // Match any youtube domain with 11 char ID
+  const generalMatch = url.match(/(?:youtube\.com\/(?:[^\/\s]+\/)*|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (generalMatch && generalMatch[1]) return generalMatch[1];
 
   // Fallback: check if plain 11-char ID is passed
   if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
@@ -66,6 +75,41 @@ export const extractYoutubeId = (rawUrl: any): string => {
   }
 
   return '';
+};
+
+export const resolveVideoMetadata = (item: any) => {
+  if (!item) return { title: 'Video Hizbul Wathan', url: '', videoId: '', category: 'Galeri HW', description: '', date: '' };
+  let f1 = (item.field1 || item.videoUrl || item.url || item.link || item.linkVideo || item.youtubeUrl || item.youtube || '').toString().trim();
+  let f2 = (item.field2 || item.judul || item.title || item.nama || item.namaKegiatan || '').toString().trim();
+  const f3 = (item.field3 || item.kategori || item.category || 'Galeri HW').toString().trim();
+  const f4 = (item.field4 || item.tanggal || item.date || item.waktuMulai || '').toString().trim();
+  const f5 = (item.field5 || item.deskripsi || item.description || item.konten || '').toString().trim();
+
+  const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be');
+  const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be');
+
+  if (!isUrl1 && isUrl2) {
+    const temp = f1;
+    f1 = f2;
+    f2 = temp;
+  }
+
+  let vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+  if (!vId && f5) {
+    vId = extractYoutubeId(f5);
+  }
+
+  const finalTitle = f2 && !isUrl2 ? f2 : (f1 && !isUrl1 ? f1 : 'Video Hizbul Wathan');
+  const finalUrl = f1 || (vId ? `https://www.youtube.com/watch?v=${vId}` : '');
+
+  return {
+    title: finalTitle,
+    url: finalUrl,
+    videoId: vId,
+    category: f3 || 'Galeri HW',
+    description: f5,
+    date: f4
+  };
 };
 
 export const isOnlyTrainingActivity = (act: any): boolean => {

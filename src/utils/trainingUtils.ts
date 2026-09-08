@@ -690,8 +690,19 @@ export const consolidateTrainingApplications = (rawApps: any[]): any[] => {
     const resolvedTempat = (bestTempatLahir || base.tempatLahir || (base as any)?.tempatlahir || '').trim();
     const resolvedTanggal = normalizeDateForInput(bestTanggalLahir || base.tanggalLahir || (base as any)?.tanggallahir || '');
 
+    const rawStatus = (base.status || '').toString().toLowerCase().trim();
+    let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+    if (rawStatus === 'approved' || rawStatus === 'aktif' || rawStatus === 'disetujui' || rawStatus === 'sukses' || rawStatus === 'terbit' || rawStatus === 'active' || rawStatus === 'terverifikasi') {
+      normStatus = 'approved';
+    } else if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+      normStatus = 'rejected';
+    } else {
+      normStatus = 'pending';
+    }
+
     return {
       ...base,
+      status: normStatus,
       pelatihanAkanDiikuti: base.pelatihanAkanDiikuti || 'Pelatihan Jaya Melati 1 Solo',
       tingkatan: base.tingkatan || 'Jaya Melati 1',
       lokasiPelatihan: base.lokasiPelatihan || 'Kwarda HW Solo',
