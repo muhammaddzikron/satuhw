@@ -31,6 +31,9 @@ export interface User {
   nomorUrut?: number;
   tanggalDaftar?: string;
   status?: string;
+  statusKta?: string;
+  tanggalAjuan?: string;
+  candidateKtaNumber?: string;
   aktif?: boolean;
   statusAktivasi?: string;
   statusPembayaran?: string;

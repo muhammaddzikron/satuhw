@@ -253,7 +253,7 @@ import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode, isValidKtaNumberFormat } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode, isValidKtaNumberFormat, generateNextKtaForRegion } from '../utils/ktaUtils';
 import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
@@ -1501,7 +1501,10 @@ export default function AdminDashboard() {
       const nowIso = new Date().toISOString();
       const targetApp = (allPendingKtaQueue && allPendingKtaQueue.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId))))
         || ktaApps.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId)));
-      const fallbackKtaNum = targetApp?.nomorKTA || targetApp?.ktaNumber || `KTA-HW-${Date.now().toString().slice(-6)}`;
+      const rawKta = (targetApp?.nomorKTA || targetApp?.ktaNumber || '').trim();
+      const fallbackKtaNum = isValidKtaNumberFormat(rawKta)
+        ? rawKta
+        : generateNextKtaForRegion(targetApp?.asalDaerah || targetApp?.asalKwarda, targetApp?.qabilah, [...(ktaApps || []), ...(members || [])]);
 
       // 1. Optimistic instant local state update (0ms delay)
       setKtaApps(prev => {

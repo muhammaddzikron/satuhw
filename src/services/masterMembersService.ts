@@ -95,11 +95,13 @@ export const getMasterMembersList = (): User[] => {
 
   const rawCandidates: User[] = [];
 
-  // 1. Initial spreadsheet users
+  // 1. Initial spreadsheet users (mark registrants without official KTA as pending)
   (INITIAL_SPREADSHEET_DATA.users || []).forEach((u: any, idx: number) => {
     if (!u) return;
     const rawRoles = parseRolesField(u.roles, u.role);
     const synced = syncRolesAndPelatihan(rawRoles, u.pelatihan || []);
+    const emailNorm = (u.email || '').toString().toLowerCase().trim();
+    const isSysAdmin = emailNorm === 'admin@hwjateng.com' || emailNorm === 'medkom@hwjateng.com' || emailNorm === 'diklat@hwjateng.com';
 
     rawCandidates.push({
       ...u,
@@ -108,11 +110,25 @@ export const getMasterMembersList = (): User[] => {
       role: (synced.primaryRole || 'umum') as UserRole,
       roles: (synced.roles && synced.roles.length > 0 ? synced.roles : ['umum']) as UserRole[],
       pelatihan: synced.pelatihan,
-      isVerified: u.isVerified === true || u.isVerified === 'TRUE' || u.isVerified === 'true'
+      isVerified: isSysAdmin ? true : false,
+      status: isSysAdmin ? 'approved' : 'pending',
+      statusKta: isSysAdmin ? 'approved' : 'pending',
+      statusPembayaran: isSysAdmin ? 'Lunas' : (u.statusPembayaran || 'Belum Bayar'),
+      statusAktivasi: isSysAdmin ? 'Aktif' : (u.statusAktivasi || 'Belum Aktif'),
+      ktaNumber: isSysAdmin ? (u.ktaNumber || '') : '',
+      nomorKTA: isSysAdmin ? (u.nomorKTA || '') : '',
+      tanggalAjuan: u.createdAt || u.tanggalDaftar || u.tanggal || new Date().toISOString()
     });
   });
 
-  // 2. CSV members
+  // 2. CSV members with official issued KTAs
+  csvMembers.forEach(c => {
+    c.isVerified = true;
+    c.status = 'approved';
+    c.statusKta = 'approved';
+    c.statusAktivasi = 'Aktif';
+    c.statusPembayaran = 'Lunas';
+  });
   rawCandidates.push(...csvMembers);
 
   // 3. Ensure Bayu Ghifari Javalino
@@ -194,6 +210,8 @@ export const getMasterMembersList = (): User[] => {
 
     if (matchKey && mergedMap.has(matchKey)) {
       const ex = mergedMap.get(matchKey)!;
+      const isVerified = ex.isVerified === true || item.isVerified === true;
+      const status = isVerified ? 'approved' : 'pending';
       const merged: User = {
         ...item,
         ...ex,
@@ -206,7 +224,12 @@ export const getMasterMembersList = (): User[] => {
         qabilah: ex.qabilah || item.qabilah,
         tempatLahir: ex.tempatLahir || item.tempatLahir,
         tanggalLahir: ex.tanggalLahir || item.tanggalLahir,
-        email: (ex.email && !ex.email.startsWith('member_') && !ex.email.startsWith('user_')) ? ex.email : item.email
+        email: (ex.email && !ex.email.startsWith('member_') && !ex.email.startsWith('user_')) ? ex.email : item.email,
+        isVerified,
+        status: status as any,
+        statusKta: status as any,
+        statusAktivasi: isVerified ? 'Aktif' : 'Belum Aktif',
+        statusPembayaran: isVerified ? 'Lunas' : (ex.statusPembayaran || item.statusPembayaran || 'Belum Bayar')
       };
       mergedMap.set(matchKey, merged);
     } else {
@@ -223,6 +246,26 @@ export const getMasterMembersList = (): User[] => {
   });
 
   const mergedList = Array.from(mergedMap.values());
+
+  // Apply administrative overrides if present in localStorage
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const overridesRaw = localStorage.getItem('member_custom_edits');
+      if (overridesRaw) {
+        const overrides = JSON.parse(overridesRaw);
+        mergedList.forEach(m => {
+          const edit = (m.id && overrides[m.id]) ||
+                       (m.email && overrides[m.email.toLowerCase().trim()]) ||
+                       (m.ktaNumber && overrides[m.ktaNumber.trim()]) ||
+                       (m.nomorKTA && overrides[m.nomorKTA.trim()]);
+          if (edit) {
+            Object.assign(m, edit);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
   cachedMasterList = ensureUniqueKtaNumbers(mergedList);
   return cachedMasterList;
 };

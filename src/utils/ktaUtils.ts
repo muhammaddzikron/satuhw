@@ -418,7 +418,11 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
     const pendingItems: any[] = [];
 
     for (const item of groupItems as any[]) {
-      const isApproved = item.status === 'approved' || item.isVerified === true;
+      const s = (item.status || '').toString().toLowerCase().trim();
+      const sk = (item.statusKta || '').toString().toLowerCase().trim();
+      const isExplicitPending = item.isVerified === false || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi' || sk === 'pending';
+      const isExplicitRejected = s === 'rejected' || s === 'ditolak' || sk === 'rejected';
+      const isApproved = !isExplicitPending && !isExplicitRejected && (s === 'approved' || s === 'aktif' || s === 'terbit' || item.isVerified === true);
       if (isApproved) {
         approvedItems.push(item);
       } else {
@@ -444,13 +448,32 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
       item.kodeProvinsi = '11';
       item.kodeKwarda = code;
       item.nomorUrut = currentSeq;
-      item.ktaNumber = candKta;
-      item.nomorKTA = candKta;
+      item.candidateKtaNumber = candKta;
+      item.status = item.status === 'rejected' ? 'rejected' : 'pending';
+      item.isVerified = false;
+      if (item.status !== 'rejected') item.statusKta = 'pending';
       currentSeq++;
     }
   });
 
   return items;
+}
+
+/**
+ * Generates next available official KTA number for a target region and existing items.
+ */
+export function generateNextKtaForRegion(region?: string, qabilah?: string, existingItems: any[] = []): string {
+  const code = getKwardaCode(region, qabilah);
+  const usedNumbers: number[] = [];
+  (existingItems || []).forEach((item: any) => {
+    const kta = (item.ktaNumber || item.nomorKTA || '').trim();
+    const parsed = parseKtaNumber(kta);
+    if (parsed && parsed.kodeKwarda === code) {
+      usedNumbers.push(parsed.nomorUrut);
+    }
+  });
+  const nextSeq = findNextAvailableNumber(usedNumbers);
+  return formatKtaNumber(code, nextSeq);
 }
 
 /**

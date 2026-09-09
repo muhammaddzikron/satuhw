@@ -752,6 +752,9 @@ export const firestoreService = {
           const finalPelatihan = (ex.pelatihan && Array.isArray(ex.pelatihan) && ex.pelatihan.length > 0) ? ex.pelatihan : (mm.pelatihan || []);
           const finalGolonganPelatih = (ex as any).golonganPelatih || (mm as any).golonganPelatih;
 
+          const isVerified = isValidKtaNumberFormat(finalKta) ? true : ((customOverrides[ex.id]?.isVerified ?? (ex.email ? customOverrides[ex.email.toLowerCase().trim()]?.isVerified : undefined)) ?? (ex.isVerified === true && isValidKtaNumberFormat(ex.ktaNumber || ex.nomorKTA) ? true : mm.isVerified));
+          const status = isVerified ? 'approved' : 'pending';
+
           members[matchedIdx] = {
             ...mm,
             ...ex,
@@ -763,6 +766,11 @@ export const firestoreService = {
             golonganPelatih: finalGolonganPelatih,
             ktaNumber: finalKta,
             nomorKTA: finalKta,
+            isVerified,
+            status,
+            statusKta: status,
+            statusAktivasi: isVerified ? 'Aktif' : 'Belum Aktif',
+            statusPembayaran: isVerified ? 'Lunas' : (ex.statusPembayaran || mm.statusPembayaran || 'Belum Bayar'),
             noHp: ex.noHp || mm.noHp,
             alamat: ex.alamat || mm.alamat,
             asalKwarda: ex.asalKwarda || mm.asalKwarda,
