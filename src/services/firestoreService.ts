@@ -1356,15 +1356,12 @@ export const firestoreService = {
       updatedAt: nowIso
     });
 
-    // 5. Direct write to Firestore
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'members', firebaseUid), userPayload, { merge: true });
-        await setDoc(doc(db, 'kta_applications', ktaId), ktaPayload, { merge: true });
-      } catch (err: any) {
-        this.checkQuotaError(err);
-        console.error('Firestore registration save error:', err);
-      }
+    // 5. Direct write to Firestore - always attempt because document write quota is separate and available
+    try {
+      await setDoc(doc(db, 'members', firebaseUid), userPayload, { merge: true });
+      await setDoc(doc(db, 'kta_applications', ktaId), ktaPayload, { merge: true });
+    } catch (err: any) {
+      console.error('Firestore registration save error:', err);
     }
 
     // 6. Local Storage Sync
@@ -1467,13 +1464,10 @@ export const firestoreService = {
       }
     } catch (e) {}
 
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
-      } catch (err) {
-        this.checkQuotaError(err);
-        console.error('Firestore saveMember error:', err);
-      }
+    try {
+      await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
+    } catch (err) {
+      console.error('Firestore saveMember error:', err);
     }
     // Sync local cache
     const current = await this.getMembers();
@@ -2516,13 +2510,10 @@ export const firestoreService = {
       window.dispatchEvent(new Event('kta_applications_updated'));
     }
 
-    if (!this.getIsQuotaExceeded()) {
-      try {
-        await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
-      } catch (err) {
-        this.checkQuotaError(err);
-        if (!this.getIsQuotaExceeded()) console.error('Firestore updateKTAStatus error:', err);
-      }
+    try {
+      await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
+    } catch (err) {
+      console.error('Firestore updateKTAStatus error:', err);
     }
 
     // Sync approval, photo, and ktaNumber to members collection
@@ -3223,16 +3214,21 @@ export const firestoreService = {
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
             if (contents.length > 0) {
-              // Sanitize any outdated dummy videos from cache
-              const sanitized = contents.map(c => {
-                if (c.section === 'galeri' && c.field1 && c.field1.includes('dQw4w9WgXcQ')) {
-                  return {
-                    ...c,
-                    field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-                    field2: c.field2 === 'Lagu Mars Hizbul Wathan' ? 'Mars Gerakan Kepanduan Hizbul Wathan' : c.field2
-                  };
+              // Sanitize any unauthorized videos from cache
+              const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8', 'gal-1', 'gal-2', 'galeri-1', 'galeri-2'];
+              const unauthorizedTitles = [
+                'mars gerakan kepanduan hizbul wathan',
+                'profil kwartir wilayah hw jawa tengah',
+                'lagu mars hizbul wathan'
+              ];
+              const sanitized = contents.filter(c => {
+                if (c.section === 'galeri') {
+                  const urlOrId = (c.field1 || (c as any).videoId || (c as any).url || c.id || '').toString();
+                  const title = (c.field2 || (c as any).title || '').toString().toLowerCase();
+                  if (unauthorizedVideoIds.some(id => urlOrId.includes(id))) return false;
+                  if (unauthorizedTitles.some(t => title.includes(t))) return false;
                 }
-                return c;
+                return true;
               });
               safeStorageSet('contents', sanitized);
               callback(sanitized);
@@ -3278,10 +3274,6 @@ export const firestoreService = {
             const temp = f1;
             f1 = f2;
             f2 = temp;
-          }
-          if (f1.includes('dQw4w9WgXcQ')) {
-            f1 = 'https://www.youtube.com/watch?v=kR2rXyNf9V8';
-            f2 = 'Mars Gerakan Kepanduan Hizbul Wathan';
           }
           const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
           const finalTitle = f2 || (f1 && !isUrl1 ? f1 : 'Video Hizbul Wathan');

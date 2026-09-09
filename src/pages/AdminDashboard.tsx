@@ -4723,6 +4723,21 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          <NotificationBell 
+            adminData={{
+              pendingMembers,
+              pendingKtaApps,
+              pendingTrainingApps,
+              membersWithUpgradeRequests,
+              submittedTaskApps
+            }}
+            onNavigateTab={(tab) => {
+              if (['anggota', 'kta', 'pelatihan', 'kegiatan'].includes(tab)) {
+                setActiveTab(tab as any);
+              }
+            }}
+          />
+
           <Link 
             to="/" 
             className="hidden sm:flex items-center gap-2 px-4 py-2 border border-gray-100 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all"
@@ -4731,7 +4746,8 @@ export default function AdminDashboard() {
           </Link>
           <button 
             onClick={() => useAuthStore.getState().logout()}
-            className="p-3 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
+            className="p-3 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-all cursor-pointer"
+            title="Keluar"
           >
             <LogOut size={20} />
           </button>
@@ -4743,9 +4759,9 @@ export default function AdminDashboard() {
         <div className="w-full pb-3 sticky top-0 bg-gray-50/95 backdrop-blur-xs z-10 -mx-4 px-4 pt-2 border-b border-gray-200/60">
           <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 max-w-7xl mx-auto overflow-x-auto scrollbar-none py-1 px-1 touch-pan-x justify-start xl:justify-center">
             {[
-              (!isDiklatAdmin) && { id: 'anggota', label: 'Anggota', icon: Users, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-              (!isDiklatAdmin) && { id: 'kta', label: 'KTA', icon: CreditCard, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-              { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
+              (!isDiklatAdmin) && { id: 'anggota', label: 'Anggota', icon: Users, badge: pendingMembers.length + membersWithUpgradeRequests.length, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+              (!isDiklatAdmin) && { id: 'kta', label: 'KTA', icon: CreditCard, badge: pendingKtaApps.length, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
+              { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, badge: pendingTrainingApps.length + submittedTaskApps.length, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
               (!isDiklatAdmin) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
               { id: 'kwarda-ptma', label: 'Kwarda / PTMA', icon: Building2, activeClass: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white shadow-md shadow-teal-500/25 ring-2 ring-teal-400', hoverClass: 'hover:border-teal-300 hover:text-teal-700' },
               (!isDiklatAdmin) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-md shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
@@ -4757,7 +4773,7 @@ export default function AdminDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer active:scale-95 whitespace-nowrap relative ${
                   activeTab === tab.id 
                   ? tab.activeClass
                   : `bg-white text-gray-600 border border-gray-200/80 ${tab.hoverClass}`
@@ -4765,6 +4781,13 @@ export default function AdminDashboard() {
               >
                 <tab.icon size={15} className="shrink-0" />
                 <span>{tab.label}</span>
+                {tab.badge && tab.badge > 0 ? (
+                  <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full leading-none shrink-0 ${
+                    activeTab === tab.id ? 'bg-white text-emerald-700' : 'bg-rose-500 text-white animate-pulse'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>

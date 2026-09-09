@@ -1971,46 +1971,22 @@ export const sheetsService = {
       }
     } catch (e) {}
 
-    // 4. Fallback defaults if empty
-    if (videoMap.size === 0) {
-      const defaults = [
-        {
-          id: 'gal-1',
-          section: 'galeri',
-          field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-          field2: 'Mars Gerakan Kepanduan Hizbul Wathan',
-          field3: 'Lagu Resmi HW',
-          field4: '',
-          field5: 'Lagu Mars Resmi Gerakan Kepanduan Hizbul Wathan',
-          videoId: 'kR2rXyNf9V8',
-          title: 'Mars Gerakan Kepanduan Hizbul Wathan',
-          url: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-          category: 'Lagu Resmi HW',
-          description: 'Lagu Mars Resmi Gerakan Kepanduan Hizbul Wathan',
-          date: '',
-          source: 'galeri'
-        },
-        {
-          id: 'gal-2',
-          section: 'galeri',
-          field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
-          field2: 'Profil Kwartir Wilayah HW Jawa Tengah',
-          field3: 'Profil HW Jateng',
-          field4: '',
-          field5: 'Dokumentasi profil Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah',
-          videoId: 'mD03u6-T9u8',
-          title: 'Profil Kwartir Wilayah HW Jawa Tengah',
-          url: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
-          category: 'Profil HW Jateng',
-          description: 'Dokumentasi profil Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah',
-          date: '',
-          source: 'galeri'
-        }
-      ];
-      return defaults;
-    }
+    // 4. Return only videos added by admin (filter out unauthorized mock videos)
+    const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8'];
+    const unauthorizedTitles = [
+      'mars gerakan kepanduan hizbul wathan',
+      'profil kwartir wilayah hw jawa tengah',
+      'lagu mars hizbul wathan'
+    ];
 
-    return Array.from(videoMap.values());
+    const result = Array.from(videoMap.values()).filter(v => {
+      const vId = (v.videoId || '').trim();
+      const title = (v.title || v.field2 || '').toLowerCase().trim();
+      const isUnauthorized = unauthorizedVideoIds.includes(vId) || unauthorizedTitles.some(t => title.includes(t));
+      return !isUnauthorized;
+    });
+
+    return result;
   },
 
   async saveContent(content: any): Promise<any> {
@@ -2789,18 +2765,6 @@ export const sheetsService = {
         section: 'profil',
         field1: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=800', // Image URL
         field2: 'Gerakan Kepanduan Hizbul Wathan (HW) merupakan organisasi otonom Muhammadiyah yang bergerak di bidang pendidikan kepanduan. Hizbul Wathan didirikan untuk membina anak, remaja, dan pemuda agar memiliki akidah yang kuat, berakhlak mulia, berjiwa kepemimpinan, mandiri, disiplin, serta siap menjadi kader persyarikatan, umat, dan bangsa.\n\nNama “Hizbul Wathan” berasal dari bahasa Arab yang berarti “Pembela Tanah Air” atau “Golongan Pecinta Tanah Air”. Organisasi ini berakar dari gerakan kepanduan yang dirintis oleh KH Ahmad Dahlan pada tahun 1918. Awalnya bernama Padvinder Muhammadiyah, kemudian pada 30 Januari 1920 resmi menggunakan nama Hizbul Wathan.\n\nSebagai gerakan kepanduan Islam, HW menjadikan Al-Qur’an dan As-Sunnah sebagai landasan utama dalam membentuk karakter generasi muda. Melalui berbagai kegiatan kepanduan, pelatihan kepemimpinan, pengabdian masyarakat, petualangan alam terbuka, dan pendidikan keterampilan hidup, HW berupaya melahirkan kader yang beriman, berilmu, berakhlak, serta memiliki semangat pengabdian kepada agama, bangsa, dan kemanusiaan.\n\nKwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah merupakan struktur kepemimpinan Hizbul Wathan tingkat Provinsi Jawa Tengah yang bertugas mengoordinasikan, membina, dan mengembangkan gerakan kepanduan Hizbul Wathan di seluruh kabupaten dan kota di Jawa Tengah.\n\nSebagai salah satu wilayah dengan basis Muhammadiyah yang kuat, HW Jawa Tengah memiliki peran strategis dalam kaderisasi generasi muda melalui pendidikan kepanduan yang berlandaskan nilai-nilai Islam berkemajuan. Kwarwil HW Jawa Tengah menjadi pusat koordinasi berbagai program pelatihan, pengembangan kader, kegiatan kepanduan, serta penguatan organisasi di tingkat daerah hingga qabilah.\n\nSaat ini Kwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah dipimpin oleh:\n\nKetua: Taufiq\nSekretaris: Muhammad Dzikron\n\nDi bawah kepemimpinan tersebut, Kwarwil HW Jawa Tengah terus mengembangkan program-program kaderisasi yang adaptif terhadap perkembangan zaman dengan tetap menjaga nilai-nilai dasar kepanduan Hizbul Wathan dan ideologi Muhammadiyah.\n\nKwartir Wilayah Gerakan Kepanduan Hizbul Wathan Jawa Tengah hadir sebagai wadah pembinaan generasi muda Muhammadiyah yang unggul, berkarakter, dan berdaya saing. Dengan semangat kepanduan Islami, Kwarwil HW Jawa Tengah terus bergerak dan menggerakkan kader-kader terbaik untuk menjadi pelopor, pelangsung, dan penyempurna perjuangan Muhammadiyah dalam mewujudkan masyarakat Islam yang sebenar-benarnya.'
-      },
-      {
-        id: 'galeri-1',
-        section: 'galeri',
-        field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8',
-        field2: 'Mars Gerakan Kepanduan Hizbul Wathan'
-      },
-      {
-        id: 'galeri-2',
-        section: 'galeri',
-        field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8',
-        field2: 'Profil Kwartir Wilayah HW Jawa Tengah'
       },
       {
         id: 'sosmed-1',

@@ -1,3 +1,5 @@
+import { getMasterMembersList } from '../services/masterMembersService';
+
 export interface NotificationItem {
   id: string;
   type: 'kta' | 'member' | 'training' | 'upgrade' | 'task' | 'general';
@@ -150,21 +152,68 @@ export function buildAllNotifications(options: {
       membersWithUpgradeRequests = adminData.membersWithUpgradeRequests || [];
       submittedTaskApps = adminData.submittedTaskApps || [];
     } else {
-      // Fallback to local caches
-      const members = parseJsonSafe('mock_members').length > 0 ? parseJsonSafe('mock_members') : parseJsonSafe('hw_members');
-      const ktas = parseJsonSafe('kta_applications').length > 0 ? parseJsonSafe('kta_applications') : parseJsonSafe('hw_kta_applications');
+      // Fallback to local caches and master members list
+      let members = parseJsonSafe('mock_members').length > 0 ? parseJsonSafe('mock_members') : parseJsonSafe('hw_members');
+      try {
+        const masterList = getMasterMembersList();
+        if (members.length === 0) {
+          members = masterList;
+        } else {
+          // Ensure any unverified member from master list (e.g. Fayyad Zaid) is included
+          masterList.forEach(mm => {
+            if (mm && (!mm.isVerified || mm.status === 'pending')) {
+              const exists = members.some(m => m.id === mm.id || (m.email && mm.email && m.email.toLowerCase().trim() === mm.email.toLowerCase().trim()));
+              if (!exists) members.push(mm);
+            }
+          });
+        }
+      } catch (e) {}
+
+      let ktas = parseJsonSafe('kta_applications').length > 0 ? parseJsonSafe('kta_applications') : parseJsonSafe('hw_kta_applications');
       const trainings = parseJsonSafe('training_applications').length > 0 ? parseJsonSafe('training_applications') : parseJsonSafe('hw_training_applications');
       const activities = parseJsonSafe('activity_applications').length > 0 ? parseJsonSafe('activity_applications') : parseJsonSafe('hw_activity_applications');
 
-      pendingMembers = members.filter((m: any) => !m.isVerified && m.status !== 'rejected');
+      pendingMembers = members.filter((m: any) => {
+        if (!m) return false;
+        const name = (m.namaLengkap || m.nama || '').trim();
+        if (!name || name === 'Tanpa Nama' || name === '-') return false;
+        if (m.role === 'admin' || m.role === 'superadmin') return false;
+        const s = (m.status || '').toString().toLowerCase().trim();
+        return !m.isVerified || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi';
+      });
+
       membersWithUpgradeRequests = members.filter((m: any) => 
         m.statusUpgrade === 'pending' || 
         (Array.isArray(m.upgradeRequests) && m.upgradeRequests.length > 0)
       );
+
       pendingKtaApps = ktas.filter((k: any) => {
+        if (!k) return false;
         const st = (k.status || '').toString().toLowerCase().trim();
-        return st === 'pending' || st === 'menunggu' || st === 'diproses';
+        return st === 'pending' || st === 'menunggu' || st === 'diproses' || st === 'belum verifikasi' || st === '';
       });
+
+      // Also ensure unverified members without KTA app are counted
+      pendingMembers.forEach((pm: any) => {
+        const pmEmail = (pm.email || '').toLowerCase().trim();
+        const hasKta = pendingKtaApps.some((k: any) => 
+          (k.userId && pm.id && String(k.userId) === String(pm.id)) ||
+          (pmEmail && k.email && String(k.email).toLowerCase().trim() === pmEmail)
+        );
+        if (!hasKta) {
+          pendingKtaApps.push({
+            id: `kta-${pm.id || Date.now()}`,
+            userId: pm.id,
+            nama: pm.namaLengkap || pm.nama,
+            email: pm.email,
+            noWa: pm.noHp || pm.noWa || '',
+            asalDaerah: pm.asalKwarda || '',
+            tingkatan: pm.golongan || 'Dewasa',
+            status: 'pending'
+          });
+        }
+      });
+
       pendingTrainingApps = trainings.filter((t: any) => t.status === 'pending');
       submittedTaskApps = trainings.filter((t: any) => 
         (Array.isArray(t.tasks) && t.tasks.some((task: any) => task.submitted)) ||

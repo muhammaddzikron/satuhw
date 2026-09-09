@@ -148,22 +148,36 @@ export default function HomePage() {
   
   // Pre-initialize contents from cached contents or fresh defaults for 100% instant render
   const [galleryItems, setGalleryItems] = useState<Content[]>(() => {
+    const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8', 'gal-1', 'gal-2', 'galeri-1', 'galeri-2'];
+    const unauthorizedTitles = [
+      'mars gerakan kepanduan hizbul wathan',
+      'profil kwartir wilayah hw jawa tengah',
+      'lagu mars hizbul wathan'
+    ];
+    const isCleanVideo = (c: any) => {
+      if (!c) return false;
+      const urlOrId = (c.field1 || c.videoId || c.url || c.id || '').toString();
+      const title = (c.field2 || c.title || '').toString().toLowerCase();
+      if (unauthorizedVideoIds.some(id => urlOrId.includes(id))) return false;
+      if (unauthorizedTitles.some(t => title.includes(t))) return false;
+      return true;
+    };
+
     try {
       const stored = JSON.parse(localStorage.getItem('contents') || '[]');
       if (Array.isArray(stored) && stored.length > 0) {
-        const gal = stored.filter((c: any) => c.section === 'galeri');
-        if (gal.length > 0) {
-          return gal.map((c: any) => c.field1?.includes('dQw4w9WgXcQ') ? { ...c, field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8', field2: 'Mars Gerakan Kepanduan Hizbul Wathan' } : c);
+        // Clean unauthorized videos from localStorage cache
+        const cleanedStored = stored.filter(isCleanVideo);
+        if (cleanedStored.length !== stored.length) {
+          try { localStorage.setItem('contents', JSON.stringify(cleanedStored)); } catch (e) {}
         }
+        const gal = cleanedStored.filter((c: any) => c.section === 'galeri');
+        if (gal.length > 0) return gal;
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    const gal = initialContents.filter((c: any) => c.section === 'galeri');
-    if (gal.length > 0) return gal;
-    return [
-      { id: 'gal-1', section: 'galeri', field1: 'https://www.youtube.com/watch?v=kR2rXyNf9V8', field2: 'Mars Gerakan Kepanduan Hizbul Wathan' },
-      { id: 'gal-2', section: 'galeri', field1: 'https://www.youtube.com/watch?v=mD03u6-T9u8', field2: 'Profil Kwartir Wilayah HW Jawa Tengah' }
-    ];
+    const gal = initialContents.filter((c: any) => c.section === 'galeri' && isCleanVideo(c));
+    return gal;
   });
 
   const [playlistItems, setPlaylistItems] = useState<Content[]>(() => {
