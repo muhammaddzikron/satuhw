@@ -4,7 +4,7 @@ import { User, Materi, Content, UserRole } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { firestoreService, parseRolesField, applyMemberOverrides, applyMemberListOverrides, clearFirestoreCache } from './firestoreService';
 import { getMasterMembersList } from './masterMembersService';
-import { ensureUniqueKtaNumbers } from '../utils/ktaUtils';
+import { ensureUniqueKtaNumbers, isValidKtaNumberFormat } from '../utils/ktaUtils';
 import { toProperName, sanitizeMemberList } from '../utils/nameUtils';
 import { pickValidImageUrl, normalizeDateForInput } from '../lib/utils';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
@@ -1290,7 +1290,12 @@ export const sheetsService = {
 
         if (!isPresent) {
           const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          const isApproved = Boolean(m.isVerified === true || (m.status && String(m.status).toLowerCase() === 'approved'));
+          const rawStatus = (m.status || '').toString().toLowerCase().trim();
+          const rawKtaStatus = (m.statusKta || '').toString().toLowerCase().trim();
+          const isPending = m.isVerified === false || rawStatus === 'pending' || rawStatus === 'menunggu' || rawStatus === 'belum verifikasi' || rawKtaStatus === 'pending';
+          const isRejected = rawStatus === 'rejected' || rawStatus === 'ditolak' || rawKtaStatus === 'rejected';
+          const isApproved = !isPending && !isRejected && (m.isVerified === true || rawStatus === 'approved' || rawStatus === 'aktif');
+          const finalStatus: 'pending' | 'approved' | 'rejected' = isPending ? 'pending' : (isRejected ? 'rejected' : 'approved');
           apps.push({
             id: ktaId,
             userId: m.id || ktaId,
@@ -1307,7 +1312,7 @@ export const sheetsService = {
             alamat: m.alamat || '',
             nbm: m.nbm || '',
             photo: m.photo || '',
-            status: isApproved ? 'approved' : ((m.status && String(m.status).toLowerCase() === 'rejected') ? 'rejected' : 'pending'),
+            status: finalStatus,
             statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
             statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
             ktaNumber: mKta || '',
@@ -1320,6 +1325,27 @@ export const sheetsService = {
           if (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_')) existingAppKeys.add(`email:${mEmail}`);
           if (mKta && mKta !== 'KTA-HW.JT.XXXX') existingAppKeys.add(`kta:${mKta}`);
           if (mName && mRegion) existingAppKeys.add(`name_region:${mName.toLowerCase()}:::${mRegion}`);
+        }
+      });
+
+      // Synchronize statuses: If a member is pending/unverified, their KTA MUST be 'pending'
+      apps.forEach((a: any) => {
+        const aEmail = (a.email || '').toLowerCase().trim();
+        const aUserId = a.userId ? String(a.userId).toLowerCase().trim() : '';
+        const aId = a.id ? String(a.id).toLowerCase().trim() : '';
+        const matchedMember = allMembers.find((m: any) => {
+          const mEmail = (m.email || '').toLowerCase().trim();
+          const mId = m.id ? String(m.id).toLowerCase().trim() : '';
+          return (mEmail && aEmail && mEmail === aEmail) || (mId && (mId === aUserId || mId === aId));
+        });
+        if (matchedMember) {
+          const mStatus = (matchedMember.status || '').toLowerCase().trim();
+          const mKtaStatus = ((matchedMember as any).statusKta || '').toLowerCase().trim();
+          if (matchedMember.isVerified === false || mStatus === 'pending' || mStatus === 'menunggu' || mKtaStatus === 'pending') {
+            a.status = 'pending';
+          } else if (matchedMember.isVerified === true && (a.status === 'pending' || !a.status)) {
+            a.status = 'approved';
+          }
         }
       });
 

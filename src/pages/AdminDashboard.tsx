@@ -253,7 +253,7 @@ import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode, isValidKtaNumberFormat } from '../utils/ktaUtils';
 import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
@@ -748,6 +748,13 @@ export default function AdminDashboard() {
   const [flippedAdmin, setFlippedAdmin] = useState(false);
   const [isGeneratingPdfAdmin, setIsGeneratingPdfAdmin] = useState(false);
 
+  // Antrean Verifikasi KTA Filtering & Pagination States
+  const [antreanSearch, setAntreanSearch] = useState('');
+  const [antreanFilterKwarda, setAntreanFilterKwarda] = useState('Semua');
+  const [antreanPage, setAntreanPage] = useState(1);
+  const [antreanPageSize, setAntreanPageSize] = useState(10);
+  const [isSyncingMemberQueue, setIsSyncingMemberQueue] = useState(false);
+
   const handleDeleteKtaApp = async (id: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pengajuan KTA untuk ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
       try {
@@ -862,6 +869,130 @@ export default function AdminDashboard() {
         return 0;
       });
   }, [ktaApps, ktaSearchQuery, ktaFilterStatus, ktaFilterKwarda, ktaSortBy]);
+
+  // Unified, Comprehensive Antrean Verifikasi KTA Queue
+  // Merges explicit pending KTA applications with all registered members who need KTA verification
+  const allPendingKtaQueue = React.useMemo(() => {
+    const queueMap = new Map<string, any>();
+
+    // 1. All pending applications from ktaApps
+    (ktaApps || []).forEach(k => {
+      if (!k || !isValidName(k.nama || k.namaLengkap)) return;
+      const s = (k.status || '').toString().trim().toLowerCase();
+      if (s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi' || s === '') {
+        // Check if this application belongs to an already verified member in members state
+        const matchedMember = (members || []).find(m => {
+          const mEmail = (m.email || '').toLowerCase().trim();
+          const kEmail = (k.email || '').toLowerCase().trim();
+          const mId = m.id ? String(m.id).toLowerCase() : '';
+          const kUserId = k.userId ? String(k.userId).toLowerCase() : '';
+          const kId = k.id ? String(k.id).toLowerCase() : '';
+          return (mEmail && kEmail && mEmail === kEmail) || (mId && (mId === kUserId || mId === kId));
+        });
+
+        // If member is already verified and not pending, skip legacy record
+        if (matchedMember && matchedMember.isVerified === true && matchedMember.status !== 'pending' && (matchedMember as any).statusKta !== 'pending') {
+          return;
+        }
+
+        const key = (k.email || k.id || k.userId || k.nama).toString().toLowerCase().trim();
+        queueMap.set(key, {
+          ...k,
+          sourceType: k.sourceType || 'Pengajuan KTA',
+          status: 'pending'
+        });
+      }
+    });
+
+    // 2. Scan all members in members state: any member who registered and awaits KTA verification / activation
+    (members || []).forEach(m => {
+      if (!m || !isValidName(m.namaLengkap || (m as any).nama)) return;
+      if (m.role === 'superadmin' || m.role === 'admin') return;
+
+      const s = (m.status || '').toString().trim().toLowerCase();
+      const ktaStatus = (m.statusKta || '').toString().trim().toLowerCase();
+      const mKta = (m.ktaNumber || m.nomorKTA || '').toString().trim();
+
+      // Only genuine unverified registrants or members with pending status are in the queue
+      const isPending = m.isVerified === false || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi' || ktaStatus === 'pending';
+
+      if (isPending) {
+        // Check if member already has an approved KTA application in ktaApps
+        const hasApprovedKta = (ktaApps || []).some(k => {
+          const kStatus = (k.status || '').toLowerCase().trim();
+          if (kStatus !== 'approved' && kStatus !== 'aktif' && kStatus !== 'terbit') return false;
+          const kId = k.id ? String(k.id).toLowerCase() : '';
+          const kUserId = k.userId ? String(k.userId).toLowerCase() : '';
+          const mId = m.id ? String(m.id).toLowerCase() : '';
+          const kEmail = k.email ? k.email.toLowerCase().trim() : '';
+          const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+          return (mId && (mId === kId || mId === kUserId)) || (mEmail && kEmail && mEmail === kEmail);
+        });
+
+        if (!hasApprovedKta) {
+          const key = (m.email || m.id || m.uid || m.namaLengkap).toString().toLowerCase().trim();
+          if (!queueMap.has(key)) {
+            queueMap.set(key, {
+              id: `kta-member-${m.id || Date.now()}`,
+              userId: m.id || m.uid,
+              nama: m.namaLengkap || (m as any).nama,
+              namaLengkap: m.namaLengkap || (m as any).nama,
+              email: m.email || '',
+              noWa: m.noHp || (m as any).noWa || '',
+              asalDaerah: m.asalKwarda || (m as any).asalDaerah || '',
+              qabilah: m.qabilah || '',
+              tingkatan: m.golongan || (m as any).tingkatan || 'Dewasa',
+              tempatLahir: m.tempatLahir || '',
+              tanggalLahir: m.tanggalLahir || '',
+              jenisKelamin: m.jenisKelamin || 'L',
+              alamat: m.alamat || '',
+              nbm: (m as any).nbm || '',
+              photo: m.photo || '',
+              status: 'pending',
+              statusPembayaran: m.statusPembayaran || 'Belum Bayar',
+              statusAktivasi: 'Belum Aktif',
+              ktaNumber: mKta || '',
+              nomorKTA: mKta || '',
+              jenisKta: (m as any).jenisKta || 'Digital',
+              tanggalAjuan: m.createdAt || m.tanggalDaftar || (m as any).tanggal || new Date().toISOString(),
+              sourceType: 'Pendaftaran Anggota'
+            });
+          }
+        }
+      }
+    });
+
+    // Sort by submission date (newest first)
+    return Array.from(queueMap.values()).sort((a, b) => {
+      const dateA = new Date(a.tanggalAjuan || a.createdAt || 0).getTime();
+      const dateB = new Date(b.tanggalAjuan || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [ktaApps, members]);
+
+  // Filtered & Paginated Antrean KTA
+  const filteredAntreanKta = React.useMemo(() => {
+    return allPendingKtaQueue.filter(app => {
+      const q = antreanSearch.toLowerCase().trim();
+      const matchSearch = !q ||
+        (app?.nama || app?.namaLengkap || '').toLowerCase().includes(q) ||
+        (app?.email || '').toLowerCase().includes(q) ||
+        (app?.noWa || '').toLowerCase().includes(q) ||
+        (app?.asalDaerah || '').toLowerCase().includes(q) ||
+        (app?.qabilah || '').toLowerCase().includes(q);
+
+      const matchKwarda = isMatchKwarda(app, antreanFilterKwarda);
+      return matchSearch && matchKwarda;
+    });
+  }, [allPendingKtaQueue, antreanSearch, antreanFilterKwarda]);
+
+  const totalAntreanPages = Math.max(1, Math.ceil(filteredAntreanKta.length / (antreanPageSize || 10)));
+
+  const paginatedAntreanKta = React.useMemo(() => {
+    if (antreanPageSize <= 0) return filteredAntreanKta;
+    const start = (antreanPage - 1) * antreanPageSize;
+    return filteredAntreanKta.slice(start, start + antreanPageSize);
+  }, [filteredAntreanKta, antreanPage, antreanPageSize]);
 
   // Training Management States & Deduplication
   const [trainingAppsRaw, setTrainingAppsRaw] = useState<any[]>([]);
@@ -1362,31 +1493,54 @@ export default function AdminDashboard() {
   const handleApproveKTA = async (appId: string) => {
     try {
       const nowIso = new Date().toISOString();
-      const targetApp = ktaApps.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId)));
+      const targetApp = (allPendingKtaQueue && allPendingKtaQueue.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId))))
+        || ktaApps.find(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId)));
       const fallbackKtaNum = targetApp?.nomorKTA || targetApp?.ktaNumber || `KTA-HW-${Date.now().toString().slice(-6)}`;
 
       // 1. Optimistic instant local state update (0ms delay)
-      setKtaApps(prev => prev.map(k => {
-        if (String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId))) {
-          return {
-            ...k,
-            status: 'approved',
-            verifiedAt: nowIso,
-            nomorKTA: k.nomorKTA || k.ktaNumber || fallbackKtaNum,
-            ktaNumber: k.ktaNumber || k.nomorKTA || fallbackKtaNum
-          };
+      setKtaApps(prev => {
+        const found = prev.some(k => String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId)));
+        if (found) {
+          return prev.map(k => {
+            if (String(k.id) === String(appId) || (k.userId && String(k.userId) === String(appId))) {
+              return {
+                ...k,
+                status: 'approved',
+                verifiedAt: nowIso,
+                nomorKTA: k.nomorKTA || k.ktaNumber || fallbackKtaNum,
+                ktaNumber: k.ktaNumber || k.nomorKTA || fallbackKtaNum
+              };
+            }
+            return k;
+          });
+        } else if (targetApp) {
+          return [
+            {
+              ...targetApp,
+              status: 'approved',
+              verifiedAt: nowIso,
+              nomorKTA: targetApp.nomorKTA || targetApp.ktaNumber || fallbackKtaNum,
+              ktaNumber: targetApp.ktaNumber || targetApp.nomorKTA || fallbackKtaNum
+            },
+            ...prev
+          ];
         }
-        return k;
-      }));
+        return prev;
+      });
 
       if (targetApp) {
         setMembers(prev => prev.map(m => {
           if ((targetApp.userId && String(m.id) === String(targetApp.userId)) ||
-              (targetApp.email && m.email && m.email.trim().toLowerCase() === targetApp.email.trim().toLowerCase())) {
+              (targetApp.email && m.email && m.email.trim().toLowerCase() === targetApp.email.trim().toLowerCase()) ||
+              (targetApp.nama && (m.namaLengkap === targetApp.nama || m.nama === targetApp.nama))) {
             return {
               ...m,
               isVerified: true,
+              status: 'approved',
               statusKta: 'approved',
+              statusAktivasi: 'Aktif',
+              ktaNumber: m.ktaNumber || targetApp.ktaNumber || fallbackKtaNum,
+              nomorKTA: m.nomorKTA || targetApp.nomorKTA || fallbackKtaNum,
               verifiedAt: nowIso
             };
           }
@@ -1394,7 +1548,7 @@ export default function AdminDashboard() {
         }));
       }
 
-      alert('Pengajuan KTA berhasil disetujui!');
+      showToast('success', `Pengajuan KTA ${targetApp?.nama || 'Anggota'} berhasil disetujui!`);
 
       // 2. Perform backend synchronization non-blockingly in background
       (async () => {
@@ -1410,7 +1564,41 @@ export default function AdminDashboard() {
 
     } catch (e: any) {
       console.error(e);
-      alert('Gagal menyetujui KTA: ' + (e.message || 'Cek koneksi'));
+      showToast('error', 'Gagal menyetujui KTA: ' + (e.message || 'Cek koneksi'));
+    }
+  };
+
+  const handleSyncAllMemberRegistrationsToKta = async () => {
+    try {
+      setIsSyncingMemberQueue(true);
+      setBackgroundProcessingText('Menyinkronkan data pendaftar anggota ke Antrean KTA...');
+
+      const existingKtas = [...ktaApps];
+      const existingMap = new Map<string, any>();
+      existingKtas.forEach(k => {
+        const key = (k.email || k.id || k.userId || k.nama).toString().toLowerCase().trim();
+        existingMap.set(key, k);
+      });
+
+      let addedCount = 0;
+      allPendingKtaQueue.forEach(pendingItem => {
+        const key = (pendingItem.email || pendingItem.id || pendingItem.userId || pendingItem.nama).toString().toLowerCase().trim();
+        if (!existingMap.has(key)) {
+          existingMap.set(key, pendingItem);
+          addedCount++;
+        }
+      });
+
+      const updatedKtas = ensureUniqueKtaNumbers(Array.from(existingMap.values()));
+      safeStorageSet('kta_applications', updatedKtas);
+      setKtaApps(updatedKtas);
+
+      showToast('success', `Sinkronisasi berhasil! ${allPendingKtaQueue.length} pendaftar KTA kini ada di Antrean Verifikasi.`);
+    } catch (e: any) {
+      showToast('error', 'Gagal menyinkronkan: ' + (e.message || 'Terjadi kesalahan'));
+    } finally {
+      setIsSyncingMemberQueue(false);
+      setBackgroundProcessingText(null);
     }
   };
 
@@ -1427,11 +1615,28 @@ export default function AdminDashboard() {
       const curReason = rejectReason;
 
       // 1. Optimistic update
-      setKtaApps(prev => prev.map(k => String(k.id) === String(curId) ? { ...k, status: 'rejected', remark: curReason } : k));
+      setKtaApps(prev => {
+        const exists = prev.some(k => String(k.id) === String(curId) || (k.userId && String(k.userId) === String(curId)));
+        if (exists) {
+          return prev.map(k => (String(k.id) === String(curId) || (k.userId && String(k.userId) === String(curId))) ? { ...k, status: 'rejected', remark: curReason } : k);
+        }
+        const targetApp = allPendingKtaQueue.find(k => String(k.id) === String(curId) || (k.userId && String(k.userId) === String(curId)));
+        if (targetApp) {
+          return [{ ...targetApp, status: 'rejected', remark: curReason }, ...prev];
+        }
+        return prev;
+      });
+
+      setMembers(prev => prev.map(m => {
+        if (String(m.id) === String(curId) || String(m.uid) === String(curId) || `kta-member-${m.id}` === String(curId)) {
+          return { ...m, status: 'rejected', statusKta: 'rejected' };
+        }
+        return m;
+      }));
       setIsRejectModalOpen(false);
       setRejectId(null);
       setRejectReason('');
-      alert('Pengajuan KTA berhasil ditolak.');
+      showToast('success', 'Pengajuan KTA berhasil ditolak.');
 
       // 2. Background sync
       (async () => {
@@ -4650,11 +4855,7 @@ export default function AdminDashboard() {
     const s = (m.status || '').toString().trim().toLowerCase();
     return !m.isVerified || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi';
   });
-  const pendingKtaApps = ktaApps.filter(k => {
-    if (!k || !isValidName(k.nama || k.namaLengkap)) return false;
-    const s = (k.status || '').toString().trim().toLowerCase();
-    return s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi' || s === '';
-  });
+  const pendingKtaApps = allPendingKtaQueue;
   const pendingTrainingApps = trainingApps.filter(t => {
     if (!t || !isValidName(t.nama || t.namaLengkap)) return false;
     const s = (t.status || '').toString().trim().toLowerCase();
@@ -6021,9 +6222,9 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex items-baseline gap-2 mt-4">
                         <span className="text-4xl font-black text-amber-700 font-display">
-                          {ktaApps.filter(k => k.status === 'pending').length}
+                          {allPendingKtaQueue.length}
                         </span>
-                        <span className="text-[11px] text-amber-650 font-semibold font-sans">pengajuan aktif</span>
+                        <span className="text-[11px] text-amber-650 font-semibold font-sans">pendaftar aktif</span>
                       </div>
                       <p className="text-[10px] text-amber-600 mt-2 font-medium">Memerlukan peninjauan dan penomoran resmi sebelum diterbitkan.</p>
                     </div>
@@ -6118,7 +6319,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="bg-amber-50/30 p-2.5 rounded-2xl border border-amber-100/60 text-center">
                             <div className="text-[9px] text-amber-600 font-bold uppercase tracking-wider leading-none mb-1">Menunggu</div>
-                            <div className="text-base font-black text-amber-700 font-display">{ktaApps.filter(k => k.status === 'pending').length}</div>
+                            <div className="text-base font-black text-amber-700 font-display">{allPendingKtaQueue.length}</div>
                           </div>
                           <div className="bg-emerald-50/30 p-2.5 rounded-2xl border border-emerald-100/60 text-center">
                             <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider leading-none mb-1">Disetujui</div>
@@ -6133,67 +6334,165 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Quick-Action List for Reviewing and Printing */}
+                  {/* Antrean Verifikasi KTA - Full Queue Table with Search, Filter & Pagination */}
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-gray-50 bg-gray-50/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Printer className="text-hw-green" size={18} />
+                    <div className="p-5 border-b border-gray-50 bg-gray-50/20 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                          <Printer size={18} />
+                        </div>
                         <div>
-                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Daftar Aksi Cepat Peninjauan & Cetak KTA</h4>
-                          <p className="text-[10px] text-gray-400 font-medium">Tinjau, setujui secara instan, atau cetak KTA yang siap terbit langsung dari panel ini.</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider font-display">Antrean Verifikasi KTA</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                              {allPendingKtaQueue.length} Pendaftar Menunggu
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            Daftar anggota pendaftar dan pemohon KTA yang siap ditinjau dan diterbitkan nomor KTA resminya.
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={async () => {
-                          if (window.confirm('Apakah Anda yakin ingin membersihkan antrean KTA dari data kosong/tidak valid?')) {
-                            try {
-                              setLoading(true);
-                              const validKtas = ktaApps.filter(k => k && (k.nama || k.namaLengkap) && k.tingkatan);
-                              safeStorageSet('kta_applications', validKtas);
-                              setKtaApps(validKtas);
-                              alert('Berhasil membersihkan data kosong dari antrean!');
-                              await fetchData();
-                            } catch (e: any) {
-                              alert('Gagal membersihkan data: ' + e.message);
-                            } finally {
-                              setLoading(false);
+                      
+                      <div className="flex items-center gap-2 flex-wrap self-stretch lg:self-auto justify-end">
+                        <button
+                          onClick={handleSyncAllMemberRegistrationsToKta}
+                          disabled={isSyncingMemberQueue}
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
+                          title="Sinkronkan pendaftar anggota ke daftar antrean KTA"
+                        >
+                          <RefreshCw size={12} className={isSyncingMemberQueue ? 'animate-spin' : ''} />
+                          <span>Sinkronkan Pendaftar ({allPendingKtaQueue.length})</span>
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm('Apakah Anda yakin ingin membersihkan antrean KTA dari data kosong/tidak valid?')) {
+                              try {
+                                setLoading(true);
+                                const validKtas = ktaApps.filter(k => k && (k.nama || k.namaLengkap) && k.tingkatan);
+                                safeStorageSet('kta_applications', validKtas);
+                                setKtaApps(validKtas);
+                                alert('Berhasil membersihkan data kosong dari antrean!');
+                                await fetchData();
+                              } catch (e: any) {
+                                alert('Gagal membersihkan data: ' + e.message);
+                              } finally {
+                                setLoading(false);
+                              }
                             }
-                          }
-                        }}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
-                      >
-                        Bersihkan Data Kosong
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const pendingCount = ktaApps.filter(k => k && ((k.status || '').toLowerCase() === 'pending' || !k.status || (k.status || '').toLowerCase() === 'menunggu')).length;
-                          if (pendingCount === 0) {
-                            alert('Tidak ada data pengajuan KTA yang terpending.');
-                            return;
-                          }
-                          if (window.confirm(`Apakah Anda yakin ingin menghapus ${pendingCount} data pengajuan KTA yang terpending?`)) {
-                            try {
-                              setLoading(true);
-                              const res = await sheetsService.deletePendingKtaApplications();
-                              alert(`Berhasil menghapus ${res.deletedCount || pendingCount} data pengajuan KTA terpending.`);
-                              await fetchData();
-                            } catch (e: any) {
-                              alert('Gagal menghapus data terpending: ' + (e.message || 'Error'));
-                            } finally {
-                              setLoading(false);
+                          }}
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                        >
+                          Bersihkan Kosong
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const pendingCount = allPendingKtaQueue.length;
+                            if (pendingCount === 0) {
+                              alert('Tidak ada data pengajuan KTA yang terpending.');
+                              return;
                             }
-                          }
-                        }}
-                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
-                      >
-                        Hapus Data Terpending
-                      </button>
+                            if (window.confirm(`Apakah Anda yakin ingin menghapus antrean pengajuan KTA terpending?`)) {
+                              try {
+                                setLoading(true);
+                                const res = await sheetsService.deletePendingKtaApplications();
+                                alert(`Berhasil menghapus ${res.deletedCount || pendingCount} data pengajuan KTA terpending.`);
+                                await fetchData();
+                              } catch (e: any) {
+                                alert('Gagal menghapus data terpending: ' + (e.message || 'Error'));
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                        >
+                          Hapus Terpending
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Toolbar: Search, Kwarda Filter, Page Size */}
+                    <div className="p-3.5 bg-gray-50/40 border-b border-gray-100 flex flex-col md:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 w-full md:w-auto flex-1">
+                        <div className="relative flex-1 max-w-sm">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Cari nama, email, WA, qabilah..."
+                            value={antreanSearch}
+                            onChange={e => {
+                              setAntreanSearch(e.target.value);
+                              setAntreanPage(1);
+                            }}
+                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                          />
+                          {antreanSearch && (
+                            <button
+                              onClick={() => {
+                                setAntreanSearch('');
+                                setAntreanPage(1);
+                              }}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        <select
+                          value={antreanFilterKwarda}
+                          onChange={e => {
+                            setAntreanFilterKwarda(e.target.value);
+                            setAntreanPage(1);
+                          }}
+                          className="py-1.5 px-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:border-amber-500 cursor-pointer max-w-[180px] truncate"
+                        >
+                          <option value="Semua">Semua Kwarda & Qabilah</option>
+                          <optgroup label="1. Kwarda (Kabupaten / Kota)">
+                            {KWARDA_QABILAH_JATENG.slice(0, 35).map(k => (
+                              <option key={k.code} value={k.name}>
+                                {parseInt(k.code, 10)}. {k.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="2. Qabilah PTMA">
+                            {KWARDA_QABILAH_JATENG.slice(35).map(q => (
+                              <option key={q.code} value={q.name}>
+                                {parseInt(q.code, 10)}. {q.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end text-xs text-gray-500">
+                        <span className="text-[11px] font-medium text-gray-500">
+                          Menampilkan <strong className="text-gray-800">{paginatedAntreanKta.length}</strong> dari <strong className="text-gray-800">{filteredAntreanKta.length}</strong> pendaftar
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-400 uppercase font-black">Baris:</span>
+                          <select
+                            value={antreanPageSize}
+                            onChange={e => {
+                              setAntreanPageSize(Number(e.target.value));
+                              setAntreanPage(1);
+                            }}
+                            className="py-1 px-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 cursor-pointer"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={0}>Semua</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[700px]">
+                      <table className="w-full text-left border-collapse min-w-[750px]">
                         <thead>
-                          <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                          <tr className="bg-gray-50/60 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                             <th className="p-3.5 pl-5 w-14">Foto</th>
                             <th className="p-3.5">Anggota</th>
                             <th className="p-3.5">Kwarda / Qabilah</th>
@@ -6203,89 +6502,145 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-semibold text-gray-750">
-                          {ktaApps.filter(app => (app.status || '').toLowerCase() === 'pending' || !app.status || (app.status || '').toLowerCase() === 'menunggu').length === 0 ? (
+                          {allPendingKtaQueue.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="p-12 text-center text-gray-400 font-bold uppercase tracking-wider bg-gray-50/5">
-                                🎉 Tidak ada antrean KTA tertunda! Semua pengajuan telah diverifikasi.
+                                🎉 Tidak ada antrean KTA tertunda! Semua pendaftaran telah diverifikasi.
+                              </td>
+                            </tr>
+                          ) : filteredAntreanKta.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="p-10 text-center text-gray-400 font-medium bg-gray-50/5">
+                                Tidak ada pendaftar KTA yang cocok dengan filter atau kata kunci pencarian.
                               </td>
                             </tr>
                           ) : (
-                            ktaApps.filter(app => (app.status || '').toLowerCase() === 'pending' || !app.status || (app.status || '').toLowerCase() === 'menunggu').slice(0, 8).map((app, idx) => (
-                              <tr key={app.id} className="hover:bg-gray-50/30 transition-all">
-                                <td className="p-3.5 pl-5">
-                                  <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs shrink-0">
-                                    {app.photo ? (
-                                      <img src={app.photo} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                        <UserIcon size={16} />
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="p-3.5">
-                                  <div className="font-extrabold text-sm text-gray-800"><span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{idx + 1}.</span>{app.nama}</div>
-                                  <div className="text-[10px] text-gray-400 leading-none">{app.email || app.noWa}</div>
-                                </td>
-                                <td className="p-3.5">
-                                  <div className="font-bold text-gray-700">{app.asalDaerah}</div>
-                                  <div className="text-[10px] text-gray-400 font-medium">Qabilah: {app.qabilah || '-'}</div>
-                                </td>
-                                <td className="p-3.5">
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100">
-                                    {app.tingkatan}
-                                  </span>
-                                </td>
-                                <td className="p-3.5">
-                                  <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-yellow-100 uppercase tracking-widest">
-                                    Pending
-                                  </span>
-                                </td>
-                                <td className="p-3.5 text-center pr-5">
-                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                    <button
-                                      onClick={() => {
-                                        setViewingKtaApp(app);
-                                        setIsViewKtaModalOpen(true);
-                                        setFlippedAdmin(false);
-                                      }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
-                                      title="Preview KTA"
-                                    >
-                                      <Eye size={12} />
-                                      <span>Preview</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleApproveKTA(app.id)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green text-white hover:bg-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
-                                      title="Setujui KTA"
-                                    >
-                                      <CheckCircle2 size={12} />
-                                      <span>Approve</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleOpenRejectKTA(app.id)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
-                                      title="Tolak KTA"
-                                    >
-                                      <XCircle size={12} />
-                                      <span>Tolak</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Data Tidak Valid')}
-                                      className="inline-flex items-center justify-center p-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
-                                      title="Hapus KTA"
-                                    >
-                                      <Trash2 size={13} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
+                            paginatedAntreanKta.map((app, idx) => {
+                              const rowNumber = antreanPageSize > 0 ? (antreanPage - 1) * antreanPageSize + idx + 1 : idx + 1;
+                              return (
+                                <tr key={app.id || app.userId || idx} className="hover:bg-amber-50/20 transition-all">
+                                  <td className="p-3.5 pl-5">
+                                    <div className="w-9 h-11 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-2xs shrink-0">
+                                      {app.photo ? (
+                                        <img src={app.photo} alt="Foto KTA" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                          <UserIcon size={16} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-extrabold text-sm text-gray-800">
+                                        <span className="text-gray-400 font-mono text-xs font-bold mr-1.5">{rowNumber}.</span>
+                                        {app.nama || app.namaLengkap}
+                                      </span>
+                                      {app.sourceType && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${app.sourceType === 'Pendaftaran Anggota' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                                          {app.sourceType}
+                                        </span>
+                                      )}
+                                      {app.jenisKta && (
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                                          {app.jenisKta}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 leading-tight mt-0.5">
+                                      {app.email || '-'} • {app.noWa || app.noHp || '-'}
+                                    </div>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <div className="font-bold text-gray-700">{app.asalDaerah || '-'}</div>
+                                    <div className="text-[10px] text-gray-400 font-medium">Qabilah: {app.qabilah || '-'}</div>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100">
+                                      {app.tingkatan || 'Dewasa'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-yellow-100 uppercase tracking-widest">
+                                      Pending
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5 text-center pr-5">
+                                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                      <button
+                                        onClick={() => {
+                                          setViewingKtaApp(app);
+                                          setIsViewKtaModalOpen(true);
+                                          setFlippedAdmin(false);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                        title="Preview KTA"
+                                      >
+                                        <Eye size={12} />
+                                        <span>Preview</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleApproveKTA(app.id)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-hw-green text-white hover:bg-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                        title="Setujui KTA"
+                                      >
+                                        <CheckCircle2 size={12} />
+                                        <span>Approve</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenRejectKTA(app.id)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95"
+                                        title="Tolak KTA"
+                                      >
+                                        <XCircle size={12} />
+                                        <span>Tolak</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteKtaApp(app.id, app.nama || 'Data Tidak Valid')}
+                                        className="inline-flex items-center justify-center p-1.5 bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
+                                        title="Hapus KTA"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Pagination Footer */}
+                    {antreanPageSize > 0 && totalAntreanPages > 1 && (
+                      <div className="p-3.5 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between text-xs">
+                        <div className="text-[11px] text-gray-500 font-medium">
+                          Halaman <strong>{antreanPage}</strong> dari <strong>{totalAntreanPages}</strong> ({filteredAntreanKta.length} total)
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setAntreanPage(prev => Math.max(1, prev - 1))}
+                            disabled={antreanPage <= 1}
+                            className="px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all"
+                          >
+                            <ChevronLeft size={13} />
+                            <span>Sebelumnya</span>
+                          </button>
+                          <span className="px-2 font-black text-gray-700 text-xs">
+                            {antreanPage} / {totalAntreanPages}
+                          </span>
+                          <button
+                            onClick={() => setAntreanPage(prev => Math.min(totalAntreanPages, prev + 1))}
+                            disabled={antreanPage >= totalAntreanPages}
+                            className="px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all"
+                          >
+                            <span>Selanjutnya</span>
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Manajemen KTA HW Card */}

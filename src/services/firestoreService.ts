@@ -1791,7 +1791,25 @@ export const firestoreService = {
               }
               return { id: d.id, ...data, status: normStatus };
             });
-            const finalApps = ensureUniqueKtaNumbers(rawApps);
+            // Merge with existing cached applications so locally registered members are preserved
+            const cachedStr = typeof localStorage !== 'undefined' ? localStorage.getItem('kta_applications') : null;
+            let combinedApps = rawApps;
+            if (cachedStr) {
+              try {
+                const parsedCached = JSON.parse(cachedStr);
+                if (Array.isArray(parsedCached) && parsedCached.length > 0) {
+                  const map = new Map<string, any>();
+                  parsedCached.forEach((item: any) => {
+                    if (item && item.id) map.set(String(item.id), item);
+                  });
+                  rawApps.forEach((item: any) => {
+                    if (item && item.id) map.set(String(item.id), { ...(map.get(String(item.id)) || {}), ...item });
+                  });
+                  combinedApps = Array.from(map.values());
+                }
+              } catch (e) {}
+            }
+            const finalApps = ensureUniqueKtaNumbers(combinedApps);
             safeStorageSet('kta_applications', finalApps);
             callback(finalApps);
             if (typeof window !== 'undefined') {
@@ -2133,7 +2151,7 @@ export const firestoreService = {
               const members = JSON.parse(membersStored);
               ktas = ktas.map((k: any) => {
                 const match = members.find((m: any) => 
-                  (m.email && k.email && String(m.email).trim().toLowerCase() === String(m.email).trim().toLowerCase()) ||
+                  (m.email && k.email && String(m.email).trim().toLowerCase() === String(k.email).trim().toLowerCase()) ||
                   (m.id && k.userId && String(m.id) === String(k.userId))
                 );
                 if (match) {
@@ -2235,7 +2253,12 @@ export const firestoreService = {
 
         if (!isPresent) {
           const ktaId = m.id ? `kta-${m.id}` : `kta-user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          const isApproved = Boolean(m.isVerified === true || (m.status && String(m.status).toLowerCase() === 'approved'));
+          const rawStatus = (m.status || '').toString().toLowerCase().trim();
+          const rawKtaStatus = (m.statusKta || '').toString().toLowerCase().trim();
+          const isPending = m.isVerified === false || rawStatus === 'pending' || rawStatus === 'menunggu' || rawStatus === 'belum verifikasi' || rawKtaStatus === 'pending';
+          const isRejected = rawStatus === 'rejected' || rawStatus === 'ditolak' || rawKtaStatus === 'rejected';
+          const isApproved = !isPending && !isRejected && (m.isVerified === true || rawStatus === 'approved' || rawStatus === 'aktif');
+          const finalStatus: 'pending' | 'approved' | 'rejected' = isPending ? 'pending' : (isRejected ? 'rejected' : 'approved');
           ktas.push({
             id: ktaId,
             userId: m.id || ktaId,
@@ -2252,7 +2275,7 @@ export const firestoreService = {
             alamat: m.alamat || '',
             nbm: m.nbm || '',
             photo: m.photo || '',
-            status: isApproved ? 'approved' : ((m.status && String(m.status).toLowerCase() === 'rejected') ? 'rejected' : 'pending'),
+            status: finalStatus,
             statusPembayaran: m.statusPembayaran || (isApproved ? 'Lunas' : 'Belum Bayar'),
             statusAktivasi: m.statusAktivasi || (isApproved ? 'Aktif' : 'Belum Aktif'),
             ktaNumber: mKta || '',
@@ -2265,6 +2288,27 @@ export const firestoreService = {
           if (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_')) existingKtaKeys.add(`email:${mEmail}`);
           if (mKta && mKta !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${mKta}`);
           if (mName && mRegion) existingKtaKeys.add(`name_region:${mName.toLowerCase()}:::${mRegion}`);
+        }
+      });
+
+      // Synchronize statuses: If a member is pending/unverified, their KTA MUST be 'pending'
+      ktas.forEach((k: any) => {
+        const kEmail = (k.email || '').toLowerCase().trim();
+        const kUserId = k.userId ? String(k.userId).toLowerCase().trim() : '';
+        const kId = k.id ? String(k.id).toLowerCase().trim() : '';
+        const matchedMember = allMembers.find((m: any) => {
+          const mEmail = (m.email || '').toLowerCase().trim();
+          const mId = m.id ? String(m.id).toLowerCase().trim() : '';
+          return (mEmail && kEmail && mEmail === kEmail) || (mId && (mId === kUserId || mId === kId));
+        });
+        if (matchedMember) {
+          const mStatus = (matchedMember.status || '').toLowerCase().trim();
+          const mKtaStatus = ((matchedMember as any).statusKta || '').toLowerCase().trim();
+          if (matchedMember.isVerified === false || mStatus === 'pending' || mStatus === 'menunggu' || mKtaStatus === 'pending') {
+            k.status = 'pending';
+          } else if (matchedMember.isVerified === true && (k.status === 'pending' || !k.status)) {
+            k.status = 'approved';
+          }
         }
       });
 
