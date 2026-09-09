@@ -331,6 +331,12 @@ const truncateText = (text: string, maxLen: number): string => {
   return text.length > maxLen ? text.substring(0, maxLen - 3) + '...' : text;
 };
 
+const isValidName = (name?: string): boolean => {
+  if (!name) return false;
+  const trimmed = name.trim().toLowerCase();
+  return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
+};
+
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuthStore();
   const memberPhotoInputRef = React.useRef<HTMLInputElement>(null);
@@ -2825,12 +2831,6 @@ export default function AdminDashboard() {
       console.error('Error updating grade inline:', err);
       showToast('error', 'Gagal memperbarui nilai: ' + (err.message || 'Terjadi kesalahan'));
     }
-  };
-
-  const isValidName = (name?: string) => {
-    if (!name) return false;
-    const trimmed = name.trim().toLowerCase();
-    return trimmed !== '' && trimmed !== 'tanpa nama' && trimmed !== '-' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'kta-hw.jt.xxxx';
   };
 
   const isValidTrainingApp = (t: any) => {
