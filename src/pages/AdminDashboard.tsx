@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KTACard } from '../components/KTACard';
-import { NotificationBell } from '../components/NotificationBell';
 import { printKtaAsPdf, downloadKtaPdfBlob } from '../utils/ktaPrintUtils';
 import { formatTempatTanggalLahir, cleanTempatLahir, normalizeDateForInput } from '../lib/utils';
 import { isOnlyTrainingActivity, isParticipantOfActivity, sortActivityAppsByDate, extractYoutubeId, isExternalRegistration, getExternalLinks, sortActivitiesNewestFirst, resolveVideoMetadata } from '../utils/activityUtils';
@@ -262,6 +261,19 @@ export { KWARDA_QABILAH_JATENG };
 
 const KABUPATEN_KOTA_JATENG = KWARDA_QABILAH_JATENG.map(item => item.name);
 
+export const safeLower = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val.toLowerCase();
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val).toLowerCase();
+  if (typeof val === 'object') {
+    if (val.name) return String(val.name).toLowerCase();
+    if (val.label) return String(val.label).toLowerCase();
+    if (val.title) return String(val.title).toLowerCase();
+    return '';
+  }
+  return String(val).toLowerCase();
+};
+
 const StatCard = ({ label, value, icon: Icon, color, subValue }: { label: string, value: string | number, icon: any, color: string, subValue?: string }) => (
   <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
     <div className="space-y-1">
@@ -491,9 +503,9 @@ export default function AdminDashboard() {
     ...(Array.isArray((window as any)?.hw_settings?.trainingActivities) ? (window as any).hw_settings.trainingActivities : [])
   ];
 
-  const userEmailStr = (user?.email || '').toLowerCase().trim();
-  const userNameStr = (user?.namaLengkap || user?.nama || (user as any)?.name || '').toLowerCase().trim();
-  const userNbmStr = ((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA || '').toLowerCase().trim();
+  const userEmailStr = safeLower(user?.email).trim();
+  const userNameStr = safeLower(user?.namaLengkap || user?.nama || (user as any)?.name).trim();
+  const userNbmStr = safeLower((user as any)?.nbm || (user as any)?.noNbm || (user as any)?.ktaNumber || (user as any)?.nomorKTA).trim();
 
   const isAssignedTrainerInAnyActivity = (Array.isArray(rawActsList) ? rawActsList : []).some((act: any) => {
     if (!act) return false;
@@ -617,8 +629,10 @@ export default function AdminDashboard() {
     konten: '',
     kategori: 'umum',
     coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
-    driveUrl: ''
+    driveUrl: '',
+    linkExternal: ''
   });
+  const [isRestoringMateri, setIsRestoringMateri] = useState(false);
 
   // Kegiatan HW Jateng State
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
@@ -760,6 +774,7 @@ export default function AdminDashboard() {
   const [antreanPage, setAntreanPage] = useState(1);
   const [antreanPageSize, setAntreanPageSize] = useState(10);
   const [isSyncingMemberQueue, setIsSyncingMemberQueue] = useState(false);
+  const [isApprovingAllKta, setIsApprovingAllKta] = useState(false);
 
   const handleDeleteKtaApp = async (id: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pengajuan KTA untuk ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
@@ -842,18 +857,18 @@ export default function AdminDashboard() {
     const appsWithNumbers = ensureUniqueKtaNumbers([...(ktaApps || [])]);
     return appsWithNumbers
       .filter(app => {
-        const query = ktaSearchQuery.toLowerCase().trim();
+        const query = safeLower(ktaSearchQuery).trim();
         const matchSearch = !query ||
-          (app?.nama || '').toLowerCase().includes(query) ||
-          (app?.namaLengkap || '').toLowerCase().includes(query) ||
-          (app?.email || '').toLowerCase().includes(query) ||
-          (app?.asalDaerah || '').toLowerCase().includes(query) ||
-          (app?.asalKwarda || '').toLowerCase().includes(query) ||
-          (app?.qabilah || '').toLowerCase().includes(query) ||
-          (app?.ktaNumber || '').toLowerCase().includes(query) ||
-          (app?.nomorKTA || '').toLowerCase().includes(query);
+          safeLower(app?.nama).includes(query) ||
+          safeLower(app?.namaLengkap).includes(query) ||
+          safeLower(app?.email).includes(query) ||
+          safeLower(app?.asalDaerah).includes(query) ||
+          safeLower(app?.asalKwarda).includes(query) ||
+          safeLower(app?.qabilah).includes(query) ||
+          safeLower(app?.ktaNumber).includes(query) ||
+          safeLower(app?.nomorKTA).includes(query);
 
-        const matchStatus = ktaFilterStatus === 'Semua' || (app?.status || '').toString().toLowerCase().trim() === ktaFilterStatus.toLowerCase().trim();
+        const matchStatus = ktaFilterStatus === 'Semua' || safeLower(app?.status).trim() === safeLower(ktaFilterStatus).trim();
         const matchKwarda = isMatchKwarda(app, ktaFilterKwarda);
 
         return matchSearch && matchStatus && matchKwarda;
@@ -979,13 +994,13 @@ export default function AdminDashboard() {
   // Filtered & Paginated Antrean KTA
   const filteredAntreanKta = React.useMemo(() => {
     return allPendingKtaQueue.filter(app => {
-      const q = antreanSearch.toLowerCase().trim();
+      const q = safeLower(antreanSearch).trim();
       const matchSearch = !q ||
-        (app?.nama || app?.namaLengkap || '').toLowerCase().includes(q) ||
-        (app?.email || '').toLowerCase().includes(q) ||
-        (app?.noWa || '').toLowerCase().includes(q) ||
-        (app?.asalDaerah || '').toLowerCase().includes(q) ||
-        (app?.qabilah || '').toLowerCase().includes(q);
+        safeLower(app?.nama || app?.namaLengkap).includes(q) ||
+        safeLower(app?.email).includes(q) ||
+        safeLower(app?.noWa).includes(q) ||
+        safeLower(app?.asalDaerah).includes(q) ||
+        safeLower(app?.qabilah).includes(q);
 
       const matchKwarda = isMatchKwarda(app, antreanFilterKwarda);
       return matchSearch && matchKwarda;
@@ -1574,6 +1589,121 @@ export default function AdminDashboard() {
     } catch (e: any) {
       console.error(e);
       showToast('error', 'Gagal menyetujui KTA: ' + (e.message || 'Cek koneksi'));
+    }
+  };
+
+  const handleApproveAllKTA = async () => {
+    const pendingCount = allPendingKtaQueue.length;
+    if (pendingCount === 0) {
+      alert('Tidak ada antrean pendaftar KTA yang menunggu verifikasi.');
+      return;
+    }
+
+    if (!window.confirm(`Apakah Anda yakin ingin menyetujui dan mengaktifkan seluruh ${pendingCount} pendaftar KTA sekaligus?\n\nSetiap anggota akan langsung aktif dan diterbitkan nomor KTA resmi HW secara berurutan.`)) {
+      return;
+    }
+
+    setIsApprovingAllKta(true);
+    setBackgroundProcessingText(`Memproses persetujuan massal ${pendingCount} KTA...`);
+
+    try {
+      const nowIso = new Date().toISOString();
+      const allTrackedItems = [...(ktaApps || []), ...(members || [])];
+      
+      // Map allocated numbers per pending app
+      const newlyAssigned = new Map<string, string>();
+      
+      allPendingKtaQueue.forEach(app => {
+        const rawKta = (app.nomorKTA || app.ktaNumber || '').trim();
+        let ktaNum = isValidKtaNumberFormat(rawKta) ? rawKta : '';
+        if (!ktaNum) {
+          ktaNum = generateNextKtaForRegion(app.asalDaerah || app.asalKwarda, app.qabilah, allTrackedItems);
+        }
+        allTrackedItems.push({
+          ktaNumber: ktaNum,
+          nomorKTA: ktaNum,
+          asalDaerah: app.asalDaerah || app.asalKwarda,
+          qabilah: app.qabilah
+        });
+        newlyAssigned.set(String(app.id), ktaNum);
+      });
+
+      // 1. Optimistic state updates for KTA apps
+      setKtaApps(prev => {
+        const prevMap = new Map<string, any>();
+        prev.forEach(k => prevMap.set(String(k.id), k));
+
+        allPendingKtaQueue.forEach(app => {
+          const ktaNum = newlyAssigned.get(String(app.id)) || app.ktaNumber || app.nomorKTA;
+          const existing = prevMap.get(String(app.id));
+          const updated = {
+            ...(existing || app),
+            status: 'approved',
+            isVerified: true,
+            statusAktivasi: 'Aktif',
+            verifiedAt: nowIso,
+            nomorKTA: ktaNum,
+            ktaNumber: ktaNum
+          };
+          prevMap.set(String(app.id), updated);
+        });
+
+        return Array.from(prevMap.values());
+      });
+
+      // 2. Optimistic state updates for Members
+      setMembers(prev => prev.map(m => {
+        const mEmail = safeLower(m.email).trim();
+        const mId = String(m.id || m.uid || '');
+        const matchingApp = allPendingKtaQueue.find(app => {
+          const aId = String(app.id || '');
+          const aUserId = String(app.userId || '');
+          const aEmail = safeLower(app.email).trim();
+          return (aUserId && aUserId === mId) || (aId && aId === mId) || (aEmail && mEmail && aEmail === mEmail);
+        });
+
+        if (matchingApp) {
+          const ktaNum = newlyAssigned.get(String(matchingApp.id)) || matchingApp.ktaNumber || matchingApp.nomorKTA;
+          return {
+            ...m,
+            isVerified: true,
+            status: 'approved',
+            statusKta: 'approved',
+            statusAktivasi: 'Aktif',
+            nomorKTA: ktaNum || m.nomorKTA,
+            ktaNumber: ktaNum || m.ktaNumber,
+            verifiedAt: nowIso
+          };
+        }
+        return m;
+      }));
+
+      showToast('success', `Berhasil menyetujui ${pendingCount} pengajuan KTA! Menyinkronkan ke database...`);
+
+      // 3. Batch background update to Firestore and Google Sheets
+      (async () => {
+        for (const app of allPendingKtaQueue) {
+          const ktaNum = newlyAssigned.get(String(app.id));
+          await sheetsService.updateKTAStatus(String(app.id), 'approved', ktaNum).catch(() => {});
+        }
+
+        await sheetsService.syncApprovedKtasToMembers().catch(() => {});
+        
+        const [ktaData, membersData] = await Promise.all([
+          sheetsService.getKTAApplications(),
+          sheetsService.getMembers()
+        ]);
+        if (ktaData?.length) setKtaApps(ktaData);
+        if (membersData?.length) setMembers(membersData);
+      })().catch(err => console.warn('Background bulk KTA approval sync error:', err));
+
+      showToast('success', `Selesai! Seluruh ${pendingCount} pendaftar resmi disetujui & aktif dengan nomor KTA.`);
+    } catch (err: any) {
+      console.error('Approve all KTA error:', err);
+      showToast('error', `Gagal memproses persetujuan massal: ${err.message || 'Error'}`);
+    } finally {
+      setIsApprovingAllKta(false);
+      setBackgroundProcessingText('');
     }
   };
 
@@ -3281,15 +3411,35 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRestoreDefaultMateri = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin memulihkan seluruh modul materi kurikulum HW standar (Jati 1, Jati 2, Jari 1, Sugli, Kwarda, Umum)?\n\nMateri yang terhapus atau kosong akan dipulihkan secara otomatis.')) {
+      return;
+    }
+    setIsRestoringMateri(true);
+    setBackgroundProcessingText('Memulihkan seluruh materi standar HW...');
+    try {
+      const restored = await sheetsService.restoreDefaultMateri();
+      setMateriList(restored || []);
+      showToast('success', `Berhasil memulihkan ${restored?.length || 0} modul materi kurikulum HW!`);
+    } catch (err: any) {
+      console.error('Restore materi error:', err);
+      showToast('error', `Gagal memulihkan materi: ${err.message || 'Error'}`);
+    } finally {
+      setIsRestoringMateri(false);
+      setBackgroundProcessingText(null);
+    }
+  };
+
   const handleOpenMateriModal = (materi?: Materi) => {
     if (materi) {
       setEditingMateri(materi);
       setMateriFormData({
-        judul: materi.judul,
-        konten: materi.konten,
-        kategori: materi.kategori,
+        judul: materi.judul || '',
+        konten: materi.konten || '',
+        kategori: materi.kategori || 'umum',
         coverImage: materi.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
-        driveUrl: materi.driveUrl || ''
+        driveUrl: materi.driveUrl || '',
+        linkExternal: (materi as any).linkExternal || ''
       });
     } else {
       setEditingMateri(null);
@@ -3298,7 +3448,8 @@ export default function AdminDashboard() {
         konten: '',
         kategori: 'umum',
         coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
-        driveUrl: ''
+        driveUrl: '',
+        linkExternal: ''
       });
     }
     setIsMateriModalOpen(true);
@@ -4613,10 +4764,11 @@ export default function AdminDashboard() {
   const filteredMembers = React.useMemo(() => {
     return deduplicatedMemberList
       .filter(m => {
-        const matchesSearch = (
-          (m.namaLengkap || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (m.asalKwarda || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+        const q = safeLower(searchQuery).trim();
+        const matchesSearch = !q || (
+          safeLower(m.namaLengkap).includes(q) ||
+          safeLower(m.asalKwarda).includes(q) ||
+          safeLower(m.email).includes(q)
         );
         
         const isInternal = m.role === 'superadmin' || m.role === 'admin';
@@ -4625,7 +4777,7 @@ export default function AdminDashboard() {
         if (selectedFilters.includes('Semua') || selectedFilters.length === 0) return matchesSearch;
         
         return matchesSearch && selectedFilters.some(filter => {
-          if (filter === 'Pending Verifikasi') return !m.isVerified || (m.status || '').toLowerCase() === 'pending' || (m.status || '').toLowerCase() === 'menunggu';
+          if (filter === 'Pending Verifikasi') return !m.isVerified || safeLower(m.status) === 'pending' || safeLower(m.status) === 'menunggu';
           if (filter === 'Laki-laki') return m.jenisKelamin === 'L';
           if (filter === 'Perempuan') return m.jenisKelamin === 'P';
           if (filter === 'Athfal') return (m.golongan === 'Athfal' || m.golongan === 'Tunas Athfal');
@@ -4926,21 +5078,6 @@ export default function AdminDashboard() {
               </span>
             </div>
           )}
-
-          <NotificationBell 
-            adminData={{
-              pendingMembers,
-              pendingKtaApps,
-              pendingTrainingApps,
-              membersWithUpgradeRequests,
-              submittedTaskApps
-            }}
-            onNavigateTab={(tab) => {
-              if (['anggota', 'kta', 'pelatihan', 'kegiatan'].includes(tab)) {
-                setActiveTab(tab as any);
-              }
-            }}
-          />
 
           <Link 
             to="/" 
@@ -5324,17 +5461,30 @@ export default function AdminDashboard() {
           {/* MATERI TAB */}
           {activeTab === 'materi' && (
             <div className="flex flex-col h-full">
-              <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+              <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gray-50/30">
                 <div>
                   <h3 className="text-lg font-display font-black text-gray-800">Manajemen Materi</h3>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Total: {materiList.length} Materi Aktif</p>
                 </div>
-                <button 
-                  onClick={() => handleOpenMateriModal()}
-                  className="px-5 py-3 bg-hw-dark text-white rounded-2xl shadow-lg shadow-hw-dark/20 flex items-center gap-2 text-xs font-bold hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Plus size={16} /> Buat Materi
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={handleRestoreDefaultMateri}
+                    disabled={isRestoringMateri}
+                    className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                    title="Pulihkan dan isi ulang materi kurikulum standar HW (Jati 1, Jati 2, Jari 1, Sugli, Kwarda, Umum)"
+                  >
+                    <RefreshCw size={14} className={isRestoringMateri ? 'animate-spin' : ''} />
+                    <span>{isRestoringMateri ? 'Memulihkan...' : 'Pulihkan Materi Default'}</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleOpenMateriModal()}
+                    className="px-5 py-2.5 bg-hw-dark text-white rounded-2xl shadow-lg shadow-hw-dark/20 flex items-center gap-2 text-xs font-bold hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Plus size={16} /> Buat Materi
+                  </button>
+                </div>
               </div>
 
               {/* Materi Filter & Search */}
@@ -5343,8 +5493,9 @@ export default function AdminDashboard() {
                   {['semua', 'umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'].map((k) => (
                     <button
                       key={k}
+                      type="button"
                       onClick={() => setMateriFilter(k)}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                         materiFilter === k 
                         ? 'bg-hw-green text-white shadow-lg shadow-hw-green/20' 
                         : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-200'
@@ -5359,7 +5510,7 @@ export default function AdminDashboard() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
                     type="text" 
-                    placeholder="Cari judul materi..." 
+                    placeholder="Cari judul materi atau isi silabus..." 
                     value={materiSearch || ''}
                     onChange={(e) => setMateriSearch(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-medium" 
@@ -5379,8 +5530,11 @@ export default function AdminDashboard() {
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             {materiList
               .filter(m => {
-                const matchFilter = materiFilter === 'semua' || m.kategori === materiFilter;
-                const matchSearch = m.judul.toLowerCase().includes(materiSearch.toLowerCase());
+                const matchFilter = materiFilter === 'semua' || 
+                  safeLower(m.kategori).replace(/\s+/g, '') === safeLower(materiFilter).replace(/\s+/g, '') ||
+                  (materiFilter === 'umum' && safeLower(m.kategori).includes('umum'));
+                const q = safeLower(materiSearch).trim();
+                const matchSearch = !q || safeLower(m.judul).includes(q) || safeLower(m.konten).includes(q);
                 return matchFilter && matchSearch;
               })
               .map((m, i) => (
@@ -5389,36 +5543,62 @@ export default function AdminDashboard() {
                   <img src={getCorsSafeUrl(m.coverImage, m.updatedAt || m.id)} alt={m.judul} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[8px] font-black uppercase rounded-lg">
                           {m.kategori === 'umum_pandu' ? 'Umum Pandu' : m.kategori === 'jati1' ? 'Jati 1' : m.kategori === 'jati2' ? 'Jati 2' : m.kategori === 'jari1' ? 'Jari 1' : m.kategori}
                         </span>
+                        {m.driveUrl && (
+                          <a href={m.driveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-[9px] font-bold flex items-center gap-0.5">
+                            <ExternalLink size={10} /> Berkas Drive
+                          </a>
+                        )}
                       </div>
                       <h4 className="text-xs font-bold text-gray-800 truncate">{m.judul}</h4>
-                      <p className="text-[10px] text-gray-400 mt-1">Dibuat: {new Date(m.tanggal).toLocaleDateString('id-ID')}</p>
+                      {m.konten && <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{m.konten}</p>}
+                      <p className="text-[9px] text-gray-400 mt-1">Dibuat: {m.tanggal ? new Date(m.tanggal).toLocaleDateString('id-ID') : '-'}</p>
                     </div>
                     <div className="flex flex-col gap-1">
                       <button 
+                        type="button"
                         onClick={() => handleOpenMateriModal(m)}
-                        className="p-2 text-gray-400 hover:text-hw-green transition-colors"
+                        className="p-2 text-gray-400 hover:text-hw-green transition-colors cursor-pointer"
+                        title="Edit Materi"
                       ><Edit2 size={14} /></button>
                       <button 
+                        type="button"
                         onClick={() => handleDeleteMateri(m.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        title="Hapus Materi"
                       ><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
                 {materiList.filter(m => {
-                    const matchFilter = materiFilter === 'semua' || m.kategori === materiFilter;
-                    const matchSearch = m.judul.toLowerCase().includes(materiSearch.toLowerCase());
+                    const matchFilter = materiFilter === 'semua' || 
+                      safeLower(m.kategori).replace(/\s+/g, '') === safeLower(materiFilter).replace(/\s+/g, '') ||
+                      (materiFilter === 'umum' && safeLower(m.kategori).includes('umum'));
+                    const q = safeLower(materiSearch).trim();
+                    const matchSearch = !q || safeLower(m.judul).includes(q) || safeLower(m.konten).includes(q);
                     return matchFilter && matchSearch;
                   }).length === 0 && (
                   <div className="col-span-full py-12 text-center space-y-3">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
                       <BookOpen size={24} />
                     </div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tidak ada materi ditemukan</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                      {materiList.length === 0 ? 'Data Materi Belum Tersedia / Kosong' : 'Tidak ada materi yang sesuai filter'}
+                    </p>
+                    {materiList.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreDefaultMateri}
+                        disabled={isRestoringMateri}
+                        className="mt-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+                      >
+                        <RefreshCw size={14} className={isRestoringMateri ? 'animate-spin' : ''} />
+                        <span>Pulihkan & Muat Materi Kurikulum HW</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -6359,15 +6539,27 @@ export default function AdminDashboard() {
                       
                       <div className="flex items-center gap-2 flex-wrap self-stretch lg:self-auto justify-end">
                         <button
+                          type="button"
+                          onClick={handleApproveAllKTA}
+                          disabled={isApprovingAllKta || allPendingKtaQueue.length === 0}
+                          className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50"
+                          title="Setujui dan aktifkan seluruh anggota di antrean KTA sekaligus"
+                        >
+                          <CheckCircle2 size={13} className={isApprovingAllKta ? 'animate-spin' : ''} />
+                          <span>{isApprovingAllKta ? 'Memproses...' : `Approve All (${allPendingKtaQueue.length})`}</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={handleSyncAllMemberRegistrationsToKta}
                           disabled={isSyncingMemberQueue}
                           className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
                           title="Sinkronkan pendaftar anggota ke daftar antrean KTA"
                         >
                           <RefreshCw size={12} className={isSyncingMemberQueue ? 'animate-spin' : ''} />
-                          <span>Sinkronkan Pendaftar ({allPendingKtaQueue.length})</span>
+                          <span>Sinkronkan Pendaftar</span>
                         </button>
                         <button
+                          type="button"
                           onClick={async () => {
                             if (window.confirm('Apakah Anda yakin ingin membersihkan antrean KTA dari data kosong/tidak valid?')) {
                               try {
@@ -6881,11 +7073,11 @@ export default function AdminDashboard() {
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  {app.status === 'pending' || (app.status || '').toLowerCase() === 'pending' || (app.status || '').toLowerCase() === 'menunggu' ? (
+                                  {app.status === 'pending' || safeLower(app.status) === 'pending' || safeLower(app.status) === 'menunggu' ? (
                                     <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full text-[10px] font-black border border-yellow-150 uppercase tracking-widest animate-pulse">
                                       Belum Verifikasi
                                     </span>
-                                  ) : app.status === 'approved' || (app.status || '').toLowerCase() === 'approved' || (app.status || '').toLowerCase() === 'disetujui' ? (
+                                  ) : app.status === 'approved' || safeLower(app.status) === 'approved' || safeLower(app.status) === 'disetujui' ? (
                                     <div className="space-y-1">
                                       <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-green-150 uppercase tracking-widest">
                                         Resmi Aktif
@@ -6909,7 +7101,7 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="p-3.5 pr-5 text-center whitespace-nowrap">
                                   <div className="flex items-center justify-center gap-1.5 flex-nowrap whitespace-nowrap">
-                                    {(app.status === 'pending' || (app.status || '').toLowerCase() === 'pending' || (app.status || '').toLowerCase() === 'menunggu') && (
+                                    {(app.status === 'pending' || safeLower(app.status) === 'pending' || safeLower(app.status) === 'menunggu') && (
                                       <>
                                         <button
                                           type="button"
@@ -8558,12 +8750,12 @@ export default function AdminDashboard() {
                       const filteredEnrolled = allEnrolled.filter(app => {
                         // 1. Search Query
                         if (tugasSearchQuery.trim()) {
-                          const q = tugasSearchQuery.toLowerCase().trim();
-                          const n = (app.nama || app.namaLengkap || '').toLowerCase();
-                          const em = (app.email || '').toLowerCase();
-                          const nbm = String(app.nbm || app.ktaNumber || app.nomorKTA || '').toLowerCase();
-                          const reg = (app.asalDaerah || '').toLowerCase();
-                          const qab = (app.qabilah || '').toLowerCase();
+                          const q = safeLower(tugasSearchQuery).trim();
+                          const n = safeLower(app.nama || app.namaLengkap);
+                          const em = safeLower(app.email);
+                          const nbm = safeLower(app.nbm || app.ktaNumber || app.nomorKTA);
+                          const reg = safeLower(app.asalDaerah);
+                          const qab = safeLower(app.qabilah);
                           if (!n.includes(q) && !em.includes(q) && !nbm.includes(q) && !reg.includes(q) && !qab.includes(q)) {
                             return false;
                           }
@@ -9029,10 +9221,10 @@ export default function AdminDashboard() {
                         }
 
                         if (q) {
-                          const nbm = (app.nbm || app.ktaNumber || app.nomorKTA || '').toLowerCase();
-                          const asal = (app.asalDaerah || '').toLowerCase();
-                          const qab = (app.qabilah || '').toLowerCase();
-                          if (!name.toLowerCase().includes(q) && !email.includes(q) && !nbm.includes(q) && !asal.includes(q) && !qab.includes(q)) {
+                          const nbm = safeLower(app.nbm || app.ktaNumber || app.nomorKTA);
+                          const asal = safeLower(app.asalDaerah);
+                          const qab = safeLower(app.qabilah);
+                          if (!safeLower(name).includes(q) && !safeLower(email).includes(q) && !nbm.includes(q) && !asal.includes(q) && !qab.includes(q)) {
                             return false;
                           }
                         }
@@ -10376,10 +10568,10 @@ export default function AdminDashboard() {
                   <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
                     {members
                       .filter((m: any) => {
-                        const q = addParticipantSearchQuery.toLowerCase();
-                        const name = (m.namaLengkap || m.nama || '').toLowerCase();
-                        const nbm = (m.nomorKTA || m.ktaNumber || m.nbm || '').toLowerCase();
-                        return name.includes(q) || nbm.includes(q);
+                        const q = safeLower(addParticipantSearchQuery).trim();
+                        const name = safeLower(m.namaLengkap || m.nama);
+                        const nbm = safeLower(m.nomorKTA || m.ktaNumber || m.nbm);
+                        return !q || name.includes(q) || nbm.includes(q);
                       })
                       .slice(0, 15)
                       .map((m: any) => (
@@ -11357,60 +11549,123 @@ export default function AdminDashboard() {
 
       {/* 11. MATERI MODAL */}
       {isMateriModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900">
-                {editingMateri ? 'Edit Materi Pelatihan' : 'Tambah Materi Pelatihan'}
-              </h3>
-              <button onClick={() => setIsMateriModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 cursor-pointer">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-gray-100 space-y-4 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900 font-display flex items-center gap-2">
+                  <BookOpen className="text-hw-green" size={20} />
+                  {editingMateri ? 'Edit Materi Pelatihan' : 'Tambah Materi Pelatihan'}
+                </h3>
+                <p className="text-xs text-gray-500">Kelola silabus, modul berkas Drive, dan materi kurikulum HW</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsMateriModalOpen(false)} 
+                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-3">
+
+            <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 scrollbar-thin">
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Judul Materi</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Judul Materi / Modul</label>
                 <input
                   type="text"
+                  required
+                  placeholder="Contoh: Modul Kepanduan HW Dasar, Silabus Jaya Melati 1..."
                   value={materiFormData.judul}
                   onChange={(e) => setMateriFormData(f => ({ ...f, judul: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-hw-green"
                 />
               </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Kategori</label>
-                <select
-                  value={materiFormData.kategori}
-                  onChange={(e) => setMateriFormData(f => ({ ...f, kategori: e.target.value }))}
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
-                >
-                  <option value="umum">Umum</option>
-                  <option value="Jati 1">Jaya Melati 1 (Jati 1)</option>
-                  <option value="Jati 2">Jaya Melati 2 (Jati 2)</option>
-                  <option value="Jari 1">Jaya Pandu Mandiri 1 (Jari 1)</option>
-                </select>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Kategori / Tingkat</label>
+                  <select
+                    value={materiFormData.kategori}
+                    onChange={(e) => setMateriFormData(f => ({ ...f, kategori: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-hw-green cursor-pointer"
+                  >
+                    <option value="umum">Umum (Semua Tingkat)</option>
+                    <option value="umum_pandu">Umum Pandu</option>
+                    <option value="jati1">Jaya Melati 1 (Jati 1)</option>
+                    <option value="jati2">Jaya Melati 2 (Jati 2)</option>
+                    <option value="jari1">Jaya Pandu Mandiri 1 (Jari 1)</option>
+                    <option value="sugli">Dewan Sugli</option>
+                    <option value="kwarda">Pimpinan Kwarda</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Google Drive / Berkas</label>
+                  <input
+                    type="text"
+                    value={materiFormData.driveUrl}
+                    onChange={(e) => setMateriFormData(f => ({ ...f, driveUrl: e.target.value }))}
+                    placeholder="https://drive.google.com/..."
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-hw-green"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Link Drive / Berkas</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Ringkasan & Isi Silabus Materi</label>
+                <textarea
+                  rows={4}
+                  value={materiFormData.konten}
+                  onChange={(e) => setMateriFormData(f => ({ ...f, konten: e.target.value }))}
+                  placeholder="Tuliskan silabus materi, pokok bahasan pelatihan, atau panduan belajar..."
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-hw-green"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">URL Cover / Thumbnail (Opsional)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={materiFormData.coverImage}
+                    onChange={(e) => setMateriFormData(f => ({ ...f, coverImage: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-hw-green"
+                  />
+                  {materiFormData.coverImage && (
+                    <img 
+                      src={materiFormData.coverImage} 
+                      alt="Preview" 
+                      className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
+                      onError={(e) => { (e.target as any).style.display = 'none'; }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Link Eksternal / Video YouTube (Opsional)</label>
                 <input
                   type="text"
-                  value={materiFormData.driveUrl}
-                  onChange={(e) => setMateriFormData(f => ({ ...f, driveUrl: e.target.value }))}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  value={materiFormData.linkExternal}
+                  onChange={(e) => setMateriFormData(f => ({ ...f, linkExternal: e.target.value }))}
+                  placeholder="https://youtube.com/watch?v=... atau link web"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-hw-green"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 shrink-0">
               <button
+                type="button"
                 onClick={() => setIsMateriModalOpen(false)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleSaveMateri}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer shadow-md hover:shadow-lg transition-all"
               >
                 Simpan Materi
               </button>

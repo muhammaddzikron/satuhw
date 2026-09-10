@@ -119,7 +119,7 @@ const cleanData = <T extends Record<string, any>>(obj: T): T => {
   const result: any = Array.isArray(obj) ? [] : {};
   for (const key in obj) {
     if (obj[key] !== undefined && typeof obj[key] !== 'function') {
-      if (key === 'id' && obj[key] !== null && obj[key] !== undefined) {
+      if ((key === 'id' || key === 'uid' || key === 'userId' || key === 'Id') && obj[key] !== null && obj[key] !== undefined) {
         result[key] = String(obj[key]);
       } else if (typeof obj[key] === 'object' && obj[key] !== null && !((obj[key] as any) instanceof Date)) {
         result[key] = cleanData(obj[key]);
@@ -1108,7 +1108,7 @@ export const firestoreService = {
     const cleanOwnerId = ownerIdParam ? String(ownerIdParam).trim().toLowerCase() : '';
 
     const kodeKwarda = getKwardaCode(asalKwarda, qabilah);
-    const counterRef = doc(db, 'kta_counters', kodeKwarda);
+    const counterRef = doc(db, 'kta_counters', String(kodeKwarda || '00'));
 
     // Initial scan of existing sequence numbers across active members, kta_applications, master members & session allocations
     const existingSeqNumbers: number[] = [];
@@ -1405,7 +1405,10 @@ export const firestoreService = {
 
   async saveMember(member: User): Promise<User> {
     clearFirestoreCache('members');
-    const memberId = member.id || member.uid || `user-${Date.now()}`;
+    const rawId = (member.id !== undefined && member.id !== null && String(member.id).trim() !== '')
+      ? String(member.id).trim()
+      : (member.uid ? String(member.uid).trim() : '');
+    const memberId = rawId || `user-${Date.now()}`;
     const existingKta = member.nomorKTA || member.ktaNumber;
 
     let ktaInfo: any = null;
@@ -1434,18 +1437,18 @@ export const firestoreService = {
     const dataToSave = cleanData({
       ...member,
       id: memberId,
-      uid: member.uid || memberId,
+      uid: String(member.uid || memberId),
       role: primaryRole,
       roles: synced.roles,
       pelatihan: synced.pelatihan,
       namaLengkap: properName || member.namaLengkap || member.nama || 'Anggota HW',
       nama: properName || member.namaLengkap || member.nama || 'Anggota HW',
       email: member.email,
-      nomorKTA: ktaInfo.nomorKTA,
-      ktaNumber: ktaInfo.ktaNumber,
-      kodeProvinsi: ktaInfo.kodeProvinsi,
-      kodeKwarda: ktaInfo.kodeKwarda,
-      nomorUrut: ktaInfo.nomorUrut,
+      nomorKTA: ktaInfo?.nomorKTA || member.nomorKTA || member.ktaNumber || '',
+      ktaNumber: ktaInfo?.ktaNumber || member.ktaNumber || member.nomorKTA || '',
+      kodeProvinsi: ktaInfo?.kodeProvinsi || '11',
+      kodeKwarda: ktaInfo?.kodeKwarda || '',
+      nomorUrut: ktaInfo?.nomorUrut || '',
       asalKwarda: member.asalKwarda || '',
       asalQabilah: member.asalQabilah || member.qabilah || '',
       tanggalDaftar: member.tanggalDaftar || new Date().toISOString(),
@@ -1473,7 +1476,7 @@ export const firestoreService = {
     } catch (e) {}
 
     try {
-      await setDoc(doc(db, 'members', memberId), dataToSave, { merge: true });
+      await setDoc(doc(db, 'members', String(memberId)), dataToSave, { merge: true });
     } catch (err) {
       console.error('Firestore saveMember error:', err);
     }
@@ -1537,7 +1540,7 @@ export const firestoreService = {
             if (member.tanggalLahir) ktaSync.tanggalLahir = member.tanggalLahir;
             if (member.jenisKelamin) ktaSync.jenisKelamin = member.jenisKelamin;
             if (Object.keys(ktaSync).length > 0) {
-              setDoc(doc(db, 'kta_applications', k.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
+              setDoc(doc(db, 'kta_applications', String(k.id)), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
             }
           }
         });
@@ -1549,8 +1552,9 @@ export const firestoreService = {
     return dataToSave as User;
   },
 
-  async updateMember(id: string, updates: Partial<User>): Promise<User> {
+  async updateMember(id: string | number, updates: Partial<User>): Promise<User> {
     clearFirestoreCache('members');
+    const memberId = String(id || '').trim();
     const normUpdates = { ...updates };
     if (updates.roles || updates.role) {
       const normRoles = parseRolesField(updates.roles, updates.role);
@@ -1573,7 +1577,7 @@ export const firestoreService = {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         const storedOverrides = localStorage.getItem('member_custom_edits');
         const overrides = storedOverrides ? JSON.parse(storedOverrides) : {};
-        const idStr = String(id).trim();
+        const idStr = memberId;
         const idClean = idStr.replace(/^user-/, '');
         const exOv = overrides[idStr] || (idClean ? overrides[idClean] : {}) || (normUpdates.email ? overrides[normUpdates.email.toLowerCase().trim()] : {}) || {};
         const mergedOv = { ...exOv, ...normUpdates, id: idStr };
@@ -1590,16 +1594,16 @@ export const firestoreService = {
       }
     } catch (e) {}
 
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && memberId) {
       try {
-        await setDoc(doc(db, 'members', id), cleanData(normUpdates), { merge: true });
+        await setDoc(doc(db, 'members', memberId), cleanData(normUpdates), { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         console.error('Firestore updateMember error:', err);
       }
     }
     const current = await this.getMembers();
-    const idx = current.findIndex(m => m.id === id);
+    const idx = current.findIndex(m => String(m.id) === memberId);
     let updatedMember: any = {};
     if (idx >= 0) {
       updatedMember = { ...current[idx], ...normUpdates };
@@ -1611,7 +1615,7 @@ export const firestoreService = {
     try {
       const ktas = await this.getKTAApplications();
       const matched = ktas.find(k => 
-        (k.userId && String(k.userId) === String(id)) ||
+        (k.userId && String(k.userId) === memberId) ||
         (k.email && updatedMember.email && k.email.trim().toLowerCase() === updatedMember.email.trim().toLowerCase())
       );
       if (matched) {
@@ -1626,7 +1630,7 @@ export const firestoreService = {
         if (updates.tanggalLahir) ktaSync.tanggalLahir = updates.tanggalLahir;
         if (updates.jenisKelamin) ktaSync.jenisKelamin = updates.jenisKelamin;
         if (Object.keys(ktaSync).length > 0 && !this.getIsQuotaExceeded()) {
-          await setDoc(doc(db, 'kta_applications', matched.id), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
+          await setDoc(doc(db, 'kta_applications', String(matched.id)), cleanData(ktaSync), { merge: true }).catch((e) => this.checkQuotaError(e));
         }
       }
     } catch (syncErr) {
@@ -1636,18 +1640,20 @@ export const firestoreService = {
     return updatedMember;
   },
 
-  async deleteMember(id: string): Promise<boolean> {
+  async deleteMember(id: string | number): Promise<boolean> {
     clearFirestoreCache('members');
+    const memberId = String(id || '').trim();
+    if (!memberId) return false;
     if (!this.getIsQuotaExceeded()) {
       try {
-        await deleteDoc(doc(db, 'members', id));
+        await deleteDoc(doc(db, 'members', memberId));
       } catch (err) {
         this.checkQuotaError(err);
         console.error('Firestore deleteMember error:', err);
       }
     }
     const current = await this.getMembers();
-    const filtered = current.filter(m => m.id !== id);
+    const filtered = current.filter(m => String(m.id) !== memberId);
     safeStorageSet('mock_members', filtered);
     return true;
   },
@@ -1729,12 +1735,13 @@ export const firestoreService = {
     return () => {};
   },
 
-  subscribeToMember(memberId: string, callback: (member: User | null) => void): () => void {
-    if (!memberId) return () => {};
+  subscribeToMember(memberId: string | number, callback: (member: User | null) => void): () => void {
+    const cleanMemberId = String(memberId || '').trim();
+    if (!cleanMemberId) return () => {};
 
     if (!this.getIsQuotaExceeded()) {
       try {
-        const memberRef = doc(db, 'members', memberId);
+        const memberRef = doc(db, 'members', cleanMemberId);
         const unsub = onSnapshot(memberRef, (snap) => {
           if (snap.exists()) {
             const data = { id: snap.id, ...snap.data() } as User;
@@ -2047,6 +2054,94 @@ export const firestoreService = {
     }, 45000);
   },
 
+  async restoreDefaultMateri(): Promise<Materi[]> {
+    clearFirestoreCache('materi');
+    try {
+      localStorage.removeItem('hw_deleted_materi_ids');
+    } catch (e) {}
+
+    const baseDefaults: any[] = Array.isArray(INITIAL_SPREADSHEET_DATA.materi) ? INITIAL_SPREADSHEET_DATA.materi : [];
+    const restoredList: Materi[] = [];
+
+    baseDefaults.forEach((m: any, idx: number) => {
+      if (!m || !m.judul) return;
+      const normKat = normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim();
+      restoredList.push({
+        id: String(m.id || `materi-default-${idx}`),
+        judul: String(m.judul || ''),
+        konten: String(m.konten || ''),
+        kategori: normKat,
+        tanggal: String(m.tanggal || new Date().toISOString()),
+        coverImage: String(m.coverImage || m.coverimage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png'),
+        driveUrl: String(m.driveUrl || m.driveurl || ''),
+        linkExternal: String(m.linkExternal || m.linkexternal || '')
+      });
+    });
+
+    const extraDefaults: Materi[] = [
+      {
+        id: 'mat-jati2-modul-1',
+        judul: 'Kurikulum Lanjutan Jaya Melati 2: Strategi Manajemen Kwartir & Wilayah',
+        konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, sistem administrasi kwartir tingkat daerah dan wilayah.',
+        kategori: 'jati2',
+        tanggal: '2025-01-15T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+      },
+      {
+        id: 'mat-jari1-modul-1',
+        judul: 'Buku Panduan Jaya Matahari 1: Kader Pandu Penghela & Penuntun HW',
+        konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, navigasi darat lanjutan dan survival di alam bebas.',
+        kategori: 'jari1',
+        tanggal: '2025-01-18T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+      },
+      {
+        id: 'mat-sugli-modul-1',
+        judul: 'Petunjuk Teknis Dewan Sugli: Tata Kerja & Manajemen Kafilah Penuntun HW',
+        konten: 'Pedoman penyelenggaraan dewan kerja penuntun (Dewan Sugli) tingkat Kwarda dan Kwarwil se-Jawa Tengah.',
+        kategori: 'sugli',
+        tanggal: '2025-01-20T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1bAvtgUjiSSbq5YYN9UYHQvW_JZZ6N78J'
+      },
+      {
+        id: 'mat-kwarda-modul-1',
+        judul: 'Pedoman Standarisasi Administrasi & Keorganisasian Kwarda HW se-Jawa Tengah',
+        konten: 'Buku pedoman baku persuratan, pengarsipan berkas KTA, akreditasi qabilah, dan koordinasi program kerja Kwartir Wilayah.',
+        kategori: 'kwarda',
+        tanggal: '2025-01-22T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1mR0e9iYJb0pT9_O1Qk8lq9f_SAMPLE'
+      }
+    ];
+
+    extraDefaults.forEach(item => {
+      if (!restoredList.some(r => r.id === item.id || r.judul === item.judul)) {
+        restoredList.push(item);
+      }
+    });
+
+    safeStorageSet('materi', restoredList);
+
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const batch = writeBatch(db);
+        restoredList.slice(0, 50).forEach(item => {
+          const docRef = doc(db, 'materi', String(item.id));
+          batch.set(docRef, cleanData(item), { merge: true });
+        });
+        await batch.commit();
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.warn('Firestore restoreDefaultMateri batch error:', err);
+      }
+    }
+
+    return restoredList;
+  },
+
   async saveMateri(item: Materi): Promise<Materi> {
     clearFirestoreCache('materi');
     const rawId = item.id ? String(item.id) : `materi-${Date.now()}`;
@@ -2131,7 +2226,7 @@ export const firestoreService = {
             const email = (item.email || '').trim();
             const isInvalid = !name || name === 'Tanpa Nama' || name === '-' || name === 'KTA-HW.JT.XXXX' || name.toLowerCase() === 'undefined' || name.toLowerCase() === 'null' || (!email && name === 'Anggota HW');
             if (isInvalid) {
-              deleteDoc(doc(db, 'kta_applications', k.id)).catch(() => {});
+              deleteDoc(doc(db, 'kta_applications', String(k.id))).catch(() => {});
             } else {
               const rawStatus = (item.status || '').toString().trim().toLowerCase();
               let normStatus: 'pending' | 'approved' | 'rejected' = 'pending';
@@ -2145,7 +2240,7 @@ export const firestoreService = {
 
               // Auto-normalize records stored in Firestore as 'Pending' or 'Menunggu'
               if (item.status === 'Pending' || item.status === 'Menunggu' || !item.status) {
-                setDoc(doc(db, 'kta_applications', k.id), { status: 'pending' }, { merge: true }).catch(() => {});
+                setDoc(doc(db, 'kta_applications', String(k.id)), { status: 'pending' }, { merge: true }).catch(() => {});
               }
 
               cleanKtas.push({ ...k, status: normStatus });
@@ -2355,7 +2450,7 @@ export const firestoreService = {
 
           kwardaSeqMap.forEach((seqs, code) => {
             const uniqueSorted = Array.from(new Set(seqs)).sort((a, b) => a - b);
-            const counterRef = doc(db, 'kta_counters', code);
+            const counterRef = doc(db, 'kta_counters', String(code || '00'));
             batch.set(counterRef, {
               id: code,
               kodeKwarda: code,
@@ -2443,7 +2538,7 @@ export const firestoreService = {
     });
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'kta_applications', newApp.id), newApp, { merge: true });
+        await setDoc(doc(db, 'kta_applications', String(newApp.id)), newApp, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore createKTAApplication error:', err);
@@ -2563,7 +2658,7 @@ export const firestoreService = {
     }
 
     try {
-      await setDoc(doc(db, 'kta_applications', targetDocId), cleanData(updatedObj), { merge: true });
+      await setDoc(doc(db, 'kta_applications', String(targetDocId)), cleanData(updatedObj), { merge: true });
     } catch (err) {
       console.error('Firestore updateKTAStatus error:', err);
     }
@@ -2634,7 +2729,7 @@ export const firestoreService = {
 
     if (!this.getIsQuotaExceeded()) {
       try {
-        await deleteDoc(doc(db, 'kta_applications', docIdToDelete));
+        await deleteDoc(doc(db, 'kta_applications', String(docIdToDelete)));
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore deleteKTAApplication error:', err);
@@ -2907,7 +3002,7 @@ export const firestoreService = {
 
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'training_applications', newApp.id), newApp);
+        await setDoc(doc(db, 'training_applications', String(newApp.id)), newApp);
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore createTrainingApplication error:', err);
@@ -2918,20 +3013,21 @@ export const firestoreService = {
     return newApp;
   },
 
-  async updateTrainingStatus(id: string, status: string, remark?: string): Promise<any> {
+  async updateTrainingStatus(id: string | number, status: string, remark?: string): Promise<any> {
     clearFirestoreCache('training_applications');
+    const appId = String(id || '').trim();
     const updates: any = { status: (status || 'pending').toString().toLowerCase().trim() };
     if (remark !== undefined) updates.remark = remark;
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && appId) {
       try {
-        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+        await setDoc(doc(db, 'training_applications', appId), cleanData(updates), { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore updateTrainingStatus error:', err);
       }
     }
     const list = await this.getTrainingApplications(true);
-    const idx = list.findIndex(t => t.id === id);
+    const idx = list.findIndex(t => String(t.id) === appId);
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
       safeStorageSet('training_applications', list);
@@ -2940,8 +3036,9 @@ export const firestoreService = {
     return list[idx];
   },
 
-  async updateAttendance(id: string, kehadiranStr: string, extraAppInfo?: any): Promise<any> {
+  async updateAttendance(id: string | number, kehadiranStr: string, extraAppInfo?: any): Promise<any> {
     clearFirestoreCache('training_applications');
+    const appId = String(id || '').trim();
 
     // 1. Direct local storage update immediately to be rock solid and instantaneous
     try {
@@ -2951,8 +3048,8 @@ export const firestoreService = {
         let found = false;
         existing = existing.map(item => {
           if (!item) return item;
-          const match = String(item.id) === String(id) ||
-            (item.userId && String(item.userId) === String(id)) ||
+          const match = String(item.id) === appId ||
+            (item.userId && String(item.userId) === appId) ||
             (extraAppInfo && isSameTrainingParticipant(item, extraAppInfo));
           if (match) {
             found = true;
@@ -2967,9 +3064,9 @@ export const firestoreService = {
     } catch (e) {}
 
     // 2. Persist to Firestore
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && appId) {
       try {
-        await setDoc(doc(db, 'training_applications', id), { kehadiran: kehadiranStr }, { merge: true });
+        await setDoc(doc(db, 'training_applications', appId), { kehadiran: kehadiranStr }, { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore updateAttendance error:', err);
@@ -2978,11 +3075,11 @@ export const firestoreService = {
 
     clearFirestoreCache('training_applications');
     const list = await this.getTrainingApplications(true);
-    const updated = list.find(t => String(t.id) === String(id)) || list.find(t => t.userId && String(t.userId) === String(id));
+    const updated = list.find(t => String(t.id) === appId) || list.find(t => t.userId && String(t.userId) === appId);
 
     // Dispatch custom event for real-time local sync across tabs & components
     window.dispatchEvent(new Event('training_applications_updated'));
-    return updated || { id, kehadiran: kehadiranStr };
+    return updated || { id: appId, kehadiran: kehadiranStr };
   },
 
   subscribeToTrainingApplications(callback: (apps: any[]) => void): () => void {
@@ -3014,7 +3111,8 @@ export const firestoreService = {
     };
   },
 
-  async updateAssignmentGrade(id: string, tugasStr?: string, nilaiStr?: string, remarkStr?: string, statusKelulusanStr?: string, extraUpdates?: any): Promise<any> {
+  async updateAssignmentGrade(id: string | number, tugasStr?: string, nilaiStr?: string, remarkStr?: string, statusKelulusanStr?: string, extraUpdates?: any): Promise<any> {
+    const appId = String(id || '').trim();
     const updates: any = {};
     if (tugasStr !== undefined) updates.tugas = tugasStr;
     if (nilaiStr !== undefined) updates.nilai = nilaiStr;
@@ -3024,16 +3122,16 @@ export const firestoreService = {
       Object.assign(updates, extraUpdates);
     }
 
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && appId) {
       try {
-        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+        await setDoc(doc(db, 'training_applications', appId), cleanData(updates), { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore updateAssignmentGrade error:', err);
       }
     }
     const list = await this.getTrainingApplications();
-    const idx = list.findIndex(t => t.id === id);
+    const idx = list.findIndex(t => String(t.id) === appId);
     let updatedApp = list[idx];
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...updates };
@@ -3068,8 +3166,9 @@ export const firestoreService = {
     return updatedApp;
   },
 
-  async submitTestSubmission(id: string, submission: any, extraParticipantInfo?: any): Promise<any> {
+  async submitTestSubmission(id: string | number, submission: any, extraParticipantInfo?: any): Promise<any> {
     clearFirestoreCache('training_applications');
+    const appId = String(id || '').trim();
     const isPre = submission.testType === 'pre_test';
     const updates: any = {};
     if (isPre) {
@@ -3090,7 +3189,7 @@ export const firestoreService = {
       if (Array.isArray(existingList)) {
         existingList = existingList.map(item => {
           if (!item) return item;
-          const matchId = String(item.id) === String(id);
+          const matchId = String(item.id) === appId;
           const matchUser = submission.userId && String(item.userId) === String(submission.userId);
           const matchEmail = submission.email && item.email && item.email.toLowerCase() === submission.email.toLowerCase();
           const matchParticipant = extraParticipantInfo && isSameTrainingParticipant(item, extraParticipantInfo);
@@ -3106,9 +3205,9 @@ export const firestoreService = {
       }
     } catch (e) {}
 
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && appId) {
       try {
-        await setDoc(doc(db, 'training_applications', id), cleanData(updates), { merge: true });
+        await setDoc(doc(db, 'training_applications', appId), cleanData(updates), { merge: true });
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore submitTestSubmission error:', err);
@@ -3117,14 +3216,15 @@ export const firestoreService = {
 
     clearFirestoreCache('training_applications');
     window.dispatchEvent(new Event('training_applications_updated'));
-    return updatedApp || { id, ...updates };
+    return updatedApp || { id: appId, ...updates };
   },
 
-  async deleteTrainingApplication(id: string): Promise<boolean> {
+  async deleteTrainingApplication(id: string | number): Promise<boolean> {
     clearFirestoreCache('training_applications');
-    if (!this.getIsQuotaExceeded()) {
+    const appId = String(id || '').trim();
+    if (!this.getIsQuotaExceeded() && appId) {
       try {
-        await deleteDoc(doc(db, 'training_applications', id));
+        await deleteDoc(doc(db, 'training_applications', appId));
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore deleteTrainingApplication error:', err);
@@ -3134,7 +3234,7 @@ export const firestoreService = {
     try {
       const stored = localStorage.getItem('training_applications') || '[]';
       const existing: any[] = JSON.parse(stored);
-      const filtered = Array.isArray(existing) ? existing.filter(x => x && String(x.id) !== String(id)) : [];
+      const filtered = Array.isArray(existing) ? existing.filter(x => x && String(x.id) !== appId) : [];
       safeStorageSet('training_applications', filtered);
     } catch (e) {}
     window.dispatchEvent(new Event('training_applications_updated'));
@@ -3521,7 +3621,7 @@ export const firestoreService = {
     const itemData = cleanData(payload);
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'contents', itemData.id), itemData);
+        await setDoc(doc(db, 'contents', String(itemData.id)), itemData);
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
@@ -3530,7 +3630,7 @@ export const firestoreService = {
       }
     }
     const list = await this.getContents(true);
-    const idx = list.findIndex(c => c.id === itemData.id);
+    const idx = list.findIndex(c => String(c.id) === String(itemData.id));
     if (idx >= 0) {
       list[idx] = itemData as Content;
     } else {
@@ -3540,11 +3640,12 @@ export const firestoreService = {
     return itemData as Content;
   },
 
-  async deleteContent(id: string): Promise<boolean> {
+  async deleteContent(id: string | number): Promise<boolean> {
     clearFirestoreCache('contents');
-    if (!this.getIsQuotaExceeded()) {
+    const contentId = String(id || '').trim();
+    if (!this.getIsQuotaExceeded() && contentId) {
       try {
-        await deleteDoc(doc(db, 'contents', id));
+        await deleteDoc(doc(db, 'contents', contentId));
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
@@ -3553,7 +3654,7 @@ export const firestoreService = {
       }
     }
     const list = await this.getContents(true);
-    const filtered = list.filter(c => c.id !== id);
+    const filtered = list.filter(c => String(c.id) !== contentId);
     safeStorageSet('contents', filtered);
     return true;
   },
@@ -4784,7 +4885,7 @@ export const firestoreService = {
           if (!snap.empty) {
             for (const d of snap.docs) {
               if (d.id !== actId && isSameActivity({ id: d.id, ...d.data() }, newAct)) {
-                await deleteDoc(doc(db, 'hw_activities', d.id));
+                await deleteDoc(doc(db, 'hw_activities', String(d.id)));
               }
             }
           }
@@ -5093,7 +5194,7 @@ export const firestoreService = {
 
     if (!this.getIsQuotaExceeded()) {
       try {
-        await setDoc(doc(db, 'activity_applications', regId), cleanReg, { merge: true });
+        await setDoc(doc(db, 'activity_applications', String(regId)), cleanReg, { merge: true });
       } catch (err: any) {
         this.checkQuotaError(err);
         console.warn('Firestore registerActivity warning:', err);
@@ -5221,7 +5322,7 @@ export const firestoreService = {
       if (pendingIds.length > 0 && !this.getIsQuotaExceeded()) {
         const batch = writeBatch(db);
         pendingIds.forEach(id => {
-          batch.delete(doc(db, 'kta_applications', id));
+          batch.delete(doc(db, 'kta_applications', String(id)));
         });
         await batch.commit().catch(err => {
           this.checkQuotaError(err);
@@ -5303,7 +5404,7 @@ export const firestoreService = {
       if (pendingKtaIdsToDelete.length > 0) {
         const batch = writeBatch(db);
         pendingKtaIdsToDelete.forEach(id => {
-          batch.delete(doc(db, 'kta_applications', id));
+          batch.delete(doc(db, 'kta_applications', String(id)));
         });
         await batch.commit().catch(err => console.warn('Failed to delete pending KTAs batch:', err));
       }

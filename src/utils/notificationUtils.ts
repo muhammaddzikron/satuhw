@@ -222,116 +222,108 @@ export function buildAllNotifications(options: {
       pendingActivityApps = activities.filter((a: any) => a.status === 'pending');
     }
 
-    if (pendingMembers.length > 0) {
+    // 1. Pending Members (Individual itemized with stable IDs)
+    pendingMembers.slice(0, 15).forEach((m: any) => {
+      const name = m.namaLengkap || m.nama || 'Calon Anggota';
+      const daerah = m.asalKwarda || m.asalDaerah || m.qabilah || 'Jawa Tengah';
+      const safeId = m.id || m.email || name;
       items.push({
-        id: `admin-pending-members-${pendingMembers.length}`,
+        id: `admin-mem-app-${safeId}`,
         type: 'member',
-        title: `${pendingMembers.length} Pendaftaran Anggota Baru`,
-        message: `Terdapat ${pendingMembers.length} calon anggota menunggu verifikasi data dan penetapan NBM.`,
-        timestamp: 'Perlu Verifikasi',
+        title: `Pendaftar Baru: ${name}`,
+        message: `${name} (${daerah}) telah mendaftar dan menunggu verifikasi data admin.`,
+        timestamp: 'Pendaftaran Anggota',
         link: '/admin?tab=pendaftaran',
         actionType: 'pendaftaran'
       });
+    });
 
-      // Individual itemized member entries for immediate awareness
-      pendingMembers.slice(0, 5).forEach((m: any) => {
-        const name = m.namaLengkap || m.nama || 'Calon Anggota';
-        const daerah = m.asalKwarda || m.asalDaerah || m.qabilah || 'Jawa Tengah';
-        items.push({
-          id: `admin-mem-app-${m.id || name}`,
-          type: 'member',
-          title: `Pendaftar Baru: ${name}`,
-          message: `${name} (${daerah}) telah mendaftar dan menunggu verifikasi admin.`,
-          timestamp: 'Menunggu Verifikasi',
-          link: '/admin?tab=pendaftaran',
-          actionType: 'pendaftaran'
-        });
-      });
-    }
-
-    if (membersWithUpgradeRequests.length > 0) {
+    // 2. Upgrade Requests
+    membersWithUpgradeRequests.slice(0, 15).forEach((m: any) => {
+      const name = m.namaLengkap || m.nama || 'Anggota';
+      const safeId = m.id || m.email || name;
       items.push({
-        id: `admin-upgrade-requests-${membersWithUpgradeRequests.length}`,
+        id: `admin-upgrade-app-${safeId}`,
         type: 'upgrade',
-        title: `${membersWithUpgradeRequests.length} Pengajuan Upgrade Golongan`,
-        message: `Ada ${membersWithUpgradeRequests.length} permohonan kenaikan tingkat/golongan yang perlu ditinjau.`,
-        timestamp: 'Perlu Tindakan',
+        title: `Pengajuan Upgrade: ${name}`,
+        message: `${name} mengajukan permohonan kenaikan tingkat/golongan yang perlu ditinjau.`,
+        timestamp: 'Kenaikan Tingkat',
         link: '/admin?tab=upgrade',
         actionType: 'upgrade'
       });
-    }
+    });
 
-    if (pendingKtaApps.length > 0) {
+    // 3. Pending KTA Applications
+    pendingKtaApps.slice(0, 15).forEach((app: any) => {
+      const applicantName = app.nama || app.namaLengkap || 'Calon Anggota';
+      const kwarda = app.asalDaerah || app.asalKwarda || app.qabilah || 'Jawa Tengah';
+      const safeId = app.id || app.userId || app.email || applicantName;
       items.push({
-        id: `admin-pending-kta-${pendingKtaApps.length}`,
+        id: `admin-kta-app-${safeId}`,
         type: 'kta',
-        title: `${pendingKtaApps.length} Pengajuan KTA Baru`,
-        message: `Terdapat ${pendingKtaApps.length} pengajuan pencetakan Kartu Tanda Anggota menunggu persetujuan.`,
+        title: `Pengajuan KTA: ${applicantName}`,
+        message: `Pengajuan KTA oleh ${applicantName} (${kwarda}) siap untuk ditinjau dan disetujui.`,
         timestamp: 'Antrean KTA',
         link: '/admin?tab=kta',
         actionType: 'kta'
       });
+    });
 
-      // Individual itemized KTA entries for immediate awareness and 1-click navigation
-      pendingKtaApps.slice(0, 5).forEach((app: any) => {
-        const applicantName = app.nama || app.namaLengkap || 'Calon Anggota';
-        const kwarda = app.asalDaerah || app.asalKwarda || app.qabilah || 'Jawa Tengah';
-        items.push({
-          id: `admin-kta-app-${app.id || app.userId || applicantName}`,
-          type: 'kta',
-          title: `Pengajuan KTA: ${applicantName}`,
-          message: `Pengajuan KTA oleh ${applicantName} (${kwarda}) siap untuk ditinjau dan disetujui.`,
-          timestamp: 'Menunggu Approval',
-          link: '/admin?tab=kta',
-          actionType: 'kta'
-        });
-      });
-    }
-
-    if (pendingTrainingApps.length > 0) {
+    // 4. Pending Training Applications
+    pendingTrainingApps.slice(0, 15).forEach((t: any) => {
+      const name = t.nama || t.namaLengkap || 'Peserta';
+      const trainingName = t.pelatihanAkanDiikuti || t.trainingName || 'Diklat HW';
+      const safeId = t.id || t.email || name;
       items.push({
-        id: `admin-pending-training-${pendingTrainingApps.length}`,
+        id: `admin-training-app-${safeId}`,
         type: 'training',
-        title: `${pendingTrainingApps.length} Pendaftaran Diklat Masuk`,
-        message: `Pendaftaran Jaya Melati / Jaya Matahari baru menunggu konfirmasi administratif.`,
+        title: `Pendaftaran Diklat: ${name}`,
+        message: `Pendaftaran ${trainingName} oleh ${name} menunggu konfirmasi administratif.`,
         timestamp: 'Diklat HW',
         link: '/admin?tab=pelatihan',
         actionType: 'pelatihan'
       });
-    }
+    });
 
-    if (submittedTaskApps.length > 0) {
+    // 5. Submitted Tasks
+    submittedTaskApps.slice(0, 15).forEach((t: any) => {
+      const name = t.nama || t.namaLengkap || 'Peserta';
+      const safeId = t.id || t.email || name;
       items.push({
-        id: `admin-submitted-tasks-${submittedTaskApps.length}`,
+        id: `admin-task-app-${safeId}`,
         type: 'task',
-        title: `${submittedTaskApps.length} Tugas Peserta Terkumpul`,
-        message: `Laporan RTL / penugasan materi mandiri peserta siap dinilai oleh tim pelatih.`,
+        title: `Tugas Terkumpul: ${name}`,
+        message: `Laporan RTL / penugasan materi mandiri peserta ${name} siap dinilai.`,
         timestamp: 'Penugasan Diklat',
         link: '/admin?tab=tugas',
         actionType: 'tugas'
       });
-    }
+    });
 
-    if (pendingActivityApps.length > 0) {
+    // 6. Pending Activities
+    pendingActivityApps.slice(0, 15).forEach((a: any) => {
+      const name = a.nama || a.namaLengkap || 'Peserta';
+      const act = a.activityTitle || a.namaKegiatan || 'Kegiatan HW';
+      const safeId = a.id || a.email || name;
       items.push({
-        id: `admin-pending-activities-${pendingActivityApps.length}`,
+        id: `admin-activity-app-${safeId}`,
         type: 'general',
-        title: `${pendingActivityApps.length} Pendaftaran Kegiatan Baru`,
-        message: `Terdapat ${pendingActivityApps.length} peserta mendaftar kegiatan menunggu konfirmasi.`,
+        title: `Pendaftaran Kegiatan: ${name}`,
+        message: `Peserta ${name} mendaftar kegiatan ${act} menunggu konfirmasi.`,
         timestamp: 'Kegiatan HW',
         link: '/admin?tab=kegiatan',
         actionType: 'kegiatan'
       });
-    }
+    });
   }
 
-  // 2. Member / Personal Notifications
+  // 2. Member / Personal Notifications (Only genuinely new status updates)
   if (user) {
     const userEmail = (user.email || '').toLowerCase().trim();
     const userId = user.id || '';
     const userKta = (user.nomorKTA || user.nomorKta || user.ktaNumber || '').trim();
 
-    // Check personal KTA applications
+    // Check personal KTA applications - only notify when approved/finished
     const ktas = parseJsonSafe('kta_applications');
     const myKtaApp = ktas.find((k: any) => 
       (userId && k.memberId === userId) ||
@@ -339,98 +331,38 @@ export function buildAllNotifications(options: {
       (userKta && k.nomorKTA === userKta)
     );
 
-    if (myKtaApp) {
-      if (myKtaApp.status === 'approved' || myKtaApp.status === 'selesai') {
-        items.push({
-          id: `user-kta-approved-${myKtaApp.id || 'app'}`,
-          type: 'kta',
-          title: 'Pengajuan KTA Disetujui!',
-          message: `KTA resmi Anda (${myKtaApp.nomorKTA || userKta || 'Tersedia'}) telah disetujui dan siap diunduh/cetak.`,
-          timestamp: 'Disetujui',
-          link: '/kta'
-        });
-      } else if (myKtaApp.status === 'pending') {
-        items.push({
-          id: `user-kta-pending-${myKtaApp.id || 'app'}`,
-          type: 'kta',
-          title: 'Pengajuan KTA Sedang Diproses',
-          message: 'Permohonan penerbitan KTA Anda sedang dalam antrean verifikasi data oleh admin.',
-          timestamp: 'Sedang Diproses',
-          link: '/kta'
-        });
-      }
-    } else if (userKta || user.isVerified) {
+    if (myKtaApp && (myKtaApp.status === 'approved' || myKtaApp.status === 'selesai')) {
       items.push({
-        id: 'user-kta-status-active',
+        id: `user-kta-approved-${myKtaApp.id || myKtaApp.nomorKTA || 'kta'}`,
         type: 'kta',
-        title: 'KTA Resmi Telah Aktif',
-        message: `Nomor KTA: ${userKta || '-'} aktif. Anda dapat mengunduh atau mencetak kartu anggota kapan saja.`,
-        timestamp: 'Aktif',
+        title: 'Pengajuan KTA Disetujui!',
+        message: `KTA resmi Anda (${myKtaApp.nomorKTA || userKta || 'Tersedia'}) telah disetujui dan siap diunduh/cetak.`,
+        timestamp: 'Disetujui',
         link: '/kta'
       });
     }
 
-    // Check personal Training applications
+    // Check personal Training applications - only notify on approval / rejection update
     const trainings = parseJsonSafe('training_applications');
     const myTrainingApps = trainings.filter((t: any) => 
       (userId && t.memberId === userId) ||
       (userEmail && (t.email || '').toLowerCase().trim() === userEmail)
     );
 
-    myTrainingApps.slice(0, 2).forEach((tApp: any) => {
-      const actName = tApp.activityTitle || tApp.trainingName || 'Pelatihan Hizbul Wathan';
-      const statusText = tApp.status === 'approved' ? 'Diterima' : tApp.status === 'rejected' ? 'Perlu Perbaikan' : 'Menunggu Konfirmasi';
-      const safeId = tApp.id || tApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-      items.push({
-        id: `user-training-${safeId}`,
-        type: 'training',
-        title: `Status Diklat: ${actName}`,
-        message: `Status pendaftaran pelatihan Anda: ${statusText}.`,
-        timestamp: statusText,
-        link: '/pelatihan'
-      });
-    });
-
-    // Check personal Activity registrations
-    const activities = parseJsonSafe('activity_applications');
-    const myActApps = activities.filter((a: any) => 
-      (userId && a.memberId === userId) ||
-      (userEmail && (a.email || '').toLowerCase().trim() === userEmail)
-    );
-
-    myActApps.slice(0, 2).forEach((aApp: any) => {
-      const actName = aApp.activityName || 'Kegiatan HW';
-      const safeActId = aApp.id || aApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-      items.push({
-        id: `user-activity-${safeActId}`,
-        type: 'general',
-        title: `Pendaftaran: ${actName}`,
-        message: `Anda terdaftar dalam kegiatan ${actName}. Status: ${aApp.status || 'Terdaftar'}.`,
-        timestamp: 'Terdaftar',
-        link: '/kegiatan'
-      });
-    });
-
-    // Membership role status
-    if (user.role && user.role !== 'umum') {
-      items.push({
-        id: `user-role-badge-${user.role}`,
-        type: 'general',
-        title: `Status Keanggotaan: ${user.tingkatan || user.role}`,
-        message: 'Profil keanggotaan Anda telah diverifikasi resmi oleh Kwartir Wilayah HW Jawa Tengah.',
-        timestamp: 'Tervalidasi',
-        link: '/profile'
-      });
-    }
-
-    // Welcome Notice
-    items.push({
-      id: 'welcome-info-portal',
-      type: 'general',
-      title: 'Selamat Datang di Satu HW Jateng',
-      message: 'Sistem Super Apps Terintegrasi Kwartir Wilayah Hizbul Wathan Jawa Tengah.',
-      timestamp: 'Satu HW',
-      link: '/'
+    myTrainingApps.forEach((tApp: any) => {
+      if (tApp.status === 'approved' || tApp.status === 'rejected') {
+        const actName = tApp.activityTitle || tApp.trainingName || 'Pelatihan Hizbul Wathan';
+        const statusText = tApp.status === 'approved' ? 'Diterima' : 'Perlu Perbaikan';
+        const safeId = tApp.id || tApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+        items.push({
+          id: `user-training-${safeId}-${tApp.status}`,
+          type: 'training',
+          title: `Status Diklat: ${actName}`,
+          message: `Status pendaftaran pelatihan Anda telah ${statusText}.`,
+          timestamp: statusText,
+          link: '/pelatihan'
+        });
+      }
     });
   }
 

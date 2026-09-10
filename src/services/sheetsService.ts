@@ -860,22 +860,23 @@ export const sheetsService = {
     };
   },
 
-  async getMateri(role: string): Promise<Materi[]> {
-    return cachedFetch(`materi_${role}`, async () => {
+  async getMateri(role?: string): Promise<Materi[]> {
+    const roleKey = role || 'semua';
+    return cachedFetch(`materi_${roleKey}`, async () => {
       // 1. Instantly retrieve from local Firestore / cache
       const materiList = await firestoreService.getMateri();
       const mapped = (materiList || [])
         .map((m: any) => this.mapMateri(m))
         .filter((m: any) => {
-          if (!role || role === 'semua') return true;
-          const k = String(m.kategori || '').toLowerCase().trim();
-          const r = String(role).toLowerCase().trim();
-          return k === r;
+          if (!role || role === 'semua' || role === 'admin' || role === 'superadmin' || role === 'all') return true;
+          const k = String(m.kategori || '').toLowerCase().trim().replace(/[\s_-]+/g, '');
+          const r = String(role).toLowerCase().trim().replace(/[\s_-]+/g, '');
+          return k === r || k.includes(r) || r.includes(k);
         });
 
       // 2. Non-blocking background sync with Google Sheets API if valid
       if (IS_API_VALID) {
-        fetchSheetsApi('getMateri', { role }, 3000).then((data) => {
+        fetchSheetsApi('getMateri', { role: roleKey }, 3000).then((data) => {
           let listData: any[] = [];
           if (Array.isArray(data)) listData = data;
           else if (data && Array.isArray(data.data)) listData = data.data;
@@ -891,6 +892,12 @@ export const sheetsService = {
 
       return mapped;
     }, 30000);
+  },
+
+  async restoreDefaultMateri(): Promise<Materi[]> {
+    clearSheetsCache('materi');
+    const restored = await firestoreService.restoreDefaultMateri();
+    return (restored || []).map((m: any) => this.mapMateri(m));
   },
 
   subscribeToMateri(callback: (materi: Materi[]) => void): () => void {
@@ -961,9 +968,12 @@ export const sheetsService = {
     const synced = syncRolesAndPelatihan(rawRoles, userData.pelatihan);
     const primaryRole = synced.primaryRole;
     const properName = toProperName(userData.namaLengkap || userData.nama);
+    const rawId = (userData.id !== undefined && userData.id !== null && String(userData.id).trim() !== '')
+      ? String(userData.id).trim()
+      : (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`);
     const cleanUserData: User = {
       ...userData,
-      id: userData.id || (userData.email ? `user-${userData.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}`),
+      id: rawId,
       namaLengkap: properName || userData.namaLengkap || 'Anggota HW',
       tanggalLahir: normalizeDateForInput(userData.tanggalLahir || (userData as any)?.tanggallahir || ''),
       role: primaryRole,
