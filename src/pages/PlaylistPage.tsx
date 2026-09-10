@@ -35,7 +35,8 @@ import {
   ExternalLink,
   LayoutList,
   Grid,
-  User
+  User,
+  Mic
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -258,6 +259,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
     id: '',
     title: '',
     creator: '',
+    vocalist: '',
     audioUrl: '',
     lyrics: ''
   });
@@ -331,6 +333,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
       return (
         track.title.toLowerCase().includes(q) ||
         track.creator.toLowerCase().includes(q) ||
+        (track.vocalist && track.vocalist.toLowerCase().includes(q)) ||
         track.lyrics.toLowerCase().includes(q)
       );
     });
@@ -600,6 +603,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
         id: track.id || track.raw?.id || '',
         title: track.title || track.raw?.field2 || '',
         creator: track.creator || track.raw?.field3 || 'Pandu Hizbul Wathan',
+        vocalist: track.vocalist || track.raw?.vokalis || track.raw?.vocalist || track.raw?.field4 || 'Paduan Suara HW',
         audioUrl: track.audioUrl || track.raw?.field1 || '',
         lyrics: track.lyrics && !track.lyrics.includes('Lirik lagu belum tersedia') 
           ? track.lyrics 
@@ -611,6 +615,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
         id: `playlist-${Date.now()}`,
         title: '',
         creator: 'Pandu Hizbul Wathan',
+        vocalist: 'Paduan Suara HW',
         audioUrl: '',
         lyrics: ''
       });
@@ -635,19 +640,23 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
       setSaveFeedback(null);
 
       const targetId = songFormData.id || (editingTrack ? editingTrack.id : `playlist-${Date.now()}`);
+      const vocalistVal = songFormData.vocalist.trim() || 'Paduan Suara HW';
+      const creatorVal = songFormData.creator.trim() || 'Pandu Hizbul Wathan';
       const payload: any = {
         id: targetId,
         section: 'playlist',
         type: 'list',
         field1: songFormData.audioUrl.trim(),
         field2: songFormData.title.trim(),
-        field3: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
-        field4: '',
+        field3: creatorVal,
+        field4: vocalistVal,
         field5: songFormData.lyrics.trim(),
         judul: songFormData.title.trim(),
         title: songFormData.title.trim(),
-        pencipta: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
-        creator: songFormData.creator.trim() || 'Pandu Hizbul Wathan',
+        pencipta: creatorVal,
+        creator: creatorVal,
+        vokalis: vocalistVal,
+        vocalist: vocalistVal,
         audioUrl: songFormData.audioUrl.trim(),
         audiourl: songFormData.audioUrl.trim(),
         lirik: songFormData.lyrics.trim(),
@@ -669,6 +678,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
           ...selectedTrackForLyrics,
           title: payload.title,
           creator: payload.creator,
+          vocalist: payload.vocalist,
           lyrics: payload.lyrics,
           audioUrl: payload.audioUrl
         });
@@ -891,9 +901,18 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                       <h3 className="text-sm font-bold text-white truncate">
                         {currentTrack.title}
                       </h3>
-                      <p className="text-[11px] text-emerald-400 font-semibold truncate">
-                        Cipt: {currentTrack.creator}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-emerald-400 font-semibold truncate">
+                        <span>Cipt: {currentTrack.creator}</span>
+                        {currentTrack.vocalist && (
+                          <>
+                            <span className="text-emerald-500/50">•</span>
+                            <span className="text-teal-300 flex items-center gap-0.5">
+                              <Mic size={10} className="text-teal-400 shrink-0" />
+                              {currentTrack.vocalist}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -969,7 +988,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                     <tr>
                       <th className="py-3.5 px-3.5 w-12 text-center">No</th>
                       <th className="py-3.5 px-4 min-w-[220px]">Judul Lagu</th>
-                      <th className="py-3.5 px-4 min-w-[170px]">Pencipta Lagu</th>
+                      <th className="py-3.5 px-4 min-w-[190px]">Pencipta & Vokalis</th>
                       <th className="py-3.5 px-4 min-w-[260px]">Lirik Lagu</th>
                       <th className="py-3.5 px-4 min-w-[180px]">Link Audio</th>
                       <th className="py-3.5 px-4 w-36 text-center">Aksi / Putar</th>
@@ -1028,12 +1047,18 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                             </div>
                           </td>
 
-                          {/* Kolom Pencipta Lagu */}
-                          <td className="py-4 px-4 align-top">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-bold text-xs">
+                          {/* Kolom Pencipta & Vokalis Lagu */}
+                          <td className="py-4 px-4 align-top space-y-1.5">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-bold text-xs max-w-full">
                               <User size={12} className="text-emerald-700 shrink-0" />
-                              <span className="truncate">{track.creator}</span>
+                              <span className="truncate">Cipt: {track.creator}</span>
                             </div>
+                            {track.vocalist && (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-50/80 text-blue-900 border border-blue-200/60 font-medium text-[11px] max-w-full">
+                                <Mic size={11} className="text-blue-600 shrink-0" />
+                                <span className="truncate">Vokal: {track.vocalist}</span>
+                              </div>
+                            )}
                           </td>
 
                           {/* Kolom Lirik Lagu */}
@@ -1226,15 +1251,21 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
 
                       {/* Explicit Columns Sub-Grid: Pencipta Lagu, Lirik Lagu, Link Audio */}
                       <div className="mt-3.5 pt-3.5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        {/* Kolom Pencipta Lagu */}
-                        <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">
-                            Pencipta Lagu
+                        {/* Kolom Pencipta & Vokalis Lagu */}
+                        <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-0.5">
+                            Pencipta & Vokalis
                           </span>
-                          <div className="inline-flex items-center gap-1 text-emerald-800 font-bold">
+                          <div className="inline-flex items-center gap-1 text-emerald-800 font-bold max-w-full">
                             <User size={13} className="text-emerald-600 shrink-0" />
-                            <span className="truncate">{track.creator}</span>
+                            <span className="truncate">Cipt: {track.creator}</span>
                           </div>
+                          {track.vocalist && (
+                            <div className="flex items-center gap-1 text-blue-700 font-medium text-[11px] max-w-full">
+                              <Mic size={12} className="text-blue-500 shrink-0" />
+                              <span className="truncate">Vokal: {track.vocalist}</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Kolom Lirik Lagu */}
@@ -1447,6 +1478,14 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                       <span>Cipt:</span>
                       <span className="text-white">{currentTrack.creator}</span>
                     </div>
+
+                    {currentTrack.vocalist && (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-300 text-xs font-bold">
+                        <Mic size={12} className="text-blue-400 shrink-0" />
+                        <span>Vokal:</span>
+                        <span className="text-white">{currentTrack.vocalist}</span>
+                      </div>
+                    )}
 
                     {isGoogleDriveUrl(currentTrack.audioUrl) && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-300 text-[10px] font-bold">
@@ -1677,18 +1716,21 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                   {selectedTrackForLyrics.title}
                 </h3>
 
-                {/* Composer info in Modal */}
-                <div className="mt-3 p-3 rounded-2xl bg-black/30 backdrop-blur-xs border border-white/20 flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
-                    <Sparkles size={16} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
-                      Diciptakan / Digubah Oleh
-                    </span>
-                    <p className="text-xs sm:text-sm font-black text-white truncate">
-                      {selectedTrackForLyrics.creator}
-                    </p>
+                {/* Composer & Vocalist info in Modal */}
+                <div className="mt-3 p-3 rounded-2xl bg-black/30 backdrop-blur-xs border border-white/20 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                      <Sparkles size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
+                        Pencipta & Vokalis
+                      </span>
+                      <p className="text-xs sm:text-sm font-black text-white truncate">
+                        {selectedTrackForLyrics.creator}
+                        {selectedTrackForLyrics.vocalist ? ` • Vokal: ${selectedTrackForLyrics.vocalist}` : ''}
+                      </p>
+                    </div>
                   </div>
 
                   {isAdmin && (
@@ -1862,6 +1904,21 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                     value={songFormData.creator || ''}
                     onChange={(e) => setSongFormData({ ...songFormData, creator: e.target.value })}
                     placeholder="Contoh: H. Siradj Dahlan / Pandu Hizbul Wathan"
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Vokalis / Penyanyi */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Mic size={13} className="text-blue-500" />
+                    Vokalis / Penyanyi Lagu
+                  </label>
+                  <input 
+                    type="text"
+                    value={songFormData.vocalist || ''}
+                    onChange={(e) => setSongFormData({ ...songFormData, vocalist: e.target.value })}
+                    placeholder="Contoh: Paduan Suara HW / Kak Dzikron"
                     className="w-full bg-gray-50 border border-gray-200 focus:border-hw-green focus:bg-white rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold text-gray-800 focus:ring-4 focus:ring-hw-green/10 outline-none transition-all"
                   />
                 </div>

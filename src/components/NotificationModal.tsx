@@ -100,6 +100,15 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   const userKey = user?.email || user?.id || '';
 
+  const handleClose = () => {
+    // Automatically mark all viewed notifications as read so they do not reappear once opened
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      markAllNotificationsAsRead(unreadIds, userKey);
+    }
+    onClose();
+  };
+
   const handleItemClick = (item: NotificationItem) => {
     markNotificationAsRead(item.id, userKey);
     setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
@@ -167,7 +176,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const modalContent = (
     <div 
       className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
     >
@@ -207,7 +216,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             )}
             <button 
               type="button"
-              onClick={onClose} 
+              onClick={handleClose} 
               className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               aria-label="Tutup"
             >

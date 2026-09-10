@@ -89,9 +89,17 @@ export interface Content {
   lirik?: string;
   pencipta?: string;
   creator?: string;
+  vokalis?: string;
+  vocalist?: string;
+  penyanyi?: string;
+  audioUrl?: string;
+  audiourl?: string;
+  videoUrl?: string;
   title?: string;
+  judul?: string;
   body?: string;
   image?: string;
+  [key: string]: any;
 }
 
 export interface ExternalRegistrationLink {

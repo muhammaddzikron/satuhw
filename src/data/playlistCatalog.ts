@@ -1,6 +1,7 @@
 export interface SongMetadata {
   title: string;
   creator: string;
+  vocalist?: string;
   category?: string;
   lyrics: string;
   theme: {
@@ -15,6 +16,7 @@ export const KNOWN_HW_SONGS: Record<string, SongMetadata> = {
   'mars hizbul wathan': {
     title: 'Mars Hizbul Wathan',
     creator: 'H. Siradj Dahlan',
+    vocalist: 'Paduan Suara HW',
     category: 'Mars & Lagu Wajib',
     lyrics: `Hizbul Wathan yang bersemangat
 Menjunjung tinggi agama Islam
@@ -40,6 +42,7 @@ Mengabdi tulus untuk sesama!`,
   'mars hw': {
     title: 'Mars HW',
     creator: 'H. Siradj Dahlan',
+    vocalist: 'Paduan Suara HW',
     category: 'Mars & Lagu Wajib',
     lyrics: `Hizbul Wathan yang bersemangat
 Menjunjung tinggi agama Islam
@@ -65,6 +68,7 @@ Mengabdi tulus untuk sesama!`,
   'hymne hizbul wathan': {
     title: 'Hymne HW Panduku',
     creator: 'H.M. Affandi',
+    vocalist: 'Paduan Suara HW',
     category: 'Hymne',
     lyrics: `Di bawah panji suci mulia
 Hizbul Wathan melangkah pasti
@@ -85,6 +89,7 @@ Jayalah Hizbul Wathan selamanya!`,
   'hymne hw panduku': {
     title: 'Hymne HW Panduku',
     creator: 'H.M. Affandi',
+    vocalist: 'Paduan Suara HW',
     category: 'Hymne',
     lyrics: `Di bawah panji suci mulia
 Hizbul Wathan melangkah pasti
@@ -105,6 +110,7 @@ Jayalah Hizbul Wathan selamanya!`,
   'hymne hw': {
     title: 'Hymne HW Panduku',
     creator: 'H.M. Affandi',
+    vocalist: 'Paduan Suara HW',
     category: 'Hymne',
     lyrics: `Di bawah panji suci mulia
 Hizbul Wathan melangkah pasti
@@ -125,6 +131,7 @@ Jayalah Hizbul Wathan selamanya!`,
   'sahabat hw': {
     title: 'Sahabat HW',
     creator: 'Muhammad Dzikron',
+    vocalist: 'Kak Dzikron & Sahabat Pandu',
     category: 'Lagu Pandu & Motivasi',
     lyrics: `Bersama kita melangkah
 Menembus cakrawala asa
@@ -145,6 +152,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`,
   'hw untuk indonesia': {
     title: 'HW Untuk Indonesia',
     creator: 'Muhammad Dzikron',
+    vocalist: 'Kak Dzikron',
     category: 'Lagu Pandu & Semangat',
     lyrics: `Dari ujung timur hingga ke barat
 Pandu Hizbul Wathan berhimpun erat
@@ -165,6 +173,7 @@ Maju bersama, jaya selamanya!`,
   'mahrojan penghela': {
     title: 'Mahrojan Penghela',
     creator: 'Muhammad Dzikron',
+    vocalist: 'Tim Paduan Suara Penghela',
     category: 'Lagu Pandu & Semangat',
     lyrics: `Derap langkah penghela berderap maju
 Menatap masa depan cerah berseri
@@ -185,6 +194,7 @@ Jaya sentosa sepanjang masa!`,
   'sang surya': {
     title: 'Sang Surya (Mars Muhammadiyah)',
     creator: 'Djarnawi Hadikusuma',
+    vocalist: 'Paduan Suara Muhammadiyah',
     category: 'Mars & Lagu Wajib',
     lyrics: `Sang Surya tetap bersinar
 Syahadat dua melingkar
@@ -210,6 +220,7 @@ Dengan ikhlas tulus hati`,
   'mars aisyiyah': {
     title: 'Mars Aisyiyah',
     creator: 'Ny. Hj. Siti Badilah Zuber',
+    vocalist: 'Paduan Suara Aisyiyah',
     category: 'Mars & Lagu Wajib',
     lyrics: `Wahai warga Aisyiyah sejati
 Sadarlah akan panggilan suci
@@ -297,7 +308,17 @@ export const resolveTrackMetadata = (track: any) => {
   }
 
   const creator = rawCreator || defaultCreator;
-  const category = (track?.field4 || track?.kategori || track?.category || matched?.category || '').trim() || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW');
+
+  // Extract Vocalist / Penyanyi
+  let rawVocalist = (track?.field4 || track?.vokalis || track?.vocalist || track?.penyanyi || track?.singer || matched?.vocalist || '').trim();
+  const knownCategories = ['mars & hymne hw', 'lagu pandu hw', 'mars & lagu wajib', 'hymne', 'lagu pandu & motivasi', 'lagu pandu & semangat', 'mars', 'pandu'];
+  if (knownCategories.includes(rawVocalist.toLowerCase())) {
+    rawVocalist = matched?.vocalist || 'Paduan Suara HW';
+  }
+  const defaultVocalist = matched?.vocalist || (isMarsHW || isHymneHW || isSangSurya || isMarsAisyiyah ? 'Paduan Suara HW' : 'Kak Dzikron & Sahabat Pandu');
+  const vocalist = rawVocalist || defaultVocalist;
+
+  const category = (track?.kategori || track?.category || matched?.category || '').trim() || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW');
   const lyrics = (track?.field5 || track?.lirik || track?.lyrics || track?.syair || track?.teks || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
 
   // Color theme
@@ -342,12 +363,16 @@ export const resolveTrackMetadata = (track: any) => {
   const theme = matched?.theme || themes[hash];
 
   return {
-    id: track?.id || `track-${Math.random()}`,
-    title: rawTitle,
+    id: track?.id || `track-${encodeURIComponent(rawTitle.toLowerCase().replace(/\s+/g, '-'))}`,
+    title: matched?.title || rawTitle,
     creator,
+    pencipta: creator,
+    vocalist,
+    vokalis: vocalist,
     category,
     lyrics,
-    audioUrl: track?.field1 || track?.url || '',
+    lirik: lyrics,
+    audioUrl: audioUrl || track?.audioUrl || track?.field1 || track?.url || '',
     theme,
     raw: track
   };

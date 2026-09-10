@@ -201,8 +201,9 @@ export function buildAllNotifications(options: {
           (pmEmail && k.email && String(k.email).toLowerCase().trim() === pmEmail)
         );
         if (!hasKta) {
+          const fallbackKtaId = pm.id || (pm.email ? pm.email.toLowerCase().replace(/[^a-z0-9]/g, '_') : (pm.namaLengkap || pm.nama || 'calon').toLowerCase().replace(/[^a-z0-9]/g, '_'));
           pendingKtaApps.push({
-            id: `kta-${pm.id || Date.now()}`,
+            id: `kta-${fallbackKtaId}`,
             userId: pm.id,
             nama: pm.namaLengkap || pm.nama,
             email: pm.email,

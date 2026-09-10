@@ -3455,8 +3455,9 @@ export const firestoreService = {
           let audioUrl = (c.field1 || c.audioUrl || c.audiourl || c.linkAudio || c.url || '').toString().trim();
           let judul = (c.field2 || c.judul || c.title || c.namaLagu || c.nama || '').toString().trim();
           let pencipta = (c.field3 || c.pencipta || c.creator || '').toString().trim();
+          let vokalis = (c.field4 || c.vokalis || c.vocalist || c.penyanyi || '').toString().trim();
           let lirik = (c.field5 || c.lirik || c.lyrics || '').toString().trim();
-          let kategori = (c.field4 || c.kategori || c.category || '').toString().trim();
+          let kategori = (c.kategori || c.category || '').toString().trim();
 
           const isUrlLike = (u: string) => u.startsWith('http') || u.endsWith('.mp3') || u.includes('drive.google.com') || u.includes('hwjateng.org/musik');
           if (!isUrlLike(audioUrl) && isUrlLike(judul)) {
@@ -3472,10 +3473,16 @@ export const firestoreService = {
           const isSangSurya = lowerJudul.includes('sang surya');
           const isMarsAisyiyah = lowerJudul.includes('mars aisyiyah');
 
+          const knownCategories = ['mars & hymne hw', 'lagu pandu hw', 'mars & lagu wajib', 'hymne', 'lagu pandu & motivasi', 'lagu pandu & semangat'];
+          if (knownCategories.includes(vokalis.toLowerCase())) {
+            vokalis = '';
+          }
+
           if (lowerJudul === 'sahabat hw' || audioUrl.toLowerCase().includes('sahabathw')) {
             if (!audioUrl) audioUrl = 'https://hwjateng.org/musik/sahabathw.mp3';
             if (!judul) judul = 'Sahabat HW';
             pencipta = 'Muhammad Dzikron';
+            if (!vokalis) vokalis = 'Kak Dzikron & Sahabat Pandu';
             if (!lirik) {
               lirik = 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!';
             }
@@ -3483,18 +3490,23 @@ export const firestoreService = {
             if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
               pencipta = 'H. Siradj Dahlan';
             }
+            if (!vokalis) vokalis = 'Paduan Suara HW';
           } else if (isHymneHW) {
             if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
               pencipta = 'H.M. Affandi';
             }
+            if (!vokalis) vokalis = 'Paduan Suara HW';
           } else if (isSangSurya) {
             if (!pencipta) pencipta = 'Djarnawi Hadikusuma';
+            if (!vokalis) vokalis = 'Paduan Suara Muhammadiyah';
           } else if (isMarsAisyiyah) {
             if (!pencipta) pencipta = 'Ny. Hj. Siti Badilah Zuber';
+            if (!vokalis) vokalis = 'Paduan Suara Aisyiyah';
           } else {
             if (!pencipta || pencipta.toLowerCase().includes('pandu') || pencipta.toLowerCase().includes('kwar')) {
               pencipta = 'Muhammad Dzikron';
             }
+            if (!vokalis) vokalis = lowerJudul.includes('indonesia') ? 'Kak Dzikron' : (lowerJudul.includes('mahrojan') ? 'Tim Paduan Suara Penghela' : 'Paduan Suara HW');
           }
           return {
             ...c,
@@ -3502,7 +3514,7 @@ export const firestoreService = {
             field1: audioUrl,
             field2: judul,
             field3: pencipta,
-            field4: kategori || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW'),
+            field4: vokalis,
             field5: lirik,
             audioUrl,
             audiourl: audioUrl,
@@ -3510,6 +3522,10 @@ export const firestoreService = {
             title: judul,
             pencipta,
             creator: pencipta,
+            vokalis,
+            vocalist: vokalis,
+            kategori: kategori || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW'),
+            category: kategori || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW'),
             lirik,
             lyrics: lirik
           };
@@ -3521,11 +3537,35 @@ export const firestoreService = {
         try {
           const snap = await withTimeout(getDocs(collection(db, 'contents')), 8000);
           const fsContents = !snap.empty ? snap.docs.map(d => ({ id: d.id, ...d.data() } as Content)) : [];
+
+          // Also check 'playlist' collection in case songs were stored directly there
+          try {
+            const plSnap = await withTimeout(getDocs(collection(db, 'playlist')), 5000);
+            if (!plSnap.empty) {
+              plSnap.docs.forEach(d => {
+                const data = d.data();
+                fsContents.push({ id: d.id, section: 'playlist', ...data } as Content);
+              });
+            }
+          } catch (e) {}
           
           let localContents: Content[] = [];
           try {
             const stored = localStorage.getItem('contents');
             if (stored) localContents = JSON.parse(stored);
+          } catch (e) {}
+
+          // Also merge hw_playlist or playlist from localStorage
+          try {
+            const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+            if (plStored) {
+              const parsedPl = JSON.parse(plStored);
+              if (Array.isArray(parsedPl)) {
+                parsedPl.forEach((p: any) => {
+                  if (p) localContents.push({ section: 'playlist', ...p });
+                });
+              }
+            }
           } catch (e) {}
 
           const contentMap = new Map<string, Content>();
@@ -3599,6 +3639,10 @@ export const firestoreService = {
     };
 
     if (isPl) {
+      const vokalisVal = (item as any).vokalis || (item as any).vocalist || (item as any).penyanyi || item.field4 || 'Paduan Suara HW';
+      payload.field4 = vokalisVal;
+      payload.vokalis = vokalisVal;
+      payload.vocalist = vokalisVal;
       payload.audioUrl = f1;
       payload.audiourl = f1;
       payload.pencipta = f3 || 'Pandu Hizbul Wathan';
@@ -3628,6 +3672,23 @@ export const firestoreService = {
           console.warn('Firestore saveContent offline queue:', (err as any)?.message || err);
         }
       }
+      if (isPl) {
+        try {
+          await setDoc(doc(db, 'playlist', String(itemData.id)), itemData);
+        } catch (e) {}
+      }
+    }
+    if (isPl) {
+      try {
+        const plStored = localStorage.getItem('hw_playlist') || '[]';
+        const plList = JSON.parse(plStored);
+        if (Array.isArray(plList)) {
+          const idx = plList.findIndex((x: any) => String(x.id) === String(itemData.id));
+          if (idx >= 0) plList[idx] = itemData;
+          else plList.unshift(itemData);
+          localStorage.setItem('hw_playlist', JSON.stringify(plList));
+        }
+      } catch (e) {}
     }
     const list = await this.getContents(true);
     const idx = list.findIndex(c => String(c.id) === String(itemData.id));
