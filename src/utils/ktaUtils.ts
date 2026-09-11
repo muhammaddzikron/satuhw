@@ -79,6 +79,12 @@ export function resolveSingleCode(input?: string): string | null {
 
   // Common regional aliases mapping
   const aliases: Record<string, string> = {
+    'jawa tengah': '33',
+    'jateng': '33',
+    'kwarda jateng': '33',
+    'wilayah jateng': '33',
+    'kwarda': '33',
+    'pusdiklat': '33',
     'surakarta': '34',
     'solo': '34',
     'kota solo': '34',
@@ -383,76 +389,58 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
     groups.get(code)!.push(item);
   }
 
-  // Resequence continuously starting from 1 for each Kwarda code group
+  // Allocate and preserve KTA numbers per Kwarda/Qabilah code group
   groups.forEach((groupItems, code) => {
-    groupItems.sort((a: any, b: any) => {
-      const parsedA = parseKtaDetails(a);
-      const parsedB = parseKtaDetails(b);
+    const usedSeqNumbers = new Set<number>();
+    const claimedBy = new Map<number, any>();
 
-      // Assigned KTAs before unassigned
-      if (parsedA.hasKta !== parsedB.hasKta) {
-        return parsedA.hasKta ? -1 : 1;
+    // 1. First pass: Register and preserve all legitimate existing valid KTA numbers
+    const itemsWithoutValidKta: any[] = [];
+
+    for (const item of groupItems as any[]) {
+      const currentKta = (item.nomorKTA || item.ktaNumber || '').trim();
+      const parsed = isValidKtaNumberFormat(currentKta) ? parseKtaNumber(currentKta) : null;
+
+      if (parsed && parsed.kodeKwarda === code && !claimedBy.has(parsed.nomorUrut)) {
+        // Legitimate non-colliding existing KTA number, preserve it!
+        usedSeqNumbers.add(parsed.nomorUrut);
+        claimedBy.set(parsed.nomorUrut, item);
+        const formatted = formatKtaNumber(code, parsed.nomorUrut);
+        item.nomorKTA = formatted;
+        item.ktaNumber = formatted;
+        item.kodeProvinsi = '11';
+        item.kodeKwarda = code;
+        item.nomorUrut = parsed.nomorUrut;
+        item.candidateKtaNumber = formatted;
+      } else {
+        itemsWithoutValidKta.push(item);
       }
+    }
 
-      // If both have assigned KTAs, sort by current sequence number to maintain established order
-      if (parsedA.hasKta && parsedB.hasKta) {
-        if (parsedA.seq !== parsedB.seq) {
-          return parsedA.seq - parsedB.seq;
-        }
-      }
-
-      // Fallback sorting by registration date or name
+    // Sort items needing KTA number by registration/creation date or name for stable sequence
+    itemsWithoutValidKta.sort((a: any, b: any) => {
       const dateA = a.tanggalAjuan || a.tanggalDaftar || a.createdAt || a.tanggal || '';
       const dateB = b.tanggalAjuan || b.tanggalDaftar || b.createdAt || b.tanggal || '';
       if (dateA && dateB && dateA !== dateB) {
         return String(dateA).localeCompare(String(dateB));
       }
-
       const nameA = a.namaLengkap || a.nama || '';
       const nameB = b.namaLengkap || b.nama || '';
       return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
     });
 
-    // Separate approved/verified members from pending applications
-    const approvedItems: any[] = [];
-    const pendingItems: any[] = [];
+    // 2. Second pass: Allocate the next available sequential number for anyone without a valid KTA
+    for (const item of itemsWithoutValidKta) {
+      const nextSeq = findNextAvailableNumber(usedSeqNumbers);
+      usedSeqNumbers.add(nextSeq);
+      const allocatedKta = formatKtaNumber(code, nextSeq);
 
-    for (const item of groupItems as any[]) {
-      const s = (item.status || '').toString().toLowerCase().trim();
-      const sk = (item.statusKta || '').toString().toLowerCase().trim();
-      const isExplicitPending = item.isVerified === false || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi' || sk === 'pending';
-      const isExplicitRejected = s === 'rejected' || s === 'ditolak' || sk === 'rejected';
-      const isApproved = !isExplicitPending && !isExplicitRejected && (s === 'approved' || s === 'aktif' || s === 'terbit' || item.isVerified === true);
-      if (isApproved) {
-        approvedItems.push(item);
-      } else {
-        pendingItems.push(item);
-      }
-    }
-
-    // Resequence approved members strictly from 1 to N without any gaps
-    let currentSeq = 1;
-    for (const item of approvedItems) {
-      const newKta = formatKtaNumber(code, currentSeq);
-      item.ktaNumber = newKta;
-      item.nomorKTA = newKta;
+      item.nomorKTA = allocatedKta;
+      item.ktaNumber = allocatedKta;
+      item.candidateKtaNumber = allocatedKta;
       item.kodeProvinsi = '11';
       item.kodeKwarda = code;
-      item.nomorUrut = currentSeq;
-      currentSeq++;
-    }
-
-    // Sequence pending applications seamlessly after approved members
-    for (const item of pendingItems) {
-      const candKta = formatKtaNumber(code, currentSeq);
-      item.kodeProvinsi = '11';
-      item.kodeKwarda = code;
-      item.nomorUrut = currentSeq;
-      item.candidateKtaNumber = candKta;
-      item.status = item.status === 'rejected' ? 'rejected' : 'pending';
-      item.isVerified = false;
-      if (item.status !== 'rejected') item.statusKta = 'pending';
-      currentSeq++;
+      item.nomorUrut = nextSeq;
     }
   });
 
@@ -464,14 +452,43 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
  */
 export function generateNextKtaForRegion(region?: string, qabilah?: string, existingItems: any[] = []): string {
   const code = getKwardaCode(region, qabilah);
-  const usedNumbers: number[] = [];
+  const usedNumbers = new Set<number>();
+
+  // 1. Gather from provided existingItems
   (existingItems || []).forEach((item: any) => {
-    const kta = (item.ktaNumber || item.nomorKTA || '').trim();
+    const kta = (item.ktaNumber || item.nomorKTA || item.candidateKtaNumber || '').trim();
     const parsed = parseKtaNumber(kta);
     if (parsed && parsed.kodeKwarda === code) {
-      usedNumbers.push(parsed.nomorUrut);
+      usedNumbers.add(parsed.nomorUrut);
     }
   });
+
+  // 2. Gather from browser storage if present
+  if (typeof window !== 'undefined') {
+    try {
+      const storedMembers = JSON.parse(localStorage.getItem('mock_members') || localStorage.getItem('hw_members') || '[]');
+      if (Array.isArray(storedMembers)) {
+        storedMembers.forEach((item: any) => {
+          const kta = (item.ktaNumber || item.nomorKTA || item.candidateKtaNumber || '').trim();
+          const parsed = parseKtaNumber(kta);
+          if (parsed && parsed.kodeKwarda === code) {
+            usedNumbers.add(parsed.nomorUrut);
+          }
+        });
+      }
+      const storedKtas = JSON.parse(localStorage.getItem('kta_applications') || '[]');
+      if (Array.isArray(storedKtas)) {
+        storedKtas.forEach((item: any) => {
+          const kta = (item.ktaNumber || item.nomorKTA || item.candidateKtaNumber || '').trim();
+          const parsed = parseKtaNumber(kta);
+          if (parsed && parsed.kodeKwarda === code) {
+            usedNumbers.add(parsed.nomorUrut);
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
   const nextSeq = findNextAvailableNumber(usedNumbers);
   return formatKtaNumber(code, nextSeq);
 }

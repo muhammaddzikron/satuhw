@@ -31,7 +31,7 @@ import { sheetsService } from '../services/sheetsService';
 import { firestoreService } from '../services/firestoreService';
 import { User } from '../types';
 import { cn, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, safeCanvasToDataURL, formatIndonesianDate } from '../lib/utils';
-import { KWARDA_QABILAH_JATENG, getKwardaCode, parseKtaNumber } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, getKwardaCode, parseKtaNumber, generateNextKtaForRegion } from '../utils/ktaUtils';
 export { KWARDA_QABILAH_JATENG };
 import LoadingPage from './LoadingPage';
 import { jsPDF } from 'jspdf';
@@ -620,7 +620,8 @@ export default function KTAPage() {
       qabilah: formData.qabilah,
       jenisKta: formData.jenisKta,
       status: myApplication?.status || existingApp?.status || 'pending',
-      ktaNumber: myApplication?.ktaNumber || existingApp?.ktaNumber || '',
+      ktaNumber: myApplication?.ktaNumber || existingApp?.ktaNumber || (user as any)?.ktaNumber || (user as any)?.nomorKTA || generateNextKtaForRegion(formData.asalDaerah, formData.qabilah),
+      nomorKTA: myApplication?.nomorKTA || existingApp?.nomorKTA || myApplication?.ktaNumber || existingApp?.ktaNumber || (user as any)?.nomorKTA || (user as any)?.ktaNumber || generateNextKtaForRegion(formData.asalDaerah, formData.qabilah),
       tanggalAjuan: myApplication?.tanggalAjuan || existingApp?.tanggalAjuan || new Date().toISOString()
     };
 

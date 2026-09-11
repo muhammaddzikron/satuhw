@@ -9,6 +9,7 @@ import { csvPart3 } from './kta_csv_part3';
 import { csvPart4 } from './kta_csv_part4';
 import { csvPart5 } from './kta_csv_part5';
 import { csvPart6 } from './kta_csv_part6';
+import trainingData from './initialData/training.json';
 import { 
   getKwardaCode, 
   parseKtaNumber, 
@@ -110,16 +111,58 @@ export const getMasterMembersList = (): User[] => {
       role: (synced.primaryRole || 'umum') as UserRole,
       roles: (synced.roles && synced.roles.length > 0 ? synced.roles : ['umum']) as UserRole[],
       pelatihan: synced.pelatihan,
-      isVerified: isSysAdmin ? true : false,
-      status: isSysAdmin ? 'approved' : 'pending',
-      statusKta: isSysAdmin ? 'approved' : 'pending',
-      statusPembayaran: isSysAdmin ? 'Lunas' : (u.statusPembayaran || 'Belum Bayar'),
-      statusAktivasi: isSysAdmin ? 'Aktif' : (u.statusAktivasi || 'Belum Aktif'),
-      ktaNumber: isSysAdmin ? (u.ktaNumber || '') : '',
-      nomorKTA: isSysAdmin ? (u.nomorKTA || '') : '',
+      isVerified: isSysAdmin ? true : Boolean(u.isVerified || u.ktaNumber || u.nomorKTA),
+      status: isSysAdmin ? 'approved' : (u.status || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
+      statusKta: isSysAdmin ? 'approved' : (u.statusKta || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
+      statusPembayaran: isSysAdmin ? 'Lunas' : (u.statusPembayaran || (u.isVerified ? 'Lunas' : 'Belum Bayar')),
+      statusAktivasi: isSysAdmin ? 'Aktif' : (u.statusAktivasi || (u.isVerified ? 'Aktif' : 'Belum Aktif')),
+      ktaNumber: u.ktaNumber || u.nomorKTA || '',
+      nomorKTA: u.nomorKTA || u.ktaNumber || '',
       tanggalAjuan: u.createdAt || u.tanggalDaftar || u.tanggal || new Date().toISOString()
     });
   });
+
+  // 2. Training data participants with official KTA numbers (e.g., Reza Putra Bachtiar, Rizqi Qurniyawati)
+  if (Array.isArray(trainingData)) {
+    (trainingData as any[]).forEach((t, idx) => {
+      if (!t) return;
+      const tName = toProperName(t.namaLengkap || t.nama) || '';
+      if (!tName || tName === '-' || tName === 'Tanpa Nama') return;
+      const tKta = (t.nomorKTA || t.ktaNumber || '').trim();
+      const tEmail = (t.email || '').trim().toLowerCase();
+      const isOfficial = isValidKtaNumberFormat(tKta);
+
+      rawCandidates.push({
+        id: t.id ? String(t.id) : (tKta ? `user-train-${tKta.replace(/[^a-zA-Z0-9]/g, '_')}` : `user-train-${idx}`),
+        email: tEmail || (tKta ? `participant_${tKta.replace(/[^a-zA-Z0-9]/g, '')}@hw.or.id` : `participant_${idx}@hw.or.id`),
+        password: '12345hw',
+        namaLengkap: tName,
+        jenisKelamin: (t.jenisKelamin === 'P' || t.jenisKelamin === 'Perempuan') ? 'P' : 'L',
+        tempatLahir: t.tempatLahir || '',
+        tanggalLahir: t.tanggalLahir || '',
+        alamat: t.alamat || '',
+        noHp: t.noWa || t.noHp || '',
+        asalKwarda: t.asalDaerah || t.asalKwarda || '',
+        qabilah: t.qabilah || '',
+        pendidikan: t.pendidikanTerakhir || t.pendidikan || '',
+        sosmed: '',
+        pelatihan: t.pelatihanAkanDiikuti ? [t.pelatihanAkanDiikuti] : (t.namaKegiatan ? [t.namaKegiatan] : []),
+        golongan: t.tingkatan || 'Dewasa',
+        ktaNumber: tKta,
+        nomorKTA: tKta,
+        nbm: t.nbm || '',
+        isVerified: isOfficial ? true : Boolean(t.isVerified),
+        role: 'umum',
+        roles: ['umum'],
+        activeRole: 'umum',
+        status: isOfficial ? 'approved' : (t.status || 'approved'),
+        statusKta: isOfficial ? 'approved' : (t.statusKta || 'approved'),
+        statusAktivasi: isOfficial ? 'Aktif' : 'Belum Aktif',
+        statusPembayaran: isOfficial ? 'Lunas' : 'Belum Bayar',
+        tanggalAjuan: t.tanggalPendaftaran || t.createdAt || new Date().toISOString()
+      });
+    });
+  }
 
   // 2. CSV members with official issued KTAs
   csvMembers.forEach(c => {

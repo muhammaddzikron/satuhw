@@ -26,6 +26,7 @@ export interface User {
   photo?: string;
   ktaNumber?: string;
   nomorKTA?: string;
+  nbm?: string;
   kodeProvinsi?: string;
   kodeKwarda?: string;
   nomorUrut?: number;

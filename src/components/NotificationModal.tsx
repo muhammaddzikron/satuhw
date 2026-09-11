@@ -13,7 +13,10 @@ import {
   CheckCheck,
   Check,
   Calendar,
-  History
+  History,
+  ArrowLeft,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +51,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'admin' | 'my'>('all');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<NotificationItem | null>(null);
 
   const isAdmin = Boolean(
     user && (
@@ -106,16 +110,28 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     if (unreadIds.length > 0) {
       markAllNotificationsAsRead(unreadIds, userKey);
     }
+    setSelectedDetailItem(null);
     onClose();
   };
 
   const handleItemClick = (item: NotificationItem) => {
     markNotificationAsRead(item.id, userKey);
     setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+    setSelectedDetailItem(item);
+  };
+
+  const handleNavigate = (item: NotificationItem) => {
+    markNotificationAsRead(item.id, userKey);
+    setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+    setSelectedDetailItem(null);
     onClose();
 
     if (item.actionType && onNavigateTab) {
-      onNavigateTab(item.actionType);
+      if (item.actionType === 'pendaftaran' || item.actionType === 'upgrade') {
+        onNavigateTab('anggota');
+      } else {
+        onNavigateTab(item.actionType);
+      }
     } else if (item.link) {
       navigate(item.link);
     }
@@ -126,6 +142,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     e.stopPropagation();
     markNotificationAsRead(item.id, userKey);
     setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+    if (selectedDetailItem?.id === item.id) {
+      setSelectedDetailItem(prev => prev ? { ...prev, read: true } : null);
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -150,6 +169,23 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         return <FileText className="text-indigo-600" size={18} />;
       default:
         return <Calendar className="text-hw-green" size={18} />;
+    }
+  };
+
+  const getCategoryName = (type: NotificationItem['type']) => {
+    switch (type) {
+      case 'kta':
+        return 'Penerbitan KTA';
+      case 'member':
+        return 'Pendaftaran Anggota';
+      case 'upgrade':
+        return 'Kenaikan Tingkat';
+      case 'training':
+        return 'Pelatihan Diklat';
+      case 'task':
+        return 'Penugasan / RTL';
+      default:
+        return 'Informasi Sistem';
     }
   };
 
@@ -184,49 +220,136 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-gray-150 space-y-4 my-auto transform transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl">
-              <Bell size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-gray-900 font-display">Pusat Notifikasi</h3>
-                {unreadTotal > 0 && (
-                  <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-2xs">
-                    {unreadTotal} Baru
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-gray-400 font-medium">Informasi & status antrean sistem Satu HW</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {unreadTotal > 0 && !showHistory && (
+        {/* VIEW 1: RINCIAN PEMBERITAHUAN (DETAIL VIEW) */}
+        {selectedDetailItem ? (
+          <div className="space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <button
                 type="button"
-                onClick={handleMarkAllRead}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Tandai semua telah dibaca (tidak muncul lagi)"
+                onClick={() => setSelectedDetailItem(null)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
               >
-                <CheckCheck size={14} />
-                <span className="hidden sm:inline">Tandai Dibaca</span>
+                <ArrowLeft size={16} />
+                <span>Kembali ke Daftar</span>
               </button>
-            )}
-            <button 
-              type="button"
-              onClick={handleClose} 
-              className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-              aria-label="Tutup"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
+              <button 
+                type="button"
+                onClick={handleClose} 
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                title="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-        {/* Filter Tabs */}
-        {(isAdmin || isPelatih) && (
+            {/* Rincian Content */}
+            <div className="space-y-4 pt-1">
+              <div className="flex items-start gap-3.5 bg-gray-50/80 p-4 rounded-2xl border border-gray-150">
+                <div className="p-3 bg-white text-emerald-700 rounded-2xl shadow-xs border border-gray-150 shrink-0 mt-0.5">
+                  {getIcon(selectedDetailItem.type)}
+                </div>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full tracking-wider">
+                      {getCategoryName(selectedDetailItem.type)}
+                    </span>
+                    <span className="text-[11px] text-gray-400 font-medium">
+                      {selectedDetailItem.timestamp}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-gray-900 leading-snug">
+                    {selectedDetailItem.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Message Details */}
+              <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100/80 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 text-xs font-black">
+                  <Info size={16} />
+                  <span>Keterangan Pemberitahuan:</span>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  {selectedDetailItem.message}
+                </p>
+              </div>
+
+              {/* Direct Actions */}
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate(selectedDetailItem)}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl text-xs font-black shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <span>Buka & Tindak Lanjuti di Dashboard</span>
+                  <ExternalLink size={16} />
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDetailItem(null)}
+                    className="flex-1 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                  >
+                    Daftar Notifikasi Lainnya
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl">
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-gray-900 font-display">Pusat Notifikasi</h3>
+                    {unreadTotal > 0 && (
+                      <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-2xs">
+                        {unreadTotal} Baru
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 font-medium">Informasi & status antrean sistem Satu HW</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                {unreadTotal > 0 && !showHistory && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Tandai semua telah dibaca (tidak muncul lagi)"
+                  >
+                    <CheckCheck size={14} />
+                    <span className="hidden sm:inline">Tandai Dibaca</span>
+                  </button>
+                )}
+                <button 
+                  type="button"
+                  onClick={handleClose} 
+                  className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                  aria-label="Tutup"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            {(isAdmin || isPelatih) && (
           <div className="flex items-center gap-1.5 p-1 bg-gray-100/90 rounded-2xl">
             <button
               type="button"
@@ -360,6 +483,17 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                         <Check size={14} />
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigate(item);
+                      }}
+                      className="p-1.5 rounded-xl text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                      title="Buka langsung di halaman terkait"
+                    >
+                      <ExternalLink size={14} />
+                    </button>
                     <ChevronRight size={15} className="text-gray-300 group-hover:text-emerald-600 transition-colors shrink-0" />
                   </div>
                 </div>
@@ -398,13 +532,15 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
             >
               Tutup
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

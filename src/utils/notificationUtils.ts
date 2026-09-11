@@ -234,7 +234,7 @@ export function buildAllNotifications(options: {
         title: `Pendaftar Baru: ${name}`,
         message: `${name} (${daerah}) telah mendaftar dan menunggu verifikasi data admin.`,
         timestamp: 'Pendaftaran Anggota',
-        link: '/admin?tab=pendaftaran',
+        link: `/admin?tab=pendaftaran&search=${encodeURIComponent(name)}`,
         actionType: 'pendaftaran'
       });
     });
@@ -249,7 +249,7 @@ export function buildAllNotifications(options: {
         title: `Pengajuan Upgrade: ${name}`,
         message: `${name} mengajukan permohonan kenaikan tingkat/golongan yang perlu ditinjau.`,
         timestamp: 'Kenaikan Tingkat',
-        link: '/admin?tab=upgrade',
+        link: `/admin?tab=upgrade&search=${encodeURIComponent(name)}`,
         actionType: 'upgrade'
       });
     });
@@ -265,7 +265,7 @@ export function buildAllNotifications(options: {
         title: `Pengajuan KTA: ${applicantName}`,
         message: `Pengajuan KTA oleh ${applicantName} (${kwarda}) siap untuk ditinjau dan disetujui.`,
         timestamp: 'Antrean KTA',
-        link: '/admin?tab=kta',
+        link: `/admin?tab=kta&subtab=summary&search=${encodeURIComponent(applicantName)}`,
         actionType: 'kta'
       });
     });
@@ -281,7 +281,7 @@ export function buildAllNotifications(options: {
         title: `Pendaftaran Diklat: ${name}`,
         message: `Pendaftaran ${trainingName} oleh ${name} menunggu konfirmasi administratif.`,
         timestamp: 'Diklat HW',
-        link: '/admin?tab=pelatihan',
+        link: `/admin?tab=pelatihan&search=${encodeURIComponent(name)}`,
         actionType: 'pelatihan'
       });
     });
@@ -296,7 +296,7 @@ export function buildAllNotifications(options: {
         title: `Tugas Terkumpul: ${name}`,
         message: `Laporan RTL / penugasan materi mandiri peserta ${name} siap dinilai.`,
         timestamp: 'Penugasan Diklat',
-        link: '/admin?tab=tugas',
+        link: `/admin?tab=tugas&search=${encodeURIComponent(name)}`,
         actionType: 'tugas'
       });
     });
@@ -312,7 +312,7 @@ export function buildAllNotifications(options: {
         title: `Pendaftaran Kegiatan: ${name}`,
         message: `Peserta ${name} mendaftar kegiatan ${act} menunggu konfirmasi.`,
         timestamp: 'Kegiatan HW',
-        link: '/admin?tab=kegiatan',
+        link: `/admin?tab=kegiatan&search=${encodeURIComponent(name)}`,
         actionType: 'kegiatan'
       });
     });

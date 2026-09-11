@@ -545,9 +545,14 @@ export default function AdminDashboard() {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'akun') return 'akun';
     if (isDiklatAdmin || isPelatihOnly) return 'pelatihan';
-    return tabParam || 'anggota';
+    if (tabParam === 'pendaftaran' || tabParam === 'upgrade') return 'anggota';
+    if (tabParam === 'tugas') return 'pelatihan';
+    if (['anggota', 'materi', 'konten', 'admin', 'pengaturan', 'kta', 'pelatihan', 'kegiatan', 'kwarda-ptma'].includes(tabParam || '')) {
+      return tabParam!;
+    }
+    return 'anggota';
   });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
 
   const setActiveTab = (tab: string) => {
     setActiveTabState(tab);
@@ -556,6 +561,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
+    const search = searchParams.get('search');
+    const subtab = searchParams.get('subtab');
+
     if (isPelatihOnly && activeTab !== 'pelatihan' && activeTab !== 'akun') {
       setActiveTabState('pelatihan');
       return;
@@ -564,8 +572,40 @@ export default function AdminDashboard() {
       setActiveTabState('pelatihan');
       return;
     }
-    if (tab && tab !== activeTab) {
-      setActiveTabState(tab);
+
+    if (!tab) return;
+
+    if (tab === 'pendaftaran') {
+      setActiveTabState('anggota');
+      setSelectedFilters(['Pending Verifikasi']);
+      if (search) setSearchQuery(search);
+    } else if (tab === 'upgrade') {
+      setActiveTabState('anggota');
+      setSelectedFilters(['Kenaikan Tingkat']);
+      setIsUpgradeModalOpen(true);
+      if (search) setSearchQuery(search);
+    } else if (tab === 'kta') {
+      setActiveTabState('kta');
+      if (subtab && (subtab === 'summary' || subtab === 'stats' || subtab === 'kwarda' || subtab === 'template')) {
+        setActiveKtaSubTab(subtab);
+      }
+      if (search) {
+        setAntreanSearch(search);
+        setKtaSearchQuery(search);
+      }
+    } else if (tab === 'pelatihan') {
+      setActiveTabState('pelatihan');
+      if (search) setTrainingSearchQuery(search);
+    } else if (tab === 'tugas') {
+      setActiveTabState('pelatihan');
+      if (search) setTrainingSearchQuery(search);
+    } else if (['anggota', 'materi', 'konten', 'admin', 'pengaturan', 'kegiatan', 'kwarda-ptma', 'akun'].includes(tab)) {
+      if (activeTab !== tab) {
+        setActiveTabState(tab);
+      }
+      if (search) setSearchQuery(search);
+    } else {
+      setActiveTabState('anggota');
     }
   }, [searchParams, isDiklatAdmin, isPelatihOnly, activeTab]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['Semua']);
@@ -5145,7 +5185,7 @@ export default function AdminDashboard() {
           className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]"
         >
           {/* ANGGOTA TAB */}
-          {activeTab === 'anggota' && (
+          {(activeTab === 'anggota' || activeTab === 'pendaftaran' || activeTab === 'upgrade' || !['materi', 'konten', 'admin', 'pengaturan', 'kta', 'pelatihan', 'kegiatan', 'kwarda-ptma', 'akun'].includes(activeTab)) && (
             <div className="flex flex-col h-full">
               {/* Stats & Demographic Section specifically for Anggota Tab */}
               <div className="p-6 border-b border-gray-100 bg-gray-50/50 space-y-5">

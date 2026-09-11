@@ -1194,8 +1194,7 @@ export const firestoreService = {
         // If the number is already taken by someone else OR skips past the available candidate:
         // we use the clean candidate to keep the sequence contiguous
         const isCollision = usedSet.has(parsed.nomorUrut);
-        const isSkipping = parsed.nomorUrut > candidate;
-        if (!isCollision && !isSkipping) {
+        if (!isCollision) {
           sessionAllocatedKtaNumbers.add(existingKta);
           return {
             nomorKTA: existingKta,
@@ -2507,17 +2506,21 @@ export const firestoreService = {
   async createKTAApplication(appData: any): Promise<any> {
     let ktaNum = appData.nomorKTA || appData.ktaNumber;
     let ktaInfo: any = null;
-    if (appData.status === 'approved') {
-      if (ktaNum) {
-        const parsed = isValidKtaNumberFormat(ktaNum) ? parseKtaNumber(ktaNum) : null;
-        ktaInfo = { nomorKTA: ktaNum, ktaNumber: ktaNum, kodeProvinsi: parsed?.kodeProvinsi || '11', kodeKwarda: parsed?.kodeKwarda || '', nomorUrut: parsed?.nomorUrut || '' };
-      } else {
-        ktaInfo = await this.allocateKtaNumberTransaction(
-          appData.asalDaerah || appData.asalKwarda,
-          appData.qabilah || appData.qabilahPtma,
-          ktaNum
-        );
-      }
+    if (ktaNum && isValidKtaNumberFormat(ktaNum)) {
+      const parsed = parseKtaNumber(ktaNum);
+      ktaInfo = {
+        nomorKTA: ktaNum,
+        ktaNumber: ktaNum,
+        kodeProvinsi: parsed?.kodeProvinsi || '11',
+        kodeKwarda: parsed?.kodeKwarda || getKwardaCode(appData.asalDaerah || appData.asalKwarda, appData.qabilah || appData.qabilahPtma),
+        nomorUrut: parsed?.nomorUrut || 0
+      };
+    } else {
+      ktaInfo = await this.allocateKtaNumberTransaction(
+        appData.asalDaerah || appData.asalKwarda,
+        appData.qabilah || appData.qabilahPtma,
+        ktaNum
+      );
     }
 
     const rawStatus = (appData.status || '').toString().toLowerCase().trim();
@@ -2577,7 +2580,10 @@ export const firestoreService = {
           if (newApp.jenisKelamin) memberSync.jenisKelamin = (newApp.jenisKelamin === 'Perempuan' || newApp.jenisKelamin === 'P') ? 'P' : 'L';
           if (newApp.sosmed) memberSync.sosmed = newApp.sosmed;
           if (newApp.status === 'approved') memberSync.isVerified = true;
-          if (newApp.ktaNumber) memberSync.ktaNumber = newApp.ktaNumber;
+          if (newApp.ktaNumber) {
+            memberSync.ktaNumber = newApp.ktaNumber;
+            memberSync.nomorKTA = newApp.nomorKTA || newApp.ktaNumber;
+          }
           if (newApp.verifiedAt) memberSync.verifiedAt = newApp.verifiedAt;
           if (Object.keys(memberSync).length > 0) {
             await this.updateMember(matched.id, memberSync);
