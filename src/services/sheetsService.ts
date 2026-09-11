@@ -16,6 +16,7 @@ import {
   DEFAULT_POST_TEST_SETTINGS, 
   DEFAULT_50_QUESTIONS 
 } from '../data/trainingQuestions';
+import { DEFAULT_PLAYLIST_SONGS } from '../data/playlistCatalog';
 
 // Decoupled from Google Spreadsheet - 100% Firebase Firestore & Local Cache
 export let API_URL = '';
@@ -1876,6 +1877,39 @@ export const sheetsService = {
       }
     });
 
+    // Merge from local storage hw_playlist or playlist to ensure uploaded and edited songs are preserved
+    try {
+      const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+      if (plStored) {
+        const parsedPl = JSON.parse(plStored);
+        if (Array.isArray(parsedPl)) {
+          parsedPl.forEach((item: any) => {
+            if (!item) return;
+            const idKey = (item.id || '').toString().trim().toLowerCase();
+            const itemTitle = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+            let matchedKey = '';
+            if (idKey && contentMap.has(idKey)) {
+              matchedKey = idKey;
+            } else {
+              for (const [k, v] of contentMap.entries()) {
+                const vTitle = (v.field2 || (v as any).judul || (v as any).title || '').toString().trim().toLowerCase();
+                if (itemTitle && itemTitle === vTitle) {
+                  matchedKey = k;
+                  break;
+                }
+              }
+            }
+            if (matchedKey) {
+              contentMap.set(matchedKey, { ...contentMap.get(matchedKey), ...item, section: 'playlist' });
+            } else {
+              const newKey = idKey || `playlist-custom-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+              contentMap.set(newKey, { ...item, section: 'playlist' });
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
     let contents = Array.from(contentMap.values());
 
     // 3. Non-blocking background sync with Google Sheets if valid
@@ -2821,104 +2855,7 @@ export const sheetsService = {
         field2: 'رَبِّ زِدْنِي عِلْمًا وَارْزُقْنِي فَهْمًا',
         field3: 'Ya Allah, tambahkanlah kepadaku ilmu dan berikanlah aku pemahaman yang baik.'
       },
-      {
-        id: 'playlist-1',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/sahabathw.mp3',
-        field2: 'Sahabat HW',
-        field3: 'Muhammad Dzikron',
-        field4: 'Kak Dzikron & Sahabat Pandu',
-        field5: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!',
-        pencipta: 'Muhammad Dzikron',
-        vokalis: 'Kak Dzikron & Sahabat Pandu',
-        vocalist: 'Kak Dzikron & Sahabat Pandu',
-        lyrics: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!',
-        lirik: 'Bersama kita melangkah\nMenembus cakrawala asa\nSahabat sejati Pandu HW\nSatu hati dalam ukhuwah persaudaraan\n\nDi bumi perkemahan kita bersua\nBelajar mandiri, disiplin, berjiwa ksatria\nSetia pandu, suci pikiran perkataan perbuatan\nHizbul Wathan, sahabat setia sepanjang zaman!'
-      },
-      {
-        id: 'playlist-2',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/hwuntukindonesia.mp3',
-        field2: 'HW Untuk Indonesia',
-        field3: 'Muhammad Dzikron',
-        field4: 'Kak Dzikron',
-        field5: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
-        pencipta: 'Muhammad Dzikron',
-        vokalis: 'Kak Dzikron',
-        vocalist: 'Kak Dzikron',
-        lyrics: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.',
-        lirik: 'Dari ufuk timur cahaya menyapa\nPandu Hizbul Wathan bangkit berdaya\nMenjaga tanah air nusantara tercinta\nDengan akhlak mulia dan karya nyata.\n\nReff:\nHizbul Wathan untuk Indonesia\nSemangat membara tak pernah reda\nBerbakti tulus lillahi ta\'ala\nMenuju kejayaan nusa dan bangsa.'
-      },
-      {
-        id: 'playlist-3',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/marshw.mp3',
-        field2: 'Mars HW',
-        field3: 'H. Siradj Dahlan',
-        field4: 'Paduan Suara HW',
-        field5: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.',
-        pencipta: 'H. Siradj Dahlan',
-        vokalis: 'Paduan Suara HW',
-        vocalist: 'Paduan Suara HW',
-        lyrics: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.',
-        lirik: 'Hizbul Wathan yang bersemangat\nMenjunjung tinggi agama Islam\nDi bawah naungan sang surya nan gemilang\nPandu HW siap berjuang.\n\nTegakkan disiplin, bina kepribadian\nCinta perdamaian dan keadilan\nMenepati janji dan undang-undang pandu\nMaju serentak membela persyarikatan.'
-      },
-      {
-        id: 'playlist-4',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/hymnehw.mp3',
-        field2: 'Hymne HW Panduku',
-        field3: 'H.M. Affandi',
-        field4: 'Paduan Suara HW',
-        field5: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.',
-        pencipta: 'H.M. Affandi',
-        vokalis: 'Paduan Suara HW',
-        vocalist: 'Paduan Suara HW',
-        lyrics: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.',
-        lirik: 'Di hening malam kami merenung\nMengingat janji suci yang terpatri\nHizbul Wathan pandu panutanku\nBimbing kami di jalan ridha Ilahi.\n\nYa Allah lindungilah pandu kami\nKuatkan iman dan jiwa raga ini\nAgar senantiasa istiqomah berbakti\nMenegakkan panji-panji kebajikan.'
-      },
-      {
-        id: 'playlist-5',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/mahrojanpenghela.mp3',
-        field2: 'Mahrojan Penghela',
-        field3: 'Muhammad Dzikron',
-        field4: 'Tim Paduan Suara Penghela',
-        field5: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
-        pencipta: 'Muhammad Dzikron',
-        vokalis: 'Tim Paduan Suara Penghela',
-        vocalist: 'Tim Paduan Suara Penghela',
-        lyrics: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.',
-        lirik: 'Berkumpul bersama para penghela\nDi arena mahrojan penuh cita\nAsah ketangkasan, pererat ukhuwah\nMenjadi pandu yang tanggap dan tabah.\n\nReff:\nPenghela HW pelopor perjuangan\nMandiri, terampil penuh keikhlasan\nSiap memimpin masa depan cemerlang\nBagi persyarikatan dan ibu pertiwi.'
-      },
-      {
-        id: 'playlist-6',
-        section: 'playlist',
-        field1: 'https://hwjateng.com/audio/sang_surya.mp3',
-        field2: 'Sang Surya (Mars Muhammadiyah)',
-        field3: 'Djarnawi Hadikusuma',
-        field4: 'Paduan Suara Muhammadiyah',
-        field5: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.',
-        pencipta: 'Djarnawi Hadikusuma',
-        vokalis: 'Paduan Suara Muhammadiyah',
-        vocalist: 'Paduan Suara Muhammadiyah',
-        lyrics: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.',
-        lirik: 'Sang Surya telah bersinar\nSyahadat dua melingkar\nWarna yang hijau berseri\nMembuat rela hati.\n\nYa Allah Tuhan Rabbiku\nMuhammad Petunjukku\nIslam Agamaku\nMuhammadiyah Gerakanku.\n\nDi timur fajar merekah\nUmat Islam bangunlah\nBina persatuan padu\nMenghadap musuh seteru.'
-      },
-      {
-        id: 'playlist-7',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/marsaisyiyah.mp3',
-        field2: 'Mars Aisyiyah',
-        field3: 'Ny. Hj. Siti Badilah Zuber',
-        field4: 'Paduan Suara Aisyiyah',
-        field5: 'Wahai warga Aisyiyah sejati\nSadarlah akan panggilan suci\nMembimbing putri-putri pertiwi\nMenuju ridha Ilahi Rabbi.\n\nReff:\nTegakkan amar ma\'ruf nahi munkar\nBercahaya panji Islam nan agung\nBeramal ikhlas sepanjang hayat\nBahagia dunia dan akhirat!',
-        pencipta: 'Ny. Hj. Siti Badilah Zuber',
-        vokalis: 'Paduan Suara Aisyiyah',
-        vocalist: 'Paduan Suara Aisyiyah',
-        lyrics: 'Wahai warga Aisyiyah sejati\nSadarlah akan panggilan suci\nMembimbing putri-putri pertiwi\nMenuju ridha Ilahi Rabbi.\n\nReff:\nTegakkan amar ma\'ruf nahi munkar\nBercahaya panji Islam nan agung\nBeramal ikhlas sepanjang hayat\nBahagia dunia dan akhirat!',
-        lirik: 'Wahai warga Aisyiyah sejati\nSadarlah akan panggilan suci\nMembimbing putri-putri pertiwi\nMenuju ridha Ilahi Rabbi.\n\nReff:\nTegakkan amar ma\'ruf nahi munkar\nBercahaya panji Islam nan agung\nBeramal ikhlas sepanjang hayat\nBahagia dunia dan akhirat!'
-      }
+      ...DEFAULT_PLAYLIST_SONGS
     ];
   },
   

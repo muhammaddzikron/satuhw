@@ -1059,26 +1059,13 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                       </div>
                     )}
 
-                    {/* Bottom Row: Actions Bar - 1 Baris Responsif (Lirik, Unduh, Putar) */}
-                    <div className="mt-3.5 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 sm:gap-3">
-                      {/* 1. Tombol Lirik */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTrackForLyrics(track)}
-                        className="w-full py-2.5 px-2 sm:px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                        title="Lihat Lirik Lagu Lengkap"
-                      >
-                        <FileText size={14} className="text-emerald-700 shrink-0" />
-                        <span className="truncate">
-                          Lirik<span className="hidden sm:inline"> Lagu</span>
-                        </span>
-                      </button>
-
-                      {/* 2. Tombol Unduh */}
+                    {/* Bottom Row: Actions Bar - 1 Baris Responsif (Unduh, Putar) */}
+                    <div className="mt-3.5 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 sm:gap-3">
+                      {/* Tombol Unduh */}
                       <button
                         type="button"
                         onClick={() => handleDownload(track)}
-                        className="w-full py-2.5 px-2 sm:px-3 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        className="w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                         title="Unduh File Audio (MP3)"
                       >
                         <Download size={14} className="shrink-0" />
@@ -1087,11 +1074,11 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                         </span>
                       </button>
 
-                      {/* 3. Tombol Putar / Jeda */}
+                      {/* Tombol Putar / Jeda */}
                       <button
                         type="button"
                         onClick={() => handlePlayTrack(track.index, true)}
-                        className={`w-full py-2.5 px-2 sm:px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs ${
+                        className={`w-full py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs ${
                           isThisPlaying
                             ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
                             : isCurrent
