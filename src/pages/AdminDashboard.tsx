@@ -252,7 +252,7 @@ import { ThemeSongPlayer } from '../components/ThemeSongPlayer';
 import { CopyAccountButton } from '../components/CopyAccountButton';
 import { resolveTrackMetadata } from '../data/playlistCatalog';
 import { codeGsText } from '../services/codeGsText';
-import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode, isValidKtaNumberFormat, generateNextKtaForRegion } from '../utils/ktaUtils';
+import { KWARDA_QABILAH_JATENG, compareKtaNumbers, compareByKtaSequence, resequenceKtaNumbers, ensureUniqueKtaNumbers, deduplicateMembers, isMatchKwarda, getKwardaCode, resolveSingleCode, isValidKtaNumberFormat, generateNextKtaForRegion, detectKtaOrigin } from '../utils/ktaUtils';
 import { DEFAULT_JM1_SOLO_ACTIVITY } from '../utils/trainingUtils';
 import { DEFAULT_LOCAL_KTA_FRONT, DEFAULT_LOCAL_KTA_BACK, getSafeKtaFront, getSafeKtaBack } from '../assets/ktaTemplates';
 import { TestManagementPanel } from '../components/training/TestManagementPanel';
@@ -956,9 +956,16 @@ export default function AdminDashboard() {
           return;
         }
 
+        const detected = detectKtaOrigin(k, matchedMember);
         const key = (k.email || k.id || k.userId || k.nama).toString().toLowerCase().trim();
         queueMap.set(key, {
           ...k,
+          asalDaerah: detected.name,
+          asalKwarda: detected.name,
+          qabilah: k.qabilah || matchedMember?.qabilah || detected.qabilah,
+          originType: detected.type,
+          isPtma: detected.isPtma,
+          kwardaCode: detected.code,
           sourceType: k.sourceType || 'Pengajuan KTA',
           status: 'pending'
         });
@@ -991,6 +998,7 @@ export default function AdminDashboard() {
         });
 
         if (!hasApprovedKta) {
+          const detected = detectKtaOrigin(m);
           const key = (m.email || m.id || m.uid || m.namaLengkap).toString().toLowerCase().trim();
           if (!queueMap.has(key)) {
             queueMap.set(key, {
@@ -1000,8 +1008,12 @@ export default function AdminDashboard() {
               namaLengkap: m.namaLengkap || (m as any).nama,
               email: m.email || '',
               noWa: m.noHp || (m as any).noWa || '',
-              asalDaerah: m.asalKwarda || (m as any).asalDaerah || '',
-              qabilah: m.qabilah || '',
+              asalDaerah: detected.name,
+              asalKwarda: detected.name,
+              qabilah: m.qabilah || detected.qabilah,
+              originType: detected.type,
+              isPtma: detected.isPtma,
+              kwardaCode: detected.code,
               tingkatan: m.golongan || (m as any).tingkatan || 'Dewasa',
               tempatLahir: m.tempatLahir || '',
               tanggalLahir: m.tanggalLahir || '',
@@ -1040,6 +1052,7 @@ export default function AdminDashboard() {
         safeLower(app?.email).includes(q) ||
         safeLower(app?.noWa).includes(q) ||
         safeLower(app?.asalDaerah).includes(q) ||
+        safeLower(app?.asalKwarda).includes(q) ||
         safeLower(app?.qabilah).includes(q);
 
       const matchKwarda = isMatchKwarda(app, antreanFilterKwarda);
@@ -6958,8 +6971,25 @@ export default function AdminDashboard() {
                                     </div>
                                   </td>
                                   <td className="p-3.5">
-                                    <div className="font-bold text-gray-700">{app.asalDaerah || '-'}</div>
-                                    <div className="text-[10px] text-gray-400 font-medium">Qabilah: {app.qabilah || '-'}</div>
+                                    {(() => {
+                                      const detected = detectKtaOrigin(app);
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider border ${detected.isPtma ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                              {detected.isPtma ? 'Qabilah PTMA' : 'Kwarda'} #{detected.code}
+                                            </span>
+                                            <span className="font-bold text-gray-800 text-xs leading-tight">
+                                              {detected.name}
+                                            </span>
+                                          </div>
+                                          <div className="text-[10px] text-gray-500 font-medium flex items-center gap-1 flex-wrap">
+                                            <span className="text-gray-400 font-normal">Pangkalan:</span>
+                                            <span className="font-semibold text-gray-700">{app.qabilah || detected.qabilah}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="p-3.5">
                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100">
@@ -7275,13 +7305,24 @@ export default function AdminDashboard() {
                                   </span>
                                 </td>
                                 <td className="p-3.5">
-                                  <div className="font-bold flex items-center gap-1 text-gray-800">
-                                    <MapPin size={11} className="text-gray-450 shrink-0" />
-                                    {app.asalDaerah}
-                                  </div>
-                                  <div className="text-[10px] text-gray-450 font-medium truncate max-w-[150px]" title={app.qabilah}>
-                                    Qabilah: {app.qabilah || '-'}
-                                  </div>
+                                  {(() => {
+                                    const detected = detectKtaOrigin(app);
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${detected.isPtma ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                            {detected.isPtma ? 'PTMA' : 'KWARDA'} #{detected.code}
+                                          </span>
+                                          <span className="font-bold text-gray-800 text-xs truncate max-w-[180px]" title={detected.name}>
+                                            {detected.name}
+                                          </span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 font-medium truncate max-w-[180px]" title={app.qabilah || detected.qabilah}>
+                                          Pangkalan: <span className="text-gray-600 font-semibold">{app.qabilah || detected.qabilah}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
                                 <td className="p-3.5">
                                   {app.status === 'pending' || safeLower(app.status) === 'pending' || safeLower(app.status) === 'menunggu' ? (

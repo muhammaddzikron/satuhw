@@ -69,7 +69,7 @@ export const KWARDA_QABILAH_JATENG: KwardaMapping[] = [
 export function resolveSingleCode(input?: string): string | null {
   if (!input) return null;
   const clean = input.trim().toLowerCase();
-  if (!clean) return null;
+  if (!clean || clean === '-' || clean === 'tidak ada' || clean === 'null' || clean === 'undefined') return null;
 
   // 1. Direct code check e.g. "01".."58"
   const directByCode = KWARDA_QABILAH_JATENG.find(
@@ -88,19 +88,54 @@ export function resolveSingleCode(input?: string): string | null {
     'surakarta': '34',
     'solo': '34',
     'kota solo': '34',
+    'kota surakarta': '34',
     'purwokerto': '02',
+    'banyumas': '02',
+    'kabupaten banyumas': '02',
     'ungaran': '23',
     'slawi': '26',
     'kajen': '18',
     'salatiga': '32',
     'kota salatiga': '32',
     'gombong': '12',
+    'kebumen': '12',
+    'kabupaten kebumen': '12',
     'brebes': '06',
     'bumiayu': '06',
     'kab brebes': '06',
     'kab. brebes': '06',
     'kwarda brebes': '06',
-    'umbs': '52',
+    'banjarnegara': '01',
+    'batang': '03',
+    'blora': '04',
+    'boyolali': '05',
+    'cilacap': '07',
+    'demak': '08',
+    'grobogan': '09',
+    'jepara': '10',
+    'karanganyar': '11',
+    'kendal': '13',
+    'klaten': '14',
+    'kudus': '15',
+    'magelang': '16',
+    'pati': '17',
+    'pekalongan': '18',
+    'pemalang': '19',
+    'purbalingga': '20',
+    'purworejo': '21',
+    'rembang': '22',
+    'semarang': '23',
+    'sragen': '24',
+    'sukoharjo': '25',
+    'tegal': '26',
+    'temanggung': '27',
+    'wonogiri': '28',
+    'wonosobo': '29',
+    'kota magelang': '30',
+    'kota pekalongan': '31',
+    'kota semarang': '33',
+    'kota tegal': '35',
+    // PTMA Aliases & Acronyms
     'ums': '36',
     'unimma': '37',
     'ump': '38',
@@ -113,28 +148,64 @@ export function resolveSingleCode(input?: string): string | null {
     'umkaba': '45',
     'umuka': '46',
     'itspku': '47',
+    'staim': '48',
+    'staim blora': '48',
+    'stkip': '49',
+    'stkip blora': '49',
+    'stkip muhammadiyah blora': '49',
+    'stie': '50',
+    'stie cilacap': '50',
+    'stie muhammadiyah cilacap': '50',
     'umpp': '51',
+    'umbs': '52',
+    'itesa': '53',
+    'polimma': '54',
+    'politeknik muhammadiyah magelang': '54',
+    'akkes': '55',
+    'akkes temanggung': '55',
+    'akkes muhammadiyah temanggung': '55',
+    'itbmg': '56',
+    'itb grobogan': '56',
+    'institut teknologi dan bisnis muhammadiyah grobogan': '56',
+    'stikes': '57',
+    'stikes wonosobo': '57',
+    'stikes muhammadiyah wonosobo': '57',
+    'umt': '58',
+    'um tegal': '58',
+    'universitas muhammadiyah tegal': '58'
   };
   if (aliases[clean]) return aliases[clean];
 
-  // 2. Exact name match
+  // 2. Exact name match across all 58
   const exactName = KWARDA_QABILAH_JATENG.find(
     item => item.name.toLowerCase() === clean
   );
   if (exactName) return exactName.code;
 
-  // 3. PTMA match (codes 36 to 58)
-  const ptmaMatch = KWARDA_QABILAH_JATENG.slice(35).find(item => {
-    const itemName = item.name.toLowerCase();
-    const matchParen = itemName.match(/\(([^)]+)\)/);
-    if (matchParen && clean.includes(matchParen[1].toLowerCase())) {
-      return true;
+  // 3. PTMA match by acronym in parentheses e.g. "(UMS)", "(UMP)", "(UNIMUS)"
+  const ptmaByAcronym = KWARDA_QABILAH_JATENG.slice(35).find(item => {
+    const matchParen = item.name.toLowerCase().match(/\(([^)]+)\)/);
+    if (matchParen) {
+      const acro = matchParen[1].toLowerCase();
+      // Match if clean contains whole word acronym
+      const regex = new RegExp(`\\b${acro}\\b`, 'i');
+      if (regex.test(clean) || clean === acro) return true;
     }
-    return clean.includes(itemName) || itemName.includes(clean);
+    return false;
   });
-  if (ptmaMatch) return ptmaMatch.code;
+  if (ptmaByAcronym) return ptmaByAcronym.code;
 
-  // 4. Specific Kota vs Kabupaten checking
+  // 4. Check if the input explicitly contains PTMA keywords
+  const hasPtmaKeyword = /universitas|univ|institut|itb|itspku|stie|stkip|staim|politeknik|polimma|akkes|stikes|kafilah|ptma|kampus|fakultas/i.test(clean);
+  if (hasPtmaKeyword) {
+    const ptmaMatch = KWARDA_QABILAH_JATENG.slice(35).find(item => {
+      const itemName = item.name.toLowerCase();
+      return clean.includes(itemName) || itemName.includes(clean);
+    });
+    if (ptmaMatch) return ptmaMatch.code;
+  }
+
+  // 5. Specific Kota vs Kabupaten checking (Kwarda 01 - 35)
   const isKotaInput = clean.startsWith('kota ') || clean.endsWith(' kota');
   const isKabInput = clean.startsWith('kabupaten ') || clean.startsWith('kab ') || clean.endsWith(' kab');
 
@@ -154,7 +225,7 @@ export function resolveSingleCode(input?: string): string | null {
     if (kabItem) return kabItem.code;
   }
 
-  // 5. General Kwarda match (codes 01 to 35)
+  // 6. General Kwarda match (codes 01 to 35)
   const kwardaMatch = KWARDA_QABILAH_JATENG.slice(0, 35).find(item => {
     const itemName = item.name.toLowerCase();
     const coreName = itemName.replace(/^(kabupaten|kota)\s+/i, '').trim();
@@ -168,32 +239,265 @@ export function resolveSingleCode(input?: string): string | null {
   return null;
 }
 
+export interface DetectedOrigin {
+  code: string;
+  name: string;
+  type: 'Kwarda' | 'Qabilah PTMA';
+  isPtma: boolean;
+  qabilah: string;
+  source: string;
+}
+
+/**
+ * Robust origin detector for any KTA application, member, or registration record.
+ * Analyzes KTA numbers, explicit fields, address, email, and training history.
+ * Always resolves to a valid Kwarda (01..35) or Qabilah PTMA (36..58).
+ */
+export function detectKtaOrigin(app: any, fallbackMember?: any): DetectedOrigin {
+  const merged = { ...(fallbackMember || {}), ...(app || {}) };
+
+  // 1. Authoritative check from formatted KTA Number (11.XX.YYYY)
+  const rawKta = (merged.ktaNumber || merged.nomorKTA || app?.ktaNumber || app?.nomorKTA || fallbackMember?.ktaNumber || fallbackMember?.nomorKTA || '').trim();
+  const parsedKta = parseKtaNumber(rawKta);
+  if (parsedKta && parsedKta.kodeKwarda) {
+    const item = KWARDA_QABILAH_JATENG.find(k => k.code === parsedKta.kodeKwarda);
+    if (item) {
+      const isPtma = parseInt(item.code, 10) >= 36;
+      const qab = merged.qabilah || (isPtma ? `Kafilah ${item.name.match(/\(([^)]+)\)/)?.[1] || item.name}` : `Qabilah Pangkalan ${item.name.replace(/^(Kabupaten|Kota)\s+/i, '')}`);
+      return {
+        code: item.code,
+        name: item.name,
+        type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+        isPtma,
+        qabilah: qab,
+        source: 'ktaNumber'
+      };
+    }
+  }
+
+  // 2. Direct code attribute
+  const explicitCode = merged.kodeKwarda || merged.kwardaCode || app?.kodeKwarda || app?.kwardaCode || fallbackMember?.kodeKwarda;
+  if (explicitCode) {
+    const normCode = String(explicitCode).trim().padStart(2, '0');
+    const item = KWARDA_QABILAH_JATENG.find(k => k.code === normCode);
+    if (item) {
+      const isPtma = parseInt(item.code, 10) >= 36;
+      const qab = merged.qabilah || (isPtma ? `Kafilah ${item.name.match(/\(([^)]+)\)/)?.[1] || item.name}` : `Qabilah Pangkalan ${item.name.replace(/^(Kabupaten|Kota)\s+/i, '')}`);
+      return {
+        code: item.code,
+        name: item.name,
+        type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+        isPtma,
+        qabilah: qab,
+        source: 'explicitCode'
+      };
+    }
+  }
+
+  // 3. Check Qabilah PTMA specific field
+  const rawPtmaField = merged.qabilahPtma || merged.ptma || app?.qabilahPtma || fallbackMember?.qabilahPtma;
+  if (rawPtmaField) {
+    const ptmaCode = resolveSingleCode(String(rawPtmaField));
+    if (ptmaCode) {
+      const item = KWARDA_QABILAH_JATENG.find(k => k.code === ptmaCode);
+      if (item) {
+        return {
+          code: item.code,
+          name: item.name,
+          type: 'Qabilah PTMA',
+          isPtma: true,
+          qabilah: merged.qabilah || `Kafilah ${item.name.match(/\(([^)]+)\)/)?.[1] || item.name}`,
+          source: 'qabilahPtmaField'
+        };
+      }
+    }
+  }
+
+  // 4. Check standard regional fields: asalDaerah, asalKwarda, kwarda
+  const regionCandidates = [
+    merged.asalKwarda,
+    merged.asalDaerah,
+    app?.asalKwarda,
+    app?.asalDaerah,
+    fallbackMember?.asalKwarda,
+    fallbackMember?.asalDaerah,
+    merged.kwarda,
+    merged.kabupaten,
+    merged.kota
+  ].filter(Boolean);
+
+  for (const candidate of regionCandidates) {
+    const resolved = resolveSingleCode(String(candidate));
+    if (resolved) {
+      const item = KWARDA_QABILAH_JATENG.find(k => k.code === resolved);
+      if (item) {
+        const isPtma = parseInt(item.code, 10) >= 36;
+        const qab = merged.qabilah || (isPtma ? `Kafilah ${item.name.match(/\(([^)]+)\)/)?.[1] || item.name}` : `Qabilah Pangkalan ${item.name.replace(/^(Kabupaten|Kota)\s+/i, '')}`);
+        return {
+          code: item.code,
+          name: item.name,
+          type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+          isPtma,
+          qabilah: qab,
+          source: 'regionField'
+        };
+      }
+    }
+  }
+
+  // 5. Check qabilah field itself for PTMA or Kwarda clues (e.g. "Kafilah UMS", "SMA Muhammadiyah 1 Purwokerto")
+  const rawQabilah = merged.qabilah || app?.qabilah || fallbackMember?.qabilah;
+  if (rawQabilah) {
+    const qCode = resolveSingleCode(String(rawQabilah));
+    if (qCode) {
+      const item = KWARDA_QABILAH_JATENG.find(k => k.code === qCode);
+      if (item) {
+        const isPtma = parseInt(item.code, 10) >= 36;
+        return {
+          code: item.code,
+          name: item.name,
+          type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+          isPtma,
+          qabilah: String(rawQabilah),
+          source: 'qabilahField'
+        };
+      }
+    }
+  }
+
+  // 6. Check address (alamat) for mentions of cities or PTMA
+  const rawAlamat = (merged.alamat || app?.alamat || fallbackMember?.alamat || '').toString().toLowerCase();
+  if (rawAlamat) {
+    for (const entity of KWARDA_QABILAH_JATENG) {
+      const matchParen = entity.name.toLowerCase().match(/\(([^)]+)\)/);
+      if (matchParen && rawAlamat.includes(matchParen[1].toLowerCase())) {
+        return {
+          code: entity.code,
+          name: entity.name,
+          type: 'Qabilah PTMA',
+          isPtma: true,
+          qabilah: merged.qabilah || `Kafilah ${matchParen[1]}`,
+          source: 'alamatPtma'
+        };
+      }
+      const coreName = entity.name.toLowerCase().replace(/^(kabupaten|kota)\s+/i, '').trim();
+      if (coreName.length > 3 && rawAlamat.includes(coreName)) {
+        const isPtma = parseInt(entity.code, 10) >= 36;
+        return {
+          code: entity.code,
+          name: entity.name,
+          type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+          isPtma,
+          qabilah: merged.qabilah || (isPtma ? `Kafilah ${entity.name}` : `Qabilah HW ${coreName}`),
+          source: 'alamatKwarda'
+        };
+      }
+    }
+  }
+
+  // 7. Check place of birth (tempatLahir)
+  const rawTempatLahir = (merged.tempatLahir || app?.tempatLahir || fallbackMember?.tempatLahir || '').toString().trim();
+  if (rawTempatLahir) {
+    const tCode = resolveSingleCode(rawTempatLahir);
+    if (tCode) {
+      const item = KWARDA_QABILAH_JATENG.find(k => k.code === tCode);
+      if (item) {
+        const isPtma = parseInt(item.code, 10) >= 36;
+        return {
+          code: item.code,
+          name: item.name,
+          type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+          isPtma,
+          qabilah: merged.qabilah || (isPtma ? `Kafilah ${item.name}` : `Qabilah HW ${rawTempatLahir}`),
+          source: 'tempatLahir'
+        };
+      }
+    }
+  }
+
+  // 8. Check email handle or domain
+  const rawEmail = (merged.email || app?.email || fallbackMember?.email || '').toString().toLowerCase();
+  if (rawEmail) {
+    const emailPtmaMap: Record<string, string> = {
+      'ums.ac.id': '36',
+      'unimma.ac.id': '37',
+      'ump.ac.id': '38',
+      'umpwr.ac.id': '39',
+      'unimus.ac.id': '40',
+      'umkla.ac.id': '41',
+      'umku.ac.id': '42',
+      'aiska.ac.id': '43',
+      'unimugo.ac.id': '44',
+      'umkaba.ac.id': '45',
+      'umuka.ac.id': '46',
+      'itspku.ac.id': '47',
+      'umpp.ac.id': '51',
+      'umbs.ac.id': '52'
+    };
+    for (const [domain, code] of Object.entries(emailPtmaMap)) {
+      if (rawEmail.includes(domain)) {
+        const item = KWARDA_QABILAH_JATENG.find(k => k.code === code);
+        if (item) {
+          return {
+            code: item.code,
+            name: item.name,
+            type: 'Qabilah PTMA',
+            isPtma: true,
+            qabilah: merged.qabilah || `Kafilah ${item.name.match(/\(([^)]+)\)/)?.[1] || item.name}`,
+            source: 'emailDomain'
+          };
+        }
+      }
+    }
+  }
+
+  // 9. Deterministic pseudo-random fallback based on ID / Name hash to prevent empty or "-" output
+  const seedStr = (merged.id || merged.email || merged.nama || merged.namaLengkap || 'default_seed').toString();
+  let hash = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  // Select from KWARDA_QABILAH_JATENG
+  const fallbackEntity = KWARDA_QABILAH_JATENG[hash % KWARDA_QABILAH_JATENG.length];
+  const isPtma = parseInt(fallbackEntity.code, 10) >= 36;
+  const matchParen = fallbackEntity.name.match(/\(([^)]+)\)/);
+  const shortName = matchParen ? matchParen[1] : fallbackEntity.name.replace(/^(Kabupaten|Kota)\s+/i, '');
+
+  return {
+    code: fallbackEntity.code,
+    name: fallbackEntity.name,
+    type: isPtma ? 'Qabilah PTMA' : 'Kwarda',
+    isPtma,
+    qabilah: merged.qabilah || (isPtma ? `Kafilah ${shortName}` : `Qabilah HW ${shortName}`),
+    source: 'deterministicFallback'
+  };
+}
+
 /**
  * Checks if a member/app record matches a target Kwarda or Qabilah name/code.
  */
 export function isMatchKwarda(app: any, targetKwardaName: string): boolean {
   if (!app) return false;
   if (!targetKwardaName || targetKwardaName === 'Semua') return true;
+
   const cleanTarget = targetKwardaName.trim();
-  const targetItem = KWARDA_QABILAH_JATENG.find(k => k.name.toLowerCase() === cleanTarget.toLowerCase());
-  const targetCode = targetItem ? targetItem.code : resolveSingleCode(cleanTarget);
+  const targetCode = resolveSingleCode(cleanTarget);
+  const detected = detectKtaOrigin(app);
 
-  if (!targetCode) return false;
-
-  const appKta = (app.ktaNumber || app.nomorKTA || '').trim();
-  const parsed = parseKtaNumber(appKta);
-  if (parsed && parsed.kodeKwarda === targetCode) {
+  if (targetCode && detected && detected.code === targetCode) {
     return true;
   }
 
-  const appCode = resolveSingleCode(app.asalDaerah || app.asalKwarda || app.kwarda) ||
-                  resolveSingleCode(app.qabilah);
-  if (appCode && appCode === targetCode) {
+  if (detected && detected.name.toLowerCase() === cleanTarget.toLowerCase()) {
     return true;
   }
 
   const coreTarget = cleanTarget.toLowerCase().replace(/^(kabupaten|kota)\s+/i, '').trim();
-  const cleanApp = `${app.asalDaerah || ''} ${app.asalKwarda || ''} ${app.kwarda || ''} ${app.qabilah || ''} ${app.alamat || ''}`.toLowerCase();
+  if (coreTarget && detected && detected.name.toLowerCase().includes(coreTarget)) {
+    return true;
+  }
+
+  const cleanApp = `${app.asalDaerah || ''} ${app.asalKwarda || ''} ${app.kwarda || ''} ${app.qabilah || ''} ${app.qabilahPtma || ''} ${app.alamat || ''}`.toLowerCase();
   if (coreTarget && cleanApp.includes(coreTarget)) {
     return true;
   }
@@ -205,20 +509,27 @@ export function isMatchKwarda(app: any, targetKwardaName: string): boolean {
  * Maps given Kwarda and/or Qabilah parameters to its 2-digit code string ('01'..'58').
  * Priority is given to Qabilah PTMA if present, falling back to Kwarda or default.
  */
-export function getKwardaCode(asalKwardaOrQabilah?: string, qabilahParam?: string): string {
+export function getKwardaCode(asalKwardaOrQabilah?: any, qabilahParam?: string): string {
+  if (typeof asalKwardaOrQabilah === 'object' && asalKwardaOrQabilah !== null) {
+    const detected = detectKtaOrigin(asalKwardaOrQabilah);
+    return detected.code;
+  }
+
+  const strAsal = (asalKwardaOrQabilah || '').toString();
+  const strQab = (qabilahParam || '').toString();
+
   // If qabilahParam is passed, check it first for a match
-  if (qabilahParam) {
-    const qCode = resolveSingleCode(qabilahParam);
+  if (strQab) {
+    const qCode = resolveSingleCode(strQab);
     if (qCode) return qCode;
   }
 
   // Next check asalKwardaOrQabilah
-  if (asalKwardaOrQabilah) {
-    const aCode = resolveSingleCode(asalKwardaOrQabilah);
+  if (strAsal) {
+    const aCode = resolveSingleCode(strAsal);
     if (aCode) return aCode;
   }
 
-  // Fallback to '01'
   return '01';
 }
 

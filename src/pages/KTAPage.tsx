@@ -1297,31 +1297,42 @@ export default function KTAPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Kabupaten/Kota</label>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Kwarda atau Qabilah PTMA</label>
                 <select 
                   value={formData.asalDaerah || 'Banyumas'}
                   onChange={(e) => setFormData(prev => ({ ...prev, asalDaerah: e.target.value }))}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
                 >
-                  {KABUPATEN_KOTA_JATENG.map((kab) => {
-                    const item = KWARDA_QABILAH_JATENG.find(x => x.name === kab);
-                    const displayLabel = item ? `${parseInt(item.code, 10)}. ${item.name}` : kab;
-                    return (
-                      <option key={kab} value={kab}>{displayLabel}</option>
-                    );
-                  })}
+                  <optgroup label="1. Kwarda (Kabupaten / Kota)">
+                    {KWARDA_QABILAH_JATENG.slice(0, 35).map((item) => (
+                      <option key={item.code} value={item.name}>
+                        {parseInt(item.code, 10)}. {item.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="2. Qabilah PTMA (Perguruan Tinggi Muhammadiyah 'Aisyiyah)">
+                    {KWARDA_QABILAH_JATENG.slice(35).map((item) => (
+                      <option key={item.code} value={item.name}>
+                        {parseInt(item.code, 10)}. {item.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
 
             {/* Qabilah (sekolah/ pangkalan kegiatan) */}
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Asal Qabilah (Sekolah / Pangkalan Kegiatan) (Opsional)</label>
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                {formData.asalDaerah?.includes('Universitas') || formData.asalDaerah?.includes('Institut') || formData.asalDaerah?.includes('Politeknik') || formData.asalDaerah?.includes('Sekolah Tinggi') || formData.asalDaerah?.includes('STIKES') || formData.asalDaerah?.includes('ITS')
+                  ? 'Kafilah / Fakultas / Unit Kegiatan PTMA (Opsional)'
+                  : 'Asal Qabilah (Sekolah / Pangkalan Kegiatan) (Opsional)'}
+              </label>
               <input 
                 type="text"
                 value={formData.qabilah || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qabilah: e.target.value }))}
-                placeholder="Contoh: SD Muhammadiyah 1 / SMA HW Solo"
+                placeholder={formData.asalDaerah?.includes('Universitas') || formData.asalDaerah?.includes('Institut') || formData.asalDaerah?.includes('Politeknik') ? 'Contoh: Kafilah Penuntun / Fakultas Kedokteran' : 'Contoh: SD Muhammadiyah 1 / SMA HW Solo'}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-hw-green/20 outline-none text-xs font-semibold"
               />
             </div>

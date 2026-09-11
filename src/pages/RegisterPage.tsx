@@ -665,26 +665,37 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Kwarda (Kabupaten/Kota)</label>
+                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Kwarda atau Qabilah PTMA</label>
                   <select 
                     name="asalKwarda" 
                     value={formData.asalKwarda || ''} 
                     onChange={handleChange} 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold outline-none text-gray-700"
                   >
-                    {KWARDA_QABILAH_JATENG.map(item => (
-                      <option key={item.code} value={item.name}>{item.name}</option>
-                    ))}
+                    <optgroup label="1. Kwarda (Kabupaten / Kota)">
+                      {KWARDA_QABILAH_JATENG.slice(0, 35).map(item => (
+                        <option key={item.code} value={item.name}>{parseInt(item.code, 10)}. {item.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="2. Qabilah PTMA (Perguruan Tinggi Muhammadiyah 'Aisyiyah)">
+                      {KWARDA_QABILAH_JATENG.slice(35).map(item => (
+                        <option key={item.code} value={item.name}>{parseInt(item.code, 10)}. {item.name}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">Asal Qabilah (Sekolah/Tempat Latihan) (Opsional)</label>
+                  <label className="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-wider">
+                    {formData.asalKwarda?.includes('Universitas') || formData.asalKwarda?.includes('Institut') || formData.asalKwarda?.includes('Politeknik') || formData.asalKwarda?.includes('Sekolah Tinggi') || formData.asalKwarda?.includes('STIKES') || formData.asalKwarda?.includes('ITS')
+                      ? 'Kafilah / Fakultas / Unit Kegiatan PTMA (Opsional)'
+                      : 'Asal Qabilah (Sekolah / Pangkalan HW) (Opsional)'}
+                  </label>
                   <input 
                     name="qabilah" 
                     value={formData.qabilah || ''} 
                     onChange={handleChange} 
-                    placeholder="Contoh: Qabilah Ahmad Dahlan" 
+                    placeholder={formData.asalKwarda?.includes('Universitas') || formData.asalKwarda?.includes('Institut') || formData.asalKwarda?.includes('Politeknik') ? 'Contoh: Kafilah Penuntun / Fakultas Agama Islam' : 'Contoh: SMK Muhammadiyah 1 / SMA / SMP / MIM'} 
                     className="w-full bg-gray-50 border-none rounded-2xl p-3.5 text-xs font-semibold focus:ring-2 focus:ring-hw-green/20 outline-none" 
                   />
                 </div>

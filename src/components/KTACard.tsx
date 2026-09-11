@@ -2,6 +2,7 @@ import React from 'react';
 import { User as UserIcon, Globe } from 'lucide-react';
 import { cn, getCorsSafeUrl, formatTempatTanggalLahir } from '../lib/utils';
 import { KTAApplication, SystemSettings } from '../types';
+import { detectKtaOrigin } from '../utils/ktaUtils';
 import { 
   DEFAULT_LOCAL_KTA_FRONT, 
   DEFAULT_LOCAL_KTA_BACK, 
@@ -156,9 +157,14 @@ export const KTACard: React.FC<KTACardProps> = ({
                   <td className="text-center py-0.1 text-gray-800 font-bold">:</td>
                   <td className="font-bold py-0.1 text-gray-900">
                     {(() => {
-                      const rawAsal = (app.asalDaerah || app.asalKwarda || 'Kabupaten Banyumas').trim();
-                      if (rawAsal.toLowerCase().startsWith('kwarda')) return truncateText(rawAsal, 26);
-                      return `Kwarda ${truncateText(rawAsal, 20)}`;
+                      const detected = detectKtaOrigin(app);
+                      if (detected.isPtma) {
+                        const matchParen = detected.name.match(/\(([^)]+)\)/);
+                        const acro = matchParen ? matchParen[1] : detected.name;
+                        return truncateText(`PTMA ${acro}`, 24);
+                      }
+                      const core = detected.name.replace(/^(kabupaten|kota)\s+/i, '');
+                      return truncateText(`Kwarda ${core}`, 22);
                     })()}
                   </td>
                 </tr>
