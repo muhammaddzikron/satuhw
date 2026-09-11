@@ -183,6 +183,41 @@ export const isJayaMatahariMember = (m: any): boolean => {
 };
 
 /**
+ * Checks if a member has Jaya Matahari 1 qualification / role (Jari 1, jayamatahari1)
+ */
+export const isJayaMatahari1Member = (m: any): boolean => {
+  if (!m) return false;
+  const exactCodes = ['jari1', 'jayamatahari1'];
+  const phrases = ['jaya matahari 1', 'jaya_matahari_1', 'jari 1', 'jayamatahari 1', 'jaya rintisan 1'];
+  const checkValue = (val: any): boolean => {
+    if (!val) return false;
+    if (Array.isArray(val)) return val.some(v => checkValue(v));
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase().trim();
+      if (lower.startsWith('[') && lower.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.some(v => checkValue(v));
+        } catch (e) {}
+      }
+      if (exactCodes.includes(lower)) return true;
+      return phrases.some(p => lower.includes(p));
+    }
+    return false;
+  };
+  return (
+    checkValue(m.role) ||
+    checkValue(m.roles) ||
+    checkValue(m.activeRole) ||
+    checkValue(m.golonganPelatih) ||
+    checkValue(m.pelatihan) ||
+    checkValue(m.golongan) ||
+    checkValue(m.tingkat) ||
+    checkValue(m.tingkatan)
+  );
+};
+
+/**
  * Checks if a member has Jaya Melati 1 qualification / role
  */
 export const isJayaMelati1Member = (m: any): boolean => {
@@ -192,28 +227,52 @@ export const isJayaMelati1Member = (m: any): boolean => {
     if (Array.isArray(val)) return val.some(v => checkValue(v));
     if (typeof val === 'string') {
       const lower = val.toLowerCase().trim();
+      if (lower.startsWith('[') && lower.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.some(v => checkValue(v));
+        } catch (e) {}
+      }
       return lower.includes('jati1') || lower.includes('jati 1') || lower.includes('melati 1') || lower.includes('jayamelati 1') || lower.includes('jayamelati1');
     }
     return false;
   };
-  return checkValue(m.role) || checkValue(m.roles) || checkValue(m.pelatihan) || checkValue(m.golongan);
+  return checkValue(m.role) || checkValue(m.roles) || checkValue(m.activeRole) || checkValue(m.golonganPelatih) || checkValue(m.pelatihan) || checkValue(m.golongan);
 };
 
 /**
- * Checks if a member has Jaya Melati 2 qualification / role
+ * Checks if a member has Jaya Melati 2 qualification / role (Jati 2, jayamelati2)
  */
 export const isJayaMelati2Member = (m: any): boolean => {
   if (!m) return false;
+  const exactCodes = ['jati2', 'jayamelati2', 'jm2'];
+  const phrases = ['jaya melati 2', 'jaya_melati_2', 'jati 2', 'jayamelati 2', 'melati 2', 'jm 2'];
   const checkValue = (val: any): boolean => {
     if (!val) return false;
     if (Array.isArray(val)) return val.some(v => checkValue(v));
     if (typeof val === 'string') {
       const lower = val.toLowerCase().trim();
-      return lower.includes('jati2') || lower.includes('jati 2') || lower.includes('melati 2') || lower.includes('jayamelati 2') || lower.includes('jayamelati2');
+      if (lower.startsWith('[') && lower.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.some(v => checkValue(v));
+        } catch (e) {}
+      }
+      if (exactCodes.includes(lower)) return true;
+      return phrases.some(p => lower.includes(p));
     }
     return false;
   };
-  return checkValue(m.role) || checkValue(m.roles) || checkValue(m.pelatihan) || checkValue(m.golongan);
+  return (
+    checkValue(m.role) ||
+    checkValue(m.roles) ||
+    checkValue(m.activeRole) ||
+    checkValue(m.golonganPelatih) ||
+    checkValue(m.pelatihan) ||
+    checkValue(m.golongan) ||
+    checkValue(m.tingkat) ||
+    checkValue(m.tingkatan)
+  );
 };
 
 /**

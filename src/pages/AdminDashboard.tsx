@@ -23,7 +23,9 @@ import {
   getAppPreTestScore, 
   getAppPostTestScore, 
   getAppTasksList, 
-  getAppAttendanceMap 
+  getAppAttendanceMap,
+  isJayaMatahari1Member,
+  isJayaMelati2Member
 } from '../utils/trainingUtils';
 import { DEFAULT_50_QUESTIONS } from '../data/trainingQuestions';
 
@@ -217,6 +219,7 @@ import {
   Music,
   Printer,
   UserPlus,
+  UserCheck,
   CheckCircle2,
   Copy,
   Save,
@@ -1177,6 +1180,29 @@ export default function AdminDashboard() {
     proposalUrl: '',
     gambarUrl: ''
   });
+
+  // Deteksi otomatis anggota ber-role Jaya Matahari 1 (untuk Tim Pelatih) & Jaya Melati 2 (untuk Asisten Pelatih)
+  const detectedJayaMatahari1Members = useMemo(() => {
+    const seen = new Set<string>();
+    return members.filter(m => {
+      if (!isJayaMatahari1Member(m)) return false;
+      const name = (m.namaLengkap || m.nama || '').trim();
+      if (!name || seen.has(name.toLowerCase())) return false;
+      seen.add(name.toLowerCase());
+      return true;
+    });
+  }, [members]);
+
+  const detectedJayaMelati2Members = useMemo(() => {
+    const seen = new Set<string>();
+    return members.filter(m => {
+      if (!isJayaMelati2Member(m)) return false;
+      const name = (m.namaLengkap || m.nama || '').trim();
+      if (!name || seen.has(name.toLowerCase())) return false;
+      seen.add(name.toLowerCase());
+      return true;
+    });
+  }, [members]);
 
   // Schedule Editing States
   const [editingScheduleAppId, setEditingScheduleAppId] = useState<string | null>(null);
@@ -2575,24 +2601,30 @@ export default function AdminDashboard() {
   };
 
   const handleOpenPelatihanModal = (act?: any) => {
+    const autoPelatih = detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+    const autoAsisten = detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+
     if (act) {
       setEditingPelatihanId(act.id || null);
+      const rawPelatih = Array.isArray(act.pelatih)
+        ? act.pelatih
+        : (typeof act.pelatih === 'string' && act.pelatih.trim() ? act.pelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+      const rawAsisten = Array.isArray(act.asistenPelatih)
+        ? act.asistenPelatih
+        : (typeof act.asistenPelatih === 'string' && act.asistenPelatih.trim() ? act.asistenPelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
       setPelatihanForm({
         namaPelatihan: act.namaPelatihan || act.namaKegiatan || '',
         jenisPelatihan: act.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
         jenjangGolongan: act.jenjangGolongan || act.golongan || 'Pengenal',
-        kualifikasiPelatih: act.kualifikasiPelatih || 'Pelatih Pratama',
+        kualifikasiPelatih: act.kualifikasiPelatih || 'Pelatih Utama',
         lokasiPelatihan: act.lokasiPelatihan || act.lokasi || '',
         tanggalPelatihan: act.tanggalPelatihan || act.tanggal || '',
         status: (act.status === 'Berjalan' || act.status === 'Selesai' || act.status === 'Tutup') ? act.status : 'Buka',
         kuota: act.kuota || '40 Peserta',
         deskripsi: act.deskripsi || act.description || '',
-        pelatih: Array.isArray(act.pelatih)
-          ? act.pelatih
-          : (typeof act.pelatih === 'string' && act.pelatih.trim() ? act.pelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []),
-        asistenPelatih: Array.isArray(act.asistenPelatih)
-          ? act.asistenPelatih
-          : (typeof act.asistenPelatih === 'string' && act.asistenPelatih.trim() ? act.asistenPelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []),
+        pelatih: rawPelatih.length > 0 ? rawPelatih : autoPelatih,
+        asistenPelatih: rawAsisten.length > 0 ? rawAsisten : autoAsisten,
         persyaratan: act.persyaratan || '',
         biayaPelatihan: act.biayaPelatihan || act.biaya || 'Rp 50.000',
         rekeningPembiayaan: act.rekeningPembiayaan || act.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
@@ -2606,14 +2638,14 @@ export default function AdminDashboard() {
         namaPelatihan: '',
         jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
         jenjangGolongan: 'Pengenal',
-        kualifikasiPelatih: 'Pelatih Pratama',
+        kualifikasiPelatih: 'Pelatih Utama',
         lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
         tanggalPelatihan: (settings.trainingDates || [])[0] || '',
         status: 'Buka',
         kuota: '40 Peserta',
         deskripsi: 'Pelatihan Kepemimpinan & Penguatan Kompetensi Pembina Pandu Hizbul Wathan Jawa Tengah',
-        pelatih: [],
-        asistenPelatih: [],
+        pelatih: autoPelatih,
+        asistenPelatih: autoAsisten,
         persyaratan: '1. Anggota aktif Hizbul Wathan (memiliki KTA Digital HW Jateng)\n2. Membawa Surat Tugas dari Kwarda / Qabilah\n3. Membayar biaya pendaftaran & konfirmasi bukti bayar',
         biayaPelatihan: 'Rp 50.000',
         rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
@@ -12283,8 +12315,8 @@ export default function AdminDashboard() {
 
             <div className="space-y-4 overflow-y-auto pr-1 flex-1 scrollbar-thin">
               {/* Nama Pelatihan & Jenis Diklat */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-3">
                   <label className="text-xs font-bold text-gray-700 block mb-1">
                     Nama Program Pelatihan <span className="text-rose-500">*</span>
                   </label>
@@ -12328,22 +12360,6 @@ export default function AdminDashboard() {
                     <option value="Penuntun">Pandu Penuntun (PTMA / Dewasa Muda)</option>
                     <option value="Pembina">Pembina Satuan HW</option>
                     <option value="Pelatih">Pelatih / Pimpinan Kwarda</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">
-                    Kualifikasi Pelatih (MoT)
-                  </label>
-                  <select
-                    value={pelatihanForm.kualifikasiPelatih}
-                    onChange={(e) => setPelatihanForm(f => ({ ...f, kualifikasiPelatih: e.target.value }))}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
-                  >
-                    <option value="Pelatih Pratama">Pelatih Pratama (Lulusan JM 1)</option>
-                    <option value="Pelatih Madya">Pelatih Madya (Lulusan JM 2)</option>
-                    <option value="Pelatih Utama">Pelatih Utama (Lulusan Jaya Matahari)</option>
-                    <option value="Master of Training">Master of Training (MoT) Wilayah</option>
                   </select>
                 </div>
 
@@ -12404,30 +12420,215 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Tim Pelatih & Pendamping */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">
-                    Tim Pelatih / Instruktur (MoT)
-                  </label>
+              {/* Tim Pelatih & Pendamping (Otomatis Mendeteksi Role JM 1 & JM 2) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70">
+                {/* Tim Pelatih - Otomatis Jaya Matahari 1 */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <UserCheck size={14} className="text-hw-green" />
+                      Tim Pelatih / Instruktur
+                    </label>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                      <Sparkles size={11} className="text-emerald-600" />
+                      Otomatis JM 1: {detectedJayaMatahari1Members.length}
+                    </span>
+                  </div>
+
+                  {detectedJayaMatahari1Members.length > 0 ? (
+                    <div className="bg-white border border-emerald-100 rounded-xl p-2.5 space-y-2 shadow-xs">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1">
+                          <Users size={12} className="text-emerald-600" />
+                          Terdeteksi Jaya Matahari 1:
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const names = detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+                              setPelatihanForm(f => {
+                                const current = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                const combined = Array.from(new Set([...current, ...names]));
+                                return { ...f, pelatih: combined };
+                              });
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors cursor-pointer"
+                          >
+                            + Pilih Semua
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const names = new Set(detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
+                              setPelatihanForm(f => {
+                                const current = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                return { ...f, pelatih: current.filter(n => !names.has(n.toLowerCase())) };
+                              });
+                            }}
+                            className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
+                        {detectedJayaMatahari1Members.map((m, idx) => {
+                          const name = (m.namaLengkap || m.nama || '').trim();
+                          const currentList = Array.isArray(pelatihanForm.pelatih) 
+                            ? pelatihanForm.pelatih 
+                            : (typeof pelatihanForm.pelatih === 'string' && pelatihanForm.pelatih ? pelatihanForm.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                          const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
+
+                          return (
+                            <button
+                              key={m.id || idx}
+                              type="button"
+                              onClick={() => {
+                                setPelatihanForm(f => {
+                                  const curr = Array.isArray(f.pelatih) 
+                                    ? f.pelatih 
+                                    : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                  if (isSelected) {
+                                    return { ...f, pelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
+                                  } else {
+                                    return { ...f, pelatih: [...curr, name] };
+                                  }
+                                });
+                              }}
+                              className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
+                                isSelected 
+                                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
+                                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'
+                              }`}
+                              title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
+                            >
+                              {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-emerald-600" />}
+                              <span>{name}</span>
+                              {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-emerald-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-gray-500 bg-white p-2 rounded-xl border border-gray-200 italic">
+                      Belum terdeteksi anggota ber-role Jaya Matahari 1 di sistem. Masukkan manual nama pelatih di bawah:
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     value={Array.isArray(pelatihanForm.pelatih) ? pelatihanForm.pelatih.join(', ') : pelatihanForm.pelatih}
                     onChange={(e) => setPelatihanForm(f => ({ ...f, pelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                    placeholder="Pisahkan koma: Ramanda Sugiyono, Ramanda Ahmad"
-                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                    placeholder="Pisahkan dengan koma jika manual: Ramanda Sugiyono, Ramanda Ahmad"
+                    className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">
-                    Asisten Pelatih / Pendamping Diklat
-                  </label>
+
+                {/* Asisten Pelatih - Otomatis Jaya Melati 2 */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <UserPlus size={14} className="text-blue-600" />
+                      Asisten Pelatih / Pendamping Diklat
+                    </label>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                      <Sparkles size={11} className="text-blue-600" />
+                      Otomatis JM 2: {detectedJayaMelati2Members.length}
+                    </span>
+                  </div>
+
+                  {detectedJayaMelati2Members.length > 0 ? (
+                    <div className="bg-white border border-blue-100 rounded-xl p-2.5 space-y-2 shadow-xs">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-[11px] font-semibold text-blue-900 flex items-center gap-1">
+                          <Users size={12} className="text-blue-600" />
+                          Terdeteksi Jaya Melati 2:
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const names = detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+                              setPelatihanForm(f => {
+                                const current = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                const combined = Array.from(new Set([...current, ...names]));
+                                return { ...f, asistenPelatih: combined };
+                              });
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
+                          >
+                            + Pilih Semua
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const names = new Set(detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
+                              setPelatihanForm(f => {
+                                const current = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                return { ...f, asistenPelatih: current.filter(n => !names.has(n.toLowerCase())) };
+                              });
+                            }}
+                            className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
+                        {detectedJayaMelati2Members.map((m, idx) => {
+                          const name = (m.namaLengkap || m.nama || '').trim();
+                          const currentList = Array.isArray(pelatihanForm.asistenPelatih) 
+                            ? pelatihanForm.asistenPelatih 
+                            : (typeof pelatihanForm.asistenPelatih === 'string' && pelatihanForm.asistenPelatih ? pelatihanForm.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                          const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
+
+                          return (
+                            <button
+                              key={m.id || idx}
+                              type="button"
+                              onClick={() => {
+                                setPelatihanForm(f => {
+                                  const curr = Array.isArray(f.asistenPelatih) 
+                                    ? f.asistenPelatih 
+                                    : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                  if (isSelected) {
+                                    return { ...f, asistenPelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
+                                  } else {
+                                    return { ...f, asistenPelatih: [...curr, name] };
+                                  }
+                                });
+                              }}
+                              className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
+                                isSelected 
+                                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs' 
+                                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                              }`}
+                              title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
+                            >
+                              {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-blue-600" />}
+                              <span>{name}</span>
+                              {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-gray-500 bg-white p-2 rounded-xl border border-gray-200 italic">
+                      Belum terdeteksi anggota ber-role Jaya Melati 2 di sistem. Masukkan manual nama asisten di bawah:
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     value={Array.isArray(pelatihanForm.asistenPelatih) ? pelatihanForm.asistenPelatih.join(', ') : pelatihanForm.asistenPelatih}
                     onChange={(e) => setPelatihanForm(f => ({ ...f, asistenPelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                    placeholder="Pisahkan koma: Bunda Siti, Kak Irfan"
-                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                    placeholder="Pisahkan dengan koma jika manual: Bunda Siti, Kak Irfan"
+                    className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
@@ -12494,28 +12695,16 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              {/* Berkas Silabus & Banner Poster */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Silabus / Juklak Diklat (Drive)</label>
-                  <input
-                    type="url"
-                    value={pelatihanForm.proposalUrl}
-                    onChange={(e) => setPelatihanForm(f => ({ ...f, proposalUrl: e.target.value }))}
-                    placeholder="https://drive.google.com/... juklak diklat"
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Banner / Poster Resmi Pelatihan</label>
-                  <input
-                    type="url"
-                    value={pelatihanForm.gambarUrl}
-                    onChange={(e) => setPelatihanForm(f => ({ ...f, gambarUrl: e.target.value }))}
-                    placeholder="https://... URL gambar poster resmi"
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
-                  />
-                </div>
+              {/* Banner Poster Resmi */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Link Banner / Poster Resmi Pelatihan</label>
+                <input
+                  type="url"
+                  value={pelatihanForm.gambarUrl}
+                  onChange={(e) => setPelatihanForm(f => ({ ...f, gambarUrl: e.target.value }))}
+                  placeholder="https://... URL gambar poster resmi"
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                />
               </div>
             </div>
 
