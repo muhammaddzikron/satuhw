@@ -33,8 +33,6 @@ import {
   Database,
   HardDrive,
   ExternalLink,
-  LayoutList,
-  Grid,
   User,
   Mic
 } from 'lucide-react';
@@ -234,7 +232,6 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   // Player state
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -936,478 +933,188 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
               </div>
             )}
 
-            {/* Toolbar: Counter & View Mode Switcher */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs">
+            {/* Toolbar: Counter */}
+            <div className="flex items-center justify-between gap-3 bg-white px-4 py-3.5 sm:px-5 rounded-2xl border border-gray-200 shadow-2xs">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-700">
+                <span className="text-xs sm:text-sm font-bold text-gray-700">
                   Menampilkan <strong className="text-emerald-800">{filteredTracks.length}</strong> Lagu
                 </span>
                 {searchQuery && (
-                  <span className="text-[11px] text-gray-400 font-medium">
+                  <span className="text-[11px] sm:text-xs text-gray-400 font-medium">
                     (filter &quot;{searchQuery}&quot;)
                   </span>
                 )}
               </div>
-
-              {/* View Switcher: Tabel Kolom vs Kartu */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    viewMode === 'table'
-                      ? 'bg-white text-emerald-800 shadow-xs'
-                      : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                  title="Tampilan Tabel Kolom (Judul, Pencipta, Lirik, Link, Aksi)"
-                >
-                  <LayoutList size={14} />
-                  <span>Tabel Kolom</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    viewMode === 'cards'
-                      ? 'bg-white text-emerald-800 shadow-xs'
-                      : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                  title="Tampilan Kartu Interaktif"
-                >
-                  <Grid size={14} />
-                  <span>Tampilan Kartu</span>
-                </button>
-              </div>
             </div>
 
-            {/* TABEL KOLOM VIEW */}
-            {viewMode === 'table' ? (
-              <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-2xs">
-                <table className="w-full text-left text-xs text-gray-700 border-collapse">
-                  <thead className="bg-gray-50/90 text-[10px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-200 select-none">
-                    <tr>
-                      <th className="py-3.5 px-3.5 w-12 text-center">No</th>
-                      <th className="py-3.5 px-4 min-w-[220px]">Judul Lagu</th>
-                      <th className="py-3.5 px-4 min-w-[190px]">Pencipta & Vokalis</th>
-                      <th className="py-3.5 px-4 min-w-[260px]">Lirik Lagu</th>
-                      <th className="py-3.5 px-4 min-w-[180px]">Link Audio</th>
-                      <th className="py-3.5 px-4 w-36 text-center">Aksi / Putar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredTracks.map((track) => {
-                      const isCurrent = currentTrackIndex === track.index;
-                      const isThisPlaying = isCurrent && isPlaying;
-                      const rawUrl = track.audioUrl || '';
-                      const isDrive = isGoogleDriveUrl(rawUrl);
+            {/* SONG CARDS VIEW */}
+            <div className="space-y-3.5">
+              {filteredTracks.map((track) => {
+                const isCurrent = currentTrackIndex === track.index;
+                const isThisPlaying = isCurrent && isPlaying;
+                const hasLyrics = track.lyrics && !track.lyrics.includes('Lirik lagu belum tersedia');
 
-                      return (
-                        <tr
-                          key={`table-track-${track.id || track.index}`}
-                          className={`transition-colors ${
-                            isCurrent
-                              ? 'bg-emerald-50/70 hover:bg-emerald-50'
-                              : 'hover:bg-gray-50/80'
-                          }`}
-                        >
-                          {/* Kolom No */}
-                          <td className="py-4 px-3.5 text-center font-mono font-bold text-gray-400">
-                            #{track.index + 1}
-                          </td>
+                return (
+                  <div
+                    key={track.id || track.index}
+                    className={`w-full rounded-2xl sm:rounded-3xl border transition-all duration-200 p-4 sm:p-5 ${
+                      isCurrent
+                        ? 'bg-linear-to-r from-emerald-50/95 via-white to-teal-50/70 border-emerald-400 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-500/20'
+                        : 'bg-white hover:bg-emerald-50/20 border-gray-200 hover:border-emerald-300 shadow-2xs hover:shadow-md'
+                    }`}
+                  >
+                    {/* Top Row: Track Number + Disc + Full Title + Category & Creator */}
+                    <div className="flex items-start gap-3.5 sm:gap-4">
+                      {/* Number Index */}
+                      <span className="w-6 text-center text-xs font-mono font-bold text-gray-400 pt-1 shrink-0">
+                        #{track.index + 1}
+                      </span>
 
-                          {/* Kolom Judul Lagu */}
-                          <td className="py-4 px-4 font-bold text-gray-900">
-                            <div className="flex items-start gap-3">
-                              <div className="relative shrink-0 pt-0.5">
-                                <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-2xs border border-white/20`}>
-                                  <Disc size={20} className={isThisPlaying ? 'animate-spin-slow' : ''} />
-                                </div>
-                                {isThisPlaying && (
-                                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
-                                    {track.theme.category}
-                                  </span>
-                                  {track.isKnown && (
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold flex items-center gap-0.5">
-                                      <Sparkles size={9} className="text-amber-500" />
-                                      Resmi HW
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="font-bold text-gray-900 text-xs sm:text-sm leading-snug">
-                                  {track.title}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Kolom Pencipta & Vokalis Lagu */}
-                          <td className="py-4 px-4 align-top space-y-1.5">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-bold text-xs max-w-full">
-                              <User size={12} className="text-emerald-700 shrink-0" />
-                              <span className="truncate">Cipt: {track.creator}</span>
-                            </div>
-                            {track.vocalist && (
-                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-50/80 text-blue-900 border border-blue-200/60 font-medium text-[11px] max-w-full">
-                                <Mic size={11} className="text-blue-600 shrink-0" />
-                                <span className="truncate">Vokal: {track.vocalist}</span>
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Kolom Lirik Lagu */}
-                          <td className="py-4 px-4 align-top">
-                            {track.lyrics && !track.lyrics.includes('Lirik lagu belum tersedia') ? (
-                              <div className="space-y-1 max-w-xs">
-                                <p className="text-[11px] text-gray-600 line-clamp-2 italic font-sans leading-relaxed">
-                                  &quot;{track.lyrics.substring(0, 90)}...&quot;
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedTrackForLyrics(track)}
-                                  className="text-[10px] font-black text-emerald-700 hover:text-emerald-900 flex items-center gap-1 transition-colors cursor-pointer"
-                                  title="Baca Lirik Lengkap"
-                                >
-                                  <FileText size={11} />
-                                  <span>Buka Lirik Lengkap &rarr;</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                <span className="text-[11px] text-amber-600 italic font-medium">Lirik belum tersedia</span>
-                                {isAdmin && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditModal(track)}
-                                    className="block text-[10px] font-bold text-amber-700 hover:underline cursor-pointer"
-                                  >
-                                    + Tambah lirik
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Kolom Link Audio */}
-                          <td className="py-4 px-4 align-top">
-                            <div className="space-y-1 max-w-[200px]">
-                              <div className="flex items-center gap-1.5">
-                                <a
-                                  href={rawUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline truncate block max-w-[140px]"
-                                  title={rawUrl}
-                                >
-                                  {rawUrl ? (rawUrl.length > 25 ? rawUrl.substring(0, 25) + '...' : rawUrl) : 'Tanpa Link'}
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyLink(track)}
-                                  className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
-                                  title="Salin Link Audio"
-                                >
-                                  {copiedId === track.id ? <Check size={12} className="text-emerald-600" /> : <Share2 size={12} />}
-                                </button>
-                              </div>
-                              <span className="text-[9px] font-bold text-gray-400 block uppercase tracking-wider">
-                                {isDrive ? 'Google Drive Audio' : (rawUrl.endsWith('.mp3') ? 'Direct MP3' : 'Audio Stream')}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Kolom Aksi / Putar */}
-                          <td className="py-4 px-4 align-middle text-center">
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                              {/* Tombol Putar */}
-                              <button
-                                type="button"
-                                onClick={() => handlePlayTrack(track.index, true)}
-                                className={`p-2 rounded-xl text-xs font-black flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-2xs ${
-                                  isThisPlaying
-                                    ? 'bg-hw-green text-white ring-2 ring-hw-green/30'
-                                    : isCurrent
-                                    ? 'bg-hw-dark text-white'
-                                    : 'bg-emerald-50 hover:bg-hw-green text-emerald-800 hover:text-white border border-emerald-200/60'
-                                }`}
-                                title={isThisPlaying ? "Jeda Audio" : "Putar Lagu"}
-                              >
-                                {isThisPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                              </button>
-
-                              {/* Tombol Lirik */}
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTrackForLyrics(track)}
-                                className="p-2 rounded-xl bg-gray-100 hover:bg-emerald-100 text-gray-600 hover:text-emerald-800 transition-colors cursor-pointer"
-                                title="Buka Lirik Lagu"
-                              >
-                                <FileText size={14} />
-                              </button>
-
-                              {/* Tombol Unduh */}
-                              <button
-                                type="button"
-                                onClick={() => handleDownload(track)}
-                                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors cursor-pointer"
-                                title="Unduh File Audio"
-                              >
-                                <Download size={14} />
-                              </button>
-
-                              {/* Tombol Edit Admin */}
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditModal(track)}
-                                  className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer"
-                                  title="Edit Lirik & Metadata"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-                              )}
-
-                              {/* Tombol Hapus Admin */}
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteSong(track.id, track.title)}
-                                  className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
-                                  title="Hapus Lagu"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              /* SONG CARDS VIEW */
-              <div className="space-y-3.5">
-                {filteredTracks.map((track) => {
-                  const isCurrent = currentTrackIndex === track.index;
-                  const isThisPlaying = isCurrent && isPlaying;
-                  const rawUrl = track.audioUrl || '';
-                  const isDrive = isGoogleDriveUrl(rawUrl);
-
-                  return (
-                    <div
-                      key={track.id || track.index}
-                      className={`w-full rounded-2xl sm:rounded-3xl border transition-all duration-200 p-4 sm:p-5 ${
-                        isCurrent
-                          ? 'bg-linear-to-r from-emerald-50/95 via-white to-teal-50/70 border-emerald-400 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-500/20'
-                          : 'bg-white hover:bg-emerald-50/20 border-gray-200 hover:border-emerald-300 shadow-2xs hover:shadow-md'
-                      }`}
-                    >
-                      {/* Top Row: Track Number + Disc + Full Title + Category */}
-                      <div className="flex items-start gap-3.5 sm:gap-4">
-                        {/* Number Index */}
-                        <span className="w-5 text-center text-xs font-mono font-bold text-gray-400 pt-1 shrink-0">
-                          #{track.index + 1}
-                        </span>
-
-                        {/* Vinyl Disc Icon */}
-                        <div className="relative shrink-0">
-                          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-sm border border-white/20 overflow-hidden`}>
-                            <Disc size={26} className={isThisPlaying ? 'animate-spin-slow' : ''} />
-                          </div>
-                          {isThisPlaying && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                            </div>
-                          )}
+                      {/* Vinyl Disc Icon */}
+                      <div className="relative shrink-0">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-linear-to-br ${track.theme.gradient} flex items-center justify-center text-white shadow-sm border border-white/20 overflow-hidden`}>
+                          <Disc size={26} className={isThisPlaying ? 'animate-spin-slow' : ''} />
                         </div>
-
-                        {/* Song Title & Header Tags */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
-                              {track.theme.category}
-                            </span>
-                            {track.isKnown && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
-                                <Sparkles size={10} className="text-amber-500" />
-                                Lagu Resmi HW
-                              </span>
-                            )}
+                        {isThisPlaying && (
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                           </div>
-
-                          <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-snug break-words">
-                            {track.title}
-                          </h3>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Explicit Columns Sub-Grid: Pencipta Lagu, Lirik Lagu, Link Audio */}
-                      <div className="mt-3.5 pt-3.5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        {/* Kolom Pencipta & Vokalis Lagu */}
-                        <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-0.5">
-                            Pencipta & Vokalis
+                      {/* Song Title & Header Tags */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
+                            {track.theme.category}
                           </span>
-                          <div className="inline-flex items-center gap-1 text-emerald-800 font-bold max-w-full">
-                            <User size={13} className="text-emerald-600 shrink-0" />
-                            <span className="truncate">Cipt: {track.creator}</span>
-                          </div>
-                          {track.vocalist && (
-                            <div className="flex items-center gap-1 text-blue-700 font-medium text-[11px] max-w-full">
-                              <Mic size={12} className="text-blue-500 shrink-0" />
-                              <span className="truncate">Vokal: {track.vocalist}</span>
-                            </div>
+                          {track.isKnown && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
+                              <Sparkles size={10} className="text-amber-500" />
+                              Lagu Resmi HW
+                            </span>
                           )}
                         </div>
 
-                        {/* Kolom Lirik Lagu */}
-                        <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">
-                              Cuplikan Lirik Lagu
-                            </span>
-                            {track.lyrics && !track.lyrics.includes('Lirik lagu belum tersedia') ? (
-                              <p className="text-[11px] text-gray-600 line-clamp-2 italic font-sans">
-                                &quot;{track.lyrics.substring(0, 70)}...&quot;
-                              </p>
-                            ) : (
-                              <p className="text-[11px] text-amber-600 italic">Lirik belum tersedia</p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTrackForLyrics(track)}
-                            className="mt-1 text-[10px] font-black text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer self-start"
-                          >
-                            <FileText size={11} />
-                            <span>Lihat Lirik Lengkap &rarr;</span>
-                          </button>
-                        </div>
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-snug break-words">
+                          {track.title}
+                        </h3>
 
-                        {/* Kolom Link Audio */}
-                        <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">
-                              Link File Audio
+                        {/* Creator & Vocalist Tags */}
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+                          <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                            <User size={12} className="text-emerald-700 shrink-0" />
+                            <span>Cipt: {track.creator}</span>
+                          </span>
+                          {track.vocalist && (
+                            <span className="inline-flex items-center gap-1 font-medium text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 text-[11px]">
+                              <Mic size={12} className="text-blue-600 shrink-0" />
+                              <span>Vokal: {track.vocalist}</span>
                             </span>
-                            <a
-                              href={rawUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] font-mono text-blue-600 hover:underline truncate block"
-                              title={rawUrl}
-                            >
-                              {rawUrl ? (rawUrl.length > 25 ? rawUrl.substring(0, 25) + '...' : rawUrl) : 'Tanpa Link'}
-                            </a>
-                            <span className="text-[9px] text-gray-400 font-medium">
-                              {isDrive ? 'Google Drive File' : 'Direct MP3 Audio'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyLink(track)}
-                            className="mt-1 text-[10px] font-bold text-gray-600 hover:text-gray-900 flex items-center gap-1 cursor-pointer self-start"
-                          >
-                            {copiedId === track.id ? <Check size={11} className="text-emerald-600" /> : <Share2 size={11} />}
-                            <span>{copiedId === track.id ? 'Tersalin!' : 'Salin Link'}</span>
-                          </button>
+                          )}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Bottom Row: Actions Bar */}
-                      <div className="mt-3.5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTrackForLyrics(track)}
-                            className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-emerald-100 hover:text-emerald-800 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                            title="Lihat Lirik Lagu Lengkap"
-                          >
-                            <FileText size={14} />
-                            <span>Lirik</span>
-                          </button>
-
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(track)}
-                              className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                              title="Edit Lirik & Data Lagu"
-                            >
-                              <Edit2 size={13} />
-                              <span>Edit</span>
-                            </button>
-                          )}
-                          
-                          <button
-                            type="button"
-                            onClick={() => handleCopyLink(track)}
-                            className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-all cursor-pointer"
-                            title="Salin Link Lagu"
-                          >
-                            {copiedId === track.id ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(track)}
-                            className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-all cursor-pointer"
-                            title="Unduh File Audio"
-                          >
-                            <Download size={14} />
-                          </button>
-
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSong(track.id, track.title)}
-                              className="p-2 rounded-xl bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-all cursor-pointer"
-                              title="Hapus Lagu dari Playlist"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Main Play Button for this Track */}
+                    {/* Cuplikan Lirik (Jika Tersedia) */}
+                    {hasLyrics && (
+                      <div className="mt-3.5 p-3 rounded-2xl bg-gray-50 border border-gray-150 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <p className="text-xs text-gray-600 italic font-sans line-clamp-2 leading-relaxed flex-1">
+                          &ldquo;{track.lyrics.substring(0, 110)}...&rdquo;
+                        </p>
                         <button
                           type="button"
-                          onClick={() => handlePlayTrack(track.index, true)}
-                          className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs ${
-                            isThisPlaying
-                              ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
-                              : isCurrent
-                              ? 'bg-hw-dark text-white hover:bg-black'
-                              : 'bg-emerald-50 hover:bg-hw-green text-emerald-900 hover:text-white border border-emerald-200/60'
-                          }`}
+                          onClick={() => setSelectedTrackForLyrics(track)}
+                          className="text-[11px] font-black text-emerald-700 hover:text-emerald-900 flex items-center gap-1 shrink-0 self-start sm:self-auto cursor-pointer hover:underline"
+                          title="Buka Lirik Lengkap"
                         >
-                          {isThisPlaying ? (
-                            <>
-                              <Pause size={14} fill="currentColor" />
-                              <span>Jeda</span>
-                            </>
-                          ) : (
-                            <>
-                              <Play size={14} fill="currentColor" className="ml-0.5" />
-                              <span>Putar Lagu</span>
-                            </>
-                          )}
+                          <FileText size={13} />
+                          <span>Baca Lirik Lengkap &rarr;</span>
                         </button>
                       </div>
+                    )}
 
+                    {/* Bottom Row: Actions Bar */}
+                    <div className="mt-3.5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Tombol Lirik Lagu (Muncul Jelas) */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTrackForLyrics(track)}
+                          className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                          title="Lihat Lirik Lagu Lengkap"
+                        >
+                          <FileText size={14} className="text-emerald-700" />
+                          <span>Lirik Lagu</span>
+                        </button>
+
+                        {/* Tombol Unduh Audio (Tanpa Link Raw URL) */}
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(track)}
+                          className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                          title="Unduh File Audio (MP3)"
+                        >
+                          <Download size={14} />
+                          <span>Unduh Audio</span>
+                        </button>
+
+                        {/* Tombol Edit Admin */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(track)}
+                            className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                            title="Edit Lirik & Data Lagu"
+                          >
+                            <Edit2 size={13} />
+                            <span className="hidden sm:inline">Edit</span>
+                          </button>
+                        )}
+
+                        {/* Tombol Hapus Admin */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSong(track.id, track.title)}
+                            className="p-2 rounded-xl bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-all cursor-pointer"
+                            title="Hapus Lagu dari Playlist"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Main Play Button for this Track */}
+                      <button
+                        type="button"
+                        onClick={() => handlePlayTrack(track.index, true)}
+                        className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-xs ${
+                          isThisPlaying
+                            ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
+                            : isCurrent
+                            ? 'bg-hw-dark text-white hover:bg-black'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                      >
+                        {isThisPlaying ? (
+                          <>
+                            <Pause size={15} fill="currentColor" />
+                            <span>Jeda</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play size={15} fill="currentColor" className="ml-0.5" />
+                            <span>Putar Lagu</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>
