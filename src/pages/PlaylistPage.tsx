@@ -984,15 +984,40 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
 
                       {/* Song Title & Header Tags */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
-                            {track.theme.category}
-                          </span>
-                          {track.isKnown && (
-                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
-                              <Sparkles size={10} className="text-amber-500" />
-                              Lagu Resmi HW
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${track.theme.badgeColor}`}>
+                              {track.theme.category}
                             </span>
+                            {track.isKnown && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
+                                <Sparkles size={10} className="text-amber-500" />
+                                Lagu Resmi HW
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Tombol Aksi Admin */}
+                          {isAdmin && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(track)}
+                                className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                                title="Edit Lirik & Data Lagu"
+                              >
+                                <Edit2 size={11} />
+                                <span className="hidden sm:inline">Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSong(track.id, track.title)}
+                                className="p-1 rounded-lg bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-all cursor-pointer"
+                                title="Hapus Lagu dari Playlist"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -1034,78 +1059,60 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
                       </div>
                     )}
 
-                    {/* Bottom Row: Actions Bar */}
-                    <div className="mt-3.5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Tombol Lirik Lagu (Muncul Jelas) */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTrackForLyrics(track)}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                          title="Lihat Lirik Lagu Lengkap"
-                        >
-                          <FileText size={14} className="text-emerald-700" />
-                          <span>Lirik Lagu</span>
-                        </button>
+                    {/* Bottom Row: Actions Bar - 1 Baris Responsif (Lirik, Unduh, Putar) */}
+                    <div className="mt-3.5 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 sm:gap-3">
+                      {/* 1. Tombol Lirik */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTrackForLyrics(track)}
+                        className="w-full py-2.5 px-2 sm:px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        title="Lihat Lirik Lagu Lengkap"
+                      >
+                        <FileText size={14} className="text-emerald-700 shrink-0" />
+                        <span className="truncate">
+                          Lirik<span className="hidden sm:inline"> Lagu</span>
+                        </span>
+                      </button>
 
-                        {/* Tombol Unduh Audio (Tanpa Link Raw URL) */}
-                        <button
-                          type="button"
-                          onClick={() => handleDownload(track)}
-                          className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                          title="Unduh File Audio (MP3)"
-                        >
-                          <Download size={14} />
-                          <span>Unduh Audio</span>
-                        </button>
+                      {/* 2. Tombol Unduh */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(track)}
+                        className="w-full py-2.5 px-2 sm:px-3 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        title="Unduh File Audio (MP3)"
+                      >
+                        <Download size={14} className="shrink-0" />
+                        <span className="truncate">
+                          Unduh<span className="hidden sm:inline"> Audio</span>
+                        </span>
+                      </button>
 
-                        {/* Tombol Edit Admin */}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(track)}
-                            className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                            title="Edit Lirik & Data Lagu"
-                          >
-                            <Edit2 size={13} />
-                            <span className="hidden sm:inline">Edit</span>
-                          </button>
-                        )}
-
-                        {/* Tombol Hapus Admin */}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSong(track.id, track.title)}
-                            className="p-2 rounded-xl bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-all cursor-pointer"
-                            title="Hapus Lagu dari Playlist"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Main Play Button for this Track */}
+                      {/* 3. Tombol Putar / Jeda */}
                       <button
                         type="button"
                         onClick={() => handlePlayTrack(track.index, true)}
-                        className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-xs ${
+                        className={`w-full py-2.5 px-2 sm:px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs ${
                           isThisPlaying
                             ? 'bg-hw-green text-white shadow-emerald-500/25 ring-2 ring-hw-green/30'
                             : isCurrent
                             ? 'bg-hw-dark text-white hover:bg-black'
                             : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                         }`}
+                        title={isThisPlaying ? 'Jeda Audio' : 'Putar Lagu'}
                       >
                         {isThisPlaying ? (
                           <>
-                            <Pause size={15} fill="currentColor" />
-                            <span>Jeda</span>
+                            <Pause size={14} fill="currentColor" className="shrink-0" />
+                            <span className="truncate">
+                              Jeda<span className="hidden sm:inline"> Lagu</span>
+                            </span>
                           </>
                         ) : (
                           <>
-                            <Play size={15} fill="currentColor" className="ml-0.5" />
-                            <span>Putar Lagu</span>
+                            <Play size={14} fill="currentColor" className="ml-0.5 shrink-0" />
+                            <span className="truncate">
+                              Putar<span className="hidden sm:inline"> Lagu</span>
+                            </span>
                           </>
                         )}
                       </button>
