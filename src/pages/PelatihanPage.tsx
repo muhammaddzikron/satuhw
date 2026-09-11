@@ -54,6 +54,11 @@ import {
   isSameTrainingParticipant, 
   normalizeParticipantName 
 } from '../utils/trainingUtils';
+import { 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  buildAllNotifications 
+} from '../utils/notificationUtils';
 
 export {
   type TrainingProgram,
@@ -338,6 +343,26 @@ export default function PelatihanPage() {
       setPerspective('peserta');
     }
   }, [user?.role, user?.email, (user as any)?.adminType]);
+
+  // Automatically mark training notifications as read once user opens the Pelatihan page
+  useEffect(() => {
+    if (user) {
+      const userKey = (user.email || user.id || '').toLowerCase().trim();
+      const allNotifs = buildAllNotifications({ user });
+      const trainingNotifs = allNotifs.filter(n => 
+        n.type === 'training' || 
+        n.id.startsWith('user-training-') ||
+        n.id.includes('training')
+      );
+      if (trainingNotifs.length > 0) {
+        markAllNotificationsAsRead(trainingNotifs.map(n => n.id), userKey);
+      }
+      markNotificationAsRead(`user-training-${userKey}`, userKey);
+      if (user.email) {
+        markNotificationAsRead(`user-training-${user.email.toLowerCase().trim()}`, userKey);
+      }
+    }
+  }, [user?.email, user?.id]);
 
   const program = perspective === 'peserta' 
     ? (TRAINING_PROGRAMS.find(p => p.id === 'Jati 1') || TRAINING_PROGRAMS[0])

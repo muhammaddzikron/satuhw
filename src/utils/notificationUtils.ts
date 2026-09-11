@@ -84,10 +84,41 @@ export function clearReadNotifications(userEmailOrId?: string): void {
   }
 }
 
+
+
+
+
 export function isNotificationRead(id: string, readIds: Set<string>, user?: any): boolean {
   if (readIds.has(id)) return true;
-  const userKey = user?.email || user?.id || '';
+  const userKey = (user?.email || user?.id || '').toLowerCase().trim();
   if (userKey && (readIds.has(`${id}-${userKey}`) || readIds.has(`${id}_${userKey}`))) return true;
+
+  // Flexible matching for training notifications so they never reappear once opened
+  if (id.startsWith('user-training-')) {
+    if (userKey && (readIds.has(`user-training-${userKey}`) || readIds.has('user-training-all'))) {
+      return true;
+    }
+    const baseId = id.replace(/-approved$|-rejected$|-pending$/, '');
+    if (readIds.has(baseId)) return true;
+    for (const rid of readIds) {
+      if (rid === baseId || (rid.startsWith('user-training-') && (rid.includes(baseId) || id.includes(rid)))) {
+        return true;
+      }
+    }
+  }
+
+  if (id.startsWith('admin-training-app-') || id.startsWith('admin-task-app-')) {
+    if (readIds.has('admin-training-all') || readIds.has('admin-task-all')) {
+      return true;
+    }
+    const cleanId = id.replace(/[^a-zA-Z0-9]/g, '-');
+    for (const rid of readIds) {
+      if (rid === cleanId || cleanId.includes(rid) || rid.includes(cleanId)) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -101,6 +132,22 @@ function parseJsonSafe(key: string): any[] {
   } catch {
     return [];
   }
+}
+
+function parseParticipantTasks(item: any): any[] {
+  if (!item) return [];
+  const raw = item.tugas || item.tasks;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 export function buildAllNotifications(options: {
@@ -215,11 +262,21 @@ export function buildAllNotifications(options: {
         }
       });
 
-      pendingTrainingApps = trainings.filter((t: any) => t.status === 'pending');
-      submittedTaskApps = trainings.filter((t: any) => 
-        (Array.isArray(t.tasks) && t.tasks.some((task: any) => task.submitted)) ||
-        t.statusPostTest === 'submitted'
-      );
+      pendingTrainingApps = trainings.filter((t: any) => {
+        const s = (t.status || '').toString().toLowerCase().trim();
+        return s === 'pending' || s === 'menunggu' || s === 'diproses';
+      });
+
+      submittedTaskApps = trainings.filter((t: any) => {
+        const tasks = parseParticipantTasks(t);
+        const hasUngradedTask = tasks.some((task: any) => {
+          const isSubmitted = task.submitted || task.status === 'submitted';
+          const isGraded = task.status === 'graded' || (task.nilai !== undefined && task.nilai !== null && task.nilai !== '' && Number(task.nilai) > 0);
+          return isSubmitted && !isGraded;
+        });
+        const hasUngradedPostTest = t.statusPostTest === 'submitted' && (t.postTestScore === undefined || t.postTestScore === null || t.postTestScore === '');
+        return hasUngradedTask || hasUngradedPostTest;
+      });
       pendingActivityApps = activities.filter((a: any) => a.status === 'pending');
     }
 
@@ -352,9 +409,10 @@ export function buildAllNotifications(options: {
 
     myTrainingApps.forEach((tApp: any) => {
       if (tApp.status === 'approved' || tApp.status === 'rejected') {
-        const actName = tApp.activityTitle || tApp.trainingName || 'Pelatihan Hizbul Wathan';
+        const actName = tApp.activityTitle || tApp.trainingName || tApp.pelatihanAkanDiikuti || tApp.namaKegiatan || 'Pelatihan Hizbul Wathan';
         const statusText = tApp.status === 'approved' ? 'Diterima' : 'Perlu Perbaikan';
-        const safeId = tApp.id || tApp.activityId || (actName).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+        const rawId = tApp.id || tApp.activityId || actName;
+        const safeId = String(rawId).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
         items.push({
           id: `user-training-${safeId}-${tApp.status}`,
           type: 'training',

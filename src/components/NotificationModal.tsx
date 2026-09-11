@@ -116,12 +116,28 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   const handleItemClick = (item: NotificationItem) => {
     markNotificationAsRead(item.id, userKey);
+    if (item.type === 'training' || item.id.includes('training') || item.id.includes('task')) {
+      markNotificationAsRead(`user-training-${userKey}`, userKey);
+      const cleanBase = item.id.replace(/-approved$|-rejected$|-pending$/, '');
+      markNotificationAsRead(cleanBase, userKey);
+    }
     setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
     setSelectedDetailItem(item);
   };
 
   const handleNavigate = (item: NotificationItem) => {
     markNotificationAsRead(item.id, userKey);
+    if (item.type === 'training' || item.type === 'task' || item.id.includes('training') || item.id.includes('task')) {
+      const trainingIds = notifications
+        .filter(n => n.type === 'training' || n.type === 'task' || n.id.includes('training') || n.id.includes('task'))
+        .map(n => n.id);
+      if (trainingIds.length > 0) {
+        markAllNotificationsAsRead(trainingIds, userKey);
+      }
+      markNotificationAsRead(`user-training-${userKey}`, userKey);
+      markNotificationAsRead('admin-training-all', userKey);
+      markNotificationAsRead('admin-task-all', userKey);
+    }
     setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
     setSelectedDetailItem(null);
     onClose();

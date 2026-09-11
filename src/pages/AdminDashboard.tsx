@@ -28,6 +28,12 @@ import {
   isJayaMelati2Member
 } from '../utils/trainingUtils';
 import { DEFAULT_50_QUESTIONS } from '../data/trainingQuestions';
+import { 
+  getReadNotificationIds, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  buildAllNotifications 
+} from '../utils/notificationUtils';
 
 
 const getCurrentIndonesianDate = (): string => {
@@ -5470,10 +5476,20 @@ export default function AdminDashboard() {
     return !m.isVerified || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi';
   });
   const pendingKtaApps = allPendingKtaQueue;
+  const readNotificationIds = useMemo(() => {
+    return new Set(getReadNotificationIds(user?.email || user?.id));
+  }, [user?.email, user?.id]);
+
   const pendingTrainingApps = trainingApps.filter(t => {
     if (!t || !isValidName(t.nama || t.namaLengkap)) return false;
     const s = (t.status || '').toString().trim().toLowerCase();
-    return s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi' || s === '';
+    const isPending = s === 'pending' || s === 'menunggu' || s === 'diproses' || s === 'belum verifikasi';
+    if (!isPending) return false;
+    const safeId = t.id || t.email || t.nama || t.namaLengkap;
+    if (readNotificationIds.has(`admin-training-app-${safeId}`) || readNotificationIds.has('admin-training-all')) {
+      return false;
+    }
+    return true;
   });
 
   // Training apps with submitted tasks
@@ -5487,9 +5503,36 @@ export default function AdminDashboard() {
     }
   };
 
-  const submittedTaskApps = trainingApps.filter(t => t && isValidName(t.nama || t.namaLengkap) && parseAppTasks(t).length > 0);
+  const submittedTaskApps = trainingApps.filter(t => {
+    if (!t || !isValidName(t.nama || t.namaLengkap)) return false;
+    const safeId = t.id || t.email || t.nama || t.namaLengkap;
+    if (readNotificationIds.has(`admin-task-app-${safeId}`) || readNotificationIds.has('admin-task-all')) {
+      return false;
+    }
+    const tasks = parseAppTasks(t);
+    const hasUngraded = tasks.some((task: any) => {
+      const isSubmitted = task.status === 'submitted' || task.submitted;
+      const isGraded = task.status === 'graded' || (task.nilai !== undefined && task.nilai !== null && task.nilai !== '' && Number(task.nilai) > 0);
+      return isSubmitted && !isGraded;
+    });
+    return hasUngraded;
+  });
 
   const totalNotifications = (isDiklatAdmin ? 0 : (membersWithUpgradeRequests.length + pendingMembers.length + pendingKtaApps.length)) + pendingTrainingApps.length + submittedTaskApps.length;
+
+  // When admin views Pelatihan tab, automatically mark admin training notifications as read
+  useEffect(() => {
+    if (activeTab === 'pelatihan') {
+      const userKey = (user?.email || user?.id || '').toLowerCase().trim();
+      const allNotifs = buildAllNotifications({ user });
+      const trainingAdminNotifs = allNotifs.filter(n => n.id.startsWith('admin-training-app-') || n.id.startsWith('admin-task-app-'));
+      if (trainingAdminNotifs.length > 0) {
+        markAllNotificationsAsRead(trainingAdminNotifs.map(n => n.id), userKey);
+      }
+      markNotificationAsRead('admin-training-all', userKey);
+      markNotificationAsRead('admin-task-all', userKey);
+    }
+  }, [activeTab, user?.email, user?.id]);
 
     // Simple RBAC check
   if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.role !== 'admin_diklat' && !(user as any)?.adminType && !isPelatihUser)) {
@@ -5561,7 +5604,7 @@ export default function AdminDashboard() {
             {[
               (!isDiklatAdmin) && { id: 'anggota', label: 'Anggota', icon: Users, badge: pendingMembers.length + membersWithUpgradeRequests.length, activeClass: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
               (!isDiklatAdmin) && { id: 'kta', label: 'KTA', icon: CreditCard, badge: pendingKtaApps.length, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/25 ring-2 ring-emerald-500', hoverClass: 'hover:border-emerald-300 hover:text-emerald-600' },
-              { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, badge: pendingTrainingApps.length + submittedTaskApps.length, activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
+              { id: 'pelatihan', label: 'Pelatihan', icon: GraduationCap, badge: activeTab === 'pelatihan' ? 0 : (pendingTrainingApps.length + submittedTaskApps.length), activeClass: 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 ring-2 ring-amber-400', hoverClass: 'hover:border-amber-300 hover:text-orange-600' },
               (!isDiklatAdmin) && { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, activeClass: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25 ring-2 ring-cyan-400', hoverClass: 'hover:border-cyan-300 hover:text-cyan-600' },
               { id: 'kwarda-ptma', label: 'Kwarda / PTMA', icon: Building2, activeClass: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white shadow-md shadow-teal-500/25 ring-2 ring-teal-400', hoverClass: 'hover:border-teal-300 hover:text-teal-700' },
               (!isDiklatAdmin) && { id: 'materi', label: 'Materi', icon: BookOpen, activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-md shadow-teal-600/25 ring-2 ring-teal-500', hoverClass: 'hover:border-teal-300 hover:text-teal-600' },
