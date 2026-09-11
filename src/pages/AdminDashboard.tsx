@@ -1141,18 +1141,23 @@ export default function AdminDashboard() {
   const [newLocationInput, setNewLocationInput] = useState('');
   const [newDateInput, setNewDateInput] = useState('');
   
-  // Activity Modal State
-  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
-  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
-  const [activityForm, setActivityForm] = useState({
-    namaKegiatan: '',
+  // Pelatihan Modal State
+  const [isPelatihanModalOpen, setIsPelatihanModalOpen] = useState(false);
+  const [editingPelatihanId, setEditingPelatihanId] = useState<string | null>(null);
+  const [isSavingPelatihan, setIsSavingPelatihan] = useState(false);
+  const [pelatihanForm, setPelatihanForm] = useState({
+    namaPelatihan: '',
     jenisPelatihan: 'Jaya Melati 1',
+    jenjangGolongan: 'Pengenal',
+    kualifikasiPelatih: 'Pelatih Pratama',
     lokasiPelatihan: '',
     tanggalPelatihan: '',
-    status: 'Buka' as 'Buka' | 'Tutup',
+    status: 'Buka' as 'Buka' | 'Berjalan' | 'Selesai' | 'Tutup',
+    kuota: '40 Peserta',
     deskripsi: '',
     pelatih: [] as string[],
     asistenPelatih: [] as string[],
+    persyaratan: '',
     biayaPelatihan: 'Rp 50.000',
     rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
     noWhatsappPanitia: '089688754000',
@@ -2554,7 +2559,174 @@ export default function AdminDashboard() {
       });
     }
     setIsKegiatanModalOpen(true);
-    setIsActivityModalOpen(true);
+  };
+
+  const handleOpenPelatihanModal = (act?: any) => {
+    if (act) {
+      setEditingPelatihanId(act.id || null);
+      setPelatihanForm({
+        namaPelatihan: act.namaPelatihan || act.namaKegiatan || '',
+        jenisPelatihan: act.jenisPelatihan || (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
+        jenjangGolongan: act.jenjangGolongan || act.golongan || 'Pengenal',
+        kualifikasiPelatih: act.kualifikasiPelatih || 'Pelatih Pratama',
+        lokasiPelatihan: act.lokasiPelatihan || act.lokasi || '',
+        tanggalPelatihan: act.tanggalPelatihan || act.tanggal || '',
+        status: (act.status === 'Berjalan' || act.status === 'Selesai' || act.status === 'Tutup') ? act.status : 'Buka',
+        kuota: act.kuota || '40 Peserta',
+        deskripsi: act.deskripsi || act.description || '',
+        pelatih: Array.isArray(act.pelatih)
+          ? act.pelatih
+          : (typeof act.pelatih === 'string' && act.pelatih.trim() ? act.pelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []),
+        asistenPelatih: Array.isArray(act.asistenPelatih)
+          ? act.asistenPelatih
+          : (typeof act.asistenPelatih === 'string' && act.asistenPelatih.trim() ? act.asistenPelatih.split(',').map((s: string) => s.trim()).filter(Boolean) : []),
+        persyaratan: act.persyaratan || '',
+        biayaPelatihan: act.biayaPelatihan || act.biaya || 'Rp 50.000',
+        rekeningPembiayaan: act.rekeningPembiayaan || act.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: act.noWhatsappPanitia || act.konfirmasiPembayaran || '089688754000',
+        proposalUrl: act.proposalUrl || act.silabusUrl || act.proposal || act.linkProposal || '',
+        gambarUrl: act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
+      });
+    } else {
+      setEditingPelatihanId(null);
+      setPelatihanForm({
+        namaPelatihan: '',
+        jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
+        jenjangGolongan: 'Pengenal',
+        kualifikasiPelatih: 'Pelatih Pratama',
+        lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
+        tanggalPelatihan: (settings.trainingDates || [])[0] || '',
+        status: 'Buka',
+        kuota: '40 Peserta',
+        deskripsi: 'Pelatihan Kepemimpinan & Penguatan Kompetensi Pembina Pandu Hizbul Wathan Jawa Tengah',
+        pelatih: [],
+        asistenPelatih: [],
+        persyaratan: '1. Anggota aktif Hizbul Wathan (memiliki KTA Digital HW Jateng)\n2. Membawa Surat Tugas dari Kwarda / Qabilah\n3. Membayar biaya pendaftaran & konfirmasi bukti bayar',
+        biayaPelatihan: 'Rp 50.000',
+        rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
+        noWhatsappPanitia: '089688754000',
+        proposalUrl: '',
+        gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
+      });
+    }
+    setIsPelatihanModalOpen(true);
+  };
+
+  const handleSavePelatihan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pelatihanForm.namaPelatihan.trim()) {
+      showToast('error', 'Nama Pelatihan wajib diisi');
+      return;
+    }
+    setIsSavingPelatihan(true);
+    try {
+      const trainId = editingPelatihanId || `pelatihan-${Date.now()}`;
+      
+      const pelatihList = Array.isArray(pelatihanForm.pelatih)
+        ? pelatihanForm.pelatih
+        : typeof pelatihanForm.pelatih === 'string' && (pelatihanForm.pelatih as string).trim()
+          ? (pelatihanForm.pelatih as string).split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+          
+      const asistenList = Array.isArray(pelatihanForm.asistenPelatih)
+        ? pelatihanForm.asistenPelatih
+        : typeof pelatihanForm.asistenPelatih === 'string' && (pelatihanForm.asistenPelatih as string).trim()
+          ? (pelatihanForm.asistenPelatih as string).split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+
+      const payload = {
+        id: trainId,
+        namaKegiatan: pelatihanForm.namaPelatihan,
+        namaPelatihan: pelatihanForm.namaPelatihan,
+        title: pelatihanForm.namaPelatihan,
+        jenisPelatihan: pelatihanForm.jenisPelatihan || 'Jaya Melati 1',
+        tingkatan: pelatihanForm.jenisPelatihan || 'Jaya Melati 1',
+        jenjangGolongan: pelatihanForm.jenjangGolongan || 'Pengenal',
+        golongan: pelatihanForm.jenjangGolongan || 'Pengenal',
+        kualifikasiPelatih: pelatihanForm.kualifikasiPelatih || 'Pelatih Pratama',
+        lokasiPelatihan: pelatihanForm.lokasiPelatihan,
+        lokasi: pelatihanForm.lokasiPelatihan,
+        location: pelatihanForm.lokasiPelatihan,
+        tanggalPelatihan: pelatihanForm.tanggalPelatihan,
+        tanggal: pelatihanForm.tanggalPelatihan,
+        startDate: pelatihanForm.tanggalPelatihan,
+        status: pelatihanForm.status || 'Buka',
+        kuota: pelatihanForm.kuota || '40 Peserta',
+        pelatih: pelatihList,
+        asistenPelatih: asistenList,
+        persyaratan: pelatihanForm.persyaratan || '',
+        biayaPelatihan: pelatihanForm.biayaPelatihan || 'Rp 50.000',
+        biaya: pelatihanForm.biayaPelatihan || 'Rp 50.000',
+        rekeningPembiayaan: pelatihanForm.rekeningPembiayaan,
+        rekeningPembayaran: pelatihanForm.rekeningPembiayaan,
+        noWhatsappPanitia: pelatihanForm.noWhatsappPanitia,
+        konfirmasiPembayaran: pelatihanForm.noWhatsappPanitia,
+        proposalUrl: pelatihanForm.proposalUrl,
+        silabusUrl: pelatihanForm.proposalUrl,
+        linkProposal: pelatihanForm.proposalUrl,
+        gambarUrl: pelatihanForm.gambarUrl,
+        imageUrl: pelatihanForm.gambarUrl,
+        deskripsi: pelatihanForm.deskripsi || '',
+        description: pelatihanForm.deskripsi || '',
+        kategori: 'Pelatihan',
+        category: 'Pelatihan',
+        isPelatihan: true,
+        isPublished: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // 1. Update settings trainingActivities
+      const currentActs = Array.isArray(settings.trainingActivities) ? [...settings.trainingActivities] : [];
+      const filteredActs = currentActs.filter((a: any) => a && a.id !== trainId);
+      filteredActs.unshift(payload);
+
+      const locs = Array.isArray(settings.trainingLocations) ? [...settings.trainingLocations] : [];
+      if (pelatihanForm.lokasiPelatihan && !locs.includes(pelatihanForm.lokasiPelatihan)) {
+        locs.push(pelatihanForm.lokasiPelatihan);
+      }
+
+      const dts = Array.isArray(settings.trainingDates) ? [...settings.trainingDates] : [];
+      if (pelatihanForm.tanggalPelatihan && !dts.includes(pelatihanForm.tanggalPelatihan)) {
+        dts.push(pelatihanForm.tanggalPelatihan);
+      }
+
+      const types = Array.isArray(settings.trainingTypes) ? [...settings.trainingTypes] : [];
+      if (pelatihanForm.jenisPelatihan && !types.includes(pelatihanForm.jenisPelatihan)) {
+        types.push(pelatihanForm.jenisPelatihan);
+      }
+
+      const updatedSettings = {
+        ...settings,
+        trainingActivities: filteredActs,
+        trainingLocations: locs,
+        trainingDates: dts,
+        trainingTypes: types
+      };
+
+      setSettings(updatedSettings);
+
+      // 2. Persist to Firestore settings and activities collection
+      await Promise.all([
+        sheetsService.saveSettings(updatedSettings),
+        sheetsService.saveActivity(payload).catch(err => console.warn('Activity sync warning:', err))
+      ]);
+
+      // 3. Update activitiesList
+      setActivitiesList(prev => {
+        const without = (prev || []).filter(a => a.id !== trainId);
+        return sortActivitiesNewestFirst([payload, ...without]);
+      });
+
+      setIsPelatihanModalOpen(false);
+      setEditingPelatihanId(null);
+      showToast('success', editingPelatihanId ? 'Program pelatihan berhasil diperbarui!' : 'Program pelatihan baru berhasil ditambahkan!');
+    } catch (err: any) {
+      console.error('Gagal menyimpan pelatihan:', err);
+      showToast('error', 'Gagal menyimpan pelatihan: ' + (err?.message || 'Terjadi kesalahan'));
+    } finally {
+      setIsSavingPelatihan(false);
+    }
   };
 
   const handleSaveActivity = async (e: React.FormEvent) => {
@@ -2666,7 +2838,6 @@ export default function AdminDashboard() {
 
       // Close modal states cleanly and display success
       setIsKegiatanModalOpen(false);
-      setIsActivityModalOpen(false);
       setEditingKegiatan(null);
       showToast('success', editingKegiatan ? 'Kegiatan berhasil diperbarui!' : 'Kegiatan baru berhasil ditambahkan!');
 
@@ -7802,7 +7973,7 @@ export default function AdminDashboard() {
                     </div>
                   </button>
 
-                  {/* MENU 2: KELOLA JENIS PELATIHAN (Sembunyikan untuk Pelatih / Jaya Matahari 1) */}
+                  {/* MENU 2: KELOLA PELATIHAN (Sembunyikan untuk Pelatih / Jaya Matahari 1) */}
                   {!isPelatihOnly && (
                     <button
                       type="button"
@@ -7821,9 +7992,9 @@ export default function AdminDashboard() {
                         ⚙️
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-black tracking-wider truncate">Menu 2: Kelola Jenis Pelatihan</span>
+                        <span className="text-xs font-black tracking-wider truncate">Menu 2: Kelola Pelatihan</span>
                         <span className={cn("text-[10px] font-semibold lowercase tracking-normal truncate opacity-90", trainingMainTab === 'kelola_jenis' ? "text-amber-200" : "text-gray-500")}>
-                          Pengaturan kegiatan, lokasi & jadwal pelatihan
+                          Pengaturan program pelatihan, kuota, instruktur & jadwal diklat
                         </span>
                       </div>
                     </button>
@@ -9601,10 +9772,10 @@ export default function AdminDashboard() {
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-2 font-display">
-                          <Settings className="text-hw-green" size={18} /> Kelola Jenis Pelatihan & Kegiatan HW Jateng
+                          <Settings className="text-hw-green" size={18} /> Kelola Pelatihan HW Jateng
                         </h4>
                         <p className="text-xs text-gray-400 font-medium">
-                          Kelola jenis pelatihan, daftar kegiatan pelatihan aktif (lokasi & tanggal pelaksanaan), serta opsi pilihan untuk formulir pendaftaran.
+                          Kelola program pelatihan kepanduan, tim pelatih/instruktur, jadwal dan lokasi diklat, kuota, serta persyaratan pendaftaran peserta.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
@@ -9626,41 +9797,23 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingActivityId(null);
-                            setActivityForm({
-                              namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
-                              jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
-                              lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
-                              tanggalPelatihan: (settings.trainingDates || [])[0] || '',
-                              status: 'Buka',
-                              deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
-                              pelatih: [],
-                              asistenPelatih: [],
-                              biayaPelatihan: 'Rp 50.000',
-                              rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                              noWhatsappPanitia: '089688754000',
-                              proposalUrl: '',
-                              gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
-                            });
-                            setIsActivityModalOpen(true);
-                          }}
+                          onClick={() => handleOpenPelatihanModal()}
                           className="px-4 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-900/10 flex items-center gap-2 cursor-pointer"
                         >
-                          <Plus size={16} /> Tambah Kegiatan Pelatihan
+                          <Plus size={16} /> Tambah Pelatihan
                         </button>
                       </div>
                     </div>
 
-                    {/* DAFTAR KEGIATAN PELATIHAN HW JATENG */}
+                    {/* DAFTAR PROGRAM PELATIHAN HW JATENG */}
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
                           <h5 className="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
-                            <span>🗓️</span> Daftar Kegiatan Pelatihan HW Jateng
+                            <span>🗓️</span> Daftar Program Pelatihan HW Jateng
                           </h5>
                           <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                            Kegiatan ini tampil di halaman depan portal pelatihan dan menentukan opsi waktu & tempat pada formulir pendaftaran.
+                            Program pelatihan ini tampil di portal pelatihan dan menentukan opsi waktu, tempat, dan persyaratan pada formulir pendaftaran.
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -9707,31 +9860,13 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {allTrainingActivitiesList.length === 0 ? (
                           <div className="col-span-full py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                            <p className="text-xs font-bold text-gray-400">Belum ada Kegiatan Pelatihan terdaftar.</p>
+                            <p className="text-xs font-bold text-gray-400">Belum ada Program Pelatihan terdaftar.</p>
                             <button
                               type="button"
-                              onClick={() => {
-                                setEditingActivityId(null);
-                                setActivityForm({
-                                  namaKegiatan: 'Pelatihan Jaya Melati 1/2 HW Jateng',
-                                  jenisPelatihan: (settings.trainingTypes || [])[0] || 'Jaya Melati 1',
-                                  lokasiPelatihan: (settings.trainingLocations || [])[0] || '',
-                                  tanggalPelatihan: (settings.trainingDates || [])[0] || '',
-                                  status: 'Buka',
-                                  deskripsi: 'Pelatihan Kepemimpinan Pembina Pandu Hizbul Wathan Jawa Tengah',
-                                  pelatih: [],
-                                  asistenPelatih: [],
-                                  biayaPelatihan: 'Rp 50.000',
-                                  rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                                  noWhatsappPanitia: '089688754000',
-                                  proposalUrl: '',
-                                  gambarUrl: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&q=80&w=800'
-                                });
-                                setIsActivityModalOpen(true);
-                              }}
+                              onClick={() => handleOpenPelatihanModal()}
                               className="mt-2 text-xs text-hw-green font-black underline hover:text-emerald-700 cursor-pointer"
                             >
-                              + Buat Kegiatan Pelatihan Pertama
+                              + Buat Program Pelatihan Pertama
                             </button>
                           </div>
                         ) : (
@@ -9745,7 +9880,7 @@ export default function AdminDashboard() {
                                 <div className="relative h-36 sm:h-40 bg-gray-100 rounded-xl overflow-hidden -mx-4 -mt-4 mb-3 border-b border-gray-100">
                                   <img 
                                     src={getCorsSafeUrl(img, act.updatedAt || act.id) || img} 
-                                    alt={act.namaKegiatan} 
+                                    alt={act.namaPelatihan || act.namaKegiatan} 
                                     className="w-full h-full object-cover"
                                     referrerPolicy="no-referrer"
                                     onError={(e) => {
@@ -9773,16 +9908,16 @@ export default function AdminDashboard() {
                                       {act.jenisPelatihan || 'Jaya Melati 1'} • {act.status === 'Buka' ? 'Pendaftaran Buka' : 'Tutup'}
                                     </span>
                                   )}
-                                  <h6 className="text-xs font-black text-gray-800 font-display">{act.namaKegiatan}</h6>
-                                  {(act.proposalUrl || act.proposal || act.linkProposal) && (
+                                  <h6 className="text-xs font-black text-gray-800 font-display">{act.namaPelatihan || act.namaKegiatan}</h6>
+                                  {(act.proposalUrl || act.proposal || act.linkProposal || act.silabusUrl) && (
                                     <div className="mt-1.5">
                                       <button
                                         type="button"
-                                        onClick={() => handleDownloadDocument(act.proposalUrl || act.proposal || act.linkProposal, act.namaKegiatan)}
+                                        onClick={() => handleDownloadDocument(act.proposalUrl || act.proposal || act.linkProposal || act.silabusUrl, act.namaPelatihan || act.namaKegiatan)}
                                         className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-all cursor-pointer shadow-xs active:scale-95"
-                                        title="Unduh Proposal Kegiatan"
+                                        title="Unduh Proposal / Silabus Diklat"
                                       >
-                                        <FileText size={12} /> Unduh Proposal
+                                        <FileText size={12} /> Unduh Proposal / Silabus
                                       </button>
                                     </div>
                                   )}
@@ -9790,55 +9925,33 @@ export default function AdminDashboard() {
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setEditingActivityId(act.id || String(idx));
-                                      setActivityForm({
-                                        namaKegiatan: act.namaKegiatan || '',
-                                        jenisPelatihan: act.jenisPelatihan || 'Jaya Melati 1',
-                                        lokasiPelatihan: act.lokasiPelatihan || '',
-                                        tanggalPelatihan: act.tanggalPelatihan || '',
-                                        status: act.status || 'Buka',
-                                        deskripsi: act.deskripsi || '',
-                                        pelatih: Array.isArray(act.pelatih)
-                                          ? act.pelatih
-                                          : (typeof act.pelatih === 'string' && act.pelatih.trim() ? act.pelatih.split(',').map((s: string) => s.trim()) : []),
-                                        asistenPelatih: Array.isArray(act.asistenPelatih)
-                                          ? act.asistenPelatih
-                                          : (typeof act.asistenPelatih === 'string' && act.asistenPelatih.trim() ? act.asistenPelatih.split(',').map((s: string) => s.trim()) : []),
-                                        biayaPelatihan: act.biayaPelatihan || 'Rp 50.000',
-                                        rekeningPembiayaan: act.rekeningPembiayaan || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
-                                        noWhatsappPanitia: act.noWhatsappPanitia || '089688754000',
-                                        proposalUrl: act.proposalUrl || act.proposal || act.linkProposal || '',
-                                        gambarUrl: act.gambarUrl || act.imageUrl || act.gambar || act.posterUrl || act.coverImage || act.thumbnailUrl || ''
-                                      });
-                                      setIsActivityModalOpen(true);
-                                    }}
+                                    onClick={() => handleOpenPelatihanModal(act)}
                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Edit Kegiatan"
+                                    title="Edit Pelatihan"
                                   >
                                     <Pencil size={14} />
                                   </button>
                                   <button
                                     type="button"
                                     onClick={async () => {
-                                      if (confirm(`Hapus kegiatan "${act.namaKegiatan}"?`)) {
+                                      if (confirm(`Hapus program pelatihan "${act.namaPelatihan || act.namaKegiatan}"?`)) {
                                         const filtered = (settings.trainingActivities || []).filter((_: any, i: number) => i !== idx && _.id !== act.id);
                                         const updatedSettings = { ...settings, trainingActivities: filtered };
                                         setSettings(updatedSettings);
                                         try {
                                           setLoading(true);
                                           await sheetsService.saveSettings(updatedSettings);
-                                          await sheetsService.deleteActivity(act.id || '', act.namaKegiatan || act.title || act.jenisPelatihan);
-                                          alert('Kegiatan berhasil dihapus dari cloud!');
+                                          await sheetsService.deleteActivity(act.id || '', act.namaPelatihan || act.namaKegiatan || act.title || act.jenisPelatihan);
+                                          alert('Program pelatihan berhasil dihapus dari cloud!');
                                         } catch (e: any) {
-                                          alert('Gagal menghapus kegiatan: ' + e.message);
+                                          alert('Gagal menghapus program pelatihan: ' + e.message);
                                         } finally {
                                           setLoading(false);
                                         }
                                       }
                                     }}
                                     className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Hapus"
+                                    title="Hapus Pelatihan"
                                   >
                                     <X size={14} />
                                   </button>
@@ -11715,7 +11828,7 @@ export default function AdminDashboard() {
       )}
 
       {/* 12. KEGIATAN / ACTIVITY MODAL */}
-      {(isActivityModalOpen || isKegiatanModalOpen) && (
+      {isKegiatanModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <form onSubmit={handleSaveActivity} className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-gray-100 space-y-4 my-8 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
@@ -11729,8 +11842,8 @@ export default function AdminDashboard() {
               <button 
                 type="button" 
                 onClick={() => {
-                  setIsActivityModalOpen(false);
                   setIsKegiatanModalOpen(false);
+                  setEditingKegiatan(null);
                 }} 
                 className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
@@ -12077,8 +12190,8 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  setIsActivityModalOpen(false);
                   setIsKegiatanModalOpen(false);
+                  setEditingKegiatan(null);
                 }}
                 className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer"
               >
@@ -12096,6 +12209,298 @@ export default function AdminDashboard() {
                   </>
                 ) : (
                   'Simpan Kegiatan'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 12.1. PELATIHAN MODAL (TERPISAH KHUSUS DIKLAT & TRAINING) */}
+      {isPelatihanModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <form onSubmit={handleSavePelatihan} className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-gray-100 space-y-4 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900 font-display flex items-center gap-2">
+                  <Award className="text-hw-green" size={20} />
+                  {editingPelatihanId ? 'Edit Program Pelatihan' : 'Tambah Program Pelatihan Baru'}
+                </h3>
+                <p className="text-xs text-gray-500">Kelola kurikulum diklat kepanduan, tim instruktur, jadwal, dan kuota peserta</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsPelatihanModalOpen(false);
+                  setEditingPelatihanId(null);
+                }} 
+                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1 scrollbar-thin">
+              {/* Nama Pelatihan & Jenis Diklat */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Nama Program Pelatihan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={pelatihanForm.namaPelatihan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, namaPelatihan: e.target.value }))}
+                    placeholder="Contoh: Pelatihan Jaya Melati 1 HW Solo Raya 2026"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-hw-green/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Tingkat / Jenis Pelatihan <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={pelatihanForm.jenisPelatihan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, jenisPelatihan: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    {(settings.trainingTypes || ['Jaya Melati 1', 'Jaya Melati 2', 'Jaya Matahari 1', 'Jaya Matahari 2', 'Pelatihan Kepemimpinan', 'Diklat Instruktur']).map((typ: string, i: number) => (
+                      <option key={i} value={typ}>{typ}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Jenjang / Golongan Sasaran
+                  </label>
+                  <select
+                    value={pelatihanForm.jenjangGolongan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, jenjangGolongan: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    <option value="Athfal">Pandu Athfal (SD/MI)</option>
+                    <option value="Pengenal">Pandu Pengenal (SMP/MTs)</option>
+                    <option value="Penghela">Pandu Penghela (SMA/SMK/MA)</option>
+                    <option value="Penuntun">Pandu Penuntun (PTMA / Dewasa Muda)</option>
+                    <option value="Pembina">Pembina Satuan HW</option>
+                    <option value="Pelatih">Pelatih / Pimpinan Kwarda</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Kualifikasi Pelatih (MoT)
+                  </label>
+                  <select
+                    value={pelatihanForm.kualifikasiPelatih}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, kualifikasiPelatih: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    <option value="Pelatih Pratama">Pelatih Pratama (Lulusan JM 1)</option>
+                    <option value="Pelatih Madya">Pelatih Madya (Lulusan JM 2)</option>
+                    <option value="Pelatih Utama">Pelatih Utama (Lulusan Jaya Matahari)</option>
+                    <option value="Master of Training">Master of Training (MoT) Wilayah</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Status Pendaftaran Diklat
+                  </label>
+                  <select
+                    value={pelatihanForm.status}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, status: e.target.value as any }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                  >
+                    <option value="Buka">Buka (Pendaftaran Aktif)</option>
+                    <option value="Berjalan">Sedang Berjalan</option>
+                    <option value="Selesai">Selesai</option>
+                    <option value="Tutup">Tutup (Pendaftaran Ditutup)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Jadwal, Lokasi & Kuota */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Jadwal / Tanggal Pelatihan
+                  </label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.tanggalPelatihan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, tanggalPelatihan: e.target.value }))}
+                    placeholder="Contoh: 22-23 Agust & 11-13 Sept 2026"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Tempat / Lokasi Diklat
+                  </label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.lokasiPelatihan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, lokasiPelatihan: e.target.value }))}
+                    placeholder="Contoh: Pusdiklat Delingan"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Kuota Peserta
+                  </label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.kuota}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, kuota: e.target.value }))}
+                    placeholder="Contoh: 40 Peserta"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800"
+                  />
+                </div>
+              </div>
+
+              {/* Tim Pelatih & Pendamping */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Tim Pelatih / Instruktur (MoT)
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(pelatihanForm.pelatih) ? pelatihanForm.pelatih.join(', ') : pelatihanForm.pelatih}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, pelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                    placeholder="Pisahkan koma: Ramanda Sugiyono, Ramanda Ahmad"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    Asisten Pelatih / Pendamping Diklat
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(pelatihanForm.asistenPelatih) ? pelatihanForm.asistenPelatih.join(', ') : pelatihanForm.asistenPelatih}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, asistenPelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                    placeholder="Pisahkan koma: Bunda Siti, Kak Irfan"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+              </div>
+
+              {/* Biaya, Rekening & Kontak */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Biaya Investasi Diklat</label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.biayaPelatihan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, biayaPelatihan: e.target.value }))}
+                    placeholder="Contoh: Rp 150.000 / peserta"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Rekening Pembayaran</label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.rekeningPembiayaan}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, rekeningPembiayaan: e.target.value }))}
+                    placeholder="Bank BSI 7307427448 a.n. Kwarwil HW Jateng"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">No. WhatsApp Panitia</label>
+                  <input
+                    type="text"
+                    value={pelatihanForm.noWhatsappPanitia}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, noWhatsappPanitia: e.target.value }))}
+                    placeholder="089688754000"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+              </div>
+
+              {/* Persyaratan Peserta Diklat */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  Persyaratan & Ketentuan Pendaftaran Diklat
+                </label>
+                <textarea
+                  rows={3}
+                  value={pelatihanForm.persyaratan}
+                  onChange={(e) => setPelatihanForm(f => ({ ...f, persyaratan: e.target.value }))}
+                  placeholder="1. Memiliki KTA HW Digital aktif&#10;2. Surat Rekomendasi/Tugas Kwarda atau Qabilah&#10;3. Berpakaian seragam resmi Hizbul Wathan lengkap"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                />
+              </div>
+
+              {/* Kurikulum & Deskripsi */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  Deskripsi, Kurikulum & Tujuan Pelatihan
+                </label>
+                <textarea
+                  rows={3}
+                  value={pelatihanForm.deskripsi}
+                  onChange={(e) => setPelatihanForm(f => ({ ...f, deskripsi: e.target.value }))}
+                  placeholder="Jelaskan kompetensi kelulusan diklat, silabus materi utama, dan target capaian peserta..."
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                />
+              </div>
+
+              {/* Berkas Silabus & Banner Poster */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Silabus / Juklak Diklat (Drive)</label>
+                  <input
+                    type="url"
+                    value={pelatihanForm.proposalUrl}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, proposalUrl: e.target.value }))}
+                    placeholder="https://drive.google.com/... juklak diklat"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Link Banner / Poster Resmi Pelatihan</label>
+                  <input
+                    type="url"
+                    value={pelatihanForm.gambarUrl}
+                    onChange={(e) => setPelatihanForm(f => ({ ...f, gambarUrl: e.target.value }))}
+                    placeholder="https://... URL gambar poster resmi"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPelatihanModalOpen(false);
+                  setEditingPelatihanId(null);
+                }}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingPelatihan}
+                className="px-6 py-2.5 bg-hw-green hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-hw-green/20 flex items-center gap-2 cursor-pointer"
+              >
+                {isSavingPelatihan ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan Program Pelatihan'
                 )}
               </button>
             </div>
