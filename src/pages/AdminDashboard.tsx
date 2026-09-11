@@ -238,7 +238,9 @@ import {
   Building2,
   ExternalLink,
   Link as LinkIcon,
-  Tag
+  Tag,
+  Mic,
+  Volume2
 } from 'lucide-react';
 import KwardaPtmaPage from './KwardaPtmaPage';
 import ProfilePage from './ProfilePage';
@@ -327,18 +329,18 @@ const ROLE_LABELS: Record<string, string> = {
   umum: 'Umum'
 };
 
-const ROLE_OPTIONS: { key: string; label: string }[] = [
-  { key: 'superadmin', label: 'Super Admin' },
-  { key: 'admin', label: 'Admin Petugas' },
-  { key: 'diklat', label: 'Admin Pelatih' },
-  { key: 'kwarda', label: 'Kwarda HW' },
-  { key: 'umum', label: 'Umum' },
-  { key: 'sugli', label: 'Dewan Sugli' },
-  { key: 'jati1', label: 'Jaya Melati 1' },
-  { key: 'jati2', label: 'Jaya Melati 2' },
-  { key: 'jari1', label: 'Jaya Matahari 1' },
-  { key: 'jari2', label: 'Jaya Matahari 2' },
-  { key: 'jawi', label: 'Jaya Pertiwi' }
+const ROLE_OPTIONS: { key: string; value: string; label: string }[] = [
+  { key: 'superadmin', value: 'superadmin', label: 'Super Admin' },
+  { key: 'admin', value: 'admin', label: 'Admin Petugas' },
+  { key: 'diklat', value: 'diklat', label: 'Admin Pelatih' },
+  { key: 'kwarda', value: 'kwarda', label: 'Kwarda HW' },
+  { key: 'umum', value: 'umum', label: 'Umum' },
+  { key: 'sugli', value: 'sugli', label: 'Dewan Sugli' },
+  { key: 'jati1', value: 'jati1', label: 'Jaya Melati 1' },
+  { key: 'jati2', value: 'jati2', label: 'Jaya Melati 2' },
+  { key: 'jari1', value: 'jari1', label: 'Jaya Matahari 1' },
+  { key: 'jari2', value: 'jari2', label: 'Jaya Matahari 2' },
+  { key: 'jawi', value: 'jawi', label: 'Jaya Pertiwi' }
 ];
 
 const truncateText = (text: string, maxLen: number): string => {
@@ -744,6 +746,8 @@ export default function AdminDashboard() {
   const [contentList, setContentList] = useState<Content[]>([]);
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
+  const [selectedLyricsTrack, setSelectedLyricsTrack] = useState<{ title: string; lyrics: string; creator?: string; vocalist?: string } | null>(null);
+  const [playlistSearchQuery, setPlaylistSearchQuery] = useState('');
   const [contentFormData, setContentFormData] = useState({
     field1: '',
     field2: '',
@@ -751,6 +755,99 @@ export default function AdminDashboard() {
     field4: '',
     field5: ''
   });
+
+  // Comprehensive playlist merger that aggregates defaults, local storage, and server contents
+  const getAllPlaylistTracks = useCallback((rawContents: Content[]): Content[] => {
+    const mockList = sheetsService.getMockContents ? sheetsService.getMockContents().filter(c => isContentSectionMatch(c.section, 'playlist')) : [];
+    const fromContents = (rawContents || []).filter(c => isContentSectionMatch(c.section, 'playlist') || !!(c as any).audioUrl);
+    
+    let fromLocal: any[] = [];
+    try {
+      const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+      if (plStored) {
+        const parsed = JSON.parse(plStored);
+        if (Array.isArray(parsed)) fromLocal = parsed;
+      }
+    } catch (e) {}
+
+    const all = [...mockList, ...fromLocal, ...fromContents];
+    const dedupMap = new Map<string, Content>();
+
+    all.forEach((item: any) => {
+      if (!item) return;
+      const meta = resolveTrackMetadata(item);
+      const title = (meta.title || item.field2 || item.judul || item.title || '').trim();
+      if (!title || title.toLowerCase() === 'judul lagu' || title === '-') return;
+
+      const normTitleKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const idKey = String(item.id || '').trim().toLowerCase();
+
+      let targetKey = idKey || normTitleKey;
+      for (const [k, v] of dedupMap.entries()) {
+        const vTitle = (v.field2 || (v as any).judul || (v as any).title || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (vTitle === normTitleKey || (idKey && String(v.id).toLowerCase() === idKey)) {
+          targetKey = k;
+          break;
+        }
+      }
+
+      const existing = dedupMap.get(targetKey);
+      const creator = item.field3 || (item as any).pencipta || (item as any).creator || meta.creator || 'Muhammad Dzikron';
+      const vocalist = item.field4 || (item as any).vokalis || (item as any).vocalist || meta.vocalist || 'Paduan Suara HW';
+      const lyrics = item.field5 || (item as any).lirik || (item as any).lyrics || (meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? meta.lyrics : '') || '';
+      const audioUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || meta.audioUrl || '';
+
+      const merged: Content = {
+        ...(existing || {}),
+        ...item,
+        id: item.id || (existing ? existing.id : `playlist-${targetKey}`),
+        section: 'playlist',
+        type: 'list',
+        field1: audioUrl || (existing ? existing.field1 : ''),
+        field2: title,
+        field3: creator,
+        field4: vocalist,
+        field5: lyrics || (existing ? existing.field5 : ''),
+        judul: title,
+        title: title,
+        pencipta: creator,
+        creator: creator,
+        vokalis: vocalist,
+        vocalist: vocalist,
+        audioUrl: audioUrl || (existing ? (existing as any).audioUrl : ''),
+        audiourl: audioUrl || (existing ? (existing as any).audiourl : ''),
+        lirik: lyrics || (existing ? (existing as any).lirik : ''),
+        lyrics: lyrics || (existing ? (existing as any).lyrics : ''),
+      };
+
+      dedupMap.set(targetKey, merged);
+    });
+
+    const result = Array.from(dedupMap.values());
+    return result.sort((a, b) => {
+      const tA = (a.field2 || a.judul || a.title || '').toString().toLowerCase();
+      const tB = (b.field2 || b.judul || b.title || '').toString().toLowerCase();
+      if (tA === 'sahabat hw' || tA.includes('sahabat')) return -1;
+      if (tB === 'sahabat hw' || tB.includes('sahabat')) return 1;
+      return 0;
+    });
+  }, []);
+
+  const filteredPlaylist = useMemo(() => {
+    if (selectedContentSection !== 'playlist') return contentList;
+    if (!playlistSearchQuery.trim()) return contentList;
+    const q = playlistSearchQuery.toLowerCase();
+    return contentList.filter(item => {
+      const meta = resolveTrackMetadata(item);
+      return (
+        meta.title.toLowerCase().includes(q) ||
+        meta.creator.toLowerCase().includes(q) ||
+        meta.vocalist.toLowerCase().includes(q) ||
+        meta.lyrics.toLowerCase().includes(q) ||
+        (meta.category && meta.category.toLowerCase().includes(q))
+      );
+    });
+  }, [selectedContentSection, contentList, playlistSearchQuery]);
 
   const [passwordFormData, setPasswordFormData] = useState({
     currentPassword: '',
@@ -1882,8 +1979,15 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingKtaApp) return;
     try {
+      const rawRoles = parseRolesField(editingKtaApp.roles, editingKtaApp.role || editingKtaApp.tingkatan);
+      const rawPelatihan = editingKtaApp.pelatihan || [];
+      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan, editingKtaApp.role);
+
       const appToSave = {
         ...editingKtaApp,
+        role: synced.primaryRole,
+        roles: synced.roles,
+        pelatihan: synced.pelatihan,
         nama: (editingKtaApp.nama || editingKtaApp.namaLengkap || '').trim(),
         namaLengkap: (editingKtaApp.nama || editingKtaApp.namaLengkap || '').trim(),
         ktaNumber: (editingKtaApp.ktaNumber || editingKtaApp.nomorKTA || '').trim(),
@@ -1920,11 +2024,16 @@ export default function AdminDashboard() {
       (async () => {
         setBackgroundProcessingText('Menyimpan revisi data KTA di latar belakang...');
         try {
-          await sheetsService.saveKTAApplication(appToSave);
-          if (appToSave.email || appToSave.userId) {
+          await Promise.all([
+            sheetsService.saveKTAApplication(appToSave).catch(err => console.error("Sync sheets KTA error:", err)),
+            firestoreService.saveKTAApplication(appToSave).catch(err => console.error("Sync firestore KTA error:", err))
+          ]);
+
+          if (appToSave.email || appToSave.userId || appToSave.ktaNumber) {
             const matchingMember = members.find(m => 
               (appToSave.userId && m.id === appToSave.userId) || 
-              (m.email && appToSave.email && m.email.toLowerCase().trim() === appToSave.email.toLowerCase().trim())
+              (m.email && appToSave.email && m.email.toLowerCase().trim() === appToSave.email.toLowerCase().trim()) ||
+              (appToSave.ktaNumber && (m.ktaNumber === appToSave.ktaNumber || m.nomorKTA === appToSave.ktaNumber))
             );
             if (matchingMember) {
               const updatedMember = {
@@ -1943,9 +2052,37 @@ export default function AdminDashboard() {
                 nomorKTA: appToSave.ktaNumber,
                 noHp: appToSave.noWa,
                 noWa: appToSave.noWa,
+                role: synced.primaryRole,
+                roles: synced.roles,
+                activeRole: synced.primaryRole,
+                pelatihan: synced.pelatihan,
+                isVerified: appToSave.status === 'approved',
+                statusAktivasi: appToSave.status === 'approved' ? 'Aktif' : (matchingMember.statusAktivasi || 'Belum Aktif'),
+                statusPembayaran: appToSave.status === 'approved' ? 'Lunas' : (matchingMember.statusPembayaran || 'Belum Bayar'),
                 ...(appToSave.photo ? { photo: appToSave.photo, foto: appToSave.photo } : {})
               };
-              await sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err));
+
+              // Persist locally in member_custom_edits
+              try {
+                const stored = localStorage.getItem('member_custom_edits') || '{}';
+                const parsed = JSON.parse(stored);
+                parsed[updatedMember.id] = updatedMember;
+                if (updatedMember.email) parsed[updatedMember.email.toLowerCase().trim()] = updatedMember;
+                if (updatedMember.ktaNumber) parsed[updatedMember.ktaNumber.trim()] = updatedMember;
+                localStorage.setItem('member_custom_edits', JSON.stringify(parsed));
+              } catch (e) {}
+
+              // Update state optimistically
+              setMembers(prev => prev.map(m => (m.id === updatedMember.id || (m.email && updatedMember.email && m.email.toLowerCase().trim() === updatedMember.email.toLowerCase().trim())) ? updatedMember : m));
+
+              if (user && (user.id === updatedMember.id || (user.email && updatedMember.email && user.email.toLowerCase().trim() === updatedMember.email.toLowerCase().trim()))) {
+                useAuthStore.getState().updateUser(updatedMember as Partial<User>);
+              }
+
+              await Promise.all([
+                sheetsService.saveMember(updatedMember).catch(err => console.error("Sync member error:", err)),
+                firestoreService.saveMember(updatedMember as User).catch(err => console.error("Sync firestore member error:", err))
+              ]);
             }
           }
           const [ktaData, membersData] = await Promise.all([
@@ -3417,7 +3554,11 @@ export default function AdminDashboard() {
         setContents(freshContents);
         if (selectedContentSectionRef.current) {
           const target = selectedContentSectionRef.current;
-          setContentList(freshContents.filter(c => isContentSectionMatch(c.section, target)));
+          if (target === 'playlist') {
+            setContentList(getAllPlaylistTracks(freshContents));
+          } else {
+            setContentList(freshContents.filter(c => isContentSectionMatch(c.section, target)));
+          }
         }
       }
     });
@@ -3455,7 +3596,23 @@ export default function AdminDashboard() {
 
   const handleSelectSection = (section: string) => {
     setSelectedContentSection(section);
-    setContentList(contents.filter(c => isContentSectionMatch(c.section, section)));
+    if (section === 'playlist') {
+      setContentList(getAllPlaylistTracks(contents));
+      sheetsService.getContents('playlist').then(fresh => {
+        if (fresh && fresh.length > 0) {
+          setContents(prev => {
+            const mergedMap = new Map<string, Content>();
+            prev.forEach(p => mergedMap.set(String(p.id), p));
+            fresh.forEach(f => mergedMap.set(String(f.id), { ...mergedMap.get(String(f.id)), ...f }));
+            const merged = Array.from(mergedMap.values());
+            setContentList(getAllPlaylistTracks(merged));
+            return merged;
+          });
+        }
+      }).catch(() => {});
+    } else {
+      setContentList(contents.filter(c => isContentSectionMatch(c.section, section)));
+    }
   };
 
   const handleOpenContentModal = (content?: Content) => {
@@ -3469,7 +3626,7 @@ export default function AdminDashboard() {
           field1: content.field1 || (content as any).audioUrl || (content as any).audiourl || (resolved ? resolved.audioUrl : '') || '',
           field2: content.field2 || (content as any).judul || (content as any).title || (resolved ? resolved.title : '') || '',
           field3: content.field3 || (content as any).pencipta || (content as any).creator || (resolved && resolved.creator && resolved.creator !== 'Pandu Hizbul Wathan' ? resolved.creator : '') || '',
-          field4: content.field4 || '',
+          field4: content.field4 || (content as any).vokalis || (content as any).vocalist || (resolved ? resolved.vocalist : '') || '',
           field5: content.field5 || content.lyrics || (content as any).lirik || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
         });
       } else if (isGal) {
@@ -3495,8 +3652,8 @@ export default function AdminDashboard() {
       setContentFormData({
         field1: '',
         field2: '',
-        field3: selectedContentSection === 'galeri' ? 'Galeri HW' : '',
-        field4: '',
+        field3: selectedContentSection === 'galeri' ? 'Galeri HW' : (selectedContentSection === 'playlist' ? 'Muhammad Dzikron' : ''),
+        field4: selectedContentSection === 'playlist' ? 'Kak Dzikron & Sahabat Pandu' : '',
         field5: ''
       });
     }
@@ -3559,10 +3716,15 @@ export default function AdminDashboard() {
         if (isPl) {
           payload.audioUrl = f1;
           payload.audiourl = f1;
-          payload.pencipta = f3 || 'Pandu Hizbul Wathan';
-          payload.creator = f3 || 'Pandu Hizbul Wathan';
+          payload.pencipta = f3 || 'Muhammad Dzikron';
+          payload.creator = f3 || 'Muhammad Dzikron';
+          payload.field3 = f3 || 'Muhammad Dzikron';
+          payload.vokalis = f4 || 'Paduan Suara HW';
+          payload.vocalist = f4 || 'Paduan Suara HW';
+          payload.field4 = f4 || 'Paduan Suara HW';
           payload.lirik = f5;
           payload.lyrics = f5;
+          payload.field5 = f5;
         }
 
         if (isGal) {
@@ -3589,7 +3751,7 @@ export default function AdminDashboard() {
 
         // Optimistic update
         setContents(prev => {
-          const idx = prev.findIndex(c => c.id === payload.id);
+          const idx = prev.findIndex(c => c.id === payload.id || (isPl && ((c.field2 || (c as any).judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase())));
           if (idx >= 0) {
             const next = [...prev];
             next[idx] = payload;
@@ -3598,7 +3760,7 @@ export default function AdminDashboard() {
           return [payload, ...prev];
         });
         setContentList(prev => {
-          const idx = prev.findIndex(c => c.id === payload.id);
+          const idx = prev.findIndex(c => c.id === payload.id || (isPl && ((c.field2 || (c as any).judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase())));
           if (idx >= 0) {
             const next = [...prev];
             next[idx] = payload;
@@ -3606,6 +3768,21 @@ export default function AdminDashboard() {
           }
           return [payload, ...prev];
         });
+
+        // Store immediately to localStorage for playlist resilience
+        if (isPl) {
+          try {
+            const plStored = localStorage.getItem('hw_playlist') || '[]';
+            const parsedPl = JSON.parse(plStored);
+            if (Array.isArray(parsedPl)) {
+              const pIdx = parsedPl.findIndex((x: any) => x.id === payload.id || ((x.field2 || x.judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase()));
+              if (pIdx >= 0) parsedPl[pIdx] = payload;
+              else parsedPl.unshift(payload);
+              localStorage.setItem('hw_playlist', JSON.stringify(parsedPl));
+            }
+          } catch (e) {}
+        }
+
         setIsContentModalOpen(false);
         showToast('success', editingContent ? 'Konten berhasil diperbarui!' : 'Konten baru berhasil disimpan!');
 
@@ -3623,10 +3800,17 @@ export default function AdminDashboard() {
           setBackgroundProcessingText('Menyimpan konten...');
           try {
             await sheetsService.saveContent(payload);
+            if (isPl) {
+              await sheetsService.savePlaylistItem(payload);
+            }
             const allContents = await sheetsService.getContents();
             if (allContents) {
               setContents(allContents);
-              setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
+              if (isPl) {
+                setContentList(getAllPlaylistTracks(allContents));
+              } else {
+                setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
+              }
             }
           } finally {
             setBackgroundProcessingText(null);
@@ -3641,9 +3825,19 @@ export default function AdminDashboard() {
   const handleDeleteContent = async (id: string) => {
     if (confirm('Yakin ingin menghapus konten ini?')) {
       try {
+        const isPl = selectedContentSection === 'playlist';
         // Optimistic update
         setContents(prev => prev.filter(c => c.id !== id));
         setContentList(prev => prev.filter(c => c.id !== id));
+        if (isPl) {
+          try {
+            const storedPl = localStorage.getItem('hw_playlist') || '[]';
+            const parsed = JSON.parse(storedPl);
+            if (Array.isArray(parsed)) {
+              localStorage.setItem('hw_playlist', JSON.stringify(parsed.filter((x: any) => x.id !== id)));
+            }
+          } catch (e) {}
+        }
         showToast('success', 'Konten berhasil dihapus!');
 
         // Background delete
@@ -3654,7 +3848,11 @@ export default function AdminDashboard() {
             const allContents = await sheetsService.getContents();
             if (allContents) {
               setContents(allContents);
-              setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
+              if (isPl) {
+                setContentList(getAllPlaylistTracks(allContents));
+              } else {
+                setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
+              }
             }
           } finally {
             setBackgroundProcessingText(null);
@@ -4000,8 +4198,13 @@ export default function AdminDashboard() {
             ktaNumber: cleanKtaNumber || formData.ktaNumber || matchingKta?.ktaNumber || payload.ktaNumber || '',
             nomorKTA: cleanKtaNumber || formData.ktaNumber || matchingKta?.nomorKTA || payload.nomorKTA || '',
             nbm: cleanKtaNumber || formData.ktaNumber || matchingKta?.nbm || payload.nbm || '',
-            verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : '')
+            verifiedAt: matchingKta?.verifiedAt || (payload.isVerified ? new Date().toLocaleDateString('id-ID') : ''),
+            role: primaryRole,
+            roles: synced.roles && synced.roles.length > 0 ? synced.roles : [primaryRole],
+            pelatihan: synced.pelatihan
           };
+
+          setKtaApps(prev => prev.map(k => (k.id === ktaPayload.id || (k.email && ktaPayload.email && k.email.toLowerCase().trim() === ktaPayload.email.toLowerCase().trim())) ? { ...k, ...ktaPayload } : k));
 
           await Promise.all([
             sheetsService.saveMember(payload).catch(e => console.warn("Sheets saveMember warning:", e)),
@@ -5964,108 +6167,197 @@ export default function AdminDashboard() {
                              )}
                            </div>
                         ) : selectedContentSection === 'playlist' ? (
-                          /* DEDICATED PLAYLIST TABLE VIEW */
-                          <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-2xs">
-                            <table className="w-full text-left text-xs text-gray-700 border-collapse">
-                              <thead className="bg-gray-50/90 text-[10px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-200 select-none">
-                                <tr>
-                                  <th className="py-3.5 px-3.5 w-12 text-center">No</th>
-                                  <th className="py-3.5 px-4 min-w-[200px]">Judul Lagu</th>
-                                  <th className="py-3.5 px-4 min-w-[160px]">Pencipta Lagu</th>
-                                  <th className="py-3.5 px-4 min-w-[240px]">Lirik Lagu</th>
-                                  <th className="py-3.5 px-4 min-w-[180px]">Link Audio</th>
-                                  <th className="py-3.5 px-4 w-28 text-center">Aksi</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100">
-                                {(Array.isArray(contentList) ? contentList : []).map((item, i) => {
+                          /* DEDICATED RESPONSIVE PLAYLIST CARDS VIEW (NO HORIZONTAL SCROLL) */
+                          <div className="space-y-4">
+                            {/* Search & Filter Bar */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-200">
+                              <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Cari judul lagu, pencipta, vokalis, atau lirik..."
+                                  value={playlistSearchQuery}
+                                  onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                                  className="w-full pl-10 pr-9 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:border-emerald-600 outline-none text-gray-800 placeholder-gray-400 transition-all"
+                                />
+                                {playlistSearchQuery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPlaylistSearchQuery('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between sm:justify-end gap-2 text-xs">
+                                <span className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl font-bold text-gray-600 text-[11px] whitespace-nowrap shadow-2xs">
+                                  Menampilkan {filteredPlaylist.length} Lagu
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenContentModal()}
+                                  className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                                >
+                                  <Plus size={14} /> Tambah Lagu
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Responsive Card Grid */}
+                            {filteredPlaylist.length === 0 ? (
+                              <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                <Music size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-xs font-bold text-gray-600">Tidak ada lagu yang cocok dengan pencarian &quot;{playlistSearchQuery}&quot;</p>
+                                <button
+                                  type="button"
+                                  onClick={() => setPlaylistSearchQuery('')}
+                                  className="mt-2 text-xs font-bold text-emerald-700 hover:underline"
+                                >
+                                  Reset Pencarian
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {filteredPlaylist.map((item, i) => {
                                   const meta = resolveTrackMetadata(item);
-                                  const songUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || '';
+                                  const songUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || meta.audioUrl || '';
                                   const isDrive = songUrl.includes('drive.google.com');
+                                  const creatorName = item.field3 || (item as any).pencipta || (item as any).creator || meta.creator || 'Muhammad Dzikron';
+                                  const vocalistName = item.field4 || (item as any).vokalis || (item as any).vocalist || meta.vocalist || 'Paduan Suara HW';
+                                  const rawLyrics = item.field5 || (item as any).lirik || (item as any).lyrics || meta.lyrics || '';
+                                  const hasLyrics = rawLyrics && !rawLyrics.includes('Lirik lagu belum tersedia');
 
                                   return (
-                                    <tr key={`playlist-admin-row-${item.id || i}`} className="hover:bg-emerald-50/30 transition-colors">
-                                      <td className="py-3.5 px-3.5 text-center font-mono font-bold text-gray-400">
-                                        #{i + 1}
-                                      </td>
-                                      <td className="py-3.5 px-4 font-bold text-gray-900">
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black shrink-0 shadow-2xs">
+                                    <div
+                                      key={`playlist-admin-card-${item.id || i}`}
+                                      className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs hover:shadow-md hover:border-emerald-200 transition-all flex flex-col justify-between group"
+                                    >
+                                      {/* Top Header: Badge & Actions */}
+                                      <div>
+                                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-800 text-[10px] font-black font-mono flex items-center justify-center border border-emerald-200/60 shrink-0">
+                                              #{i + 1}
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-bold truncate max-w-[150px]">
+                                              {meta.category || 'Lagu Pandu HW'}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenContentModal(item)}
+                                              className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                              title="Edit Lagu Ini"
+                                            >
+                                              <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteContent(item.id)}
+                                              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                              title="Hapus Lagu Ini"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Title */}
+                                        <div className="flex items-start gap-2.5 mb-3">
+                                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                                             <Music size={16} />
                                           </div>
-                                          <div className="min-w-0">
-                                            <p className="font-bold text-gray-900 text-xs sm:text-sm uppercase tracking-tight truncate">
+                                          <div className="min-w-0 flex-1">
+                                            <h4 className="font-bold text-gray-900 text-sm leading-tight group-hover:text-emerald-800 transition-colors">
                                               {meta.title}
-                                            </p>
-                                            <span className="text-[10px] text-gray-400 font-medium">
-                                              {meta.category}
-                                            </span>
+                                            </h4>
                                           </div>
                                         </div>
-                                      </td>
-                                      <td className="py-3.5 px-4 align-top">
-                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-bold text-xs">
-                                          <UserIcon size={12} className="text-emerald-700 shrink-0" />
-                                          <span className="truncate">{meta.creator || 'Muhammad Dzikron'}</span>
-                                        </div>
-                                      </td>
-                                      <td className="py-3.5 px-4 align-top">
-                                        {meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? (
-                                          <div className="space-y-0.5 max-w-xs">
-                                            <p className="text-[11px] text-gray-600 line-clamp-2 italic font-sans leading-relaxed">
-                                              &quot;{meta.lyrics.substring(0, 80)}...&quot;
-                                            </p>
-                                            <span className="text-[9px] font-bold text-emerald-700 block">
-                                              ✓ {meta.lyrics.length} karakter lirik
-                                            </span>
+
+                                        {/* Creator & Vocalist Badges */}
+                                        <div className="space-y-1.5 mb-3">
+                                          <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-emerald-50/70 px-2.5 py-1 rounded-xl border border-emerald-100">
+                                            <UserIcon size={12} className="text-emerald-700 shrink-0" />
+                                            <span className="text-[10px] font-medium text-gray-400">Pencipta:</span>
+                                            <span className="font-bold text-emerald-900 truncate">{creatorName}</span>
                                           </div>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 italic">
-                                            <AlertCircle size={12} /> Lirik belum diisi
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="py-3.5 px-4 align-top">
-                                        <div className="space-y-0.5 max-w-[200px]">
-                                          <a
-                                            href={songUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-[11px] font-mono text-blue-600 hover:underline truncate block"
-                                            title={songUrl}
-                                          >
-                                            {songUrl ? (songUrl.length > 25 ? songUrl.substring(0, 25) + '...' : songUrl) : '-'}
-                                          </a>
-                                          <span className="text-[9px] text-gray-400 font-medium block">
-                                            {isDrive ? 'Google Drive' : (songUrl.endsWith('.mp3') ? 'Direct MP3' : 'Audio URL')}
-                                          </span>
+                                          <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-teal-50/70 px-2.5 py-1 rounded-xl border border-teal-100">
+                                            <Mic size={12} className="text-teal-700 shrink-0" />
+                                            <span className="text-[10px] font-medium text-gray-400">Vokalis:</span>
+                                            <span className="font-bold text-teal-900 truncate">{vocalistName}</span>
+                                          </div>
                                         </div>
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center align-middle">
-                                        <div className="flex items-center justify-center gap-1.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenContentModal(item)}
-                                            className="p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
-                                            title="Edit Judul, Pencipta, Link, & Lirik"
-                                          >
-                                            <Edit2 size={15} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteContent(item.id)}
-                                            className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                                            title="Hapus Lagu"
-                                          >
-                                            <Trash2 size={15} />
-                                          </button>
+
+                                        {/* Lyrics Preview */}
+                                        <div className="mb-3 bg-gray-50 rounded-xl p-2.5 border border-gray-150">
+                                          <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold mb-1">
+                                            <span>LIRIK LAGU</span>
+                                            {hasLyrics ? (
+                                              <span className="text-emerald-700 font-semibold">{rawLyrics.length} karakter</span>
+                                            ) : (
+                                              <span className="text-amber-600 font-semibold">Belum diisi</span>
+                                            )}
+                                          </div>
+                                          {hasLyrics ? (
+                                            <p className="text-[11px] text-gray-600 line-clamp-3 italic font-sans leading-relaxed">
+                                              &quot;{rawLyrics.substring(0, 110)}...&quot;
+                                            </p>
+                                          ) : (
+                                            <p className="text-[11px] text-gray-400 italic">
+                                              Lirik belum ditambahkan untuk lagu ini.
+                                            </p>
+                                          )}
+                                          {hasLyrics && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setSelectedLyricsTrack({
+                                                title: meta.title,
+                                                lyrics: rawLyrics,
+                                                creator: creatorName,
+                                                vocalist: vocalistName
+                                              })}
+                                              className="mt-1.5 text-[10px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer"
+                                            >
+                                              Lihat Lirik Lengkap →
+                                            </button>
+                                          )}
                                         </div>
-                                      </td>
-                                    </tr>
+                                      </div>
+
+                                      {/* Bottom: Audio Link & Action Buttons */}
+                                      <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                                        <div className="min-w-0 flex-1">
+                                          {songUrl ? (
+                                            <a
+                                              href={songUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[11px] text-emerald-700 hover:text-emerald-900 font-mono truncate flex items-center gap-1 hover:underline"
+                                              title={songUrl}
+                                            >
+                                              <Volume2 size={12} className="shrink-0" />
+                                              <span className="truncate">{isDrive ? 'Google Drive Audio' : 'Buka Link Audio'}</span>
+                                              <ExternalLink size={10} className="shrink-0 text-gray-400" />
+                                            </a>
+                                          ) : (
+                                            <span className="text-[10px] text-gray-400 italic">Link audio kosong</span>
+                                          )}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenContentModal(item)}
+                                          className="px-2.5 py-1 bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0"
+                                        >
+                                          Edit
+                                        </button>
+                                      </div>
+                                    </div>
                                   );
                                 })}
-                              </tbody>
-                            </table>
+                              </div>
+                            )}
                           </div>
                         ) : selectedContentSection === 'galeri' ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -7427,6 +7719,15 @@ export default function AdminDashboard() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        const matchingMember = members.find(m => 
+                                          (app.userId && m.id === app.userId) || 
+                                          (m.email && app.email && m.email.toLowerCase().trim() === app.email.toLowerCase().trim()) ||
+                                          (app.ktaNumber && (m.ktaNumber === app.ktaNumber || m.nomorKTA === app.ktaNumber))
+                                        );
+                                        const rawRoles = parseRolesField(app.roles || matchingMember?.roles, app.role || matchingMember?.role || app.tingkatan);
+                                        const rawPelatihan = app.pelatihan || matchingMember?.pelatihan || [];
+                                        const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan, app.role || matchingMember?.role);
+
                                         setEditingKtaApp({
                                           ...app,
                                           nama: app.nama || app.namaLengkap || '',
@@ -7445,7 +7746,10 @@ export default function AdminDashboard() {
                                           status: app.status || 'approved',
                                           photo: app.photo || app.foto || '',
                                           nbm: app.nbm || '',
-                                          remark: app.remark || app.rejectionReason || ''
+                                          remark: app.remark || app.rejectionReason || '',
+                                          role: matchingMember?.role || app.role || synced.primaryRole,
+                                          roles: synced.roles,
+                                          pelatihan: synced.pelatihan
                                         });
                                         setEditModalSide('front');
                                         setIsEditKtaModalOpen(true);
@@ -11475,7 +11779,125 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* SEKSI 6: Catatan Revisi / Keterangan Penolakan */}
+                {/* SEKSI 6: Role & Hak Akses (Akses Materi & Pelatihan Saling Sinkron) */}
+                <div className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-emerald-900 uppercase tracking-wider">
+                      <Shield size={14} className="text-emerald-700" />
+                      <span>Role & Hak Akses Materi (Saling Sinkron)</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-200">
+                      Otomatis Sinkron
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Role Utama (Tampilan & Akses Utama)
+                      </label>
+                      <select
+                        value={editingKtaApp.role || 'umum'}
+                        onChange={(e) => {
+                          const newPrimaryRole = e.target.value;
+                          const currentRoles = Array.isArray(editingKtaApp.roles) ? editingKtaApp.roles : [editingKtaApp.role || 'umum'];
+                          const updatedRoles = Array.from(new Set([...currentRoles, newPrimaryRole]));
+                          const synced = syncRolesAndPelatihan(updatedRoles, editingKtaApp.pelatihan || [], newPrimaryRole);
+                          setEditingKtaApp((p: any) => ({
+                            ...p,
+                            role: synced.primaryRole,
+                            roles: synced.roles,
+                            pelatihan: synced.pelatihan
+                          }));
+                        }}
+                        className="w-full p-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-300 outline-none"
+                      >
+                        {ROLE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Golongan / Tingkatan HW
+                      </label>
+                      <select
+                        value={editingKtaApp.tingkatan || editingKtaApp.golongan || 'Pandu Pengenal'}
+                        onChange={(e) => setEditingKtaApp((p: any) => ({ ...p, tingkatan: e.target.value, golongan: e.target.value }))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-300 outline-none"
+                      >
+                        <option value="Pandu Athfal">Pandu Athfal</option>
+                        <option value="Pandu Pengenal">Pandu Pengenal</option>
+                        <option value="Pandu Penghela">Pandu Penghela</option>
+                        <option value="Pandu Penuntun">Pandu Penuntun</option>
+                        <option value="Pelatih">Pelatih</option>
+                        <option value="Pembina">Pembina</option>
+                        <option value="Dewasa">Dewasa / Pimpinan</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1.5">
+                      Pilihan Hak Akses & Kualifikasi (Multi-Role):
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ROLE_OPTIONS.map((opt) => {
+                        const isChecked = Array.isArray(editingKtaApp.roles)
+                          ? editingKtaApp.roles.includes(opt.value)
+                          : editingKtaApp.role === opt.value;
+                        return (
+                          <button
+                            type="button"
+                            key={opt.value}
+                            onClick={() => {
+                              const currentRoles = Array.isArray(editingKtaApp.roles) ? [...editingKtaApp.roles] : [editingKtaApp.role || 'umum'];
+                              let nextRoles: string[];
+                              if (isChecked) {
+                                nextRoles = currentRoles.filter(r => r !== opt.value);
+                                if (nextRoles.length === 0) nextRoles = ['umum'];
+                              } else {
+                                nextRoles = Array.from(new Set([...currentRoles, opt.value]));
+                              }
+                              const synced = syncRolesAndPelatihan(nextRoles, editingKtaApp.pelatihan || [], editingKtaApp.role);
+                              setEditingKtaApp((p: any) => ({
+                                ...p,
+                                role: synced.primaryRole,
+                                roles: synced.roles,
+                                pelatihan: synced.pelatihan
+                              }));
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                              isChecked
+                                ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isChecked ? 'bg-amber-300' : 'bg-gray-300'}`} />
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Info Akses Materi yang Terbuka */}
+                  <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 text-[10px] text-gray-600">
+                    <span className="font-bold text-emerald-900 block mb-1">Materi & Fitur yang Dapat Diakses Anggota:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {['umum', ...(Array.isArray(editingKtaApp.roles) ? editingKtaApp.roles : [editingKtaApp.role || 'umum'])].filter((v, i, a) => a.indexOf(v) === i).map(r => (
+                        <span key={r} className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-[9px]">
+                          {ROLE_LABELS[r] || r}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 7: Catatan Revisi / Keterangan Penolakan */}
                 {editingKtaApp.status === 'rejected' && (
                   <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-200/80 space-y-2">
                     <div className="flex items-center gap-1.5 text-xs font-black text-rose-700 uppercase tracking-wider">
@@ -11752,6 +12174,121 @@ export default function AdminDashboard() {
                   onChange={(e) => setFormData(f => ({ ...f, asalKwarda: e.target.value }))}
                   className="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
                 />
+              </div>
+
+              {/* SEKSI ROLE & HAK AKSES SALING SINKRON */}
+              <div className="col-span-1 sm:col-span-2 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-emerald-900 uppercase tracking-wider">
+                    <Shield size={14} className="text-emerald-700" />
+                    <span>Role & Hak Akses Materi (Saling Sinkron)</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-200">
+                    Otomatis Sinkron
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Role Utama (Tampilan & Akses Utama)
+                    </label>
+                    <select
+                      value={formData.role || 'umum'}
+                      onChange={(e) => {
+                        const newPrimaryRole = e.target.value;
+                        const currentRoles = Array.isArray(formData.roles) ? formData.roles : [formData.role || 'umum'];
+                        const updatedRoles = Array.from(new Set([...currentRoles, newPrimaryRole]));
+                        const synced = syncRolesAndPelatihan(updatedRoles, formData.pelatihan || [], newPrimaryRole);
+                        setFormData((f: any) => ({
+                          ...f,
+                          role: synced.primaryRole,
+                          roles: synced.roles,
+                          pelatihan: synced.pelatihan
+                        }));
+                      }}
+                      className="w-full p-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-300 outline-none"
+                    >
+                      {ROLE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Golongan Pelatih (Jika Pelatih)
+                    </label>
+                    <select
+                      value={formData.golonganPelatih || formData.golongan || 'Penghela'}
+                      onChange={(e) => setFormData((f: any) => ({ ...f, golonganPelatih: e.target.value }))}
+                      className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-300 outline-none"
+                    >
+                      <option value="Athfal">Tingkat Athfal</option>
+                      <option value="Pengenal">Tingkat Pengenal</option>
+                      <option value="Penghela">Tingkat Penghela</option>
+                      <option value="Penuntun">Tingkat Penuntun</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block mb-1.5">
+                    Pilihan Hak Akses & Kualifikasi (Multi-Role):
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ROLE_OPTIONS.map((opt) => {
+                      const isChecked = Array.isArray(formData.roles)
+                        ? formData.roles.includes(opt.value)
+                        : formData.role === opt.value;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.value}
+                          onClick={() => {
+                            const currentRoles = Array.isArray(formData.roles) ? [...formData.roles] : [formData.role || 'umum'];
+                            let nextRoles: string[];
+                            if (isChecked) {
+                              nextRoles = currentRoles.filter(r => r !== opt.value);
+                              if (nextRoles.length === 0) nextRoles = ['umum'];
+                            } else {
+                              nextRoles = Array.from(new Set([...currentRoles, opt.value]));
+                            }
+                            const synced = syncRolesAndPelatihan(nextRoles, formData.pelatihan || [], formData.role);
+                            setFormData((f: any) => ({
+                              ...f,
+                              role: synced.primaryRole,
+                              roles: synced.roles,
+                              pelatihan: synced.pelatihan
+                            }));
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            isChecked
+                              ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isChecked ? 'bg-amber-300' : 'bg-gray-300'}`} />
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Info Akses Materi yang Terbuka */}
+                <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 text-[10px] text-gray-600">
+                  <span className="font-bold text-emerald-900 block mb-1">Materi & Fitur yang Dapat Diakses Anggota:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {['umum', ...(Array.isArray(formData.roles) ? formData.roles : [formData.role || 'umum'])].filter((v, i, a) => a.indexOf(v) === i).map(r => (
+                      <span key={r} className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-[9px]">
+                        {ROLE_LABELS[r] || r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -13138,6 +13675,18 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Vokalis / Penyanyi Lagu <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Kak Dzikron & Sahabat Pandu, Paduan Suara HW, dll"
+                      value={contentFormData.field4}
+                      onChange={(e) => setContentFormData(f => ({ ...f, field4: e.target.value }))}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-teal-800 focus:bg-white focus:border-hw-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
                       Link File Audio (Google Drive / MP3) <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -13263,6 +13812,71 @@ export default function AdminDashboard() {
                 className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black uppercase cursor-pointer"
               >
                 Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PLAYLIST LYRICS PREVIEW MODAL */}
+      {selectedLyricsTrack && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-gray-100">
+            <div className="flex items-start justify-between pb-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <Music size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-gray-900 text-base leading-tight">
+                    {selectedLyricsTrack.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-500">
+                    {selectedLyricsTrack.creator && (
+                      <span className="font-semibold text-emerald-800">
+                        Cipt. {selectedLyricsTrack.creator}
+                      </span>
+                    )}
+                    {selectedLyricsTrack.vocalist && (
+                      <span className="text-teal-700 font-medium">
+                        • Vokal: {selectedLyricsTrack.vocalist}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLyricsTrack(null)}
+                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pr-1">
+              <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-100 font-sans text-xs text-gray-800 leading-relaxed whitespace-pre-line select-text">
+                {selectedLyricsTrack.lyrics || 'Lirik lagu belum tersedia.'}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedLyricsTrack.lyrics || '');
+                  showToast('success', 'Lirik berhasil disalin!');
+                }}
+                className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                Salin Lirik
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedLyricsTrack(null)}
+                className="px-5 py-2 bg-hw-dark hover:bg-black text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Tutup
               </button>
             </div>
           </div>

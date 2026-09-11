@@ -131,6 +131,11 @@ export const getMasterMembersList = (): User[] => {
       const tKta = (t.nomorKTA || t.ktaNumber || '').trim();
       const tEmail = (t.email || '').trim().toLowerCase();
       const isOfficial = isValidKtaNumberFormat(tKta);
+      const initialPelatihan = t.pelatihanAkanDiikuti ? [t.pelatihanAkanDiikuti] : (t.namaKegiatan ? [t.namaKegiatan] : []);
+      const synced = syncRolesAndPelatihan(
+        [t.tingkatan, t.jenisPelatihan, t.pelatihanAkanDiikuti, t.namaKegiatan, 'umum'],
+        initialPelatihan
+      );
 
       rawCandidates.push({
         id: t.id ? String(t.id) : (tKta ? `user-train-${tKta.replace(/[^a-zA-Z0-9]/g, '_')}` : `user-train-${idx}`),
@@ -146,15 +151,15 @@ export const getMasterMembersList = (): User[] => {
         qabilah: t.qabilah || '',
         pendidikan: t.pendidikanTerakhir || t.pendidikan || '',
         sosmed: '',
-        pelatihan: t.pelatihanAkanDiikuti ? [t.pelatihanAkanDiikuti] : (t.namaKegiatan ? [t.namaKegiatan] : []),
-        golongan: t.tingkatan || 'Dewasa',
+        pelatihan: synced.pelatihan,
+        golongan: t.tingkatan || (synced.primaryRole !== 'umum' ? 'Pelatih' : 'Dewasa'),
         ktaNumber: tKta,
         nomorKTA: tKta,
         nbm: t.nbm || '',
         isVerified: isOfficial ? true : Boolean(t.isVerified),
-        role: 'umum',
-        roles: ['umum'],
-        activeRole: 'umum',
+        role: synced.primaryRole as UserRole,
+        roles: synced.roles as UserRole[],
+        activeRole: synced.primaryRole as UserRole,
         status: isOfficial ? 'approved' : (t.status || 'approved'),
         statusKta: isOfficial ? 'approved' : (t.statusKta || 'approved'),
         statusAktivasi: isOfficial ? 'Aktif' : 'Belum Aktif',
@@ -218,6 +223,194 @@ export const getMasterMembersList = (): User[] => {
     upgradeRequests: []
   });
 
+  // 5. Ensure Core Trainers & Leaders with their verified roles and training qualifications
+  rawCandidates.push({
+    id: "trainer-muhammad-dzikron",
+    email: "muhammaddzikron@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Muhammad Dzikron",
+    role: "superadmin",
+    roles: ["superadmin", "admin", "kwarda", "sugli", "jari1", "jari2", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "superadmin",
+    jenisKelamin: "L",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Jari 2", "Jawi", "Dewan Sugli", "Kwarda"],
+    asalKwarda: "Kabupaten Klaten",
+    qabilah: "Qabilah SMK Muhammadiyah 1 Magelang",
+    alamat: "Jl. Ahmad Dahlan No. 24, Magelang, Jawa Tengah",
+    ktaNumber: "11.14.0001",
+    nomorKTA: "11.14.0001",
+    nbm: "11.14.0001",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "081226854000",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-eni-winarti",
+    email: "eniwinarti1620@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Eni Winarti",
+    role: "jari2",
+    roles: ["kwarda", "sugli", "jari1", "jari2", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "jari2",
+    jenisKelamin: "P",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Jari 2", "Kwarda"],
+    asalKwarda: "Kabupaten Pati",
+    qabilah: "Qabilah SMA Muhammadiyah 1 Pati",
+    alamat: "Jl. Ahmad Dahlan No. 27, Pati, Jawa Tengah",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-dwi-suparwanto",
+    email: "dwisuparwanto1@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Dwi Suparwanto",
+    role: "jari2",
+    roles: ["kwarda", "sugli", "jari1", "jari2", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "jari2",
+    jenisKelamin: "L",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Jari 2", "Kwarda"],
+    asalKwarda: "Kabupaten Blora",
+    qabilah: "Qabilah MTs Muhammadiyah 1 Blora",
+    alamat: "Jl. Ahmad Dahlan No. 14, Blora, Jawa Tengah",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-agus-dwi-setiawan",
+    email: "setiawan559@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Agus Dwi Setiawan",
+    role: "jari1",
+    roles: ["kwarda", "sugli", "jari1", "jari2", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "jari1",
+    jenisKelamin: "L",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Kwarda"],
+    asalKwarda: "Kota Surakarta",
+    qabilah: "Qabilah Surakarta",
+    alamat: "Jl. Gambir Anom No.4 Kemlayan, Serengan Surakarta",
+    ktaNumber: "11.34.0001",
+    nomorKTA: "11.34.0001",
+    nbm: "11.34.0001",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "089673125334",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-puryadi",
+    email: "mr.adi19@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Puryadi",
+    role: "jari1",
+    roles: ["kwarda", "sugli", "jari1", "jari2", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "jari1",
+    jenisKelamin: "L",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Kwarda"],
+    asalKwarda: "Kabupaten Kendal",
+    qabilah: "Qabilah SD Muhammadiyah 1 Kendal",
+    alamat: "Jl. Ahmad Dahlan No. 23, Kendal, Jawa Tengah",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-retiana-maharani",
+    email: "retianamaharani00@gmail.com",
+    password: "12345hw",
+    namaLengkap: "Retiana Maharani",
+    role: "jati2",
+    roles: ["kwarda", "sugli", "jati1", "jati2", "pelatih", "umum"],
+    activeRole: "jati2",
+    jenisKelamin: "P",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Kwarda"],
+    asalKwarda: "Kabupaten Kebumen",
+    qabilah: "Qabilah Kebumen",
+    alamat: "DK. Kepudang Kec. Sempor Kab. Kebumen",
+    ktaNumber: "11.12.0001",
+    nomorKTA: "11.12.0001",
+    nbm: "11.12.0001",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "@retianamaharani",
+    noHp: "085163020105",
+    upgradeRequests: []
+  });
+
+  rawCandidates.push({
+    id: "trainer-wahyu-dewayanto",
+    email: "dewafki3@gmail.com",
+    password: "12345hw",
+    namaLengkap: "M Wahyu Dewayanto",
+    role: "jari1",
+    roles: ["kwarda", "sugli", "jati1", "jati2", "jari1", "pelatih", "umum"],
+    activeRole: "jari1",
+    jenisKelamin: "L",
+    golongan: "Pelatih",
+    pendidikan: "S1",
+    pelatihan: ["Jati 1", "Jati 2", "Jari 1", "Jawi"],
+    asalKwarda: "Kabupaten Klaten",
+    qabilah: "Klaten",
+    alamat: "Klaten, Jawa Tengah",
+    ktaNumber: "11.24.0001",
+    nomorKTA: "11.24.0001",
+    nbm: "11.24.0001",
+    isVerified: true,
+    status: "approved",
+    statusKta: "approved",
+    statusAktivasi: "Aktif",
+    statusPembayaran: "Lunas",
+    sosmed: "",
+    noHp: "081234567890",
+    upgradeRequests: []
+  });
+
   const mergedMap = new Map<string, User>();
   const emailToKey = new Map<string, string>();
   const ktaToKey = new Map<string, string>();
@@ -255,10 +448,26 @@ export const getMasterMembersList = (): User[] => {
       const ex = mergedMap.get(matchKey)!;
       const isVerified = ex.isVerified === true || item.isVerified === true;
       const status = isVerified ? 'approved' : 'pending';
+
+      const combinedRoles = parseRolesField(
+        [...(Array.isArray(ex.roles) ? ex.roles : [ex.role]), ...(Array.isArray(item.roles) ? item.roles : [item.role])],
+        ex.role || item.role
+      );
+      const combinedPelatihan = [
+        ...(Array.isArray(ex.pelatihan) ? ex.pelatihan : []),
+        ...(Array.isArray(item.pelatihan) ? item.pelatihan : [])
+      ];
+      const synced = syncRolesAndPelatihan(combinedRoles, combinedPelatihan);
+
       const merged: User = {
         ...item,
         ...ex,
         id: ex.id || item.id,
+        role: synced.primaryRole as UserRole,
+        roles: synced.roles as UserRole[],
+        activeRole: synced.primaryRole as UserRole,
+        pelatihan: synced.pelatihan,
+        golongan: (ex.golongan && ex.golongan !== 'Dewasa') ? ex.golongan : (item.golongan || (synced.primaryRole !== 'umum' ? 'Pelatih' : 'Dewasa')),
         ktaNumber: ex.ktaNumber || item.ktaNumber || ex.nomorKTA || item.nomorKTA,
         nomorKTA: ex.nomorKTA || item.nomorKTA || ex.ktaNumber || item.ktaNumber,
         noHp: ex.noHp || item.noHp,

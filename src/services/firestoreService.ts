@@ -747,9 +747,18 @@ export const firestoreService = {
           const validMmKta = isValidKtaNumberFormat(mm.ktaNumber || mm.nomorKTA) ? (mm.ktaNumber || mm.nomorKTA) : '';
           const finalKta = validExKta || validMmKta || '';
 
-          const finalRoles = (ex.roles && Array.isArray(ex.roles) && ex.roles.length > 0) ? ex.roles : (ex.role ? [ex.role] : mm.roles);
-          const finalRole = ex.role || (finalRoles && finalRoles.length > 0 ? (finalRoles.find((r: any) => r !== 'umum') || finalRoles[0]) : mm.role);
-          const finalPelatihan = (ex.pelatihan && Array.isArray(ex.pelatihan) && ex.pelatihan.length > 0) ? ex.pelatihan : (mm.pelatihan || []);
+          const combinedRoles = parseRolesField(
+            [...(Array.isArray(ex.roles) ? ex.roles : [ex.role]), ...(Array.isArray(mm.roles) ? mm.roles : [mm.role])],
+            ex.role || mm.role
+          );
+          const combinedPelatihan = [
+            ...(Array.isArray(ex.pelatihan) ? ex.pelatihan : []),
+            ...(Array.isArray(mm.pelatihan) ? mm.pelatihan : [])
+          ];
+          const synced = syncRolesAndPelatihan(combinedRoles, combinedPelatihan, ex.role || mm.role);
+          const finalRoles = synced.roles as UserRole[];
+          const finalRole = synced.primaryRole as UserRole;
+          const finalPelatihan = synced.pelatihan;
           const finalGolonganPelatih = (ex as any).golonganPelatih || (mm as any).golonganPelatih;
 
           const isVerified = isValidKtaNumberFormat(finalKta) ? true : ((customOverrides[ex.id]?.isVerified ?? (ex.email ? customOverrides[ex.email.toLowerCase().trim()]?.isVerified : undefined)) ?? (ex.isVerified === true && isValidKtaNumberFormat(ex.ktaNumber || ex.nomorKTA) ? true : mm.isVerified));
@@ -823,8 +832,10 @@ export const firestoreService = {
       .filter(m => m && m.namaLengkap && m.namaLengkap !== 'Tanpa Nama' && m.namaLengkap !== '-')
       .map(m => {
         const properName = toProperName(m.namaLengkap || (m as any).nama);
-        const roles = parseRolesField(m.roles, m.role);
-        const role = roles.find(r => r !== 'umum') || roles[0] || 'umum';
+        const rawRoles = parseRolesField(m.roles, m.role);
+        const synced = syncRolesAndPelatihan(rawRoles, m.pelatihan, m.role);
+        const roles = synced.roles as UserRole[];
+        const role = ((m.role && m.role !== 'umum') ? m.role : synced.primaryRole) as UserRole;
 
         const mEmail = (m.email || '').trim().toLowerCase();
         const mId = String(m.id || '').trim().toLowerCase();
@@ -845,6 +856,7 @@ export const firestoreService = {
           namaLengkap: properName || m.namaLengkap || 'Anggota HW',
           role,
           roles,
+          pelatihan: synced.pelatihan,
           password: normPass
         };
       });
