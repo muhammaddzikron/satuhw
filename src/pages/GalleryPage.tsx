@@ -52,9 +52,17 @@ export default function GalleryPage() {
       fetchAllVideos();
     });
 
+    const handleUpdate = () => {
+      fetchAllVideos();
+    };
+    window.addEventListener('hw_contents_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
     return () => {
       unsubContents();
       unsubActivities();
+      window.removeEventListener('hw_contents_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
   }, []);
 

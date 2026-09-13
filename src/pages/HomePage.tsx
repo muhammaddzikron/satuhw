@@ -148,35 +148,33 @@ export default function HomePage() {
   
   // Pre-initialize contents from cached contents or fresh defaults for 100% instant render
   const [galleryItems, setGalleryItems] = useState<Content[]>(() => {
-    const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8', 'gal-1', 'gal-2', 'galeri-1', 'galeri-2'];
-    const unauthorizedTitles = [
-      'mars gerakan kepanduan hizbul wathan',
-      'profil kwartir wilayah hw jawa tengah',
-      'lagu mars hizbul wathan'
-    ];
-    const isCleanVideo = (c: any) => {
-      if (!c) return false;
-      const urlOrId = (c.field1 || c.videoId || c.url || c.id || '').toString();
-      const title = (c.field2 || c.title || '').toString().toLowerCase();
-      if (unauthorizedVideoIds.some(id => urlOrId.includes(id))) return false;
-      if (unauthorizedTitles.some(t => title.includes(t))) return false;
-      return true;
-    };
+    let deletedIds: string[] = [];
+    try {
+      const s = localStorage.getItem('hw_settings');
+      if (s) {
+        const parsedS = JSON.parse(s);
+        if (Array.isArray(parsedS.deletedContentIds)) deletedIds = parsedS.deletedContentIds;
+      }
+    } catch (e) {}
 
     try {
+      const galStored = localStorage.getItem('hw_galeri');
+      if (galStored) {
+        const parsedGal = JSON.parse(galStored);
+        if (Array.isArray(parsedGal) && parsedGal.length > 0) {
+          const filtered = parsedGal.filter((c: any) => c && !deletedIds.includes(String(c.id)));
+          if (filtered.length > 0) return filtered;
+        }
+      }
+
       const stored = JSON.parse(localStorage.getItem('contents') || '[]');
       if (Array.isArray(stored) && stored.length > 0) {
-        // Clean unauthorized videos from localStorage cache
-        const cleanedStored = stored.filter(isCleanVideo);
-        if (cleanedStored.length !== stored.length) {
-          try { localStorage.setItem('contents', JSON.stringify(cleanedStored)); } catch (e) {}
-        }
-        const gal = cleanedStored.filter((c: any) => c.section === 'galeri');
+        const gal = stored.filter((c: any) => c && c.section === 'galeri' && !deletedIds.includes(String(c.id)));
         if (gal.length > 0) return gal;
       }
     } catch {}
     const initialContents = sheetsService.getMockContents ? sheetsService.getMockContents() : [];
-    const gal = initialContents.filter((c: any) => c.section === 'galeri' && isCleanVideo(c));
+    const gal = initialContents.filter((c: any) => c.section === 'galeri' && !deletedIds.includes(String(c.id)));
     return gal;
   });
 

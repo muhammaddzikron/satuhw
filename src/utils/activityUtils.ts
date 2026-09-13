@@ -85,21 +85,31 @@ export const resolveVideoMetadata = (item: any) => {
   const f4 = (item.field4 || item.tanggal || item.date || item.waktuMulai || '').toString().trim();
   const f5 = (item.field5 || item.deskripsi || item.description || item.konten || '').toString().trim();
 
-  const isUrl1 = f1.startsWith('http') || f1.includes('youtube.com') || f1.includes('youtu.be');
-  const isUrl2 = f2.startsWith('http') || f2.includes('youtube.com') || f2.includes('youtu.be');
+  const isUrlLike = (s: string) => s.startsWith('http://') || s.startsWith('https://') || s.includes('youtube.com') || s.includes('youtu.be') || s.includes('drive.google.com');
 
-  if (!isUrl1 && isUrl2) {
+  if (!isUrlLike(f1) && isUrlLike(f2)) {
     const temp = f1;
     f1 = f2;
     f2 = temp;
   }
 
-  let vId = extractYoutubeId(f1) || extractYoutubeId(f2);
+  let vId = (item.videoId ? String(item.videoId).trim() : '') || extractYoutubeId(f1) || extractYoutubeId(f2);
   if (!vId && f5) {
     vId = extractYoutubeId(f5);
   }
 
-  const finalTitle = f2 && !isUrl2 ? f2 : (f1 && !isUrl1 ? f1 : 'Video Hizbul Wathan');
+  const explicitTitle = (item.title || item.judul || item.nama || item.namaKegiatan || '').toString().trim();
+  let finalTitle = explicitTitle;
+  if (!finalTitle || isUrlLike(finalTitle)) {
+    if (f2 && !isUrlLike(f2)) {
+      finalTitle = f2;
+    } else if (f1 && !isUrlLike(f1)) {
+      finalTitle = f1;
+    } else {
+      finalTitle = 'Video Hizbul Wathan';
+    }
+  }
+
   const finalUrl = f1 || (vId ? `https://www.youtube.com/watch?v=${vId}` : '');
 
   return {

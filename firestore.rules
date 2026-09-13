@@ -47,6 +47,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Playlist collection
+    match /playlist/{playlistId} {
+      allow read, write: if true;
+    }
+
+    // KTA Counters collection
+    match /kta_counters/{counterId} {
+      allow read, write: if true;
+    }
+
     // Settings collection
     match /settings/{settingId} {
       allow read, write: if true;

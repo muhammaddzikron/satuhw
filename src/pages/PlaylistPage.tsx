@@ -58,13 +58,25 @@ export const PlaylistPage: React.FC = () => {
 
   // Normalize playlist data ensuring Sahabat HW is present and all uploaded songs are cleanly mapped
   const sanitizeList = useCallback((list: any[]) => {
+    let deletedIds: string[] = [];
+    try {
+      const s = localStorage.getItem('hw_settings');
+      if (s) {
+        const parsedS = JSON.parse(s);
+        if (Array.isArray(parsedS.deletedContentIds)) deletedIds = parsedS.deletedContentIds.map((x: any) => String(x));
+      }
+    } catch (e) {}
+
     const seenKeys = new Set<string>();
     let hasSahabatHW = false;
 
     const filtered = (list || []).filter((item: any) => {
       if (!item) return false;
+      if (item.id && deletedIds.includes(String(item.id))) return false;
+
+      const explicitTitle = (item.field2 || item.judul || item.title || '').toString().trim();
       const meta = resolveTrackMetadata(item);
-      const title = (meta.title || item.field2 || item.judul || item.title || '').toString().trim();
+      const title = explicitTitle || meta.title || '';
       if (!title || title.toLowerCase() === 'judul lagu' || title === '-') return false;
 
       const lowerTitle = title.toLowerCase();
@@ -80,11 +92,13 @@ export const PlaylistPage: React.FC = () => {
     }).map(item => {
       if (!item) return item;
       const meta = resolveTrackMetadata(item);
-      const title = meta.title;
+      const explicitTitle = (item.field2 || item.judul || item.title || '').toString().trim();
+      const title = explicitTitle || meta.title;
       const lowerTitle = title.toLowerCase();
-      const audio = meta.audioUrl;
-      let creator = meta.creator;
-      let lyrics = meta.lyrics;
+      const audio = (item.field1 || item.audioUrl || item.audiourl || meta.audioUrl || '').toString().trim();
+      let creator = (item.field3 || item.pencipta || item.creator || meta.creator || '').toString().trim();
+      let vocalist = (item.field4 || item.vokalis || item.vocalist || meta.vocalist || '').toString().trim();
+      let lyrics = (item.field5 || item.lirik || item.lyrics || meta.lyrics || '').toString().trim();
 
       const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
       const isHymneHW = lowerTitle.includes('hymne');
@@ -92,7 +106,8 @@ export const PlaylistPage: React.FC = () => {
       const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
 
       if (lowerTitle === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
-        creator = 'Muhammad Dzikron';
+        if (!creator) creator = 'Muhammad Dzikron';
+        if (!vocalist) vocalist = 'Kak Dzikron & Sahabat Pandu';
         if (!lyrics || lyrics.includes('Lirik lagu belum tersedia')) {
           lyrics = `Bersama kita melangkah
 Menembus cakrawala asa
@@ -106,18 +121,24 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
         }
         return {
           ...item,
-          field1: audio || item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3',
+          id: item.id || 'playlist-sahabat-hw',
+          field1: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
           field2: 'Sahabat HW',
-          field3: 'Muhammad Dzikron',
-          field4: 'Lagu Pandu HW',
+          field3: creator,
+          field4: vocalist,
           field5: lyrics,
-          pencipta: 'Muhammad Dzikron',
-          creator: 'Muhammad Dzikron',
+          pencipta: creator,
+          creator: creator,
           judul: 'Sahabat HW',
           title: 'Sahabat HW',
+          vokalis: vocalist,
+          vocalist: vocalist,
           lirik: lyrics,
           lyrics: lyrics,
-          audioUrl: audio || item.field1 || 'https://hwjateng.org/musik/sahabathw.mp3'
+          audioUrl: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
+          audiourl: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
+          category: 'Lagu Pandu HW',
+          theme: meta.theme
         };
       }
 
@@ -133,27 +154,28 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
         if (!creator) creator = 'Djarnawi Hadikusuma';
       } else if (isMarsAisyiyah) {
         if (!creator) creator = 'Ny. Hj. Siti Badilah Zuber';
-      } else {
-        // Only default to Muhammad Dzikron if creator is not specified
-        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
-          creator = 'Muhammad Dzikron';
-        }
       }
 
       return {
         ...item,
+        id: item.id || meta.id,
         field1: audio,
         field2: title,
         field3: creator,
+        field4: vocalist,
         field5: lyrics,
         title,
         judul: title,
         creator,
         pencipta: creator,
+        vocalist,
+        vokalis: vocalist,
         audioUrl: audio,
         audiourl: audio,
         lyrics,
-        lirik: lyrics
+        lirik: lyrics,
+        category: meta.category,
+        theme: meta.theme
       };
     });
 
@@ -165,7 +187,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
         field1: 'https://hwjateng.org/musik/sahabathw.mp3',
         field2: 'Sahabat HW',
         field3: 'Muhammad Dzikron',
-        field4: 'Lagu Pandu HW',
+        field4: 'Kak Dzikron & Sahabat Pandu',
         field5: `Bersama kita melangkah
 Menembus cakrawala asa
 Sahabat sejati Pandu HW
@@ -219,15 +241,35 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
 
   // Instant initial playlist from local cache or mock
   const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
-    const cached = localStorage.getItem('contents');
-    if (cached) {
-      try {
+    let deletedIds: string[] = [];
+    try {
+      const s = localStorage.getItem('hw_settings');
+      if (s) {
+        const parsedS = JSON.parse(s);
+        if (Array.isArray(parsedS.deletedContentIds)) deletedIds = parsedS.deletedContentIds.map((x: any) => String(x));
+      }
+    } catch (e) {}
+
+    try {
+      const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+      if (plStored) {
+        const parsed = JSON.parse(plStored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter((c: any) => c && !deletedIds.includes(String(c.id)));
+          if (filtered.length > 0) return filtered;
+        }
+      }
+
+      const cached = localStorage.getItem('contents');
+      if (cached) {
         const parsed = JSON.parse(cached);
-        const pl = parsed.filter((c: any) => c.section === 'playlist');
-        if (pl.length > 0) return pl;
-      } catch (e) {}
-    }
-    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
+        if (Array.isArray(parsed)) {
+          const pl = parsed.filter((c: any) => c && c.section === 'playlist' && !deletedIds.includes(String(c.id)));
+          if (pl.length > 0) return pl;
+        }
+      }
+    } catch (e) {}
+    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist' && !deletedIds.includes(String(c.id))) : [];
     return mock;
   });
   const [loading, setLoading] = useState(false);
@@ -276,40 +318,122 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const getMergedPlaylist = useCallback((serverList: any[]) => {
+    let deletedIds: string[] = [];
+    try {
+      const s = localStorage.getItem('hw_settings');
+      if (s) {
+        const parsedS = JSON.parse(s);
+        if (Array.isArray(parsedS.deletedContentIds)) deletedIds = parsedS.deletedContentIds.map((x: any) => String(x));
+      }
+    } catch (e) {}
+
+    let localPl: any[] = [];
+    try {
+      const stored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) localPl = parsed;
+      }
+    } catch (e) {}
+
+    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
+
+    const cleanServer = (serverList || []).filter(c => c && !deletedIds.includes(String(c.id)));
+    const cleanLocal = localPl.filter(c => c && !deletedIds.includes(String(c.id)));
+    const cleanMock = mock.filter(c => c && !deletedIds.includes(String(c.id)));
+
+    // Track map where Server & Local take precedence over Mock!
+    const trackMap = new Map<string, any>();
+
+    // 1. Base mock
+    cleanMock.forEach(item => {
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+      const idKey = String(item.id || '').trim().toLowerCase();
+      trackMap.set(idKey || titleKey, item);
+    });
+
+    // 2. Server contents
+    cleanServer.forEach(item => {
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+      const idKey = String(item.id || '').trim().toLowerCase();
+      let matchedKey = idKey;
+      if (!matchedKey || !trackMap.has(matchedKey)) {
+        for (const [k, v] of trackMap.entries()) {
+          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase();
+          if (titleKey && vTitle === titleKey) {
+            matchedKey = k;
+            break;
+          }
+        }
+      }
+      if (matchedKey) {
+        trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
+      } else {
+        trackMap.set(idKey || titleKey, item);
+      }
+    });
+
+    // 3. Local saved contents (instant admin action)
+    cleanLocal.forEach(item => {
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+      const idKey = String(item.id || '').trim().toLowerCase();
+      let matchedKey = idKey;
+      if (!matchedKey || !trackMap.has(matchedKey)) {
+        for (const [k, v] of trackMap.entries()) {
+          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase();
+          if (titleKey && vTitle === titleKey) {
+            matchedKey = k;
+            break;
+          }
+        }
+      }
+      if (matchedKey) {
+        trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
+      } else {
+        trackMap.set(idKey || titleKey, item);
+      }
+    });
+
+    const combined = Array.from(trackMap.values());
+    return sanitizeList(combined);
+  }, [sanitizeList]);
+
   // Fetch playlist data
   const fetchPlaylist = useCallback(async () => {
     try {
       const data = await sheetsService.getContents('playlist');
-      if (Array.isArray(data) && data.length > 0) {
-        setRawPlaylist(sanitizeList(data));
-      } else {
-        const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-        setRawPlaylist(sanitizeList(mock));
-      }
+      setRawPlaylist(getMergedPlaylist(Array.isArray(data) ? data : []));
     } catch (error) {
       console.error('Error fetching playlist:', error);
+      setRawPlaylist(getMergedPlaylist([]));
     } finally {
       setLoading(false);
     }
-  }, [sanitizeList]);
+  }, [getMergedPlaylist]);
 
   useEffect(() => {
     const isPlaylistSec = (s: string) => ['playlist', 'lagu', 'musik', 'audio', 'songs', 'mars', 'song', 'music'].includes((s || '').trim().toLowerCase());
     const unsub = sheetsService.subscribeToContents((contents: any[]) => {
       const pl = contents.filter((c: any) => isPlaylistSec(c.section) || (c.audioUrl || (c.field1 && (c.field1.includes('.mp3') || c.field1.includes('drive.google.com')))));
-      if (pl.length > 0) {
-        const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-        setRawPlaylist(sanitizeList([...mock, ...pl]));
-        setLoading(false);
-      }
+      setRawPlaylist(getMergedPlaylist(pl));
+      setLoading(false);
     });
+
+    const handleCustomUpdate = () => {
+      fetchPlaylist();
+    };
+    window.addEventListener('hw_contents_updated', handleCustomUpdate);
+    window.addEventListener('storage', handleCustomUpdate);
 
     fetchPlaylist();
 
     return () => {
       if (unsub) unsub();
+      window.removeEventListener('hw_contents_updated', handleCustomUpdate);
+      window.removeEventListener('storage', handleCustomUpdate);
     };
-  }, [fetchPlaylist, sanitizeList]);
+  }, [fetchPlaylist, getMergedPlaylist]);
 
   // Normalized tracks with enriched metadata (Pencipta, Lirik, Tema)
   const tracks = useMemo(() => {

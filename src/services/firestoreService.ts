@@ -3383,21 +3383,14 @@ export const firestoreService = {
         }
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           try {
+            const rawSettings = localStorage.getItem('hw_settings');
+            const parsedSettings = rawSettings ? JSON.parse(rawSettings) : {};
+            const deletedContentIds: string[] = Array.isArray(parsedSettings.deletedContentIds) ? parsedSettings.deletedContentIds : [];
+
             if (contents.length > 0) {
-              // Sanitize any unauthorized videos from cache
-              const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8', 'gal-1', 'gal-2', 'galeri-1', 'galeri-2'];
-              const unauthorizedTitles = [
-                'mars gerakan kepanduan hizbul wathan',
-                'profil kwartir wilayah hw jawa tengah',
-                'lagu mars hizbul wathan'
-              ];
               const sanitized = contents.filter(c => {
-                if (c.section === 'galeri') {
-                  const urlOrId = (c.field1 || (c as any).videoId || (c as any).url || c.id || '').toString();
-                  const title = (c.field2 || (c as any).title || '').toString().toLowerCase();
-                  if (unauthorizedVideoIds.some(id => urlOrId.includes(id))) return false;
-                  if (unauthorizedTitles.some(t => title.includes(t))) return false;
-                }
+                if (!c) return false;
+                if (c.id && deletedContentIds.includes(String(c.id))) return false;
                 return true;
               });
               safeStorageSet('contents', sanitized);
@@ -3596,8 +3589,18 @@ export const firestoreService = {
             if (c && c.id) contentMap.set(String(c.id), { ...contentMap.get(String(c.id)), ...c });
           });
 
+          // Fetch deletedContentIds from settings
+          let deletedContentIds: string[] = [];
+          try {
+            const rawSettings = localStorage.getItem('hw_settings');
+            if (rawSettings) {
+              const p = JSON.parse(rawSettings);
+              if (Array.isArray(p.deletedContentIds)) deletedContentIds = p.deletedContentIds;
+            }
+          } catch (e) {}
+
           if (contentMap.size > 0) {
-            const merged = Array.from(contentMap.values());
+            const merged = Array.from(contentMap.values()).filter(c => c && c.id && !deletedContentIds.includes(String(c.id)));
             const sanitized = merged.map(mapContentItem).filter(Boolean) as Content[];
             safeStorageSet('contents', sanitized);
             return sanitized;
@@ -3612,8 +3615,16 @@ export const firestoreService = {
       const stored = localStorage.getItem('contents') || '[]';
       try {
         const parsed = JSON.parse(stored);
+        let deletedContentIds: string[] = [];
+        try {
+          const rawSettings = localStorage.getItem('hw_settings');
+          if (rawSettings) {
+            const p = JSON.parse(rawSettings);
+            if (Array.isArray(p.deletedContentIds)) deletedContentIds = p.deletedContentIds;
+          }
+        } catch (e) {}
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return (parsed.map(mapContentItem).filter(Boolean) as Content[]);
+          return (parsed.filter((c: any) => c && c.id && !deletedContentIds.includes(String(c.id))).map(mapContentItem).filter(Boolean) as Content[]);
         }
         return [];
       } catch {
@@ -3681,9 +3692,9 @@ export const firestoreService = {
     }
 
     const itemData = cleanData(payload);
-    if (!this.getIsQuotaExceeded()) {
+    if (!this.getIsQuotaExceeded() && itemData.id) {
       try {
-        await setDoc(doc(db, 'contents', String(itemData.id)), itemData);
+        await withTimeout(setDoc(doc(db, 'contents', String(itemData.id)), itemData, { merge: true }), 8000);
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
@@ -3692,9 +3703,33 @@ export const firestoreService = {
       }
       if (isPl) {
         try {
-          await setDoc(doc(db, 'playlist', String(itemData.id)), itemData);
+          await withTimeout(setDoc(doc(db, 'playlist', String(itemData.id)), itemData, { merge: true }), 8000);
         } catch (e) {}
       }
+
+      // If this content was previously in deletedContentIds, remove it so it's restored
+      try {
+        const sDoc = await getDoc(doc(db, 'settings', 'app_settings'));
+        if (sDoc.exists()) {
+          const sData = sDoc.data() || {};
+          const dIds: string[] = Array.isArray(sData.deletedContentIds) ? sData.deletedContentIds : [];
+          if (dIds.includes(String(itemData.id))) {
+            const updatedDIds = dIds.filter(x => x !== String(itemData.id));
+            await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: updatedDIds }, { merge: true });
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const s = localStorage.getItem('hw_settings');
+        if (s) {
+          const parsedS = JSON.parse(s);
+          if (Array.isArray(parsedS.deletedContentIds) && parsedS.deletedContentIds.includes(String(itemData.id))) {
+            parsedS.deletedContentIds = parsedS.deletedContentIds.filter((x: any) => x !== String(itemData.id));
+            localStorage.setItem('hw_settings', JSON.stringify(parsedS));
+          }
+        }
+      } catch (e) {}
     }
     if (isPl) {
       try {
@@ -3708,6 +3743,18 @@ export const firestoreService = {
         }
       } catch (e) {}
     }
+    if (isGal) {
+      try {
+        const galStored = localStorage.getItem('hw_galeri') || '[]';
+        const galList = JSON.parse(galStored);
+        if (Array.isArray(galList)) {
+          const idx = galList.findIndex((x: any) => String(x.id) === String(itemData.id));
+          if (idx >= 0) galList[idx] = itemData;
+          else galList.unshift(itemData);
+          localStorage.setItem('hw_galeri', JSON.stringify(galList));
+        }
+      } catch (e) {}
+    }
     const list = await this.getContents(true);
     const idx = list.findIndex(c => String(c.id) === String(itemData.id));
     if (idx >= 0) {
@@ -3716,6 +3763,9 @@ export const firestoreService = {
       list.push(itemData as Content);
     }
     safeStorageSet('contents', list);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hw_contents_updated', { detail: itemData }));
+    }
     return itemData as Content;
   },
 
@@ -3724,17 +3774,67 @@ export const firestoreService = {
     const contentId = String(id || '').trim();
     if (!this.getIsQuotaExceeded() && contentId) {
       try {
-        await deleteDoc(doc(db, 'contents', contentId));
+        await withTimeout(deleteDoc(doc(db, 'contents', contentId)), 8000);
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
           console.warn('Firestore deleteContent offline queue:', (err as any)?.message || err);
         }
       }
+      try {
+        await withTimeout(deleteDoc(doc(db, 'playlist', contentId)), 8000);
+      } catch (e) {}
+
+      // Record deleted content ID in Firestore settings to prevent re-injection from defaults
+      try {
+        const sDoc = await getDoc(doc(db, 'settings', 'app_settings'));
+        const sData = sDoc.exists() ? (sDoc.data() || {}) : {};
+        const dIds: string[] = Array.isArray(sData.deletedContentIds) ? sData.deletedContentIds : [];
+        if (!dIds.includes(contentId)) {
+          await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: [...dIds, contentId] }, { merge: true });
+        }
+      } catch (e) {}
     }
+
+    try {
+      const s = localStorage.getItem('hw_settings');
+      const parsedS = s ? JSON.parse(s) : {};
+      const dIds: string[] = Array.isArray(parsedS.deletedContentIds) ? parsedS.deletedContentIds : [];
+      if (!dIds.includes(contentId)) {
+        parsedS.deletedContentIds = [...dIds, contentId];
+        localStorage.setItem('hw_settings', JSON.stringify(parsedS));
+      }
+    } catch (e) {}
+
+    try {
+      const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
+      if (plStored) {
+        const parsed = JSON.parse(plStored);
+        if (Array.isArray(parsed)) {
+          const rem = parsed.filter((x: any) => String(x.id) !== contentId);
+          localStorage.setItem('hw_playlist', JSON.stringify(rem));
+          localStorage.setItem('playlist', JSON.stringify(rem));
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const galStored = localStorage.getItem('hw_galeri') || localStorage.getItem('galeri');
+      if (galStored) {
+        const parsed = JSON.parse(galStored);
+        if (Array.isArray(parsed)) {
+          const rem = parsed.filter((x: any) => String(x.id) !== contentId);
+          localStorage.setItem('hw_galeri', JSON.stringify(rem));
+          localStorage.setItem('galeri', JSON.stringify(rem));
+        }
+      }
+    } catch (e) {}
     const list = await this.getContents(true);
     const filtered = list.filter(c => String(c.id) !== contentId);
     safeStorageSet('contents', filtered);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hw_contents_updated', { detail: { id: contentId, deleted: true } }));
+    }
     return true;
   },
 

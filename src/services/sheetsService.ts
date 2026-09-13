@@ -1910,7 +1910,49 @@ export const sheetsService = {
       }
     } catch (e) {}
 
+    // Merge from local storage hw_galeri or galeri to ensure admin saved videos are preserved
+    try {
+      const galStored = localStorage.getItem('hw_galeri') || localStorage.getItem('galeri');
+      if (galStored) {
+        const parsedGal = JSON.parse(galStored);
+        if (Array.isArray(parsedGal)) {
+          parsedGal.forEach((item: any) => {
+            if (!item) return;
+            const idKey = (item.id || '').toString().trim().toLowerCase();
+            const itemTitle = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+            let matchedKey = '';
+            if (idKey && contentMap.has(idKey)) {
+              matchedKey = idKey;
+            } else {
+              for (const [k, v] of contentMap.entries()) {
+                const vTitle = (v.field2 || (v as any).judul || (v as any).title || '').toString().trim().toLowerCase();
+                if (itemTitle && itemTitle === vTitle) {
+                  matchedKey = k;
+                  break;
+                }
+              }
+            }
+            if (matchedKey) {
+              contentMap.set(matchedKey, { ...contentMap.get(matchedKey), ...item, section: 'galeri' });
+            } else {
+              const newKey = idKey || `galeri-custom-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+              contentMap.set(newKey, { ...item, section: 'galeri' });
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
     let contents = Array.from(contentMap.values());
+    try {
+      const rawSettings = localStorage.getItem('hw_settings');
+      if (rawSettings) {
+        const p = JSON.parse(rawSettings);
+        if (Array.isArray(p.deletedContentIds) && p.deletedContentIds.length > 0) {
+          contents = contents.filter(c => c && c.id && !p.deletedContentIds.includes(String(c.id)));
+        }
+      }
+    } catch (e) {}
 
     // 3. Non-blocking background sync with Google Sheets if valid
     if (IS_API_VALID) {
@@ -1972,6 +2014,39 @@ export const sheetsService = {
     } catch (e) {
       console.warn('Error loading contents for gallery videos:', e);
     }
+
+    // 1b. Load from localStorage hw_galeri to ensure instant availability of admin-saved videos
+    try {
+      const galStored = localStorage.getItem('hw_galeri') || localStorage.getItem('galeri');
+      if (galStored) {
+        const parsedGal = JSON.parse(galStored);
+        if (Array.isArray(parsedGal)) {
+          parsedGal.forEach((c: any) => {
+            if (!c) return;
+            const meta = resolveVideoMetadata(c);
+            const key = meta.videoId || meta.url || c.id;
+            if (key) {
+              videoMap.set(key, {
+                id: c.id || (meta.videoId ? `video-${meta.videoId}` : `video-${key}`),
+                section: 'galeri',
+                field1: meta.url,
+                field2: meta.title,
+                field3: meta.category,
+                field4: meta.date || '',
+                field5: meta.description || '',
+                videoId: meta.videoId,
+                title: meta.title,
+                url: meta.url,
+                category: meta.category,
+                description: meta.description,
+                date: meta.date || '',
+                source: 'galeri'
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {}
 
     // 2. Load from HW Activities
     try {
@@ -2041,19 +2116,25 @@ export const sheetsService = {
       }
     } catch (e) {}
 
-    // 4. Return only videos added by admin (filter out unauthorized mock videos)
-    const unauthorizedVideoIds = ['kR2rXyNf9V8', 'mD03u6-T9u8'];
-    const unauthorizedTitles = [
-      'mars gerakan kepanduan hizbul wathan',
-      'profil kwartir wilayah hw jawa tengah',
-      'lagu mars hizbul wathan'
-    ];
+    // Filter out deleted items saved by admin
+    let deletedIds: string[] = [];
+    try {
+      const rawSettings = localStorage.getItem('hw_settings');
+      if (rawSettings) {
+        const p = JSON.parse(rawSettings);
+        if (Array.isArray(p.deletedContentIds)) {
+          deletedIds = p.deletedContentIds.map((x: any) => String(x));
+        }
+      }
+    } catch (e) {}
 
     const result = Array.from(videoMap.values()).filter(v => {
       const vId = (v.videoId || '').trim();
-      const title = (v.title || v.field2 || '').toLowerCase().trim();
-      const isUnauthorized = unauthorizedVideoIds.includes(vId) || unauthorizedTitles.some(t => title.includes(t));
-      return !isUnauthorized;
+      const id = String(v.id || '').trim();
+      if (deletedIds.includes(id) || (vId && deletedIds.includes(`video-${vId}`))) {
+        return false;
+      }
+      return Boolean(vId || v.url);
     });
 
     return result;
@@ -2119,6 +2200,19 @@ export const sheetsService = {
       normalized.deskripsi = f5;
       const vId = extractYoutubeId(f1) || extractYoutubeId(f2);
       if (vId) normalized.videoId = vId;
+
+      try {
+        const galStored = localStorage.getItem('hw_galeri');
+        let parsedGal = galStored ? JSON.parse(galStored) : [];
+        if (!Array.isArray(parsedGal)) parsedGal = [];
+        const gIdx = parsedGal.findIndex((c: any) => c.id === normalized.id || ((c.field1 || c.url || '').trim().toLowerCase() === (normalized.field1 || normalized.url || '').trim().toLowerCase()));
+        if (gIdx >= 0) {
+          parsedGal[gIdx] = { ...parsedGal[gIdx], ...normalized };
+        } else {
+          parsedGal.unshift(normalized);
+        }
+        localStorage.setItem('hw_galeri', JSON.stringify(parsedGal));
+      } catch (e) {}
     }
 
     // Update Firestore first for fast persistent storage
@@ -2169,6 +2263,22 @@ export const sheetsService = {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
     clearSheetsCache('galeri');
+    try {
+      const plStored = localStorage.getItem('hw_playlist');
+      if (plStored) {
+        const parsedPl = JSON.parse(plStored);
+        if (Array.isArray(parsedPl)) {
+          localStorage.setItem('hw_playlist', JSON.stringify(parsedPl.filter((x: any) => String(x.id) !== String(id))));
+        }
+      }
+      const galStored = localStorage.getItem('hw_galeri');
+      if (galStored) {
+        const parsedGal = JSON.parse(galStored);
+        if (Array.isArray(parsedGal)) {
+          localStorage.setItem('hw_galeri', JSON.stringify(parsedGal.filter((x: any) => String(x.id) !== String(id))));
+        }
+      }
+    } catch (e) {}
     if (IS_API_VALID) {
       Promise.allSettled([
         this.post({ action: 'deletePlaylistItem', id }),

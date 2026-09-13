@@ -123,7 +123,7 @@
     },
     "contents": {
       "title": "Contents",
-      "description": "General dynamic content and announcements",
+      "description": "General dynamic content, gallery, and announcements",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -135,8 +135,34 @@
         "date": { "type": "string" },
         "createdAt": { "type": "string" },
         "section": { "type": "string" },
+        "type": { "type": "string" },
         "field1": { "type": "string" },
-        "field2": { "type": "string" }
+        "field2": { "type": "string" },
+        "field3": { "type": "string" },
+        "field4": { "type": "string" },
+        "field5": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "judul": { "type": "string" },
+        "pencipta": { "type": "string" },
+        "vokalis": { "type": "string" },
+        "lirik": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "playlist": {
+      "title": "Playlist",
+      "description": "Hizbul Wathan songs and audio tracks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "judul": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "pencipta": { "type": "string" },
+        "vokalis": { "type": "string" },
+        "lirik": { "type": "string" },
+        "kategori": { "type": "string" },
+        "section": { "type": "string" }
       },
       "required": ["id"]
     },

@@ -2419,21 +2419,16 @@ export const resolveTrackMetadata = (track: any) => {
   }
 
   // Custom metadata from Admin/Spreadsheet input takes precedence, followed by matched catalog, then fallback
-  let rawCreator = (track?.field3 || track?.pencipta || track?.creator || track?.artist || matched?.creator || '').trim();
+  let rawCreator = (track?.field3 || track?.pencipta || track?.creator || track?.artist || '').trim();
   
   if (!rawCreator || ['pandu hw', 'pandu hizbul wathan', 'kwarwil hw', 'kwarnas hw', 'kwarpus hw', 'kwarwil hw jateng', 'kwarda hw'].includes(rawCreator.toLowerCase())) {
-    rawCreator = defaultCreator;
-  } else if (!isMarsHW && !isHymneHW && !isSangSurya && !isMarsAisyiyah) {
-    // Only replace if rawCreator is just generic 'hw' without custom name
-    if (rawCreator.toLowerCase() === 'hw' || rawCreator.toLowerCase() === 'pandu') {
-      rawCreator = 'Muhammad Dzikron';
-    }
+    rawCreator = matched?.creator || defaultCreator;
   }
 
   const creator = rawCreator || defaultCreator;
 
   // Extract Vocalist / Penyanyi
-  let rawVocalist = (track?.field4 || track?.vokalis || track?.vocalist || track?.penyanyi || track?.singer || matched?.vocalist || '').trim();
+  let rawVocalist = (track?.field4 || track?.vokalis || track?.vocalist || track?.penyanyi || track?.singer || '').trim();
   const knownCategories = ['mars & hymne hw', 'lagu pandu hw', 'mars & lagu wajib', 'hymne', 'lagu pandu & motivasi', 'lagu pandu & semangat', 'mars', 'pandu'];
   if (knownCategories.includes(rawVocalist.toLowerCase())) {
     rawVocalist = matched?.vocalist || 'Paduan Suara HW';
@@ -2487,7 +2482,7 @@ export const resolveTrackMetadata = (track: any) => {
 
   return {
     id: track?.id || `track-${encodeURIComponent(rawTitle.toLowerCase().replace(/\s+/g, '-'))}`,
-    title: matched?.title || rawTitle,
+    title: rawTitle || matched?.title || 'Lagu Hizbul Wathan',
     creator,
     pencipta: creator,
     vocalist,
