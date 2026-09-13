@@ -16,7 +16,6 @@ import {
   DEFAULT_POST_TEST_SETTINGS, 
   DEFAULT_50_QUESTIONS 
 } from '../data/trainingQuestions';
-import { DEFAULT_PLAYLIST_SONGS } from '../data/playlistCatalog';
 
 // Decoupled from Google Spreadsheet - 100% Firebase Firestore & Local Cache
 export let API_URL = '';
@@ -1838,13 +1837,26 @@ export const sheetsService = {
       }
     } catch (e) {}
 
-    // 2. Retrieve mock/default contents and merge so neither defaults nor uploaded items are lost
+    // Retrieve deleted IDs first so they are never re-injected
+    let deletedIds: string[] = [];
+    try {
+      const rawSettings = localStorage.getItem('hw_settings');
+      if (rawSettings) {
+        const p = JSON.parse(rawSettings);
+        if (Array.isArray(p.deletedContentIds)) {
+          deletedIds = p.deletedContentIds.map((x: any) => String(x));
+        }
+      }
+    } catch (e) {}
+
+    // 2. Retrieve mock/default contents (excluding playlist to avoid ghost tracks)
     const mockContents = this.getMockContents ? this.getMockContents() : [];
     const contentMap = new Map<string, Content>();
 
-    // Seed with defaults
+    // Seed with defaults (strictly skip playlist and deleted IDs)
     mockContents.forEach((m: any) => {
-      if (!m) return;
+      if (!m || m.section === 'playlist') return;
+      if (m.id && deletedIds.includes(String(m.id))) return;
       const key = (m.id || (m.section + '-' + (m.field2 || m.judul || m.field1 || ''))).toString().trim().toLowerCase();
       if (key) contentMap.set(key, m);
     });
@@ -1852,6 +1864,7 @@ export const sheetsService = {
     // Overwrite or append with Firestore content (user uploaded / persistent)
     fsContents.forEach((c: any) => {
       if (!c) return;
+      if (c.id && deletedIds.includes(String(c.id))) return;
       const titleKey = (c.field2 || c.judul || c.title || '').toString().trim().toLowerCase();
       const idKey = (c.id || '').toString().trim().toLowerCase();
       
@@ -1885,6 +1898,7 @@ export const sheetsService = {
         if (Array.isArray(parsedPl)) {
           parsedPl.forEach((item: any) => {
             if (!item) return;
+            if (item.id && deletedIds.includes(String(item.id))) return;
             const idKey = (item.id || '').toString().trim().toLowerCase();
             const itemTitle = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
             let matchedKey = '';
@@ -1918,6 +1932,7 @@ export const sheetsService = {
         if (Array.isArray(parsedGal)) {
           parsedGal.forEach((item: any) => {
             if (!item) return;
+            if (item.id && deletedIds.includes(String(item.id))) return;
             const idKey = (item.id || '').toString().trim().toLowerCase();
             const itemTitle = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
             let matchedKey = '';
@@ -1944,15 +1959,9 @@ export const sheetsService = {
     } catch (e) {}
 
     let contents = Array.from(contentMap.values());
-    try {
-      const rawSettings = localStorage.getItem('hw_settings');
-      if (rawSettings) {
-        const p = JSON.parse(rawSettings);
-        if (Array.isArray(p.deletedContentIds) && p.deletedContentIds.length > 0) {
-          contents = contents.filter(c => c && c.id && !p.deletedContentIds.includes(String(c.id)));
-        }
-      }
-    } catch (e) {}
+    if (deletedIds.length > 0) {
+      contents = contents.filter(c => c && c.id && !deletedIds.includes(String(c.id)));
+    }
 
     // 3. Non-blocking background sync with Google Sheets if valid
     if (IS_API_VALID) {
@@ -2964,8 +2973,7 @@ export const sheetsService = {
         field1: 'Doa Sebelum Belajar',
         field2: 'رَبِّ زِدْنِي عِلْمًا وَارْزُقْنِي فَهْمًا',
         field3: 'Ya Allah, tambahkanlah kepadaku ilmu dan berikanlah aku pemahaman yang baik.'
-      },
-      ...DEFAULT_PLAYLIST_SONGS
+      }
     ];
   },
   

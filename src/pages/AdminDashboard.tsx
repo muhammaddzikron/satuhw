@@ -762,27 +762,40 @@ export default function AdminDashboard() {
     field5: ''
   });
 
-  // Comprehensive playlist merger that aggregates defaults, local storage, and server contents
+  // Aggregates playlist tracks strictly from database and local storage (NO mock / ghost songs)
   const getAllPlaylistTracks = useCallback((rawContents: Content[]): Content[] => {
-    const mockList = sheetsService.getMockContents ? sheetsService.getMockContents().filter(c => isContentSectionMatch(c.section, 'playlist')) : [];
-    const fromContents = (rawContents || []).filter(c => isContentSectionMatch(c.section, 'playlist') || !!(c as any).audioUrl);
+    let deletedIds: string[] = [];
+    try {
+      const s = localStorage.getItem('hw_settings');
+      if (s) {
+        const parsedS = JSON.parse(s);
+        if (Array.isArray(parsedS.deletedContentIds)) {
+          deletedIds = parsedS.deletedContentIds.map((x: any) => String(x));
+        }
+      }
+    } catch (e) {}
+
+    const fromContents = (rawContents || []).filter(c => c && isContentSectionMatch(c.section, 'playlist') && !deletedIds.includes(String(c.id)));
     
     let fromLocal: any[] = [];
     try {
       const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
       if (plStored) {
         const parsed = JSON.parse(plStored);
-        if (Array.isArray(parsed)) fromLocal = parsed;
+        if (Array.isArray(parsed)) {
+          fromLocal = parsed.filter((c: any) => c && !deletedIds.includes(String(c.id)));
+        }
       }
     } catch (e) {}
 
-    const all = [...mockList, ...fromLocal, ...fromContents];
+    const all = [...fromContents, ...fromLocal];
     const dedupMap = new Map<string, Content>();
 
     all.forEach((item: any) => {
       if (!item) return;
-      const meta = resolveTrackMetadata(item);
-      const title = (meta.title || item.field2 || item.judul || item.title || '').trim();
+      if (item.id && deletedIds.includes(String(item.id))) return;
+
+      const title = (item.field2 || item.judul || item.title || '').trim();
       if (!title || title.toLowerCase() === 'judul lagu' || title === '-') return;
 
       const normTitleKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -791,17 +804,17 @@ export default function AdminDashboard() {
       let targetKey = idKey || normTitleKey;
       for (const [k, v] of dedupMap.entries()) {
         const vTitle = (v.field2 || (v as any).judul || (v as any).title || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (vTitle === normTitleKey || (idKey && String(v.id).toLowerCase() === idKey)) {
+        if ((idKey && String(v.id).toLowerCase() === idKey) || (normTitleKey && vTitle === normTitleKey)) {
           targetKey = k;
           break;
         }
       }
 
       const existing = dedupMap.get(targetKey);
-      const creator = item.field3 || (item as any).pencipta || (item as any).creator || meta.creator || 'Muhammad Dzikron';
-      const vocalist = item.field4 || (item as any).vokalis || (item as any).vocalist || meta.vocalist || 'Paduan Suara HW';
-      const lyrics = item.field5 || (item as any).lirik || (item as any).lyrics || (meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? meta.lyrics : '') || '';
-      const audioUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || meta.audioUrl || '';
+      const creator = (item.field3 || (item as any).pencipta || (item as any).creator || (existing ? (existing.field3 || (existing as any).pencipta) : '') || '').trim();
+      const vocalist = (item.field4 || (item as any).vokalis || (item as any).vocalist || (existing ? (existing.field4 || (existing as any).vokalis) : '') || '').trim();
+      const lyrics = (item.field5 || (item as any).lirik || (item as any).lyrics || (existing ? (existing.field5 || (existing as any).lirik) : '') || '').trim();
+      const audioUrl = (item.field1 || (item as any).audioUrl || (item as any).audiourl || (existing ? (existing.field1 || (existing as any).audioUrl) : '') || '').trim();
 
       const merged: Content = {
         ...(existing || {}),
@@ -809,34 +822,28 @@ export default function AdminDashboard() {
         id: item.id || (existing ? existing.id : `playlist-${targetKey}`),
         section: 'playlist',
         type: 'list',
-        field1: audioUrl || (existing ? existing.field1 : ''),
+        field1: audioUrl,
         field2: title,
-        field3: creator,
-        field4: vocalist,
-        field5: lyrics || (existing ? existing.field5 : ''),
+        field3: creator || 'Pandu Hizbul Wathan',
+        field4: vocalist || 'Paduan Suara HW',
+        field5: lyrics,
         judul: title,
         title: title,
-        pencipta: creator,
-        creator: creator,
-        vokalis: vocalist,
-        vocalist: vocalist,
-        audioUrl: audioUrl || (existing ? (existing as any).audioUrl : ''),
-        audiourl: audioUrl || (existing ? (existing as any).audiourl : ''),
-        lirik: lyrics || (existing ? (existing as any).lirik : ''),
-        lyrics: lyrics || (existing ? (existing as any).lyrics : ''),
+        pencipta: creator || 'Pandu Hizbul Wathan',
+        creator: creator || 'Pandu Hizbul Wathan',
+        vokalis: vocalist || 'Paduan Suara HW',
+        vocalist: vocalist || 'Paduan Suara HW',
+        audioUrl: audioUrl,
+        audiourl: audioUrl,
+        lirik: lyrics,
+        lyrics: lyrics,
       };
 
       dedupMap.set(targetKey, merged);
     });
 
     const result = Array.from(dedupMap.values());
-    return result.sort((a, b) => {
-      const tA = (a.field2 || a.judul || a.title || '').toString().toLowerCase();
-      const tB = (b.field2 || b.judul || b.title || '').toString().toLowerCase();
-      if (tA === 'sahabat hw' || tA.includes('sahabat')) return -1;
-      if (tB === 'sahabat hw' || tB.includes('sahabat')) return 1;
-      return 0;
-    });
+    return result;
   }, []);
 
   const filteredPlaylist = useMemo(() => {
@@ -3627,13 +3634,20 @@ export default function AdminDashboard() {
       const isPl = selectedContentSection === 'playlist' || content.section === 'playlist';
       const isGal = selectedContentSection === 'galeri' || content.section === 'galeri';
       if (isPl) {
+        const audio = content.field1 || (content as any).audioUrl || (content as any).audiourl || '';
+        const title = content.field2 || (content as any).judul || (content as any).title || '';
+        const creator = content.field3 || (content as any).pencipta || (content as any).creator || '';
+        const vocalist = content.field4 || (content as any).vokalis || (content as any).vocalist || '';
+        const lyrics = content.field5 || content.lyrics || (content as any).lirik || '';
+        
         const resolved = resolveTrackMetadata(content);
+
         setContentFormData({
-          field1: content.field1 || (content as any).audioUrl || (content as any).audiourl || (resolved ? resolved.audioUrl : '') || '',
-          field2: content.field2 || (content as any).judul || (content as any).title || (resolved ? resolved.title : '') || '',
-          field3: content.field3 || (content as any).pencipta || (content as any).creator || (resolved && resolved.creator && resolved.creator !== 'Pandu Hizbul Wathan' ? resolved.creator : '') || '',
-          field4: content.field4 || (content as any).vokalis || (content as any).vocalist || (resolved ? resolved.vocalist : '') || '',
-          field5: content.field5 || content.lyrics || (content as any).lirik || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
+          field1: audio || (resolved ? resolved.audioUrl : '') || '',
+          field2: title || (resolved ? resolved.title : '') || '',
+          field3: creator || (resolved ? resolved.creator : '') || 'Pandu Hizbul Wathan',
+          field4: vocalist || (resolved ? resolved.vocalist : '') || 'Paduan Suara HW',
+          field5: lyrics || (resolved && resolved.lyrics && !resolved.lyrics.includes('Lirik lagu belum tersedia') ? resolved.lyrics : '') || ''
         });
       } else if (isGal) {
         const resolved = resolveVideoMetadata(content);
@@ -3658,8 +3672,8 @@ export default function AdminDashboard() {
       setContentFormData({
         field1: '',
         field2: '',
-        field3: selectedContentSection === 'galeri' ? 'Galeri HW' : (selectedContentSection === 'playlist' ? 'Muhammad Dzikron' : ''),
-        field4: selectedContentSection === 'playlist' ? 'Kak Dzikron & Sahabat Pandu' : '',
+        field3: selectedContentSection === 'galeri' ? 'Galeri HW' : (selectedContentSection === 'playlist' ? 'Pandu Hizbul Wathan' : ''),
+        field4: selectedContentSection === 'playlist' ? 'Paduan Suara HW' : '',
         field5: ''
       });
     }
@@ -3722,9 +3736,9 @@ export default function AdminDashboard() {
         if (isPl) {
           payload.audioUrl = f1;
           payload.audiourl = f1;
-          payload.pencipta = f3 || 'Muhammad Dzikron';
-          payload.creator = f3 || 'Muhammad Dzikron';
-          payload.field3 = f3 || 'Muhammad Dzikron';
+          payload.pencipta = f3 || 'Pandu Hizbul Wathan';
+          payload.creator = f3 || 'Pandu Hizbul Wathan';
+          payload.field3 = f3 || 'Pandu Hizbul Wathan';
           payload.vokalis = f4 || 'Paduan Suara HW';
           payload.vocalist = f4 || 'Paduan Suara HW';
           payload.field4 = f4 || 'Paduan Suara HW';
@@ -3755,9 +3769,23 @@ export default function AdminDashboard() {
           }
         }
 
-        // Optimistic update
+        const editTargetId = editingContent ? String(editingContent.id) : null;
+        const editTargetTitle = editingContent ? (editingContent.field2 || (editingContent as any).judul || (editingContent as any).title || '').trim().toLowerCase() : null;
+
+        const isMatchTarget = (c: any) => {
+          if (!c) return false;
+          const cId = String(c.id || '');
+          if (payload.id && cId === String(payload.id)) return true;
+          if (editTargetId && cId === editTargetId) return true;
+          const cTitle = (c.field2 || c.judul || c.title || '').trim().toLowerCase();
+          if (editTargetTitle && cTitle === editTargetTitle) return true;
+          if (!editingContent && isPl && cTitle === payload.field2.trim().toLowerCase()) return true;
+          return false;
+        };
+
+        // Optimistic update in state
         setContents(prev => {
-          const idx = prev.findIndex(c => c.id === payload.id || (isPl && ((c.field2 || (c as any).judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase())));
+          const idx = prev.findIndex(isMatchTarget);
           if (idx >= 0) {
             const next = [...prev];
             next[idx] = payload;
@@ -3766,7 +3794,7 @@ export default function AdminDashboard() {
           return [payload, ...prev];
         });
         setContentList(prev => {
-          const idx = prev.findIndex(c => c.id === payload.id || (isPl && ((c.field2 || (c as any).judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase())));
+          const idx = prev.findIndex(isMatchTarget);
           if (idx >= 0) {
             const next = [...prev];
             next[idx] = payload;
@@ -3781,16 +3809,53 @@ export default function AdminDashboard() {
             const plStored = localStorage.getItem('hw_playlist') || '[]';
             const parsedPl = JSON.parse(plStored);
             if (Array.isArray(parsedPl)) {
-              const pIdx = parsedPl.findIndex((x: any) => x.id === payload.id || ((x.field2 || x.judul || '').trim().toLowerCase() === payload.field2.trim().toLowerCase()));
+              const pIdx = parsedPl.findIndex(isMatchTarget);
               if (pIdx >= 0) parsedPl[pIdx] = payload;
               else parsedPl.unshift(payload);
               localStorage.setItem('hw_playlist', JSON.stringify(parsedPl));
             }
           } catch (e) {}
+          try {
+            const plStored2 = localStorage.getItem('playlist') || '[]';
+            const parsedPl2 = JSON.parse(plStored2);
+            if (Array.isArray(parsedPl2)) {
+              const pIdx2 = parsedPl2.findIndex(isMatchTarget);
+              if (pIdx2 >= 0) parsedPl2[pIdx2] = payload;
+              else parsedPl2.unshift(payload);
+              localStorage.setItem('playlist', JSON.stringify(parsedPl2));
+            }
+          } catch (e) {}
         }
 
+        // Store to contents in localStorage
+        try {
+          const cStored = localStorage.getItem('contents') || '[]';
+          const parsedC = JSON.parse(cStored);
+          if (Array.isArray(parsedC)) {
+            const cIdx = parsedC.findIndex(isMatchTarget);
+            if (cIdx >= 0) parsedC[cIdx] = payload;
+            else parsedC.unshift(payload);
+            localStorage.setItem('contents', JSON.stringify(parsedC));
+          }
+        } catch (e) {}
+
+        // Remove from deletedContentIds if previously marked deleted
+        try {
+          const s = localStorage.getItem('hw_settings');
+          if (s) {
+            const parsedS = JSON.parse(s);
+            if (Array.isArray(parsedS.deletedContentIds)) {
+              parsedS.deletedContentIds = parsedS.deletedContentIds.filter((x: any) => String(x) !== String(payload.id));
+              localStorage.setItem('hw_settings', JSON.stringify(parsedS));
+            }
+          }
+        } catch (e) {}
+
         setIsContentModalOpen(false);
-        showToast('success', editingContent ? 'Konten berhasil diperbarui!' : 'Konten baru berhasil disimpan!');
+        showToast('success', editingContent ? 'Lagu berhasil diperbarui!' : 'Lagu baru berhasil disimpan!');
+
+        // Dispatch real-time update event
+        window.dispatchEvent(new CustomEvent('hw_contents_updated'));
 
         // Reset form
         setContentFormData({
@@ -3808,6 +3873,14 @@ export default function AdminDashboard() {
             await sheetsService.saveContent(payload);
             if (isPl) {
               await sheetsService.savePlaylistItem(payload);
+            }
+            if (isGal) {
+              await sheetsService.saveGaleriItem(payload);
+            }
+            try {
+              await firestoreService.saveContent(payload);
+            } catch (fsErr) {
+              console.warn('Firestore content save warning:', fsErr);
             }
             const allContents = await sheetsService.getContents();
             if (allContents) {
@@ -3829,45 +3902,100 @@ export default function AdminDashboard() {
     };
 
   const handleDeleteContent = async (id: string) => {
-    if (confirm('Yakin ingin menghapus konten ini?')) {
+    const isPl = selectedContentSection === 'playlist';
+    const isGal = selectedContentSection === 'galeri';
+    const itemName = isPl ? 'lagu' : (isGal ? 'video' : 'konten');
+    
+    let confirmed = true;
+    try {
+      confirmed = window.confirm(`Apakah Anda yakin ingin menghapus ${itemName} ini?`);
+    } catch {
+      confirmed = true;
+    }
+    if (!confirmed) return;
+
+    try {
+      const cleanId = String(id || '');
+      if (!cleanId) return;
+
+      // Optimistic update in UI
+      setContents(prev => prev.filter(c => String(c.id) !== cleanId));
+      setContentList(prev => prev.filter(c => String(c.id) !== cleanId));
+
+      // Mark in deletedContentIds immediately
       try {
-        const isPl = selectedContentSection === 'playlist';
-        // Optimistic update
-        setContents(prev => prev.filter(c => c.id !== id));
-        setContentList(prev => prev.filter(c => c.id !== id));
-        if (isPl) {
-          try {
-            const storedPl = localStorage.getItem('hw_playlist') || '[]';
-            const parsed = JSON.parse(storedPl);
-            if (Array.isArray(parsed)) {
-              localStorage.setItem('hw_playlist', JSON.stringify(parsed.filter((x: any) => x.id !== id)));
-            }
-          } catch (e) {}
+        const s = localStorage.getItem('hw_settings');
+        const parsedS = s ? JSON.parse(s) : {};
+        const dIds: string[] = Array.isArray(parsedS.deletedContentIds) ? parsedS.deletedContentIds.map((x: any) => String(x)) : [];
+        if (!dIds.includes(cleanId)) {
+          parsedS.deletedContentIds = [...dIds, cleanId];
+          localStorage.setItem('hw_settings', JSON.stringify(parsedS));
         }
-        showToast('success', 'Konten berhasil dihapus!');
+      } catch (e) {}
 
-        // Background delete
-        (async () => {
-          setBackgroundProcessingText('Menghapus konten...');
-          try {
-            await sheetsService.deleteContent(id);
-            const allContents = await sheetsService.getContents();
-            if (allContents) {
-              setContents(allContents);
-              if (isPl) {
-                setContentList(getAllPlaylistTracks(allContents));
-              } else {
-                setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
-              }
-            }
-          } finally {
-            setBackgroundProcessingText(null);
+      // Remove from hw_playlist and playlist
+      if (isPl) {
+        try {
+          const storedPl = localStorage.getItem('hw_playlist') || '[]';
+          const parsed = JSON.parse(storedPl);
+          if (Array.isArray(parsed)) {
+            localStorage.setItem('hw_playlist', JSON.stringify(parsed.filter((x: any) => String(x.id) !== cleanId)));
           }
-        })().catch(err => console.warn('Background delete content warning:', err));
-
-      } catch (error: any) {
-        showToast('error', 'Gagal menghapus konten: ' + (error?.message || 'Error'));
+          const storedPl2 = localStorage.getItem('playlist') || '[]';
+          const parsed2 = JSON.parse(storedPl2);
+          if (Array.isArray(parsed2)) {
+            localStorage.setItem('playlist', JSON.stringify(parsed2.filter((x: any) => String(x.id) !== cleanId)));
+          }
+        } catch (e) {}
       }
+
+      // Remove from hw_galeri
+      if (isGal) {
+        try {
+          const storedGal = localStorage.getItem('hw_galeri') || '[]';
+          const parsed = JSON.parse(storedGal);
+          if (Array.isArray(parsed)) {
+            localStorage.setItem('hw_galeri', JSON.stringify(parsed.filter((x: any) => String(x.id) !== cleanId)));
+          }
+        } catch (e) {}
+      }
+
+      // Remove from contents
+      try {
+        const cStored = localStorage.getItem('contents') || '[]';
+        const parsedC = JSON.parse(cStored);
+        if (Array.isArray(parsedC)) {
+          localStorage.setItem('contents', JSON.stringify(parsedC.filter((x: any) => String(x.id) !== cleanId)));
+        }
+      } catch (e) {}
+
+      showToast('success', `${isPl ? 'Lagu' : 'Konten'} berhasil dihapus!`);
+
+      // Dispatch event so PlaylistPage updates immediately
+      window.dispatchEvent(new CustomEvent('hw_contents_updated'));
+
+      // Background delete
+      (async () => {
+        setBackgroundProcessingText(`Menghapus ${itemName}...`);
+        try {
+          await sheetsService.deleteContent(cleanId);
+          await firestoreService.deleteContent(cleanId);
+          const allContents = await sheetsService.getContents();
+          if (allContents) {
+            setContents(allContents);
+            if (isPl) {
+              setContentList(getAllPlaylistTracks(allContents));
+            } else {
+              setContentList(allContents.filter(c => isContentSectionMatch(c.section, selectedContentSection)));
+            }
+          }
+        } finally {
+          setBackgroundProcessingText(null);
+        }
+      })().catch(err => console.warn('Background delete content warning:', err));
+
+    } catch (error: any) {
+      showToast('error', 'Gagal menghapus konten: ' + (error?.message || 'Error'));
     }
   };
 
@@ -6264,9 +6392,10 @@ export default function AdminDashboard() {
                               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {filteredPlaylist.map((item, i) => {
                                   const meta = resolveTrackMetadata(item);
+                                  const songTitle = (item.field2 || (item as any).judul || (item as any).title || meta.title || 'Lagu Hizbul Wathan').trim();
                                   const songUrl = item.field1 || (item as any).audioUrl || (item as any).audiourl || meta.audioUrl || '';
                                   const isDrive = songUrl.includes('drive.google.com');
-                                  const creatorName = item.field3 || (item as any).pencipta || (item as any).creator || meta.creator || 'Muhammad Dzikron';
+                                  const creatorName = item.field3 || (item as any).pencipta || (item as any).creator || meta.creator || 'Pandu Hizbul Wathan';
                                   const vocalistName = item.field4 || (item as any).vokalis || (item as any).vocalist || meta.vocalist || 'Paduan Suara HW';
                                   const rawLyrics = item.field5 || (item as any).lirik || (item as any).lyrics || meta.lyrics || '';
                                   const hasLyrics = rawLyrics && !rawLyrics.includes('Lirik lagu belum tersedia');
@@ -6298,7 +6427,7 @@ export default function AdminDashboard() {
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => handleDeleteContent(item.id)}
+                                              onClick={() => handleDeleteContent(item.id || (item as any)._id || '')}
                                               className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                               title="Hapus Lagu Ini"
                                             >
@@ -6314,7 +6443,7 @@ export default function AdminDashboard() {
                                           </div>
                                           <div className="min-w-0 flex-1">
                                             <h4 className="font-bold text-gray-900 text-sm leading-tight group-hover:text-emerald-800 transition-colors">
-                                              {meta.title}
+                                              {songTitle}
                                             </h4>
                                           </div>
                                         </div>

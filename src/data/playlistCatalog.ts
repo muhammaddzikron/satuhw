@@ -2419,25 +2419,16 @@ export const resolveTrackMetadata = (track: any) => {
   }
 
   // Custom metadata from Admin/Spreadsheet input takes precedence, followed by matched catalog, then fallback
-  let rawCreator = (track?.field3 || track?.pencipta || track?.creator || track?.artist || '').trim();
-  
-  if (!rawCreator || ['pandu hw', 'pandu hizbul wathan', 'kwarwil hw', 'kwarnas hw', 'kwarpus hw', 'kwarwil hw jateng', 'kwarda hw'].includes(rawCreator.toLowerCase())) {
-    rawCreator = matched?.creator || defaultCreator;
-  }
-
-  const creator = rawCreator || defaultCreator;
+  const rawCreator = (track?.field3 || track?.pencipta || track?.creator || track?.artist || '').trim();
+  const creator = rawCreator || matched?.creator || defaultCreator;
 
   // Extract Vocalist / Penyanyi
-  let rawVocalist = (track?.field4 || track?.vokalis || track?.vocalist || track?.penyanyi || track?.singer || '').trim();
-  const knownCategories = ['mars & hymne hw', 'lagu pandu hw', 'mars & lagu wajib', 'hymne', 'lagu pandu & motivasi', 'lagu pandu & semangat', 'mars', 'pandu'];
-  if (knownCategories.includes(rawVocalist.toLowerCase())) {
-    rawVocalist = matched?.vocalist || 'Paduan Suara HW';
-  }
+  const rawVocalist = (track?.field4 || track?.vokalis || track?.vocalist || track?.penyanyi || track?.singer || '').trim();
   const defaultVocalist = matched?.vocalist || (isMarsHW || isHymneHW || isSangSurya || isMarsAisyiyah ? 'Paduan Suara HW' : 'Kak Dzikron & Sahabat Pandu');
   const vocalist = rawVocalist || defaultVocalist;
 
   const category = (track?.kategori || track?.category || matched?.category || '').trim() || (isMarsHW || isHymneHW ? 'Mars & Hymne HW' : 'Lagu Pandu HW');
-  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || track?.syair || track?.teks || matched?.lyrics || 'Lirik lagu belum tersedia. Dengarkan alunan audio ini melalui pemutar musik.').trim();
+  const lyrics = (track?.field5 || track?.lirik || track?.lyrics || track?.syair || track?.teks || matched?.lyrics || '').trim();
 
   // Color theme
   const themes = [

@@ -39,6 +39,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
+import { firestoreService } from '../services/firestoreService';
 import { useAuthStore } from '../store/useAuthStore';
 import { 
   formatAudioUrl, 
@@ -56,7 +57,7 @@ export const PlaylistPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = Boolean(user) && (user?.role === 'admin' || user?.role === 'superadmin');
 
-  // Normalize playlist data ensuring Sahabat HW is present and all uploaded songs are cleanly mapped
+  // Normalize playlist data ensuring tracks from DB and local storage are cleanly mapped without ghost songs
   const sanitizeList = useCallback((list: any[]) => {
     let deletedIds: string[] = [];
     try {
@@ -68,24 +69,20 @@ export const PlaylistPage: React.FC = () => {
     } catch (e) {}
 
     const seenKeys = new Set<string>();
-    let hasSahabatHW = false;
 
     const filtered = (list || []).filter((item: any) => {
       if (!item) return false;
-      if (item.id && deletedIds.includes(String(item.id))) return false;
+      const itemId = String(item.id || '');
+      if (itemId && deletedIds.includes(itemId)) return false;
 
       const explicitTitle = (item.field2 || item.judul || item.title || '').toString().trim();
       const meta = resolveTrackMetadata(item);
       const title = explicitTitle || meta.title || '';
       if (!title || title.toLowerCase() === 'judul lagu' || title === '-') return false;
 
-      const lowerTitle = title.toLowerCase();
-      if (lowerTitle === 'sahabat hw' || (item.field1 && item.field1.toString().toLowerCase().includes('sahabathw')) || (item.audioUrl && item.audioUrl.toLowerCase().includes('sahabathw'))) {
-        hasSahabatHW = true;
-      }
-
-      // Deduplicate items with identical unique key (title + audioUrl or id)
-      const dedupKey = item.id || (lowerTitle + '::' + (meta.audioUrl || item.field1 || ''));
+      // Deduplicate items with identical unique key (id or title)
+      const normTitleKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const dedupKey = itemId || normTitleKey;
       if (seenKeys.has(dedupKey)) return false;
       seenKeys.add(dedupKey);
       return true;
@@ -96,69 +93,18 @@ export const PlaylistPage: React.FC = () => {
       const title = explicitTitle || meta.title;
       const lowerTitle = title.toLowerCase();
       const audio = (item.field1 || item.audioUrl || item.audiourl || meta.audioUrl || '').toString().trim();
-      let creator = (item.field3 || item.pencipta || item.creator || meta.creator || '').toString().trim();
-      let vocalist = (item.field4 || item.vokalis || item.vocalist || meta.vocalist || '').toString().trim();
-      let lyrics = (item.field5 || item.lirik || item.lyrics || meta.lyrics || '').toString().trim();
-
-      const isMarsHW = lowerTitle.includes('mars hizbul wathan') || lowerTitle === 'mars hw' || lowerTitle.includes('mars gerakan kepanduan hizbul wathan') || lowerTitle.includes('mars pandu hw');
-      const isHymneHW = lowerTitle.includes('hymne');
-      const isSangSurya = lowerTitle.includes('sang surya');
-      const isMarsAisyiyah = lowerTitle.includes('mars aisyiyah');
+      let creator = (item.field3 || item.pencipta || item.creator || (meta.creator !== 'Pandu Hizbul Wathan' ? meta.creator : '') || '').toString().trim() || 'Pandu Hizbul Wathan';
+      let vocalist = (item.field4 || item.vokalis || item.vocalist || (meta.vocalist !== 'Paduan Suara HW' ? meta.vocalist : '') || '').toString().trim() || 'Paduan Suara HW';
+      let lyrics = (item.field5 || item.lirik || item.lyrics || (meta.lyrics && !meta.lyrics.includes('Lirik lagu belum tersedia') ? meta.lyrics : '') || '').toString().trim();
 
       if (lowerTitle === 'sahabat hw' || audio.toLowerCase().includes('sahabathw')) {
-        if (!creator) creator = 'Muhammad Dzikron';
-        if (!vocalist) vocalist = 'Kak Dzikron & Sahabat Pandu';
-        if (!lyrics || lyrics.includes('Lirik lagu belum tersedia')) {
-          lyrics = `Bersama kita melangkah
-Menembus cakrawala asa
-Sahabat sejati Pandu HW
-Satu hati dalam ukhuwah persaudaraan
-
-Di bumi perkemahan kita bersua
-Belajar mandiri, disiplin, berjiwa ksatria
-Setia pandu, suci pikiran perkataan perbuatan
-Hizbul Wathan, sahabat setia sepanjang zaman!`;
-        }
-        return {
-          ...item,
-          id: item.id || 'playlist-sahabat-hw',
-          field1: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
-          field2: 'Sahabat HW',
-          field3: creator,
-          field4: vocalist,
-          field5: lyrics,
-          pencipta: creator,
-          creator: creator,
-          judul: 'Sahabat HW',
-          title: 'Sahabat HW',
-          vokalis: vocalist,
-          vocalist: vocalist,
-          lirik: lyrics,
-          lyrics: lyrics,
-          audioUrl: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
-          audiourl: audio || 'https://hwjateng.org/musik/sahabathw.mp3',
-          category: 'Lagu Pandu HW',
-          theme: meta.theme
-        };
-      }
-
-      if (isMarsHW) {
-        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
-          creator = 'H. Siradj Dahlan';
-        }
-      } else if (isHymneHW) {
-        if (!creator || creator.toLowerCase().includes('pandu') || creator.toLowerCase().includes('kwar')) {
-          creator = 'H.M. Affandi';
-        }
-      } else if (isSangSurya) {
-        if (!creator) creator = 'Djarnawi Hadikusuma';
-      } else if (isMarsAisyiyah) {
-        if (!creator) creator = 'Ny. Hj. Siti Badilah Zuber';
+        if (!creator || creator === 'Pandu Hizbul Wathan') creator = 'Muhammad Dzikron';
+        if (!vocalist || vocalist === 'Paduan Suara HW') vocalist = 'Kak Dzikron & Sahabat Pandu';
       }
 
       return {
         ...item,
-        id: item.id || meta.id,
+        id: item.id || meta.id || `playlist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         field1: audio,
         field2: title,
         field3: creator,
@@ -174,72 +120,15 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`;
         audiourl: audio,
         lyrics,
         lirik: lyrics,
-        category: meta.category,
+        category: meta.category || 'Lagu Pandu HW',
         theme: meta.theme
       };
     });
 
-    // If Sahabat HW is missing, restore it as the primary track
-    if (!hasSahabatHW) {
-      const defaultSahabatHW = {
-        id: 'playlist-sahabat-hw',
-        section: 'playlist',
-        field1: 'https://hwjateng.org/musik/sahabathw.mp3',
-        field2: 'Sahabat HW',
-        field3: 'Muhammad Dzikron',
-        field4: 'Kak Dzikron & Sahabat Pandu',
-        field5: `Bersama kita melangkah
-Menembus cakrawala asa
-Sahabat sejati Pandu HW
-Satu hati dalam ukhuwah persaudaraan
-
-Di bumi perkemahan kita bersua
-Belajar mandiri, disiplin, berjiwa ksatria
-Setia pandu, suci pikiran perkataan perbuatan
-Hizbul Wathan, sahabat setia sepanjang zaman!`,
-        pencipta: 'Muhammad Dzikron',
-        creator: 'Muhammad Dzikron',
-        judul: 'Sahabat HW',
-        title: 'Sahabat HW',
-        audioUrl: 'https://hwjateng.org/musik/sahabathw.mp3',
-        audiourl: 'https://hwjateng.org/musik/sahabathw.mp3',
-        lyrics: `Bersama kita melangkah
-Menembus cakrawala asa
-Sahabat sejati Pandu HW
-Satu hati dalam ukhuwah persaudaraan
-
-Di bumi perkemahan kita bersua
-Belajar mandiri, disiplin, berjiwa ksatria
-Setia pandu, suci pikiran perkataan perbuatan
-Hizbul Wathan, sahabat setia sepanjang zaman!`,
-        lirik: `Bersama kita melangkah
-Menembus cakrawala asa
-Sahabat sejati Pandu HW
-Satu hati dalam ukhuwah persaudaraan
-
-Di bumi perkemahan kita bersua
-Belajar mandiri, disiplin, berjiwa ksatria
-Setia pandu, suci pikiran perkataan perbuatan
-Hizbul Wathan, sahabat setia sepanjang zaman!`
-      };
-      return [defaultSahabatHW, ...filtered];
-    }
-
-    // Always sort Sahabat HW to the very top (index 0)
-    const sorted = [...filtered].sort((a, b) => {
-      const titleA = (a.field2 || a.judul || a.title || '').toString().trim().toLowerCase();
-      const titleB = (b.field2 || b.judul || b.title || '').toString().trim().toLowerCase();
-      const isSahabatA = titleA === 'sahabat hw' || (a.field1 && a.field1.toString().toLowerCase().includes('sahabathw'));
-      const isSahabatB = titleB === 'sahabat hw' || (b.field1 && b.field1.toString().toLowerCase().includes('sahabathw'));
-      if (isSahabatA && !isSahabatB) return -1;
-      if (!isSahabatA && isSahabatB) return 1;
-      return 0;
-    });
-
-    return sorted;
+    return filtered;
   }, []);
 
-  // Instant initial playlist from local cache or mock
+  // Instant initial playlist from local cache (NO ghost/mock tracks)
   const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
     let deletedIds: string[] = [];
     try {
@@ -269,8 +158,7 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
         }
       }
     } catch (e) {}
-    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist' && !deletedIds.includes(String(c.id))) : [];
-    return mock;
+    return [];
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -337,51 +225,27 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
       }
     } catch (e) {}
 
-    const mock = sheetsService.getMockContents ? sheetsService.getMockContents().filter((c: any) => c.section === 'playlist') : [];
-
     const cleanServer = (serverList || []).filter(c => c && !deletedIds.includes(String(c.id)));
     const cleanLocal = localPl.filter(c => c && !deletedIds.includes(String(c.id)));
-    const cleanMock = mock.filter(c => c && !deletedIds.includes(String(c.id)));
 
-    // Track map where Server & Local take precedence over Mock!
+    // Track map where Database server contents and Local saved contents are merged cleanly
     const trackMap = new Map<string, any>();
 
-    // 1. Base mock
-    cleanMock.forEach(item => {
-      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+    // 1. Server contents (authoritative from DB)
+    cleanServer.forEach(item => {
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
       const idKey = String(item.id || '').trim().toLowerCase();
       trackMap.set(idKey || titleKey, item);
     });
 
-    // 2. Server contents
-    cleanServer.forEach(item => {
-      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
-      const idKey = String(item.id || '').trim().toLowerCase();
-      let matchedKey = idKey;
-      if (!matchedKey || !trackMap.has(matchedKey)) {
-        for (const [k, v] of trackMap.entries()) {
-          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase();
-          if (titleKey && vTitle === titleKey) {
-            matchedKey = k;
-            break;
-          }
-        }
-      }
-      if (matchedKey) {
-        trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
-      } else {
-        trackMap.set(idKey || titleKey, item);
-      }
-    });
-
-    // 3. Local saved contents (instant admin action)
+    // 2. Local saved contents (instant admin action)
     cleanLocal.forEach(item => {
-      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase();
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
       const idKey = String(item.id || '').trim().toLowerCase();
       let matchedKey = idKey;
       if (!matchedKey || !trackMap.has(matchedKey)) {
         for (const [k, v] of trackMap.entries()) {
-          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase();
+          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
           if (titleKey && vTitle === titleKey) {
             matchedKey = k;
             break;
@@ -786,6 +650,40 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
 
       // Call sheetsService with forced Google Spreadsheet sync
       const res = await sheetsService.savePlaylistItem(payload);
+      try {
+        await firestoreService.saveContent(payload);
+      } catch (e) {
+        console.warn('Firestore direct save:', e);
+      }
+
+      // Remove from deletedContentIds if it was deleted previously
+      try {
+        const s = localStorage.getItem('hw_settings');
+        if (s) {
+          const parsedS = JSON.parse(s);
+          if (Array.isArray(parsedS.deletedContentIds)) {
+            parsedS.deletedContentIds = parsedS.deletedContentIds.filter((x: any) => String(x) !== String(targetId));
+            localStorage.setItem('hw_settings', JSON.stringify(parsedS));
+          }
+        }
+      } catch (e) {}
+
+      // Update hw_playlist, playlist, and contents in localStorage
+      try {
+        const plStored = localStorage.getItem('hw_playlist') || '[]';
+        const parsed = JSON.parse(plStored);
+        if (Array.isArray(parsed)) {
+          const nextPl = [...parsed.filter((x: any) => String(x.id) !== String(targetId)), payload];
+          localStorage.setItem('hw_playlist', JSON.stringify(nextPl));
+          localStorage.setItem('playlist', JSON.stringify(nextPl));
+        }
+        const cStored = localStorage.getItem('contents') || '[]';
+        const parsedC = JSON.parse(cStored);
+        if (Array.isArray(parsedC)) {
+          const nextC = [...parsedC.filter((x: any) => String(x.id) !== String(targetId)), payload];
+          localStorage.setItem('contents', JSON.stringify(nextC));
+        }
+      } catch (e) {}
 
       // Instantly update local state for reactive UI
       setRawPlaylist(prev => {
@@ -804,6 +702,8 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
           audioUrl: payload.audioUrl
         });
       }
+
+      window.dispatchEvent(new CustomEvent('hw_contents_updated'));
 
       setSaveFeedback({
         type: 'success',
@@ -832,16 +732,55 @@ Hizbul Wathan, sahabat setia sepanjang zaman!`
     if (!window.confirm(`Apakah Anda yakin ingin menghapus lagu "${trackTitle}" dari playlist?`)) {
       return;
     }
+    const cleanId = String(trackId || '');
     try {
-      await sheetsService.deleteContent(trackId);
-      setRawPlaylist(prev => prev.filter(p => p.id !== trackId));
-      if (selectedTrackForLyrics?.id === trackId) {
+      // 1. Immediately persist cleanId to deletedContentIds in hw_settings
+      try {
+        const s = localStorage.getItem('hw_settings');
+        const parsedS = s ? JSON.parse(s) : {};
+        const dIds: string[] = Array.isArray(parsedS.deletedContentIds) ? parsedS.deletedContentIds.map((x: any) => String(x)) : [];
+        if (!dIds.includes(cleanId)) {
+          parsedS.deletedContentIds = [...dIds, cleanId];
+          localStorage.setItem('hw_settings', JSON.stringify(parsedS));
+        }
+      } catch (e) {}
+
+      // 2. Remove from hw_playlist, playlist, and contents
+      try {
+        const plStored = localStorage.getItem('hw_playlist') || '[]';
+        const parsed = JSON.parse(plStored);
+        if (Array.isArray(parsed)) {
+          localStorage.setItem('hw_playlist', JSON.stringify(parsed.filter((x: any) => String(x.id) !== cleanId)));
+        }
+        const plStored2 = localStorage.getItem('playlist') || '[]';
+        const parsed2 = JSON.parse(plStored2);
+        if (Array.isArray(parsed2)) {
+          localStorage.setItem('playlist', JSON.stringify(parsed2.filter((x: any) => String(x.id) !== cleanId)));
+        }
+        const cStored = localStorage.getItem('contents') || '[]';
+        const parsedC = JSON.parse(cStored);
+        if (Array.isArray(parsedC)) {
+          localStorage.setItem('contents', JSON.stringify(parsedC.filter((x: any) => String(x.id) !== cleanId)));
+        }
+      } catch (e) {}
+
+      // 3. Optimistically update local UI state immediately
+      setRawPlaylist(prev => prev.filter(p => String(p.id) !== cleanId));
+      if (selectedTrackForLyrics?.id === cleanId) {
         setSelectedTrackForLyrics(null);
       }
-      if (currentTrack?.id === trackId) {
+      if (currentTrack?.id === cleanId) {
         handleStopTrack();
         setCurrentTrackIndex(null);
       }
+
+      // 4. Remote delete from Firestore & Spreadsheet
+      await Promise.allSettled([
+        sheetsService.deleteContent(cleanId),
+        firestoreService.deleteContent(cleanId)
+      ]);
+
+      window.dispatchEvent(new CustomEvent('hw_contents_updated'));
     } catch (err) {
       console.error('Delete error:', err);
       alert('Gagal menghapus lagu. Silakan coba kembali.');
