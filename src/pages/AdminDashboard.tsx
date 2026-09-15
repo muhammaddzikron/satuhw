@@ -1314,6 +1314,10 @@ export default function AdminDashboard() {
     });
   }, [members]);
 
+  // Trainer & Assistant filtering state
+  const [trainerSearchQuery, setTrainerSearchQuery] = useState('');
+  const [assistantSearchQuery, setAssistantSearchQuery] = useState('');
+
   // Schedule Editing States
   const [editingScheduleAppId, setEditingScheduleAppId] = useState<string | null>(null);
   const [editPelatihan, setEditPelatihan] = useState<string>('');
@@ -1994,7 +1998,7 @@ export default function AdminDashboard() {
     try {
       const rawRoles = parseRolesField(editingKtaApp.roles, editingKtaApp.role || editingKtaApp.tingkatan);
       const rawPelatihan = editingKtaApp.pelatihan || [];
-      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan, editingKtaApp.role);
+      const synced = syncRolesAndPelatihan(rawRoles, rawPelatihan, editingKtaApp.role, true);
 
       const appToSave = {
         ...editingKtaApp,
@@ -2079,10 +2083,31 @@ export default function AdminDashboard() {
               try {
                 const stored = localStorage.getItem('member_custom_edits') || '{}';
                 const parsed = JSON.parse(stored);
-                parsed[updatedMember.id] = updatedMember;
+                const idStr = String(updatedMember.id || '').trim();
+                const idClean = idStr.replace(/^user-/, '');
+                if (idStr) parsed[idStr] = updatedMember;
+                if (idClean) parsed[idClean] = updatedMember;
+                if (idClean) parsed[`user-${idClean}`] = updatedMember;
                 if (updatedMember.email) parsed[updatedMember.email.toLowerCase().trim()] = updatedMember;
                 if (updatedMember.ktaNumber) parsed[updatedMember.ktaNumber.trim()] = updatedMember;
+                if (updatedMember.nomorKTA) parsed[updatedMember.nomorKTA.trim()] = updatedMember;
                 localStorage.setItem('member_custom_edits', JSON.stringify(parsed));
+              } catch (e) {}
+
+              try {
+                const storedMock = localStorage.getItem('mock_members');
+                if (storedMock) {
+                  let list = JSON.parse(storedMock);
+                  if (Array.isArray(list)) {
+                    const idx = list.findIndex((mem: any) => mem.id === updatedMember.id || (mem.email && updatedMember.email && mem.email.toLowerCase().trim() === updatedMember.email.toLowerCase().trim()));
+                    if (idx >= 0) {
+                      list[idx] = { ...list[idx], ...updatedMember };
+                    } else {
+                      list.unshift(updatedMember);
+                    }
+                    localStorage.setItem('mock_members', JSON.stringify(list));
+                  }
+                }
               } catch (e) {}
 
               // Update state optimistically
@@ -2214,7 +2239,7 @@ export default function AdminDashboard() {
       if (!currentRoles.includes(roleToApprove)) {
         currentRoles.push(roleToApprove);
       }
-      const synced = syncRolesAndPelatihan(currentRoles, m.pelatihan || []);
+      const synced = syncRolesAndPelatihan(currentRoles, m.pelatihan || [], roleToApprove, true);
       const remainingRequests = (Array.isArray(m.upgradeRequests) ? m.upgradeRequests : []).filter((r: string) => r !== roleToApprove);
       const updatedMember = {
         ...m,
@@ -2224,11 +2249,42 @@ export default function AdminDashboard() {
         upgradeRequests: remainingRequests
       };
 
-      // 1. Instantly update local members state
+      // 1. Instantly store in persistent custom edits and mock members
+      try {
+        const stored = localStorage.getItem('member_custom_edits') || '{}';
+        const parsed = JSON.parse(stored);
+        const idStr = String(updatedMember.id || '').trim();
+        const idClean = idStr.replace(/^user-/, '');
+        if (idStr) parsed[idStr] = updatedMember;
+        if (idClean) parsed[idClean] = updatedMember;
+        if (idClean) parsed[`user-${idClean}`] = updatedMember;
+        if (updatedMember.email) parsed[updatedMember.email.toLowerCase().trim()] = updatedMember;
+        if (updatedMember.ktaNumber) parsed[updatedMember.ktaNumber.trim()] = updatedMember;
+        if (updatedMember.nomorKTA) parsed[updatedMember.nomorKTA.trim()] = updatedMember;
+        localStorage.setItem('member_custom_edits', JSON.stringify(parsed));
+      } catch (e) {}
+
+      try {
+        const storedMock = localStorage.getItem('mock_members');
+        if (storedMock) {
+          let list = JSON.parse(storedMock);
+          if (Array.isArray(list)) {
+            const idx = list.findIndex((mem: any) => mem.id === updatedMember.id || (mem.email && updatedMember.email && mem.email.toLowerCase().trim() === updatedMember.email.toLowerCase().trim()));
+            if (idx >= 0) {
+              list[idx] = { ...list[idx], ...updatedMember };
+            } else {
+              list.unshift(updatedMember);
+            }
+            localStorage.setItem('mock_members', JSON.stringify(list));
+          }
+        }
+      } catch (e) {}
+
+      // 2. Instantly update local members state
       setMembers(prev => prev.map(mem => mem.id === m.id ? updatedMember : mem));
       alert(`Permohonan upgrade ${ROLE_LABELS[roleToApprove] || roleToApprove} untuk ${m.namaLengkap || 'Anggota'} berhasil disetujui!`);
 
-      // 2. Background save & refresh
+      // 3. Background save & refresh
       (async () => {
         await firestoreService.saveMember(updatedMember as User);
         await firestoreService.updateMember(m.id, updatedMember);
@@ -2751,8 +2807,8 @@ export default function AdminDashboard() {
   };
 
   const handleOpenPelatihanModal = (act?: any) => {
-    const autoPelatih = detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
-    const autoAsisten = detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+    setTrainerSearchQuery('');
+    setAssistantSearchQuery('');
 
     if (act) {
       setEditingPelatihanId(act.id || null);
@@ -2773,8 +2829,8 @@ export default function AdminDashboard() {
         status: (act.status === 'Berjalan' || act.status === 'Selesai' || act.status === 'Tutup') ? act.status : 'Buka',
         kuota: act.kuota || '40 Peserta',
         deskripsi: act.deskripsi || act.description || '',
-        pelatih: rawPelatih.length > 0 ? rawPelatih : autoPelatih,
-        asistenPelatih: rawAsisten.length > 0 ? rawAsisten : autoAsisten,
+        pelatih: rawPelatih,
+        asistenPelatih: rawAsisten,
         persyaratan: act.persyaratan || '',
         biayaPelatihan: act.biayaPelatihan || act.biaya || 'Rp 50.000',
         rekeningPembiayaan: act.rekeningPembiayaan || act.rekeningPembayaran || 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
@@ -2794,8 +2850,8 @@ export default function AdminDashboard() {
         status: 'Buka',
         kuota: '40 Peserta',
         deskripsi: 'Pelatihan Kepemimpinan & Penguatan Kompetensi Pembina Pandu Hizbul Wathan Jawa Tengah',
-        pelatih: autoPelatih,
-        asistenPelatih: autoAsisten,
+        pelatih: [],
+        asistenPelatih: [],
         persyaratan: '1. Anggota aktif Hizbul Wathan (memiliki KTA Digital HW Jateng)\n2. Membawa Surat Tugas dari Kwarda / Qabilah\n3. Membayar biaya pendaftaran & konfirmasi bukti bayar',
         biayaPelatihan: 'Rp 50.000',
         rekeningPembiayaan: 'Bank Syariah Indonesia (BSI) 7307427448 a.n. Kwarwil HW Jateng',
@@ -2828,6 +2884,28 @@ export default function AdminDashboard() {
         : typeof pelatihanForm.asistenPelatih === 'string' && (pelatihanForm.asistenPelatih as string).trim()
           ? (pelatihanForm.asistenPelatih as string).split(',').map(s => s.trim()).filter(Boolean)
           : [];
+
+      // Validasi aturan: Tim Pelatih hanya yang ber-role Jaya Matahari 1
+      if (detectedJayaMatahari1Members.length > 0 && pelatihList.length > 0) {
+        const jm1Names = new Set(detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
+        const invalidPelatih = pelatihList.filter(name => !jm1Names.has(name.trim().toLowerCase()));
+        if (invalidPelatih.length > 0) {
+          showToast('error', `Instruktur "${invalidPelatih[0]}" belum ber-role Jaya Matahari 1. Tim Pelatih hanya untuk anggota ber-role Jaya Matahari 1.`);
+          setIsSavingPelatihan(false);
+          return;
+        }
+      }
+
+      // Validasi aturan: Asisten Pelatih hanya yang ber-role Jaya Melati 2
+      if (detectedJayaMelati2Members.length > 0 && asistenList.length > 0) {
+        const jm2Names = new Set(detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
+        const invalidAsisten = asistenList.filter(name => !jm2Names.has(name.trim().toLowerCase()));
+        if (invalidAsisten.length > 0) {
+          showToast('error', `Asisten "${invalidAsisten[0]}" belum ber-role Jaya Melati 2. Asisten Pelatih hanya untuk anggota ber-role Jaya Melati 2.`);
+          setIsSavingPelatihan(false);
+          return;
+        }
+      }
 
       const payload = {
         id: trainId,
@@ -3827,6 +3905,30 @@ export default function AdminDashboard() {
           } catch (e) {}
         }
 
+        // Store immediately to localStorage for gallery resilience
+        if (isGal) {
+          try {
+            const galStored = localStorage.getItem('hw_galeri') || '[]';
+            const parsedGal = JSON.parse(galStored);
+            if (Array.isArray(parsedGal)) {
+              const gIdx = parsedGal.findIndex(isMatchTarget);
+              if (gIdx >= 0) parsedGal[gIdx] = payload;
+              else parsedGal.unshift(payload);
+              localStorage.setItem('hw_galeri', JSON.stringify(parsedGal));
+            }
+          } catch (e) {}
+          try {
+            const galStored2 = localStorage.getItem('galeri') || '[]';
+            const parsedGal2 = JSON.parse(galStored2);
+            if (Array.isArray(parsedGal2)) {
+              const gIdx2 = parsedGal2.findIndex(isMatchTarget);
+              if (gIdx2 >= 0) parsedGal2[gIdx2] = payload;
+              else parsedGal2.unshift(payload);
+              localStorage.setItem('galeri', JSON.stringify(parsedGal2));
+            }
+          } catch (e) {}
+        }
+
         // Store to contents in localStorage
         try {
           const cStored = localStorage.getItem('contents') || '[]';
@@ -3852,7 +3954,7 @@ export default function AdminDashboard() {
         } catch (e) {}
 
         setIsContentModalOpen(false);
-        showToast('success', editingContent ? 'Lagu berhasil diperbarui!' : 'Lagu baru berhasil disimpan!');
+        showToast('success', editingContent ? `${isPl ? 'Lagu' : (isGal ? 'Video' : 'Konten')} berhasil diperbarui!` : `${isPl ? 'Lagu baru' : (isGal ? 'Video baru' : 'Konten baru')} berhasil disimpan!`);
 
         // Dispatch real-time update event
         window.dispatchEvent(new CustomEvent('hw_contents_updated'));
@@ -3949,13 +4051,20 @@ export default function AdminDashboard() {
         } catch (e) {}
       }
 
-      // Remove from hw_galeri
+      // Remove from hw_galeri & galeri
       if (isGal) {
         try {
           const storedGal = localStorage.getItem('hw_galeri') || '[]';
           const parsed = JSON.parse(storedGal);
           if (Array.isArray(parsed)) {
             localStorage.setItem('hw_galeri', JSON.stringify(parsed.filter((x: any) => String(x.id) !== cleanId)));
+          }
+        } catch (e) {}
+        try {
+          const storedGal2 = localStorage.getItem('galeri') || '[]';
+          const parsed2 = JSON.parse(storedGal2);
+          if (Array.isArray(parsed2)) {
+            localStorage.setItem('galeri', JSON.stringify(parsed2.filter((x: any) => String(x.id) !== cleanId)));
           }
         } catch (e) {}
       }
@@ -3969,7 +4078,7 @@ export default function AdminDashboard() {
         }
       } catch (e) {}
 
-      showToast('success', `${isPl ? 'Lagu' : 'Konten'} berhasil dihapus!`);
+      showToast('success', `${isPl ? 'Lagu' : (isGal ? 'Video' : 'Konten')} berhasil dihapus!`);
 
       // Dispatch event so PlaylistPage updates immediately
       window.dispatchEvent(new CustomEvent('hw_contents_updated'));
@@ -4184,7 +4293,7 @@ export default function AdminDashboard() {
 
   const handleSaveMember = async () => {
     try {
-      const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan, formData.role);
+      const synced = syncRolesAndPelatihan(formData.roles, formData.pelatihan, formData.role, true);
       const isJM = synced.roles.includes('jari1') || synced.roles.includes('jari2') || synced.roles.includes('jaya_matahari_1') || synced.roles.includes('jaya_matahari_2') || synced.primaryRole === 'jari1' || synced.primaryRole === 'jari2';
       const memberId = editingMember?.id || Date.now().toString();
       const primaryRole = formData.role || synced.primaryRole;
@@ -4277,10 +4386,31 @@ export default function AdminDashboard() {
       try {
         const stored = localStorage.getItem('member_custom_edits') || '{}';
         const parsed = JSON.parse(stored);
-        parsed[payload.id] = payload;
+        const idStr = String(payload.id || '').trim();
+        const idClean = idStr.replace(/^user-/, '');
+        if (idStr) parsed[idStr] = payload;
+        if (idClean) parsed[idClean] = payload;
+        if (idClean) parsed[`user-${idClean}`] = payload;
         if (payload.email) parsed[payload.email.toLowerCase().trim()] = payload;
         if (payload.ktaNumber) parsed[payload.ktaNumber] = payload;
+        if (payload.nomorKTA) parsed[payload.nomorKTA] = payload;
         localStorage.setItem('member_custom_edits', JSON.stringify(parsed));
+      } catch (e) {}
+
+      try {
+        const storedMock = localStorage.getItem('mock_members');
+        if (storedMock) {
+          let list = JSON.parse(storedMock);
+          if (Array.isArray(list)) {
+            const idx = list.findIndex((m: any) => m.id === payload.id || (m.email && payload.email && m.email.toLowerCase().trim() === payload.email.toLowerCase().trim()));
+            if (idx >= 0) {
+              list[idx] = { ...list[idx], ...payload };
+            } else {
+              list.unshift(payload);
+            }
+            localStorage.setItem('mock_members', JSON.stringify(list));
+          }
+        }
       } catch (e) {}
 
       // Optimistically update local members state immediately
@@ -11974,7 +12104,7 @@ export default function AdminDashboard() {
                           const newPrimaryRole = e.target.value;
                           const currentRoles = Array.isArray(editingKtaApp.roles) ? editingKtaApp.roles : [editingKtaApp.role || 'umum'];
                           const updatedRoles = Array.from(new Set([...currentRoles, newPrimaryRole]));
-                          const synced = syncRolesAndPelatihan(updatedRoles, editingKtaApp.pelatihan || [], newPrimaryRole);
+                          const synced = syncRolesAndPelatihan(updatedRoles, editingKtaApp.pelatihan || [], newPrimaryRole, true);
                           setEditingKtaApp((p: any) => ({
                             ...p,
                             role: synced.primaryRole,
@@ -12034,7 +12164,7 @@ export default function AdminDashboard() {
                               } else {
                                 nextRoles = Array.from(new Set([...currentRoles, opt.value]));
                               }
-                              const synced = syncRolesAndPelatihan(nextRoles, editingKtaApp.pelatihan || [], editingKtaApp.role);
+                              const synced = syncRolesAndPelatihan(nextRoles, editingKtaApp.pelatihan || [], editingKtaApp.role, true);
                               setEditingKtaApp((p: any) => ({
                                 ...p,
                                 role: synced.primaryRole,
@@ -12371,7 +12501,7 @@ export default function AdminDashboard() {
                         const newPrimaryRole = e.target.value;
                         const currentRoles = Array.isArray(formData.roles) ? formData.roles : [formData.role || 'umum'];
                         const updatedRoles = Array.from(new Set([...currentRoles, newPrimaryRole]));
-                        const synced = syncRolesAndPelatihan(updatedRoles, formData.pelatihan || [], newPrimaryRole);
+                        const synced = syncRolesAndPelatihan(updatedRoles, formData.pelatihan || [], newPrimaryRole, true);
                         setFormData((f: any) => ({
                           ...f,
                           role: synced.primaryRole,
@@ -12428,7 +12558,7 @@ export default function AdminDashboard() {
                             } else {
                               nextRoles = Array.from(new Set([...currentRoles, opt.value]));
                             }
-                            const synced = syncRolesAndPelatihan(nextRoles, formData.pelatihan || [], formData.role);
+                            const synced = syncRolesAndPelatihan(nextRoles, formData.pelatihan || [], formData.role, true);
                             setFormData((f: any) => ({
                               ...f,
                               role: synced.primaryRole,
@@ -13129,216 +13259,376 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Tim Pelatih & Pendamping (Otomatis Mendeteksi Role JM 1 & JM 2) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-200/70">
-                {/* Tim Pelatih - Otomatis Jaya Matahari 1 */}
-                <div className="space-y-2">
+              {/* Tim Pelatih & Pendamping Diklat (Sesuai Aturan: Tim Pelatih = Jaya Matahari 1, Asisten = Jaya Melati 2) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/80 p-4 rounded-2xl border border-gray-200">
+                {/* 1. Tim Pelatih - KHUSUS JAYA MATAHARI 1 */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-1 flex-wrap">
-                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                      <UserCheck size={14} className="text-hw-green" />
-                      Tim Pelatih / Instruktur
-                    </label>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                      <Sparkles size={11} className="text-emerald-600" />
-                      Otomatis JM 1: {detectedJayaMatahari1Members.length}
+                    <div className="flex items-center gap-1.5">
+                      <UserCheck size={15} className="text-emerald-700" />
+                      <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                        Tim Pelatih / Instruktur
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                      <Shield size={11} className="text-emerald-700" />
+                      Khusus Jaya Matahari 1 ({detectedJayaMatahari1Members.length})
                     </span>
                   </div>
+
+                  <p className="text-[10px] text-gray-500 leading-tight">
+                    Hanya anggota yang terdaftar dengan role <strong>Jaya Matahari 1 (Jari 1)</strong> yang dapat dipilih sebagai Instruktur Diklat.
+                  </p>
+
+                  {/* Input Pencarian Pelatih JM 1 */}
+                  {detectedJayaMatahari1Members.length > 0 && (
+                    <div className="relative">
+                      <Search size={12} className="text-gray-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        value={trainerSearchQuery}
+                        onChange={(e) => setTrainerSearchQuery(e.target.value)}
+                        placeholder="Cari nama pelatih JM 1 / Kwarda..."
+                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-500 outline-none"
+                      />
+                      {trainerSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setTrainerSearchQuery('')}
+                          className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {detectedJayaMatahari1Members.length > 0 ? (
                     <div className="bg-white border border-emerald-100 rounded-xl p-2.5 space-y-2 shadow-xs">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1">
-                          <Users size={12} className="text-emerald-600" />
-                          Terdeteksi Jaya Matahari 1:
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const names = detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
-                              setPelatihanForm(f => {
-                                const current = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                const combined = Array.from(new Set([...current, ...names]));
-                                return { ...f, pelatih: combined };
-                              });
-                            }}
-                            className="text-[10px] font-bold px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors cursor-pointer"
-                          >
-                            + Pilih Semua
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const names = new Set(detectedJayaMatahari1Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
-                              setPelatihanForm(f => {
-                                const current = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                return { ...f, pelatih: current.filter(n => !names.has(n.toLowerCase())) };
-                              });
-                            }}
-                            className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </div>
+                      {(() => {
+                        const q = trainerSearchQuery.toLowerCase().trim();
+                        const filtered = detectedJayaMatahari1Members.filter(m => {
+                          if (!q) return true;
+                          const name = (m.namaLengkap || m.nama || '').toLowerCase();
+                          const kwarda = (m.asalKwarda || '').toLowerCase();
+                          const kta = (m.nomorKta || m.ktaNumber || '').toLowerCase();
+                          return name.includes(q) || kwarda.includes(q) || kta.includes(q);
+                        });
 
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
-                        {detectedJayaMatahari1Members.map((m, idx) => {
-                          const name = (m.namaLengkap || m.nama || '').trim();
-                          const currentList = Array.isArray(pelatihanForm.pelatih) 
-                            ? pelatihanForm.pelatih 
-                            : (typeof pelatihanForm.pelatih === 'string' && pelatihanForm.pelatih ? pelatihanForm.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                          const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
+                        const currentList = Array.isArray(pelatihanForm.pelatih) 
+                          ? pelatihanForm.pelatih 
+                          : (typeof pelatihanForm.pelatih === 'string' && pelatihanForm.pelatih ? pelatihanForm.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
 
-                          return (
-                            <button
-                              key={m.id || idx}
-                              type="button"
-                              onClick={() => {
-                                setPelatihanForm(f => {
-                                  const curr = Array.isArray(f.pelatih) 
-                                    ? f.pelatih 
-                                    : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                  if (isSelected) {
-                                    return { ...f, pelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
-                                  } else {
-                                    return { ...f, pelatih: [...curr, name] };
-                                  }
-                                });
-                              }}
-                              className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
-                                isSelected 
-                                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
-                                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'
-                              }`}
-                              title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
-                            >
-                              {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-emerald-600" />}
-                              <span>{name}</span>
-                              {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-emerald-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
+                        return (
+                          <>
+                            <div className="flex items-center justify-between text-[11px] pb-1 border-b border-gray-100">
+                              <span className="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
+                                <Users size={12} className="text-emerald-600" />
+                                {currentList.length} Dipilih {q ? `(${filtered.length} cocok)` : `(Total ${detectedJayaMatahari1Members.length})`}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {filtered.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const names = filtered.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+                                      setPelatihanForm(f => {
+                                        const current = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                        const combined = Array.from(new Set([...current, ...names]));
+                                        return { ...f, pelatih: combined };
+                                      });
+                                    }}
+                                    className="text-[10px] font-bold px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors cursor-pointer"
+                                  >
+                                    + Pilih {filtered.length > 1 ? `Semua (${filtered.length})` : ''}
+                                  </button>
+                                )}
+                                {currentList.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPelatihanForm(f => ({ ...f, pelatih: [] }));
+                                    }}
+                                    className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Daftar Instruktur Terpilih */}
+                            {currentList.length > 0 && (
+                              <div className="bg-emerald-50/70 p-1.5 rounded-lg border border-emerald-200/80">
+                                <span className="text-[10px] font-bold text-emerald-900 block mb-1">
+                                  Instruktur Ditugaskan:
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {currentList.map((cName: string, i: number) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center gap-1 bg-emerald-700 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-2xs"
+                                    >
+                                      <span>{cName}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPelatihanForm(f => {
+                                            const curr = Array.isArray(f.pelatih) ? f.pelatih : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                            return { ...f, pelatih: curr.filter(n => n.toLowerCase() !== cName.toLowerCase()) };
+                                          });
+                                        }}
+                                        className="hover:bg-emerald-800 rounded p-0.5 cursor-pointer"
+                                        title="Hapus pelatih ini"
+                                      >
+                                        <X size={10} />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Pill Pemilihan Pelatih JM 1 */}
+                            {filtered.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
+                                {filtered.map((m, idx) => {
+                                  const name = (m.namaLengkap || m.nama || '').trim();
+                                  const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
+
+                                  return (
+                                    <button
+                                      key={m.id || idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setPelatihanForm(f => {
+                                          const curr = Array.isArray(f.pelatih) 
+                                            ? f.pelatih 
+                                            : (typeof f.pelatih === 'string' && f.pelatih ? f.pelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                          if (isSelected) {
+                                            return { ...f, pelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
+                                          } else {
+                                            return { ...f, pelatih: [...curr, name] };
+                                          }
+                                        });
+                                      }}
+                                      className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
+                                        isSelected 
+                                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
+                                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'
+                                      }`}
+                                      title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
+                                    >
+                                      {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-emerald-600" />}
+                                      <span>{name}</span>
+                                      {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-emerald-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-gray-500 italic p-1">
+                                Tidak ada pelatih Jaya Matahari 1 yang sesuai dengan pencarian &quot;{trainerSearchQuery}&quot;.
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-gray-500 bg-white p-2 rounded-xl border border-gray-200 italic">
-                      Belum terdeteksi anggota ber-role Jaya Matahari 1 di sistem. Masukkan manual nama pelatih di bawah:
+                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-start gap-2">
+                      <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[10px] leading-tight">
+                        <span className="font-bold block">Belum ada anggota ber-role Jaya Matahari 1</span>
+                        Silakan atur role anggota menjadi <strong>Jaya Matahari 1 (Pelatih Utama)</strong> pada tab Manajemen Anggota agar dapat dipilih di sini.
+                      </div>
                     </div>
                   )}
-
-                  <input
-                    type="text"
-                    value={Array.isArray(pelatihanForm.pelatih) ? pelatihanForm.pelatih.join(', ') : pelatihanForm.pelatih}
-                    onChange={(e) => setPelatihanForm(f => ({ ...f, pelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                    placeholder="Pisahkan dengan koma jika manual: Ramanda Sugiyono, Ramanda Ahmad"
-                    className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500/20"
-                  />
                 </div>
 
-                {/* Asisten Pelatih - Otomatis Jaya Melati 2 */}
-                <div className="space-y-2">
+                {/* 2. Asisten Pelatih - KHUSUS JAYA MELATI 2 */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-1 flex-wrap">
-                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                      <UserPlus size={14} className="text-blue-600" />
-                      Asisten Pelatih / Pendamping Diklat
-                    </label>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
-                      <Sparkles size={11} className="text-blue-600" />
-                      Otomatis JM 2: {detectedJayaMelati2Members.length}
+                    <div className="flex items-center gap-1.5">
+                      <UserPlus size={15} className="text-blue-700" />
+                      <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                        Asisten Pelatih / Pendamping Diklat
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">
+                      <Shield size={11} className="text-blue-700" />
+                      Khusus Jaya Melati 2 ({detectedJayaMelati2Members.length})
                     </span>
                   </div>
 
-                  {detectedJayaMelati2Members.length > 0 ? (
-                    <div className="bg-white border border-blue-100 rounded-xl p-2.5 space-y-2 shadow-xs">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-[11px] font-semibold text-blue-900 flex items-center gap-1">
-                          <Users size={12} className="text-blue-600" />
-                          Terdeteksi Jaya Melati 2:
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const names = detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
-                              setPelatihanForm(f => {
-                                const current = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                const combined = Array.from(new Set([...current, ...names]));
-                                return { ...f, asistenPelatih: combined };
-                              });
-                            }}
-                            className="text-[10px] font-bold px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
-                          >
-                            + Pilih Semua
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const names = new Set(detectedJayaMelati2Members.map(m => (m.namaLengkap || m.nama || '').trim().toLowerCase()));
-                              setPelatihanForm(f => {
-                                const current = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                return { ...f, asistenPelatih: current.filter(n => !names.has(n.toLowerCase())) };
-                              });
-                            }}
-                            className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </div>
+                  <p className="text-[10px] text-gray-500 leading-tight">
+                    Hanya anggota yang terdaftar dengan role <strong>Jaya Melati 2 (Jati 2)</strong> yang dapat dipilih sebagai Asisten Pelatih / Pendamping.
+                  </p>
 
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
-                        {detectedJayaMelati2Members.map((m, idx) => {
-                          const name = (m.namaLengkap || m.nama || '').trim();
-                          const currentList = Array.isArray(pelatihanForm.asistenPelatih) 
-                            ? pelatihanForm.asistenPelatih 
-                            : (typeof pelatihanForm.asistenPelatih === 'string' && pelatihanForm.asistenPelatih ? pelatihanForm.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                          const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
-
-                          return (
-                            <button
-                              key={m.id || idx}
-                              type="button"
-                              onClick={() => {
-                                setPelatihanForm(f => {
-                                  const curr = Array.isArray(f.asistenPelatih) 
-                                    ? f.asistenPelatih 
-                                    : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
-                                  if (isSelected) {
-                                    return { ...f, asistenPelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
-                                  } else {
-                                    return { ...f, asistenPelatih: [...curr, name] };
-                                  }
-                                });
-                              }}
-                              className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
-                                isSelected 
-                                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs' 
-                                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-300'
-                              }`}
-                              title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
-                            >
-                              {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-blue-600" />}
-                              <span>{name}</span>
-                              {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-gray-500 bg-white p-2 rounded-xl border border-gray-200 italic">
-                      Belum terdeteksi anggota ber-role Jaya Melati 2 di sistem. Masukkan manual nama asisten di bawah:
+                  {/* Input Pencarian Pendamping JM 2 */}
+                  {detectedJayaMelati2Members.length > 0 && (
+                    <div className="relative">
+                      <Search size={12} className="text-gray-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        value={assistantSearchQuery}
+                        onChange={(e) => setAssistantSearchQuery(e.target.value)}
+                        placeholder="Cari nama pendamping JM 2 / Kwarda..."
+                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-400/20 focus:border-blue-500 outline-none"
+                      />
+                      {assistantSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setAssistantSearchQuery('')}
+                          className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  <input
-                    type="text"
-                    value={Array.isArray(pelatihanForm.asistenPelatih) ? pelatihanForm.asistenPelatih.join(', ') : pelatihanForm.asistenPelatih}
-                    onChange={(e) => setPelatihanForm(f => ({ ...f, asistenPelatih: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                    placeholder="Pisahkan dengan koma jika manual: Bunda Siti, Kak Irfan"
-                    className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  {detectedJayaMelati2Members.length > 0 ? (
+                    <div className="bg-white border border-blue-100 rounded-xl p-2.5 space-y-2 shadow-xs">
+                      {(() => {
+                        const q = assistantSearchQuery.toLowerCase().trim();
+                        const filtered = detectedJayaMelati2Members.filter(m => {
+                          if (!q) return true;
+                          const name = (m.namaLengkap || m.nama || '').toLowerCase();
+                          const kwarda = (m.asalKwarda || '').toLowerCase();
+                          const kta = (m.nomorKta || m.ktaNumber || '').toLowerCase();
+                          return name.includes(q) || kwarda.includes(q) || kta.includes(q);
+                        });
+
+                        const currentList = Array.isArray(pelatihanForm.asistenPelatih) 
+                          ? pelatihanForm.asistenPelatih 
+                          : (typeof pelatihanForm.asistenPelatih === 'string' && pelatihanForm.asistenPelatih ? pelatihanForm.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+                        return (
+                          <>
+                            <div className="flex items-center justify-between text-[11px] pb-1 border-b border-gray-100">
+                              <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
+                                <Users size={12} className="text-blue-600" />
+                                {currentList.length} Dipilih {q ? `(${filtered.length} cocok)` : `(Total ${detectedJayaMelati2Members.length})`}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {filtered.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const names = filtered.map(m => (m.namaLengkap || m.nama || '').trim()).filter(Boolean);
+                                      setPelatihanForm(f => {
+                                        const current = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                        const combined = Array.from(new Set([...current, ...names]));
+                                        return { ...f, asistenPelatih: combined };
+                                      });
+                                    }}
+                                    className="text-[10px] font-bold px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
+                                  >
+                                    + Pilih {filtered.length > 1 ? `Semua (${filtered.length})` : ''}
+                                  </button>
+                                )}
+                                {currentList.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPelatihanForm(f => ({ ...f, asistenPelatih: [] }));
+                                    }}
+                                    className="text-[10px] font-bold px-1.5 py-0.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Daftar Pendamping Terpilih */}
+                            {currentList.length > 0 && (
+                              <div className="bg-blue-50/70 p-1.5 rounded-lg border border-blue-200/80">
+                                <span className="text-[10px] font-bold text-blue-900 block mb-1">
+                                  Pendamping Ditugaskan:
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {currentList.map((cName: string, i: number) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center gap-1 bg-blue-700 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-2xs"
+                                    >
+                                      <span>{cName}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPelatihanForm(f => {
+                                            const curr = Array.isArray(f.asistenPelatih) ? f.asistenPelatih : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                            return { ...f, asistenPelatih: curr.filter(n => n.toLowerCase() !== cName.toLowerCase()) };
+                                          });
+                                        }}
+                                        className="hover:bg-blue-800 rounded p-0.5 cursor-pointer"
+                                        title="Hapus pendamping ini"
+                                      >
+                                        <X size={10} />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Pill Pemilihan Pendamping JM 2 */}
+                            {filtered.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
+                                {filtered.map((m, idx) => {
+                                  const name = (m.namaLengkap || m.nama || '').trim();
+                                  const isSelected = currentList.some(n => n.toLowerCase() === name.toLowerCase());
+
+                                  return (
+                                    <button
+                                      key={m.id || idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setPelatihanForm(f => {
+                                          const curr = Array.isArray(f.asistenPelatih) 
+                                            ? f.asistenPelatih 
+                                            : (typeof f.asistenPelatih === 'string' && f.asistenPelatih ? f.asistenPelatih.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                          if (isSelected) {
+                                            return { ...f, asistenPelatih: curr.filter(n => n.toLowerCase() !== name.toLowerCase()) };
+                                          } else {
+                                            return { ...f, asistenPelatih: [...curr, name] };
+                                          }
+                                        });
+                                      }}
+                                      className={`text-[11px] px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-all cursor-pointer border ${
+                                        isSelected 
+                                          ? 'bg-blue-600 text-white border-blue-700 shadow-xs' 
+                                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                                      }`}
+                                      title={m.asalKwarda ? `Kwarda: ${m.asalKwarda}` : undefined}
+                                    >
+                                      {isSelected ? <Check size={11} className="stroke-[3]" /> : <Plus size={11} className="text-blue-600" />}
+                                      <span>{name}</span>
+                                      {m.asalKwarda && <span className={`text-[9px] ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>({m.asalKwarda})</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-gray-500 italic p-1">
+                                Tidak ada asisten Jaya Melati 2 yang sesuai dengan pencarian &quot;{assistantSearchQuery}&quot;.
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-start gap-2">
+                      <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[10px] leading-tight">
+                        <span className="font-bold block">Belum ada anggota ber-role Jaya Melati 2</span>
+                        Silakan atur role anggota menjadi <strong>Jaya Melati 2 (Pelatih Lanjutan)</strong> pada tab Manajemen Anggota agar dapat dipilih di sini.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

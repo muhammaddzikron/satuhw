@@ -9,7 +9,9 @@ import {
   deleteField,
   writeBatch,
   onSnapshot,
-  runTransaction
+  runTransaction,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
@@ -221,7 +223,7 @@ export function applyMemberOverrides(member: any, customOverridesParam?: Record<
 
   const base = ov ? { ...member, ...ov } : member;
   const rawRoles = parseRolesField(base.roles, base.role);
-  const synced = syncRolesAndPelatihan(rawRoles, base.pelatihan || []);
+  const synced = syncRolesAndPelatihan(rawRoles, base.pelatihan || [], base.role, !!ov);
   const properName = toProperName(base.namaLengkap || base.nama);
 
   return {
@@ -1441,7 +1443,7 @@ export const firestoreService = {
     }
 
     const rawRoles = parseRolesField(member.roles, member.role);
-    const synced = syncRolesAndPelatihan(rawRoles, member.pelatihan);
+    const synced = syncRolesAndPelatihan(rawRoles, member.pelatihan, member.role, true);
     const primaryRole = synced.primaryRole;
     const properName = toProperName(member.namaLengkap || member.nama);
 
@@ -3692,7 +3694,7 @@ export const firestoreService = {
     }
 
     const itemData = cleanData(payload);
-    if (!this.getIsQuotaExceeded() && itemData.id) {
+    if (itemData.id) {
       try {
         await withTimeout(setDoc(doc(db, 'contents', String(itemData.id)), itemData, { merge: true }), 8000);
       } catch (err) {
@@ -3706,18 +3708,15 @@ export const firestoreService = {
           await withTimeout(setDoc(doc(db, 'playlist', String(itemData.id)), itemData, { merge: true }), 8000);
         } catch (e) {}
       }
+      if (isGal) {
+        try {
+          await withTimeout(setDoc(doc(db, 'galeri', String(itemData.id)), itemData, { merge: true }), 8000);
+        } catch (e) {}
+      }
 
       // If this content was previously in deletedContentIds, remove it so it's restored
       try {
-        const sDoc = await getDoc(doc(db, 'settings', 'app_settings'));
-        if (sDoc.exists()) {
-          const sData = sDoc.data() || {};
-          const dIds: string[] = Array.isArray(sData.deletedContentIds) ? sData.deletedContentIds : [];
-          if (dIds.includes(String(itemData.id))) {
-            const updatedDIds = dIds.filter(x => x !== String(itemData.id));
-            await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: updatedDIds }, { merge: true });
-          }
-        }
+        await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: arrayRemove(String(itemData.id)) }, { merge: true });
       } catch (e) {}
 
       try {
@@ -3725,7 +3724,7 @@ export const firestoreService = {
         if (s) {
           const parsedS = JSON.parse(s);
           if (Array.isArray(parsedS.deletedContentIds) && parsedS.deletedContentIds.includes(String(itemData.id))) {
-            parsedS.deletedContentIds = parsedS.deletedContentIds.filter((x: any) => x !== String(itemData.id));
+            parsedS.deletedContentIds = parsedS.deletedContentIds.filter((x: any) => String(x) !== String(itemData.id));
             localStorage.setItem('hw_settings', JSON.stringify(parsedS));
           }
         }
@@ -3740,6 +3739,7 @@ export const firestoreService = {
           if (idx >= 0) plList[idx] = itemData;
           else plList.unshift(itemData);
           localStorage.setItem('hw_playlist', JSON.stringify(plList));
+          localStorage.setItem('playlist', JSON.stringify(plList));
         }
       } catch (e) {}
     }
@@ -3752,6 +3752,7 @@ export const firestoreService = {
           if (idx >= 0) galList[idx] = itemData;
           else galList.unshift(itemData);
           localStorage.setItem('hw_galeri', JSON.stringify(galList));
+          localStorage.setItem('galeri', JSON.stringify(galList));
         }
       } catch (e) {}
     }
@@ -3771,8 +3772,10 @@ export const firestoreService = {
 
   async deleteContent(id: string | number): Promise<boolean> {
     clearFirestoreCache('contents');
+    clearFirestoreCache('playlist');
+    clearFirestoreCache('galeri');
     const contentId = String(id || '').trim();
-    if (!this.getIsQuotaExceeded() && contentId) {
+    if (contentId) {
       try {
         await withTimeout(deleteDoc(doc(db, 'contents', contentId)), 8000);
       } catch (err) {
@@ -3784,15 +3787,13 @@ export const firestoreService = {
       try {
         await withTimeout(deleteDoc(doc(db, 'playlist', contentId)), 8000);
       } catch (e) {}
+      try {
+        await withTimeout(deleteDoc(doc(db, 'galeri', contentId)), 8000);
+      } catch (e) {}
 
       // Record deleted content ID in Firestore settings to prevent re-injection from defaults
       try {
-        const sDoc = await getDoc(doc(db, 'settings', 'app_settings'));
-        const sData = sDoc.exists() ? (sDoc.data() || {}) : {};
-        const dIds: string[] = Array.isArray(sData.deletedContentIds) ? sData.deletedContentIds : [];
-        if (!dIds.includes(contentId)) {
-          await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: [...dIds, contentId] }, { merge: true });
-        }
+        await setDoc(doc(db, 'settings', 'app_settings'), { deletedContentIds: arrayUnion(contentId) }, { merge: true });
       } catch (e) {}
     }
 

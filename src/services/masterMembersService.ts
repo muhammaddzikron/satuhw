@@ -506,12 +506,20 @@ export const getMasterMembersList = (): User[] => {
       if (overridesRaw) {
         const overrides = JSON.parse(overridesRaw);
         mergedList.forEach(m => {
-          const edit = (m.id && overrides[m.id]) ||
+          const idStr = String(m.id || '').trim();
+          const idClean = idStr.replace(/^user-/, '');
+          const edit = (idStr && overrides[idStr]) ||
+                       (idClean && overrides[idClean]) ||
+                       (idClean && overrides[`user-${idClean}`]) ||
                        (m.email && overrides[m.email.toLowerCase().trim()]) ||
                        (m.ktaNumber && overrides[m.ktaNumber.trim()]) ||
                        (m.nomorKTA && overrides[m.nomorKTA.trim()]);
           if (edit) {
             Object.assign(m, edit);
+            if (edit.roles) m.roles = edit.roles;
+            if (edit.role) m.role = edit.role;
+            if (edit.pelatihan) m.pelatihan = edit.pelatihan;
+            if (edit.activeRole) m.activeRole = edit.activeRole;
           }
         });
       }

@@ -49,7 +49,7 @@ import {
   getGoogleDriveWebUrl, 
   getAudioDownloadUrl 
 } from '../utils/audioUtils';
-import { resolveTrackMetadata } from '../data/playlistCatalog';
+import { resolveTrackMetadata, DEFAULT_PLAYLIST_SONGS } from '../data/playlistCatalog';
 import { copyToClipboard } from '../lib/utils';
 
 export const PlaylistPage: React.FC = () => {
@@ -128,7 +128,7 @@ export const PlaylistPage: React.FC = () => {
     return filtered;
   }, []);
 
-  // Instant initial playlist from local cache (NO ghost/mock tracks)
+  // Instant initial playlist from local cache & default catalog (NO ghost/mock tracks)
   const [rawPlaylist, setRawPlaylist] = useState<any[]>(() => {
     let deletedIds: string[] = [];
     try {
@@ -139,13 +139,39 @@ export const PlaylistPage: React.FC = () => {
       }
     } catch (e) {}
 
+    const trackMap = new Map<string, any>();
+    DEFAULT_PLAYLIST_SONGS.forEach(item => {
+      if (!item || deletedIds.includes(String(item.id))) return;
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const idKey = String(item.id || '').trim().toLowerCase();
+      trackMap.set(idKey || titleKey, item);
+    });
+
     try {
       const plStored = localStorage.getItem('hw_playlist') || localStorage.getItem('playlist');
       if (plStored) {
         const parsed = JSON.parse(plStored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const filtered = parsed.filter((c: any) => c && !deletedIds.includes(String(c.id)));
-          if (filtered.length > 0) return filtered;
+          parsed.forEach((item: any) => {
+            if (!item || deletedIds.includes(String(item.id))) return;
+            const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const idKey = String(item.id || '').trim().toLowerCase();
+            let matchedKey = idKey;
+            if (!matchedKey || !trackMap.has(matchedKey)) {
+              for (const [k, v] of trackMap.entries()) {
+                const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (titleKey && vTitle === titleKey) {
+                  matchedKey = k;
+                  break;
+                }
+              }
+            }
+            if (matchedKey) {
+              trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
+            } else {
+              trackMap.set(idKey || titleKey, item);
+            }
+          });
         }
       }
 
@@ -154,11 +180,29 @@ export const PlaylistPage: React.FC = () => {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
           const pl = parsed.filter((c: any) => c && c.section === 'playlist' && !deletedIds.includes(String(c.id)));
-          if (pl.length > 0) return pl;
+          pl.forEach((item: any) => {
+            const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const idKey = String(item.id || '').trim().toLowerCase();
+            let matchedKey = idKey;
+            if (!matchedKey || !trackMap.has(matchedKey)) {
+              for (const [k, v] of trackMap.entries()) {
+                const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (titleKey && vTitle === titleKey) {
+                  matchedKey = k;
+                  break;
+                }
+              }
+            }
+            if (matchedKey) {
+              trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
+            } else {
+              trackMap.set(idKey || titleKey, item);
+            }
+          });
         }
       }
     } catch (e) {}
-    return [];
+    return Array.from(trackMap.values());
   });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -228,14 +272,36 @@ export const PlaylistPage: React.FC = () => {
     const cleanServer = (serverList || []).filter(c => c && !deletedIds.includes(String(c.id)));
     const cleanLocal = localPl.filter(c => c && !deletedIds.includes(String(c.id)));
 
-    // Track map where Database server contents and Local saved contents are merged cleanly
+    // Track map where Defaults, Database server contents and Local saved contents are merged cleanly
     const trackMap = new Map<string, any>();
+
+    // 0. Base defaults from curated catalog
+    DEFAULT_PLAYLIST_SONGS.forEach(item => {
+      if (!item || deletedIds.includes(String(item.id))) return;
+      const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const idKey = String(item.id || '').trim().toLowerCase();
+      trackMap.set(idKey || titleKey, item);
+    });
 
     // 1. Server contents (authoritative from DB)
     cleanServer.forEach(item => {
       const titleKey = (item.field2 || item.judul || item.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
       const idKey = String(item.id || '').trim().toLowerCase();
-      trackMap.set(idKey || titleKey, item);
+      let matchedKey = idKey;
+      if (!matchedKey || !trackMap.has(matchedKey)) {
+        for (const [k, v] of trackMap.entries()) {
+          const vTitle = (v.field2 || v.judul || v.title || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (titleKey && vTitle === titleKey) {
+            matchedKey = k;
+            break;
+          }
+        }
+      }
+      if (matchedKey) {
+        trackMap.set(matchedKey, { ...trackMap.get(matchedKey), ...item });
+      } else {
+        trackMap.set(idKey || titleKey, item);
+      }
     });
 
     // 2. Local saved contents (instant admin action)

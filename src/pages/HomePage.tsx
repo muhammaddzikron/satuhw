@@ -419,10 +419,20 @@ export default function HomePage() {
         if (rt?.field1) setRunningText(rt.field1);
       }
     });
-    // Also fetch all gallery videos on mount
-    sheetsService.getGalleryVideos().then(vids => {
-      if (vids && vids.length > 0) setGalleryItems(vids);
-    }).catch(() => {});
+    // Also fetch all gallery videos and playlist on mount and when updated
+    const refreshGalleryAndPlaylist = () => {
+      sheetsService.getGalleryVideos().then(vids => {
+        if (vids && vids.length > 0) setGalleryItems(vids);
+      }).catch(() => {});
+      sheetsService.getContents('playlist').then(pl => {
+        if (pl && pl.length > 0) setPlaylistItems(sortPlaylistWithSahabatFirst(pl));
+      }).catch(() => {});
+    };
+
+    refreshGalleryAndPlaylist();
+    window.addEventListener('hw_contents_updated', refreshGalleryAndPlaylist);
+    window.addEventListener('storage', refreshGalleryAndPlaylist);
+
     const unsubSettings = sheetsService.subscribeToSettings((sData: any) => {
       if (sData && sData.trainingActivities !== undefined) {
         const acts = Array.isArray(sData.trainingActivities)
@@ -459,6 +469,8 @@ export default function HomePage() {
       unsubContents();
       unsubSettings();
       clearTimeout(deferTimer);
+      window.removeEventListener('hw_contents_updated', refreshGalleryAndPlaylist);
+      window.removeEventListener('storage', refreshGalleryAndPlaylist);
     };
   }, []);
 

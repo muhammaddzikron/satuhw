@@ -965,7 +965,7 @@ export const sheetsService = {
   async saveMember(userData: any): Promise<any> {
     clearSheetsCache('members');
     const rawRoles = parseRolesField(userData.roles, userData.role);
-    const synced = syncRolesAndPelatihan(rawRoles, userData.pelatihan);
+    const synced = syncRolesAndPelatihan(rawRoles, userData.pelatihan, userData.role, true);
     const primaryRole = synced.primaryRole;
     const properName = toProperName(userData.namaLengkap || userData.nama);
     const rawId = (userData.id !== undefined && userData.id !== null && String(userData.id).trim() !== '')
@@ -2198,6 +2198,20 @@ export const sheetsService = {
       normalized.creator = f3 || 'Pandu Hizbul Wathan';
       normalized.lirik = f5;
       normalized.lyrics = f5;
+
+      try {
+        const plStored = localStorage.getItem('hw_playlist') || '[]';
+        let parsedPl = JSON.parse(plStored);
+        if (!Array.isArray(parsedPl)) parsedPl = [];
+        const pIdx = parsedPl.findIndex((c: any) => String(c.id) === String(normalized.id) || ((c.field2 || c.judul || '').trim().toLowerCase() === normalized.field2.toLowerCase()));
+        if (pIdx >= 0) {
+          parsedPl[pIdx] = { ...parsedPl[pIdx], ...normalized };
+        } else {
+          parsedPl.unshift(normalized);
+        }
+        localStorage.setItem('hw_playlist', JSON.stringify(parsedPl));
+        localStorage.setItem('playlist', JSON.stringify(parsedPl));
+      } catch (e) {}
     }
 
     if (isGallery) {
@@ -2211,18 +2225,31 @@ export const sheetsService = {
       if (vId) normalized.videoId = vId;
 
       try {
-        const galStored = localStorage.getItem('hw_galeri');
-        let parsedGal = galStored ? JSON.parse(galStored) : [];
+        const galStored = localStorage.getItem('hw_galeri') || '[]';
+        let parsedGal = JSON.parse(galStored);
         if (!Array.isArray(parsedGal)) parsedGal = [];
-        const gIdx = parsedGal.findIndex((c: any) => c.id === normalized.id || ((c.field1 || c.url || '').trim().toLowerCase() === (normalized.field1 || normalized.url || '').trim().toLowerCase()));
+        const gIdx = parsedGal.findIndex((c: any) => String(c.id) === String(normalized.id) || ((c.field1 || c.url || '').trim().toLowerCase() === (normalized.field1 || normalized.url || '').trim().toLowerCase()));
         if (gIdx >= 0) {
           parsedGal[gIdx] = { ...parsedGal[gIdx], ...normalized };
         } else {
           parsedGal.unshift(normalized);
         }
         localStorage.setItem('hw_galeri', JSON.stringify(parsedGal));
+        localStorage.setItem('galeri', JSON.stringify(parsedGal));
       } catch (e) {}
     }
+
+    // Unmark from deletedContentIds if it was previously deleted
+    try {
+      const rawSettings = localStorage.getItem('hw_settings');
+      if (rawSettings) {
+        const p = JSON.parse(rawSettings);
+        if (Array.isArray(p.deletedContentIds) && p.deletedContentIds.includes(String(normalized.id))) {
+          p.deletedContentIds = p.deletedContentIds.filter((x: any) => String(x) !== String(normalized.id));
+          localStorage.setItem('hw_settings', JSON.stringify(p));
+        }
+      }
+    } catch (e) {}
 
     // Update Firestore first for fast persistent storage
     const saved = await firestoreService.saveContent(normalized);
@@ -2249,6 +2276,9 @@ export const sheetsService = {
         if (normalized.section === 'playlist') {
           promises.push(this.post({ action: 'savePlaylistItem', ...normalized }));
         }
+        if (normalized.section === 'galeri') {
+          promises.push(this.post({ action: 'saveGaleriItem', ...normalized }));
+        }
         const results = await Promise.allSettled(promises);
         spreadsheetSynced = results.some(r => r.status === 'fulfilled');
         console.log('[SHEETS] Save content result:', { normalizedId: normalized.id, spreadsheetSynced, results });
@@ -2268,33 +2298,72 @@ export const sheetsService = {
     });
   },
 
+  async saveGaleriItem(item: any): Promise<any> {
+    return this.saveContent({
+      ...item,
+      section: 'galeri',
+      type: 'list'
+    });
+  },
+
+  async deletePlaylistItem(id: string): Promise<any> {
+    return this.deleteContent(id);
+  },
+
+  async deleteGaleriItem(id: string): Promise<any> {
+    return this.deleteContent(id);
+  },
+
   async deleteContent(id: string): Promise<any> {
     clearSheetsCache('contents');
     clearSheetsCache('playlist');
     clearSheetsCache('galeri');
+    const cleanId = String(id || '').trim();
     try {
       const plStored = localStorage.getItem('hw_playlist');
       if (plStored) {
         const parsedPl = JSON.parse(plStored);
         if (Array.isArray(parsedPl)) {
-          localStorage.setItem('hw_playlist', JSON.stringify(parsedPl.filter((x: any) => String(x.id) !== String(id))));
+          localStorage.setItem('hw_playlist', JSON.stringify(parsedPl.filter((x: any) => String(x.id) !== cleanId)));
+        }
+      }
+      const plStored2 = localStorage.getItem('playlist');
+      if (plStored2) {
+        const parsedPl2 = JSON.parse(plStored2);
+        if (Array.isArray(parsedPl2)) {
+          localStorage.setItem('playlist', JSON.stringify(parsedPl2.filter((x: any) => String(x.id) !== cleanId)));
         }
       }
       const galStored = localStorage.getItem('hw_galeri');
       if (galStored) {
         const parsedGal = JSON.parse(galStored);
         if (Array.isArray(parsedGal)) {
-          localStorage.setItem('hw_galeri', JSON.stringify(parsedGal.filter((x: any) => String(x.id) !== String(id))));
+          localStorage.setItem('hw_galeri', JSON.stringify(parsedGal.filter((x: any) => String(x.id) !== cleanId)));
+        }
+      }
+      const galStored2 = localStorage.getItem('galeri');
+      if (galStored2) {
+        const parsedGal2 = JSON.parse(galStored2);
+        if (Array.isArray(parsedGal2)) {
+          localStorage.setItem('galeri', JSON.stringify(parsedGal2.filter((x: any) => String(x.id) !== cleanId)));
+        }
+      }
+      const cStored = localStorage.getItem('contents');
+      if (cStored) {
+        const parsedC = JSON.parse(cStored);
+        if (Array.isArray(parsedC)) {
+          localStorage.setItem('contents', JSON.stringify(parsedC.filter((x: any) => String(x.id) !== cleanId)));
         }
       }
     } catch (e) {}
     if (IS_API_VALID) {
       Promise.allSettled([
-        this.post({ action: 'deletePlaylistItem', id }),
-        this.post({ action: 'deleteContent', id })
+        this.post({ action: 'deletePlaylistItem', id: cleanId }),
+        this.post({ action: 'deleteGaleriItem', id: cleanId }),
+        this.post({ action: 'deleteContent', id: cleanId })
       ]).catch(() => {});
     }
-    await firestoreService.deleteContent(id);
+    await firestoreService.deleteContent(cleanId);
     return { success: true };
   },
   

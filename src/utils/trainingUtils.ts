@@ -187,8 +187,8 @@ export const isJayaMatahariMember = (m: any): boolean => {
  */
 export const isJayaMatahari1Member = (m: any): boolean => {
   if (!m) return false;
-  const exactCodes = ['jari1', 'jayamatahari1'];
-  const phrases = ['jaya matahari 1', 'jaya_matahari_1', 'jari 1', 'jayamatahari 1', 'jaya rintisan 1'];
+  const exactCodes = ['jari1', 'jayamatahari1', 'jaya_matahari_1', 'jm3', 'jmt1', 'jari2', 'jayamatahari2', 'jaya_matahari_2'];
+  const phrases = ['jaya matahari 1', 'jaya_matahari_1', 'jari 1', 'jayamatahari 1', 'jaya rintisan 1', 'matahari 1', 'jaya matahari 2', 'jari 2', 'matahari 2'];
   const checkValue = (val: any): boolean => {
     if (!val) return false;
     if (Array.isArray(val)) return val.some(v => checkValue(v));
@@ -245,7 +245,7 @@ export const isJayaMelati1Member = (m: any): boolean => {
  */
 export const isJayaMelati2Member = (m: any): boolean => {
   if (!m) return false;
-  const exactCodes = ['jati2', 'jayamelati2', 'jm2'];
+  const exactCodes = ['jati2', 'jayamelati2', 'jaya_melati_2', 'jm2'];
   const phrases = ['jaya melati 2', 'jaya_melati_2', 'jati 2', 'jayamelati 2', 'melati 2', 'jm 2'];
   const checkValue = (val: any): boolean => {
     if (!val) return false;
@@ -359,7 +359,8 @@ export const isPelatihanSelected = (pelatihanList: string[] = [], key: string): 
 export const syncRolesAndPelatihan = (
   rawRoles: any,
   rawPelatihan: any,
-  explicitPrimaryRole?: string
+  explicitPrimaryRole?: string,
+  rolesAuthoritative: boolean = false
 ): { roles: string[]; pelatihan: string[]; primaryRole: string } => {
   const rolesSet = new Set<string>();
 
@@ -421,55 +422,84 @@ export const syncRolesAndPelatihan = (
   };
   addPelatihan(rawPelatihan);
 
-  // 1. Sync from roles to pelatihan (Role Hak Akses -> Pelatihan Diikuti)
-  rolesSet.forEach(r => {
-    const cleanR = r.toLowerCase().trim();
-    if (cleanR === 'jati1' || cleanR === 'jaya_melati_1' || cleanR === 'jayamelati1' || cleanR.includes('melati 1') || cleanR.includes('jati 1')) {
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 1'))) {
-        pelatihanSet.add('Jati 1');
-      }
-    }
-    if (cleanR === 'jati2' || cleanR === 'jaya_melati_2' || cleanR === 'jayamelati2' || cleanR.includes('melati 2') || cleanR.includes('jati 2')) {
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 2'))) {
-        pelatihanSet.add('Jati 2');
-      }
-    }
-    if (cleanR === 'jari1' || cleanR === 'jaya_matahari_1' || cleanR === 'jayamatahari1' || cleanR.includes('matahari 1') || cleanR.includes('jari 1')) {
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
-        pelatihanSet.add('Jari 1');
-      }
-    }
-    if (cleanR === 'jari2' || cleanR === 'jaya_matahari_2' || cleanR === 'jayamatahari2' || cleanR.includes('matahari 2') || cleanR.includes('jari 2')) {
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 2'))) {
-        pelatihanSet.add('Jari 2');
-      }
-    }
-    if (cleanR === 'jawi' || cleanR === 'jaya_pertiwi' || cleanR === 'jayapertiwi' || cleanR.includes('pertiwi')) {
-      if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jawi'))) {
-        pelatihanSet.add('Jawi');
-      }
-    }
-  });
+  if (rolesAuthoritative) {
+    // When roles are authoritative (e.g. administrative role configuration):
+    // Synchronize pelatihan strictly with the designated roles
+    const trainingRolesMapping = [
+      { roleKey: 'jati1', trainingName: 'Jati 1', pattern: /(jati\s*1|melati\s*1)/i },
+      { roleKey: 'jati2', trainingName: 'Jati 2', pattern: /(jati\s*2|melati\s*2)/i },
+      { roleKey: 'jari1', trainingName: 'Jari 1', pattern: /(jari\s*1|matahari\s*1)/i },
+      { roleKey: 'jari2', trainingName: 'Jari 2', pattern: /(jari\s*2|matahari\s*2)/i },
+      { roleKey: 'jawi', trainingName: 'Jawi', pattern: /(jawi|pertiwi)/i }
+    ];
 
-  // 2. Sync from pelatihan to roles (Pelatihan Diikuti -> Hak Akses Role)
-  pelatihanSet.forEach(p => {
-    const cleanP = p.toLowerCase().trim();
-    if (cleanP.includes('jati 1') || cleanP.includes('melati 1') || cleanP === 'jati1') {
-      rolesSet.add('jati1');
-    }
-    if (cleanP.includes('jati 2') || cleanP.includes('melati 2') || cleanP === 'jati2') {
-      rolesSet.add('jati2');
-    }
-    if (cleanP.includes('jari 1') || cleanP.includes('matahari 1') || cleanP === 'jari1') {
-      rolesSet.add('jari1');
-    }
-    if (cleanP.includes('jari 2') || cleanP.includes('matahari 2') || cleanP === 'jari2') {
-      rolesSet.add('jari2');
-    }
-    if (cleanP.includes('jawi') || cleanP.includes('pertiwi')) {
-      rolesSet.add('jawi');
-    }
-  });
+    trainingRolesMapping.forEach(({ roleKey, trainingName, pattern }) => {
+      const hasRole = Array.from(rolesSet).some(r => r === roleKey || r.includes(roleKey));
+      if (hasRole) {
+        if (!Array.from(pelatihanSet).some(p => pattern.test(p))) {
+          pelatihanSet.add(trainingName);
+        }
+      } else {
+        // Role was intentionally removed -> remove corresponding training so it doesn't resurrect
+        Array.from(pelatihanSet).forEach(p => {
+          if (pattern.test(p)) {
+            pelatihanSet.delete(p);
+          }
+        });
+      }
+    });
+    // Step 2 is skipped because roles are authoritative and must not be altered by old training history
+  } else {
+    // 1. Sync from roles to pelatihan (Role Hak Akses -> Pelatihan Diikuti)
+    rolesSet.forEach(r => {
+      const cleanR = r.toLowerCase().trim();
+      if (cleanR === 'jati1' || cleanR === 'jaya_melati_1' || cleanR === 'jayamelati1' || cleanR.includes('melati 1') || cleanR.includes('jati 1')) {
+        if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 1'))) {
+          pelatihanSet.add('Jati 1');
+        }
+      }
+      if (cleanR === 'jati2' || cleanR === 'jaya_melati_2' || cleanR === 'jayamelati2' || cleanR.includes('melati 2') || cleanR.includes('jati 2')) {
+        if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jati 2'))) {
+          pelatihanSet.add('Jati 2');
+        }
+      }
+      if (cleanR === 'jari1' || cleanR === 'jaya_matahari_1' || cleanR === 'jayamatahari1' || cleanR.includes('matahari 1') || cleanR.includes('jari 1')) {
+        if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 1'))) {
+          pelatihanSet.add('Jari 1');
+        }
+      }
+      if (cleanR === 'jari2' || cleanR === 'jaya_matahari_2' || cleanR === 'jayamatahari2' || cleanR.includes('matahari 2') || cleanR.includes('jari 2')) {
+        if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jari 2'))) {
+          pelatihanSet.add('Jari 2');
+        }
+      }
+      if (cleanR === 'jawi' || cleanR === 'jaya_pertiwi' || cleanR === 'jayapertiwi' || cleanR.includes('pertiwi')) {
+        if (!Array.from(pelatihanSet).some(p => isPelatihanSelected([p], 'Jawi'))) {
+          pelatihanSet.add('Jawi');
+        }
+      }
+    });
+
+    // 2. Sync from pelatihan to roles (Pelatihan Diikuti -> Hak Akses Role)
+    pelatihanSet.forEach(p => {
+      const cleanP = p.toLowerCase().trim();
+      if (cleanP.includes('jati 1') || cleanP.includes('melati 1') || cleanP === 'jati1') {
+        rolesSet.add('jati1');
+      }
+      if (cleanP.includes('jati 2') || cleanP.includes('melati 2') || cleanP === 'jati2') {
+        rolesSet.add('jati2');
+      }
+      if (cleanP.includes('jari 1') || cleanP.includes('matahari 1') || cleanP === 'jari1') {
+        rolesSet.add('jari1');
+      }
+      if (cleanP.includes('jari 2') || cleanP.includes('matahari 2') || cleanP === 'jari2') {
+        rolesSet.add('jari2');
+      }
+      if (cleanP.includes('jawi') || cleanP.includes('pertiwi')) {
+        rolesSet.add('jawi');
+      }
+    });
+  }
 
   if (rolesSet.size === 0) rolesSet.add('umum');
 
