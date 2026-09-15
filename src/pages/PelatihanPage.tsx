@@ -59,16 +59,6 @@ import {
   markAllNotificationsAsRead, 
   buildAllNotifications 
 } from '../utils/notificationUtils';
-
-export {
-  type TrainingProgram,
-  type TrainingActivityItem,
-  JATI1_36_SESSIONS,
-  JATI1_36_ASSIGNMENTS,
-  DEFAULT_JATI1_36_MATERI,
-  TRAINING_PROGRAMS,
-  DEFAULT_TRAINING_ACTIVITIES
-} from '../data/trainingData';
 import {
   type TrainingProgram,
   type TrainingActivityItem,
@@ -1347,7 +1337,7 @@ export default function PelatihanPage() {
                                       if (['Jati 1', 'Jati 2', 'Jari 1'].includes(act.jenisPelatihan)) {
                                         setSelectedLevel(act.jenisPelatihan as any);
                                       }
-                                      setActiveTab('beranda');
+                                      setActiveTab('materi');
                                     }}
                                     className="px-5 py-2.5 bg-hw-green hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center gap-2 uppercase tracking-wider transition-all shadow-md hover:scale-[1.02] cursor-pointer"
                                   >
@@ -2873,11 +2863,20 @@ export default function PelatihanPage() {
                       </div>
                     </div>
 
-                    {app.status === 'approved' && (
-                      <>
-                        <div className="pt-2 border-t border-gray-100 space-y-2">
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Kehadiran Sesi</span>
-                          <div className="grid grid-cols-4 gap-1.5">
+                    {(() => {
+                      const isAppApproved = app.status === 'approved' || 
+                        app.status === 'terverifikasi' || 
+                        app.status === 'disetujui' || 
+                        app.statusPembayaran === 'Lunas' || 
+                        app.statusKelulusan === 'Lulus';
+
+                      if (!isAppApproved) return null;
+
+                      return (
+                        <>
+                          <div className="pt-2 border-t border-gray-100 space-y-2">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Kehadiran Sesi</span>
+                            <div className="grid grid-cols-4 gap-1.5">
                             {['Sesi 1', 'Sesi 2', 'Sesi 3', 'Sesi 4'].map((sesId) => {
                               const attStatus = getAttendanceStatus(attendanceMap, sesId);
                               return (
@@ -2927,8 +2926,9 @@ export default function PelatihanPage() {
                           </button>
                         </div>
                       </>
-                    )}
-                  </div>
+                    );
+                  })()}
+                </div>
                 );
               })}
             </div>
