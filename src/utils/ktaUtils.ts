@@ -664,8 +664,8 @@ export function compareByKtaSequence(a: any, b: any): number {
 
 /**
  * Resequences and compacts KTA sequence numbers per Kwarda/Qabilah so that there are no gaps.
- * E.g., if existing members in Kwarda 01 have sequence numbers [1, 3, 5],
- * they will be shifted down to [1, 2, 3] sequentially starting from 0001.
+ * E.g., if Banjarnegara (01) has 228 members, their sequence numbers will be strictly 0001, 0002, ..., 0228.
+ * Applies across ALL Kwarda & Qabilah PTMA (11.01 to 11.58).
  */
 export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]): T[] {
   if (!Array.isArray(items) || items.length === 0) return items;
@@ -700,62 +700,92 @@ export function resequenceKtaNumbers<T extends Record<string, any>>(items: T[]):
     groups.get(code)!.push(item);
   }
 
-  // Allocate and preserve KTA numbers per Kwarda/Qabilah code group
+  // Allocate strictly consecutive KTA numbers (1..N) per Kwarda/Qabilah code group
   groups.forEach((groupItems, code) => {
-    const usedSeqNumbers = new Set<number>();
-    const claimedBy = new Map<number, any>();
+    // 1. Separate rejected from non-rejected
+    const activeItems: any[] = [];
+    const rejectedItems: any[] = [];
 
-    // 1. First pass: Register and preserve all legitimate existing valid KTA numbers
-    const itemsWithoutValidKta: any[] = [];
-
-    for (const item of groupItems as any[]) {
-      const currentKta = (item.nomorKTA || item.ktaNumber || '').trim();
-      const parsed = isValidKtaNumberFormat(currentKta) ? parseKtaNumber(currentKta) : null;
-
-      if (parsed && parsed.kodeKwarda === code && !claimedBy.has(parsed.nomorUrut)) {
-        // Legitimate non-colliding existing KTA number, preserve it!
-        usedSeqNumbers.add(parsed.nomorUrut);
-        claimedBy.set(parsed.nomorUrut, item);
-        const formatted = formatKtaNumber(code, parsed.nomorUrut);
-        item.nomorKTA = formatted;
-        item.ktaNumber = formatted;
-        item.kodeProvinsi = '11';
-        item.kodeKwarda = code;
-        item.nomorUrut = parsed.nomorUrut;
-        item.candidateKtaNumber = formatted;
+    groupItems.forEach((item: any) => {
+      const rawStatus = (item.status || '').toString().toLowerCase().trim();
+      if (rawStatus === 'rejected' || rawStatus === 'ditolak') {
+        rejectedItems.push(item);
       } else {
-        itemsWithoutValidKta.push(item);
+        activeItems.push(item);
       }
-    }
+    });
 
-    // Sort items needing KTA number by registration/creation date or name for stable sequence
-    itemsWithoutValidKta.sort((a: any, b: any) => {
+    // 2. Sort active items deterministically:
+    // Approved first, then pending.
+    // Within approved: sort by existing sequence number if valid (smaller number first),
+    // then by registration date, then by name.
+    // Within pending: sort by registration date, then name.
+    activeItems.sort((a: any, b: any) => {
+      const statusA = (a.status || '').toString().toLowerCase().trim();
+      const statusB = (b.status || '').toString().toLowerCase().trim();
+      const isApprovedA = statusA === 'approved' || statusA === 'aktif' || statusA === 'disetujui' || a.isVerified === true;
+      const isApprovedB = statusB === 'approved' || statusB === 'aktif' || statusB === 'disetujui' || b.isVerified === true;
+
+      if (isApprovedA !== isApprovedB) {
+        return isApprovedA ? -1 : 1;
+      }
+
+      const ktaA = (a.nomorKTA || a.ktaNumber || '').trim();
+      const ktaB = (b.nomorKTA || b.ktaNumber || '').trim();
+      const parsedA = isValidKtaNumberFormat(ktaA) ? parseKtaNumber(ktaA) : null;
+      const parsedB = isValidKtaNumberFormat(ktaB) ? parseKtaNumber(ktaB) : null;
+
+      const hasSeqA = parsedA && parsedA.kodeKwarda === code;
+      const hasSeqB = parsedB && parsedB.kodeKwarda === code;
+
+      if (hasSeqA && hasSeqB) {
+        if (parsedA.nomorUrut !== parsedB.nomorUrut) {
+          return parsedA.nomorUrut - parsedB.nomorUrut;
+        }
+      } else if (hasSeqA && !hasSeqB) {
+        return -1;
+      } else if (!hasSeqA && hasSeqB) {
+        return 1;
+      }
+
       const dateA = a.tanggalAjuan || a.tanggalDaftar || a.createdAt || a.tanggal || '';
       const dateB = b.tanggalAjuan || b.tanggalDaftar || b.createdAt || b.tanggal || '';
       if (dateA && dateB && dateA !== dateB) {
         return String(dateA).localeCompare(String(dateB));
       }
+
       const nameA = a.namaLengkap || a.nama || '';
       const nameB = b.namaLengkap || b.nama || '';
       return nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
     });
 
-    // 2. Second pass: Allocate the next available sequential number for anyone without a valid KTA
-    for (const item of itemsWithoutValidKta) {
-      const nextSeq = findNextAvailableNumber(usedSeqNumbers);
-      usedSeqNumbers.add(nextSeq);
-      const allocatedKta = formatKtaNumber(code, nextSeq);
+    // 3. Compact and assign sequential numbers 1..N starting from 0001
+    for (let idx = 0; idx < activeItems.length; idx++) {
+      const item: any = activeItems[idx];
+      const seq = idx + 1;
+      const formattedKta = formatKtaNumber(code, seq);
 
-      item.nomorKTA = allocatedKta;
-      item.ktaNumber = allocatedKta;
-      item.candidateKtaNumber = allocatedKta;
+      item.nomorKTA = formattedKta;
+      item.ktaNumber = formattedKta;
+      item.candidateKtaNumber = formattedKta;
       item.kodeProvinsi = '11';
       item.kodeKwarda = code;
-      item.nomorUrut = nextSeq;
+      item.nomorUrut = seq;
     }
+
+    // Replace groupItems with properly ordered list
+    groups.set(code, [...activeItems, ...rejectedItems]);
   });
 
-  return items;
+  // Return items neatly sorted by Kwarda code and sequence number
+  const sortedCodes = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+  const result: T[] = [];
+  for (const code of sortedCodes) {
+    const list = groups.get(code);
+    if (list) result.push(...list);
+  }
+
+  return result;
 }
 
 /**
@@ -814,6 +844,9 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
   const map = new Map<string, T>();
   const emailToId = new Map<string, string>();
   const ktaToId = new Map<string, string>();
+  const nikToId = new Map<string, string>();
+  const nameKwardaToId = new Map<string, string>();
+  const namePhoneToId = new Map<string, string>();
 
   const normStr = (val: any) => (val ? String(val).trim().toLowerCase().replace(/\s+/g, ' ') : '');
   const cleanDigits = (val: any) => (val ? String(val).replace(/[^0-9]/g, '') : '');
@@ -837,6 +870,14 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
     const kta = (raw.ktaNumber || raw.nomorKTA || '').trim();
     const validKta = (kta && kta !== 'KTA-HW.JT.XXXX' && !kta.includes('X')) ? kta : '';
 
+    const cleanNik = cleanDigits(raw.nik || raw.nbm);
+    const validNik = (cleanNik.length >= 6 && cleanNik !== '123456' && cleanNik !== '000000') ? cleanNik : '';
+
+    const normName = normStr(name);
+    const kwardaCode = getKwardaCode(raw.asalKwarda || raw.asalDaerah, raw.qabilah || raw.qabilahPtma);
+    const nameKwardaKey = (normName.length >= 4 && kwardaCode) ? `${normName}:::${kwardaCode}` : '';
+    const namePhoneKey = (normName.length >= 4 && phoneDigits.length >= 8) ? `${normName}:::${phoneDigits.slice(-8)}` : '';
+
     const rawId = raw.id ? String(raw.id).trim() : '';
 
     // Search for existing duplicate match strictly by unique identifiers
@@ -846,8 +887,14 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       matchId = rawId;
     } else if (validEmail && emailToId.has(validEmail)) {
       matchId = emailToId.get(validEmail)!;
+    } else if (validNik && nikToId.has(validNik)) {
+      matchId = nikToId.get(validNik)!;
     } else if (validKta && ktaToId.has(validKta)) {
       matchId = ktaToId.get(validKta)!;
+    } else if (namePhoneKey && namePhoneToId.has(namePhoneKey)) {
+      matchId = namePhoneToId.get(namePhoneKey)!;
+    } else if (nameKwardaKey && nameKwardaToId.has(nameKwardaKey)) {
+      matchId = nameKwardaToId.get(nameKwardaKey)!;
     }
 
     if (matchId && map.has(matchId)) {
@@ -935,6 +982,9 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       map.set(matchId, merged);
       if (validEmail) emailToId.set(validEmail, matchId);
       if (validKta) ktaToId.set(validKta, matchId);
+      if (validNik) nikToId.set(validNik, matchId);
+      if (namePhoneKey) namePhoneToId.set(namePhoneKey, matchId);
+      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, matchId);
     } else {
       const memberId = rawId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const rawRoles = raw.roles || (raw.role ? [raw.role] : ['umum']);
@@ -994,6 +1044,9 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
       map.set(memberId, newObj);
       if (validEmail) emailToId.set(validEmail, memberId);
       if (validKta) ktaToId.set(validKta, memberId);
+      if (validNik) nikToId.set(validNik, memberId);
+      if (namePhoneKey) namePhoneToId.set(namePhoneKey, memberId);
+      if (nameKwardaKey) nameKwardaToId.set(nameKwardaKey, memberId);
     }
   }
 

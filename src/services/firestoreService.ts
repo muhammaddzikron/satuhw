@@ -2442,12 +2442,18 @@ export const firestoreService = {
 
       if (resequenced.length > 0) {
         try {
-          const batch = writeBatch(db);
-          resequenced.forEach((k: any) => {
-            if (k.id) {
-              batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
-            }
-          });
+          // Firestore write batches are limited to 500 operations max. Chunk by 400.
+          const CHUNK_SIZE = 400;
+          for (let i = 0; i < resequenced.length; i += CHUNK_SIZE) {
+            const chunk = resequenced.slice(i, i + CHUNK_SIZE);
+            const batch = writeBatch(db);
+            chunk.forEach((k: any) => {
+              if (k.id) {
+                batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
+              }
+            });
+            await batch.commit();
+          }
 
           // Reset and sync Firestore kta_counters for each Kwarda so no holes exist
           const kwardaSeqMap = new Map<string, number[]>();
@@ -2461,10 +2467,11 @@ export const firestoreService = {
             }
           });
 
+          const counterBatch = writeBatch(db);
           kwardaSeqMap.forEach((seqs, code) => {
             const uniqueSorted = Array.from(new Set(seqs)).sort((a, b) => a - b);
             const counterRef = doc(db, 'kta_counters', String(code || '00'));
-            batch.set(counterRef, {
+            counterBatch.set(counterRef, {
               id: code,
               kodeKwarda: code,
               kodeProvinsi: '11',
@@ -2473,8 +2480,7 @@ export const firestoreService = {
               updatedAt: new Date().toISOString()
             }, { merge: true });
           });
-
-          await batch.commit();
+          await counterBatch.commit();
         } catch (err) {
           this.checkQuotaError(err);
         }

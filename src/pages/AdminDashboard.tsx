@@ -2140,17 +2140,41 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleResequenceKTAs = async () => {
-    if (!window.confirm("Apakah Anda yakin ingin merapikan dan menggeser urutan nomor KTA?\n\nProses ini akan menggeser nomor urut KTA di tiap Kwarda/Qabilah sehingga semua nomor urut anggota lengkap dari yang terkecil (11.XX.0001, 11.XX.0002, 11.XX.0003...) tanpa ada celah kosong.")) {
+  const handleResequenceKTAs = async (specificKwardaName?: string) => {
+    const confirmMsg = specificKwardaName
+      ? `Apakah Anda yakin ingin merapikan dan menggeser urutan nomor KTA untuk ${specificKwardaName}?\n\nSemua nomor urut anggota akan dibuat berurutan rapat tanpa loncat (11.XX.0001, 11.XX.0002, ...) dan data dobel akan dibersihkan.`
+      : "Apakah Anda yakin ingin merapikan dan menggeser urutan nomor KTA di seluruh Kwarda dan Qabilah PTMA?\n\nProses ini akan menggeser nomor urut KTA di tiap Kwarda/Qabilah sehingga semua nomor urut anggota lengkap berurutan dari yang terkecil (11.XX.0001, 11.XX.0002, 11.XX.0003...) tanpa ada nomor yang loncat dan tanpa data dobel.";
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
     try {
       setIsResequencingKta(true);
+      setBackgroundProcessingText(specificKwardaName ? `Merapikan nomor KTA ${specificKwardaName}...` : "Merapikan nomor KTA seluruh Kwarda & Qabilah...");
 
-      // 1. Optimistic local state update
+      // 1. Deduplicate and resequence KTA applications
       const resequencedKtas = ensureUniqueKtaNumbers([...ktaApps]);
-      const resequencedMembers = ensureUniqueKtaNumbers([...members]);
+      
+      // Update members so their ktaNumber matches the newly resequenced KTA numbers
+      const updatedMembers = members.map(m => {
+        const matched = resequencedKtas.find(k => 
+          (k.email && m.email && k.email.toLowerCase().trim() === m.email.toLowerCase().trim()) ||
+          (k.userId && m.id && String(k.userId) === String(m.id)) ||
+          (k.id && m.id && String(k.id) === String(m.id))
+        );
+        if (matched) {
+          return {
+            ...m,
+            ktaNumber: matched.ktaNumber,
+            nomorKTA: matched.nomorKTA,
+            isVerified: matched.isVerified ?? m.isVerified,
+            statusAktivasi: matched.statusAktivasi ?? m.statusAktivasi
+          };
+        }
+        return m;
+      });
+      const resequencedMembers = ensureUniqueKtaNumbers(updatedMembers);
 
       setKtaApps(resequencedKtas);
       setMembers(resequencedMembers);
@@ -2164,12 +2188,15 @@ export default function AdminDashboard() {
         setKtaApps(synced);
       }
 
-      alert("Berhasil merapikan dan menggeser nomor KTA!\nSemua urutan anggota di tiap Kwarda/Qabilah kini lengkap dan rapat dari yang terkecil.");
+      showToast('success', specificKwardaName 
+        ? `Berhasil merapikan nomor KTA untuk ${specificKwardaName}!` 
+        : "Berhasil merapikan dan menggeser nomor KTA seluruh Kwarda & Qabilah! Nomor urut kini rapat berurutan.");
     } catch (err: any) {
       console.error("Gagal merapikan nomor KTA:", err);
-      alert("Gagal merapikan nomor KTA: " + (err?.message || "Terjadi kesalahan"));
+      showToast('error', "Gagal merapikan nomor KTA: " + (err?.message || "Terjadi kesalahan"));
     } finally {
       setIsResequencingKta(false);
+      setBackgroundProcessingText(null);
     }
   };
 
@@ -8232,14 +8259,22 @@ export default function AdminDashboard() {
                                           className="px-2.5 py-1 bg-hw-dark hover:bg-black text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95"
                                           title={`Filter tabel utama untuk ${item.name}`}
                                         >
-                                          Filter Tabel Utama
+                                          Filter
                                         </button>
                                         <button
                                           onClick={() => setSelectedKwardaModal(item.name)}
                                           className="px-2.5 py-1 bg-hw-green/10 hover:bg-hw-green text-hw-green hover:text-white rounded-lg text-[10px] font-extrabold transition-all border border-hw-green/20 cursor-pointer active:scale-95"
                                           title={`Lihat daftar anggota ${item.name}`}
                                         >
-                                          Detail Anggota ({item.total})
+                                          Detail ({item.total})
+                                        </button>
+                                        <button
+                                          onClick={() => handleResequenceKTAs(item.name)}
+                                          disabled={isResequencingKta}
+                                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                                          title={`Rapikan dan urutkan nomor KTA tanpa celah untuk ${item.name}`}
+                                        >
+                                          Rapikan
                                         </button>
                                       </div>
                                     </td>
@@ -8328,14 +8363,22 @@ export default function AdminDashboard() {
                                           className="px-2.5 py-1 bg-hw-dark hover:bg-black text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95"
                                           title={`Filter tabel utama untuk ${item.name}`}
                                         >
-                                          Filter Tabel Utama
+                                          Filter
                                         </button>
                                         <button
                                           onClick={() => setSelectedKwardaModal(item.name)}
                                           className="px-2.5 py-1 bg-hw-green/10 hover:bg-hw-green text-hw-green hover:text-white rounded-lg text-[10px] font-extrabold transition-all border border-hw-green/20 cursor-pointer active:scale-95"
                                           title={`Lihat daftar anggota ${item.name}`}
                                         >
-                                          Detail Anggota ({item.total})
+                                          Detail ({item.total})
+                                        </button>
+                                        <button
+                                          onClick={() => handleResequenceKTAs(item.name)}
+                                          disabled={isResequencingKta}
+                                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-extrabold transition-all shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                                          title={`Rapikan dan urutkan nomor KTA tanpa celah untuk ${item.name}`}
+                                        >
+                                          Rapikan
                                         </button>
                                       </div>
                                     </td>
