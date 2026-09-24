@@ -1835,6 +1835,10 @@ export default function AdminDashboard() {
                 statusKta: 'approved',
                 statusAktivasi: 'Aktif',
                 statusPembayaran: 'Lunas',
+                asalDaerah: k.asalDaerah || ex.asalDaerah || 'Kabupaten Pemalang',
+                asalKwarda: k.asalKwarda || ex.asalKwarda || 'Kabupaten Pemalang',
+                kwarda: k.asalKwarda || ex.kwarda || 'Kabupaten Pemalang',
+                qabilah: k.qabilah || ex.qabilah || 'Qabilah Pemalang',
                 nomorKTA: k.nomorKTA,
                 ktaNumber: k.ktaNumber,
                 verifiedAt: k.verifiedAt || nowIso
@@ -1851,6 +1855,10 @@ export default function AdminDashboard() {
                       statusKta: 'approved',
                       statusAktivasi: 'Aktif',
                       statusPembayaran: 'Lunas',
+                      asalDaerah: k.asalDaerah || mv.asalDaerah || 'Kabupaten Pemalang',
+                      asalKwarda: k.asalKwarda || mv.asalKwarda || 'Kabupaten Pemalang',
+                      kwarda: k.asalKwarda || mv.kwarda || 'Kabupaten Pemalang',
+                      qabilah: k.qabilah || mv.qabilah || 'Qabilah Pemalang',
                       nomorKTA: k.nomorKTA,
                       ktaNumber: k.ktaNumber,
                       verifiedAt: k.verifiedAt || nowIso
@@ -1880,6 +1888,10 @@ export default function AdminDashboard() {
               statusKta: 'approved',
               statusAktivasi: 'Aktif',
               statusPembayaran: 'Lunas',
+              asalDaerah: k.asalDaerah || 'Kabupaten Pemalang',
+              asalKwarda: k.asalKwarda || 'Kabupaten Pemalang',
+              kwarda: k.asalKwarda || 'Kabupaten Pemalang',
+              qabilah: k.qabilah || 'Qabilah Pemalang',
               nomorKTA: k.nomorKTA,
               ktaNumber: k.ktaNumber,
               verifiedAt: k.verifiedAt || nowIso

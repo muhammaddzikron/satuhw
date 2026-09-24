@@ -17,7 +17,7 @@ import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
 import { getMasterMembersList, invalidateMasterMembersCache } from './masterMembersService';
-import { INITIAL_REGISTERED_APPLICANTS, updateRegisteredApplicantStatus } from './registeredApplicants';
+import { INITIAL_REGISTERED_APPLICANTS, updateRegisteredApplicantStatus, syncRegisteredApplicantsWithStorage } from './registeredApplicants';
 import {
   getKwardaCode,
   findNextAvailableNumber,
@@ -2532,18 +2532,40 @@ export const firestoreService = {
         }
       }
 
-      // Ensure all initial registered applicants are included in ktas
+      // Always sync registered applicants cache with storage
+      syncRegisteredApplicantsWithStorage();
+
+      // Ensure all initial registered applicants are included in ktas and synced to Kwarda Pemalang
       INITIAL_REGISTERED_APPLICANTS.forEach(reg => {
         const regEmail = (reg.email || '').toLowerCase().trim();
         const regName = (reg.nama || reg.namaLengkap || '').toLowerCase().trim();
-        const exists = ktas.some((k: any) => 
+        const existingIdx = ktas.findIndex((k: any) => 
           String(k.id) === String(reg.id) ||
           (k.userId && String(k.userId) === String(reg.userId)) ||
           (regEmail && k.email && String(k.email).toLowerCase().trim() === regEmail) ||
           (regName && (k.nama || k.namaLengkap || '').toLowerCase().trim() === regName)
         );
-        if (!exists) {
+        if (existingIdx === -1) {
           ktas.unshift({ ...reg });
+        } else {
+          // Always ensure region details match Kwarda Pemalang
+          let currentKta = ktas[existingIdx].ktaNumber || ktas[existingIdx].nomorKTA || '';
+          if (currentKta && !currentKta.startsWith('11.19.')) {
+            currentKta = '';
+          }
+          ktas[existingIdx] = {
+            ...ktas[existingIdx],
+            asalDaerah: reg.asalDaerah,
+            asalKwarda: reg.asalKwarda,
+            kwarda: reg.asalKwarda,
+            qabilah: reg.qabilah,
+            tempatLahir: reg.tempatLahir,
+            alamat: reg.alamat,
+            ktaNumber: currentKta,
+            nomorKTA: currentKta,
+            status: currentKta ? 'approved' : ktas[existingIdx].status,
+            statusKta: currentKta ? 'approved' : (ktas[existingIdx].statusKta || ktas[existingIdx].status)
+          };
         }
       });
 
@@ -3058,8 +3080,10 @@ export const firestoreService = {
       const targetQabilah = app.qabilah || app.qabilahPtma || '';
       const rawKta = (app.nomorKTA || app.ktaNumber || '').toString().trim();
 
+      const expectedCode = getKwardaCode(targetRegion, targetQabilah);
+      const parsedRaw = parseKtaNumber(rawKta);
       let assignedKta = '';
-      if (isValidKtaNumberFormat(rawKta)) {
+      if (isValidKtaNumberFormat(rawKta) && parsedRaw && parsedRaw.kodeKwarda === expectedCode) {
         assignedKta = rawKta;
       } else {
         assignedKta = generateNextKtaForRegion(targetRegion, targetQabilah, allTrackedItems);

@@ -9,15 +9,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "muhamad.zakaria@hw.or.id",
     noWa: "081234875501",
     noHp: "081234875501",
-    asalDaerah: "Kabupaten Banjarnegara",
-    asalKwarda: "Kabupaten Banjarnegara",
-    qabilah: "Qabilah Banjarnegara",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Banjarnegara",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2006-05-14",
-    alamat: "Jl. Raya Banjarnegara No. 12, Banjarnegara",
+    alamat: "Jl. Ahmad Dahlan No. 12, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -39,15 +40,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "rovu.audhika@hw.or.id",
     noWa: "081234875502",
     noHp: "081234875502",
-    asalDaerah: "Kabupaten Banyumas",
-    asalKwarda: "Kabupaten Banyumas",
-    qabilah: "Qabilah Banyumas",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Banyumas",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2007-08-20",
-    alamat: "Jl. Jenderal Sudirman No. 45, Purwokerto",
+    alamat: "Jl. Jenderal Sudirman No. 45, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -69,15 +71,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "hudan.muutaqien@hw.or.id",
     noWa: "081234875503",
     noHp: "081234875503",
-    asalDaerah: "Kabupaten Wonosobo",
-    asalKwarda: "Kabupaten Wonosobo",
-    qabilah: "Qabilah Wonosobo",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Pengenal",
     golongan: "Pengenal",
     jenisKelamin: "L",
-    tempatLahir: "Wonosobo",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2008-03-12",
-    alamat: "Jl. Dieng Km. 4, Wonosobo",
+    alamat: "Jl. Pemuda No. 15, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -99,15 +102,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "akbar.mubarok@hw.or.id",
     noWa: "081234875504",
     noHp: "081234875504",
-    asalDaerah: "Kabupaten Kendal",
-    asalKwarda: "Kabupaten Kendal",
-    qabilah: "Qabilah Kendal",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Kendal",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2006-11-25",
-    alamat: "Jl. Pemuda No. 88, Kendal",
+    alamat: "Jl. Gatot Subroto No. 28, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -129,15 +133,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "abdullah.rozy@hw.or.id",
     noWa: "081234875505",
     noHp: "081234875505",
-    asalDaerah: "Kabupaten Kudus",
-    asalKwarda: "Kabupaten Kudus",
-    qabilah: "Qabilah Kudus",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Pengenal",
     golongan: "Pengenal",
     jenisKelamin: "L",
-    tempatLahir: "Kudus",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2008-09-09",
-    alamat: "Jl. Sunan Kudus No. 19, Kudus",
+    alamat: "Jl. KH Samanhudi No. 19, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -159,15 +164,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "ibnu.alwi@hw.or.id",
     noWa: "081234875506",
     noHp: "081234875506",
-    asalDaerah: "Kabupaten Wonosobo",
-    asalKwarda: "Kabupaten Wonosobo",
-    qabilah: "Qabilah Wonosobo",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Pengenal",
     golongan: "Pengenal",
     jenisKelamin: "L",
-    tempatLahir: "Wonosobo",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2009-01-17",
-    alamat: "Tanon RT 01/RW 06, Tanjunganom, Kepil, Wonosobo",
+    alamat: "Jl. Veteran No. 34, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -189,15 +195,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "enggar.astaghfarka@hw.or.id",
     noWa: "081234875507",
     noHp: "081234875507",
-    asalDaerah: "Kota Magelang",
-    asalKwarda: "Kota Magelang",
-    qabilah: "Qabilah Kota Magelang",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Magelang",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2007-04-03",
-    alamat: "Jl. Tidar No. 56, Magelang",
+    alamat: "Jl. Dr. Wahidin No. 56, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -219,15 +226,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "vanquish.zidan@hw.or.id",
     noWa: "081234875508",
     noHp: "081234875508",
-    asalDaerah: "Kabupaten Batang",
-    asalKwarda: "Kabupaten Batang",
-    qabilah: "Qabilah Batang",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Pengenal",
     golongan: "Pengenal",
     jenisKelamin: "L",
-    tempatLahir: "Batang",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2008-12-10",
-    alamat: "Jl. Jenderal Sudirman No. 102, Batang",
+    alamat: "Jl. Yos Sudarso No. 8, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -249,15 +257,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "alif.rezananda@hw.or.id",
     noWa: "081234875509",
     noHp: "081234875509",
-    asalDaerah: "Kabupaten Magelang",
-    asalKwarda: "Kabupaten Magelang",
-    qabilah: "Qabilah Magelang",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Magelang",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2006-07-22",
-    alamat: "Muntilan, Magelang, Jawa Tengah",
+    alamat: "Jl. DI Panjaitan No. 22, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -279,15 +288,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "kamal.maulana@hw.or.id",
     noWa: "081234875510",
     noHp: "081234875510",
-    asalDaerah: "Kabupaten Klaten",
-    asalKwarda: "Kabupaten Klaten",
-    qabilah: "Qabilah Klaten",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Klaten",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2007-02-18",
-    alamat: "Jl. Pemuda No. 23, Klaten",
+    alamat: "Jl. Pemuda No. 73, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -309,15 +319,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "faisal.dzulfikar@hw.or.id",
     noWa: "081234875511",
     noHp: "081234875511",
-    asalDaerah: "Kabupaten Kebumen",
-    asalKwarda: "Kabupaten Kebumen",
-    qabilah: "Qabilah Kebumen",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Pengenal",
     golongan: "Pengenal",
     jenisKelamin: "L",
-    tempatLahir: "Kebumen",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2008-10-30",
-    alamat: "Jl. Pahlawan No. 71, Kebumen",
+    alamat: "Jl. Merdeka No. 17, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -339,15 +350,16 @@ export const INITIAL_REGISTERED_APPLICANTS: any[] = [
     email: "abdullah.sholih@hw.or.id",
     noWa: "081234875512",
     noHp: "081234875512",
-    asalDaerah: "Kota Semarang",
-    asalKwarda: "Kota Semarang",
-    qabilah: "Qabilah Kota Semarang",
+    asalDaerah: "Kabupaten Pemalang",
+    asalKwarda: "Kabupaten Pemalang",
+    kwarda: "Kabupaten Pemalang",
+    qabilah: "Qabilah Pemalang",
     tingkatan: "Penghela",
     golongan: "Penghela",
     jenisKelamin: "L",
-    tempatLahir: "Semarang",
+    tempatLahir: "Pemalang",
     tanggalLahir: "2006-12-05",
-    alamat: "Jl. Pandanaran No. 80, Semarang",
+    alamat: "Jl. Sudirman No. 80, Pemalang, Jawa Tengah",
     status: "pending",
     statusKta: "pending",
     statusPembayaran: "Belum Bayar",
@@ -376,6 +388,8 @@ export const getRegisteredApplicantsAsUsers = (): User[] => {
     alamat: app.alamat,
     noHp: app.noWa,
     asalKwarda: app.asalKwarda,
+    asalDaerah: app.asalDaerah || app.asalKwarda,
+    kwarda: app.asalKwarda,
     qabilah: app.qabilah,
     golongan: app.tingkatan,
     tingkatan: app.tingkatan,
@@ -421,3 +435,128 @@ export const updateRegisteredApplicantStatus = (idOrEmail: string, status: strin
     }
   }
 };
+
+export const syncRegisteredApplicantsWithStorage = () => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const KWARDA_PEMALANG = "Kabupaten Pemalang";
+    const QABILAH_PEMALANG = "Qabilah Pemalang";
+
+    // 1. Clean / update kta_applications in localStorage
+    const ktaStored = localStorage.getItem('kta_applications');
+    if (ktaStored) {
+      let ktas = JSON.parse(ktaStored);
+      if (Array.isArray(ktas)) {
+        let changed = false;
+        ktas = ktas.map((k: any) => {
+          const regMatch = INITIAL_REGISTERED_APPLICANTS.find(r => 
+            (k.id && String(k.id) === String(r.id)) ||
+            (k.userId && String(k.userId) === String(r.userId)) ||
+            (k.email && r.email && String(k.email).toLowerCase().trim() === String(r.email).toLowerCase().trim()) ||
+            (r.nama && (k.nama || k.namaLengkap || '').toLowerCase().trim() === r.nama.toLowerCase().trim())
+          );
+          if (regMatch) {
+            changed = true;
+            let ktaNum = k.ktaNumber || k.nomorKTA || '';
+            // If the KTA was previously approved under another region (e.g. 11.01. or 11.02.), reset it so it gets a proper Pemalang 11.19. KTA
+            if (ktaNum && !ktaNum.startsWith('11.19.')) {
+              ktaNum = '';
+            }
+            return {
+              ...k,
+              asalDaerah: KWARDA_PEMALANG,
+              asalKwarda: KWARDA_PEMALANG,
+              kwarda: KWARDA_PEMALANG,
+              qabilah: QABILAH_PEMALANG,
+              tempatLahir: "Pemalang",
+              alamat: regMatch.alamat,
+              ktaNumber: ktaNum,
+              nomorKTA: ktaNum,
+              status: ktaNum ? 'approved' : k.status,
+              statusKta: ktaNum ? 'approved' : (k.statusKta || k.status)
+            };
+          }
+          return k;
+        });
+        if (changed) {
+          localStorage.setItem('kta_applications', JSON.stringify(ktas));
+        }
+      }
+    }
+
+    // 2. Clean / update mock_members in localStorage
+    const memStored = localStorage.getItem('mock_members');
+    if (memStored) {
+      let members = JSON.parse(memStored);
+      if (Array.isArray(members)) {
+        let changed = false;
+        members = members.map((m: any) => {
+          const regMatch = INITIAL_REGISTERED_APPLICANTS.find(r => 
+            (m.id && String(m.id) === String(r.userId)) ||
+            (m.email && r.email && String(m.email).toLowerCase().trim() === String(r.email).toLowerCase().trim()) ||
+            (r.nama && (m.namaLengkap || m.nama || '').toLowerCase().trim() === r.nama.toLowerCase().trim())
+          );
+          if (regMatch) {
+            changed = true;
+            let ktaNum = m.ktaNumber || m.nomorKTA || '';
+            if (ktaNum && !ktaNum.startsWith('11.19.')) {
+              ktaNum = '';
+            }
+            return {
+              ...m,
+              asalDaerah: KWARDA_PEMALANG,
+              asalKwarda: KWARDA_PEMALANG,
+              kwarda: KWARDA_PEMALANG,
+              qabilah: QABILAH_PEMALANG,
+              tempatLahir: "Pemalang",
+              alamat: regMatch.alamat,
+              ktaNumber: ktaNum,
+              nomorKTA: ktaNum
+            };
+          }
+          return m;
+        });
+        if (changed) {
+          localStorage.setItem('mock_members', JSON.stringify(members));
+        }
+      }
+    }
+
+    // 3. Clean / update member_custom_edits in localStorage
+    const editsStored = localStorage.getItem('member_custom_edits');
+    if (editsStored) {
+      let edits = JSON.parse(editsStored);
+      if (edits && typeof edits === 'object') {
+        let changed = false;
+        INITIAL_REGISTERED_APPLICANTS.forEach(r => {
+          const keys = [r.id, r.userId, r.email.toLowerCase().trim(), r.nama.toLowerCase().trim(), r.namaLengkap.toLowerCase().trim()];
+          keys.forEach(k => {
+            if (edits[k]) {
+              edits[k].asalDaerah = KWARDA_PEMALANG;
+              edits[k].asalKwarda = KWARDA_PEMALANG;
+              edits[k].kwarda = KWARDA_PEMALANG;
+              edits[k].qabilah = QABILAH_PEMALANG;
+              edits[k].tempatLahir = "Pemalang";
+              edits[k].alamat = r.alamat;
+              if (edits[k].ktaNumber && !edits[k].ktaNumber.startsWith('11.19.')) {
+                delete edits[k].ktaNumber;
+                delete edits[k].nomorKTA;
+              }
+              changed = true;
+            }
+          });
+        });
+        if (changed) {
+          localStorage.setItem('member_custom_edits', JSON.stringify(edits));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('syncRegisteredApplicantsWithStorage error:', e);
+  }
+};
+
+// Immediately execute storage sync on initialization
+if (typeof window !== 'undefined') {
+  syncRegisteredApplicantsWithStorage();
+}
