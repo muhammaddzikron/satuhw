@@ -24,7 +24,8 @@ import {
   isValidKtaNumberFormat,
   parseKtaNumber,
   ensureUniqueKtaNumbers,
-  resequenceKtaNumbers
+  resequenceKtaNumbers,
+  generateNextKtaForRegion
 } from '../utils/ktaUtils';
 import { isOnlyTrainingActivity, sortActivityAppsByDate, sortActivitiesNewestFirst, extractYoutubeId } from '../utils/activityUtils';
 import { normalizeTrainingKey, syncRolesAndPelatihan, consolidateTrainingApplications, isSameTrainingParticipant, normalizeParticipantName } from '../utils/trainingUtils';
@@ -1885,6 +1886,7 @@ export const firestoreService = {
     }
     return cachedFirestoreFetch('materi', async () => {
       let fsMateri: Materi[] = [];
+      let fsOrgMateri: any[] = [];
       if (!this.getIsQuotaExceeded()) {
         try {
           const snap = await withTimeout(getDocs(collection(db, 'materi')), 8000);
@@ -1896,6 +1898,16 @@ export const firestoreService = {
           if (!this.getIsQuotaExceeded() && !this.isOfflineError(err)) {
             console.warn('Firestore getMateri offline / fallback to cache:', (err as any)?.message || err);
           }
+        }
+
+        // Also query regional Kwarda & PTMA materials stored in Firestore
+        try {
+          const orgSnap = await withTimeout(getDocs(collection(db, 'kwarda_ptma_materi')), 6000);
+          if (!orgSnap.empty) {
+            fsOrgMateri = orgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          }
+        } catch (err) {
+          // ignore / fallback
         }
       }
 
@@ -1913,6 +1925,16 @@ export const firestoreService = {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) localStored = parsed;
+        }
+      } catch (e) {}
+
+      // Retrieve local stored Kwarda/PTMA materi
+      let localOrgMateri: any[] = [];
+      try {
+        const oStr = localStorage.getItem('hw_kwarda_ptma_materi');
+        if (oStr) {
+          const parsedO = JSON.parse(oStr);
+          if (Array.isArray(parsedO)) localOrgMateri = parsedO;
         }
       } catch (e) {}
 
@@ -1964,25 +1986,61 @@ export const firestoreService = {
         if (titleKey) mergedMap.set(`title_${titleKey}`, item);
       });
 
-      // 2. Extra initial modules for other categories (Jati 2, Jari 1, Sugli, Kwarda) so no category is blank
+      // 2. Extra initial modules for other categories (Jati 2, Jari 1, Jari 2, Jawi, Sugli, Kwarda, PTMA)
       const extraCategoriesDefaults: Materi[] = [
         {
           id: 'mat-jati2-modul-1',
-          judul: 'Kurikulum Lanjutan Jaya Melati 2: Strategi Manajemen Kwartir & Wilayah',
-          konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, sistem administrasi kwartir tingkat daerah dan wilayah.',
+          judul: 'Kurikulum Lanjutan Jaya Melati 2: Dinamika Kelompok & Manajemen Konflik',
+          konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, fasilitasi dinamika kelompok, dan teknik resolusi konflik.',
           kategori: 'jati2',
           tanggal: '2025-01-15T00:00:00.000Z',
           coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
           driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
         },
         {
+          id: 'mat-jati2-modul-2',
+          judul: 'Kurikulum Jaya Melati 2: Desain Instruksional & Praktik Micro-Teaching',
+          konten: 'Penyusunan kurikulum pelatihan kepanduan, silabus pembinaan satuan, dan teknik pengajaran kepanduan interaktif.',
+          kategori: 'jati2',
+          tanggal: '2025-01-16T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+        },
+        {
           id: 'mat-jari1-modul-1',
-          judul: 'Buku Panduan Jaya Matahari 1: Kader Pandu Penghela & Penuntun HW',
-          konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, navigasi darat lanjutan dan survival di alam bebas.',
+          judul: 'Buku Panduan Jaya Matahari 1: Kepemimpinan Dewan Pasukan & Regu Kerja',
+          konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, etika kepemimpinan Pratama dan Pinru.',
           kategori: 'jari1',
           tanggal: '2025-01-18T00:00:00.000Z',
           coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
           driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+        },
+        {
+          id: 'mat-jari1-modul-2',
+          judul: 'Buku Panduan Jaya Matahari 1: Survival Lapangan, Peta Kompas & PPGD',
+          konten: 'Navigasi darat, membaca peta pita, teknik survival alam terbuka, serta pertolongan pertama gawat darurat (PPGD).',
+          kategori: 'jari1',
+          tanggal: '2025-01-19T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+        },
+        {
+          id: 'mat-jari2-modul-1',
+          judul: 'Kurikulum Jaya Matahari 2: Kepelatihan Kader Utama & Penggerak Qabilah',
+          konten: 'Pembekalan kader instruktur muda Hizbul Wathan untuk penguatan qabilah berbasis sekolah dan pesantren Muhammadiyah.',
+          kategori: 'jari2',
+          tanggal: '2025-01-20T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+        },
+        {
+          id: 'mat-jawi-modul-1',
+          judul: 'Kurikulum Jaya Pertiwi: Pembinaan Khusus Kepanduan Putri Hizbul Wathan',
+          konten: 'Panduan pembinaan kepanduan putri, etika keislaman, tata boga kepanduan, dan kepemimpinan kader putri Aisyiyah/HW.',
+          kategori: 'jawi',
+          tanggal: '2025-01-20T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
         },
         {
           id: 'mat-sugli-modul-1',
@@ -2001,6 +2059,15 @@ export const firestoreService = {
           tanggal: '2025-01-22T00:00:00.000Z',
           coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
           driveUrl: 'https://drive.google.com/drive/folders/1mR0e9iYJb0pT9_O1Qk8lq9f_SAMPLE'
+        },
+        {
+          id: 'mat-ptma-modul-1',
+          judul: 'Diktat Pembinaan Kepanduan HW di Perguruan Tinggi Muhammadiyah & Aisyiyah',
+          konten: 'Panduan tata kelola Kafilah Penuntun di PTMA, integrasi Al-Islam Kemuhammadiyahan dan pengabdian masyarakat Pandu HW.',
+          kategori: 'ptma',
+          tanggal: '2025-01-25T00:00:00.000Z',
+          coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
         }
       ];
       extraCategoriesDefaults.forEach((item) => {
@@ -2009,7 +2076,31 @@ export const firestoreService = {
         if (titleKey && !mergedMap.has(`title_${titleKey}`)) mergedMap.set(`title_${titleKey}`, item);
       });
 
-      // 3. Local storage cached / offline items
+      // 3. Regional Kwarda & PTMA materials (from Firestore kwarda_ptma_materi and localStorage hw_kwarda_ptma_materi)
+      const allOrgItems = [...fsOrgMateri, ...localOrgMateri];
+      allOrgItems.forEach((orgItem: any) => {
+        if (!orgItem || (!orgItem.namaMateri && !orgItem.judul)) return;
+        const orgCodeNum = Number(orgItem.orgCode);
+        const orgType = (orgItem.kategori || (orgCodeNum > 35 ? 'ptma' : 'kwarda')).toLowerCase();
+        const item: Materi = {
+          id: String(orgItem.id || `org-materi-${orgItem.orgCode}-${Date.now()}`),
+          judul: String(orgItem.namaMateri || orgItem.judul || ''),
+          konten: String(orgItem.keterangan || orgItem.konten || (orgItem.pemateri ? `Narasumber/Pemateri: ${orgItem.pemateri}` : '')),
+          kategori: orgType,
+          tanggal: String(orgItem.createdAt || orgItem.tanggal || new Date().toISOString()),
+          coverImage: orgItem.coverImage || 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+          driveUrl: String(orgItem.linkDrive || orgItem.driveUrl || ''),
+          pemateri: orgItem.pemateri ? String(orgItem.pemateri) : undefined,
+          orgCode: orgItem.orgCode ? String(orgItem.orgCode) : undefined,
+          kategoriMateri: orgItem.kategoriMateri ? String(orgItem.kategoriMateri) : undefined,
+          source: 'kwarda_ptma'
+        };
+        const titleKey = item.judul.toLowerCase().trim();
+        mergedMap.set(String(item.id), item);
+        if (titleKey) mergedMap.set(`title_${titleKey}`, item);
+      });
+
+      // 4. Local storage cached / offline items
       localStored.forEach((m: any) => {
         if (!m || !m.judul) return;
         const normKat = normalizeTrainingKey(m.kategori) || (m.kategori || 'umum').toLowerCase().trim();
@@ -2094,21 +2185,57 @@ export const firestoreService = {
     const extraDefaults: Materi[] = [
       {
         id: 'mat-jati2-modul-1',
-        judul: 'Kurikulum Lanjutan Jaya Melati 2: Strategi Manajemen Kwartir & Wilayah',
-        konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, sistem administrasi kwartir tingkat daerah dan wilayah.',
+        judul: 'Kurikulum Lanjutan Jaya Melati 2: Dinamika Kelompok & Manajemen Konflik',
+        konten: 'Modul pendalaman kepemimpinan pembina lanjutan, supervisi qabilah, fasilitasi dinamika kelompok, dan teknik resolusi konflik.',
         kategori: 'jati2',
         tanggal: '2025-01-15T00:00:00.000Z',
         coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
         driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
       },
       {
+        id: 'mat-jati2-modul-2',
+        judul: 'Kurikulum Jaya Melati 2: Desain Instruksional & Praktik Micro-Teaching',
+        konten: 'Penyusunan kurikulum pelatihan kepanduan, silabus pembinaan satuan, dan teknik pengajaran kepanduan interaktif.',
+        kategori: 'jati2',
+        tanggal: '2025-01-16T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+      },
+      {
         id: 'mat-jari1-modul-1',
-        judul: 'Buku Panduan Jaya Matahari 1: Kader Pandu Penghela & Penuntun HW',
-        konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, navigasi darat lanjutan dan survival di alam bebas.',
+        judul: 'Buku Panduan Jaya Matahari 1: Kepemimpinan Dewan Pasukan & Regu Kerja',
+        konten: 'Kajian metode kepanduan bagi remaja penuntun, dinamika regu kerja, etika kepemimpinan Pratama dan Pinru.',
         kategori: 'jari1',
         tanggal: '2025-01-18T00:00:00.000Z',
         coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
         driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+      },
+      {
+        id: 'mat-jari1-modul-2',
+        judul: 'Buku Panduan Jaya Matahari 1: Survival Lapangan, Peta Kompas & PPGD',
+        konten: 'Navigasi darat, membaca peta pita, teknik survival alam terbuka, serta pertolongan pertama gawat darurat (PPGD).',
+        kategori: 'jari1',
+        tanggal: '2025-01-19T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1Yuu5YSPNrjn3_T9mOwdXjZlEWu2vJvYU'
+      },
+      {
+        id: 'mat-jari2-modul-1',
+        judul: 'Kurikulum Jaya Matahari 2: Kepelatihan Kader Utama & Penggerak Qabilah',
+        konten: 'Pembekalan kader instruktur muda Hizbul Wathan untuk penguatan qabilah berbasis sekolah dan pesantren Muhammadiyah.',
+        kategori: 'jari2',
+        tanggal: '2025-01-20T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
+      },
+      {
+        id: 'mat-jawi-modul-1',
+        judul: 'Kurikulum Jaya Pertiwi: Pembinaan Khusus Kepanduan Putri Hizbul Wathan',
+        konten: 'Panduan pembinaan kepanduan putri, etika keislaman, tata boga kepanduan, dan kepemimpinan kader putri Aisyiyah/HW.',
+        kategori: 'jawi',
+        tanggal: '2025-01-20T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
       },
       {
         id: 'mat-sugli-modul-1',
@@ -2127,6 +2254,15 @@ export const firestoreService = {
         tanggal: '2025-01-22T00:00:00.000Z',
         coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
         driveUrl: 'https://drive.google.com/drive/folders/1mR0e9iYJb0pT9_O1Qk8lq9f_SAMPLE'
+      },
+      {
+        id: 'mat-ptma-modul-1',
+        judul: 'Diktat Pembinaan Kepanduan HW di Perguruan Tinggi Muhammadiyah & Aisyiyah',
+        konten: 'Panduan tata kelola Kafilah Penuntun di PTMA, integrasi Al-Islam Kemuhammadiyahan dan pengabdian masyarakat Pandu HW.',
+        kategori: 'ptma',
+        tanggal: '2025-01-25T00:00:00.000Z',
+        coverImage: 'https://upload.wikimedia.org/wikipedia/id/b/ba/Logo_Hizbul_Wathan.png',
+        driveUrl: 'https://drive.google.com/drive/folders/1_UKrjfEemjoxDZsiz0WqKRVVVfRWZEXX'
       }
     ];
 
@@ -2177,6 +2313,20 @@ export const firestoreService = {
     if (!this.getIsQuotaExceeded()) {
       try {
         await setDoc(doc(db, 'materi', String(itemData.id)), itemData, { merge: true });
+        // If it belongs to Kwarda/PTMA, also sync to kwarda_ptma_materi
+        if (item.orgCode || item.source === 'kwarda_ptma' || normKat === 'ptma' || normKat === 'kwarda') {
+          const orgPayload = {
+            id: String(itemData.id),
+            orgCode: item.orgCode || (normKat === 'ptma' ? '36' : '01'),
+            namaMateri: itemData.judul,
+            kategoriMateri: item.kategoriMateri || normKat,
+            linkDrive: itemData.driveUrl || '',
+            keterangan: itemData.konten || '',
+            pemateri: item.pemateri || '',
+            updatedAt: new Date().toISOString()
+          };
+          setDoc(doc(db, 'kwarda_ptma_materi', String(itemData.id)), cleanData(orgPayload), { merge: true }).catch(() => {});
+        }
       } catch (err) {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore saveMateri error:', err);
@@ -2213,11 +2363,68 @@ export const firestoreService = {
         this.checkQuotaError(err);
         if (!this.getIsQuotaExceeded()) console.error('Firestore deleteMateri error:', err);
       }
+      try {
+        await deleteDoc(doc(db, 'kwarda_ptma_materi', strId));
+      } catch (e) {}
     }
+
+    // Prune from local kwarda_ptma_materi cache if exists
+    try {
+      const oStr = localStorage.getItem('hw_kwarda_ptma_materi');
+      if (oStr) {
+        const parsedO = JSON.parse(oStr);
+        if (Array.isArray(parsedO)) {
+          safeStorageSet('hw_kwarda_ptma_materi', parsedO.filter((x: any) => String(x.id) !== strId));
+        }
+      }
+    } catch (e) {}
+
     const list = await this.getMateri(true);
     const filtered = list.filter(m => String(m.id) !== strId);
     safeStorageSet('materi', filtered);
     return true;
+  },
+
+  /**
+   * Super Admin Deep Scanner:
+   * Detects ALL materials stored across Firestore (materi, kwarda_ptma_materi, contents),
+   * local cache, and standard curriculum datasets.
+   */
+  async detectAllStoredMateri(): Promise<{
+    allMateri: Materi[];
+    total: number;
+    categories: Record<string, number>;
+    sources: Record<string, number>;
+    timestamp: string;
+  }> {
+    const all = await this.getMateri(true);
+    const categories: Record<string, number> = {};
+    const sources: Record<string, number> = {
+      'Firestore Materi': 0,
+      'Kwarda & PTMA': 0,
+      'Kurikulum Standar HW': 0,
+      'Konten Web / Lainnya': 0
+    };
+
+    all.forEach(m => {
+      const kat = m.kategori || 'umum';
+      categories[kat] = (categories[kat] || 0) + 1;
+      if (m.source === 'kwarda_ptma' || m.orgCode) {
+        sources['Kwarda & PTMA']++;
+      } else if (String(m.id).startsWith('materi-default-') || String(m.id).startsWith('mat-')) {
+        sources['Kurikulum Standar HW']++;
+      } else {
+        sources['Firestore Materi']++;
+      }
+    });
+
+    return {
+      allMateri: all,
+      total: all.length,
+      categories,
+      sources,
+      timestamp: new Date().toISOString()
+    };
   },
 
   // --- KTA APPLICATIONS ---
@@ -2340,12 +2547,16 @@ export const firestoreService = {
 
       const existingKtaKeys = new Set<string>();
       ktas.forEach((k: any) => {
+        const kName = (k.nama || k.namaLengkap || '').toLowerCase().trim();
         if (k.id) existingKtaKeys.add(`id:${String(k.id).toLowerCase().trim()}`);
         if (k.userId) existingKtaKeys.add(`id:${String(k.userId).toLowerCase().trim()}`);
         if (k.email && !k.email.startsWith('member_') && !k.email.startsWith('user_')) existingKtaKeys.add(`email:${k.email.toLowerCase().trim()}`);
-        if (k.ktaNumber && k.ktaNumber !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${k.ktaNumber.trim()}`);
-        if (k.nomorKTA && k.nomorKTA !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${k.nomorKTA.trim()}`);
-        const kName = (k.nama || k.namaLengkap || '').toLowerCase().trim();
+        if (k.ktaNumber && k.ktaNumber !== 'KTA-HW.JT.XXXX') {
+          if (kName) existingKtaKeys.add(`name_kta:${kName}:::${k.ktaNumber.trim()}`);
+        }
+        if (k.nomorKTA && k.nomorKTA !== 'KTA-HW.JT.XXXX') {
+          if (kName) existingKtaKeys.add(`name_kta:${kName}:::${k.nomorKTA.trim()}`);
+        }
         const kRegion = (k.asalDaerah || k.qabilah || '').toLowerCase().trim();
         if (kName && kRegion) existingKtaKeys.add(`name_region:${kName}:::${kRegion}`);
       });
@@ -2363,7 +2574,7 @@ export const firestoreService = {
         const isPresent = (
           (mId && existingKtaKeys.has(`id:${mId}`)) ||
           (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_') && existingKtaKeys.has(`email:${mEmail}`)) ||
-          (mKta && mKta !== 'KTA-HW.JT.XXXX' && existingKtaKeys.has(`kta:${mKta}`)) ||
+          (mKta && mKta !== 'KTA-HW.JT.XXXX' && mName && existingKtaKeys.has(`name_kta:${mName.toLowerCase()}:::${mKta}`)) ||
           (mName && mRegion && existingKtaKeys.has(`name_region:${mName.toLowerCase()}:::${mRegion}`))
         );
 
@@ -2627,7 +2838,8 @@ export const firestoreService = {
     remark?: string,
     verifiedAt?: string,
     ktaNumber?: string,
-    qrCode?: string
+    qrCode?: string,
+    appData?: any
   ): Promise<any> {
     const list = await this.getKTAApplications();
     let idx = list.findIndex(k => String(k.id) === String(id));
@@ -2647,9 +2859,9 @@ export const firestoreService = {
 
     if (normalizedStatus === 'approved') {
       const existingNum = idx >= 0 ? (list[idx].nomorKTA || list[idx].ktaNumber) : (ktaNumber || updates.ktaNumber);
-      const targetOwner = idx >= 0 ? (list[idx].email || list[idx].userId || list[idx].id) : id;
-      const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : '';
-      const targetQabilah = idx >= 0 ? (list[idx].qabilah || list[idx].qabilahPtma) : '';
+      const targetOwner = idx >= 0 ? (list[idx].email || list[idx].userId || list[idx].id) : (appData?.email || appData?.userId || id);
+      const targetKwarda = idx >= 0 ? (list[idx].asalDaerah || list[idx].asalKwarda) : (appData?.asalDaerah || appData?.asalKwarda || '');
+      const targetQabilah = idx >= 0 ? (list[idx].qabilah || list[idx].qabilahPtma) : (appData?.qabilah || appData?.qabilahPtma || '');
       const allocated = await this.allocateKtaNumberTransaction(targetKwarda, targetQabilah, existingNum, targetOwner);
       updates.nomorKTA = allocated.nomorKTA;
       updates.ktaNumber = allocated.nomorKTA;
@@ -2670,11 +2882,11 @@ export const firestoreService = {
 
     if (idx >= 0) {
       targetDocId = list[idx].id || id;
-      list[idx] = { ...list[idx], ...updates };
+      list[idx] = { ...list[idx], ...(appData || {}), ...updates };
       updatedObj = list[idx];
     } else {
       targetDocId = id || `kta-${Date.now()}`;
-      updatedObj = { id: targetDocId, ...updates };
+      updatedObj = { ...(appData || {}), id: targetDocId, ...updates };
       list.unshift(updatedObj);
     }
 
@@ -2702,8 +2914,15 @@ export const firestoreService = {
             isVerified: status === 'approved'
           };
           if (updatedObj.ktaNumber) memberSync.ktaNumber = updatedObj.ktaNumber;
+          if (updatedObj.nomorKTA) memberSync.nomorKTA = updatedObj.nomorKTA;
           if (updatedObj.verifiedAt) memberSync.verifiedAt = updatedObj.verifiedAt;
           if (updatedObj.photo) memberSync.photo = updatedObj.photo;
+          if (status === 'approved') {
+            memberSync.status = 'approved';
+            memberSync.statusKta = 'approved';
+            memberSync.statusAktivasi = 'Aktif';
+            memberSync.statusPembayaran = 'Lunas';
+          }
           await this.updateMember(matched.id, memberSync);
         } else if (status === 'approved') {
           const kEmail = (updatedObj.email || '').trim().toLowerCase();
@@ -2717,11 +2936,16 @@ export const firestoreService = {
             qabilah: updatedObj.qabilah || '',
             noHp: updatedObj.noWa || '',
             isVerified: true,
+            status: 'approved',
+            statusKta: 'approved',
+            statusAktivasi: 'Aktif',
+            statusPembayaran: 'Lunas',
             role: 'umum',
             roles: ['umum'],
             activeRole: 'umum',
             photo: updatedObj.photo || '',
             ktaNumber: updatedObj.ktaNumber,
+            nomorKTA: updatedObj.nomorKTA || updatedObj.ktaNumber,
             verifiedAt: updatedObj.verifiedAt,
             alamat: updatedObj.alamat || '',
             sosmed: updatedObj.sosmed || '',
@@ -2736,6 +2960,224 @@ export const firestoreService = {
     }
 
     return updatedObj;
+  },
+
+  /**
+   * Batch approve all pending KTA applications atomically, assigning sequential numbers and activating members.
+   */
+  async bulkApproveKTAApplications(applications: any[]): Promise<{
+    success: boolean;
+    approvedCount: number;
+    results: any[];
+  }> {
+    if (!Array.isArray(applications) || applications.length === 0) {
+      return { success: true, approvedCount: 0, results: [] };
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 1. Gather all existing items to ensure sequential and unique numbering
+    const [existingKtas, existingMembers] = await Promise.all([
+      this.getKTAApplications().catch(() => []),
+      this.getMembers().catch(() => [])
+    ]);
+    const masterMembers = getMasterMembersList();
+
+    const allTrackedItems: any[] = [...existingKtas, ...existingMembers, ...masterMembers];
+
+    // 2. Prepare approved objects for each application
+    const approvedList: any[] = [];
+    const memberUpdates: Array<{ id: string; email: string; data: any }> = [];
+
+    for (const app of applications) {
+      if (!app) continue;
+      const targetRegion = app.asalDaerah || app.asalKwarda || '';
+      const targetQabilah = app.qabilah || app.qabilahPtma || '';
+      const rawKta = (app.nomorKTA || app.ktaNumber || '').toString().trim();
+
+      let assignedKta = '';
+      if (isValidKtaNumberFormat(rawKta)) {
+        assignedKta = rawKta;
+      } else {
+        assignedKta = generateNextKtaForRegion(targetRegion, targetQabilah, allTrackedItems);
+      }
+
+      allTrackedItems.push({
+        ktaNumber: assignedKta,
+        nomorKTA: assignedKta,
+        asalDaerah: targetRegion,
+        qabilah: targetQabilah
+      });
+
+      const parsed = parseKtaNumber(assignedKta);
+      const code = parsed?.kodeKwarda || getKwardaCode(targetRegion, targetQabilah);
+      const seq = parsed?.nomorUrut || 1;
+
+      const appId = String(app.id || `kta-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`);
+      const email = (app.email || '').toString().trim().toLowerCase();
+      const userId = String(app.userId || (email ? `user-${email.replace(/[^a-zA-Z0-9]/g, '_')}` : `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`));
+      const name = toProperName(app.nama || app.namaLengkap || 'Anggota HW') || 'Anggota HW';
+      const phone = app.noWa || app.noHp || '';
+      const gender = (app.jenisKelamin === 'Perempuan' || app.jenisKelamin === 'P') ? 'P' : 'L';
+      const golongan = app.tingkatan || app.golongan || 'Dewasa';
+
+      const approvedApp = {
+        ...app,
+        id: appId,
+        userId: userId,
+        nama: name,
+        namaLengkap: name,
+        email: email,
+        noWa: phone,
+        noHp: phone,
+        jenisKelamin: gender,
+        tingkatan: golongan,
+        golongan: golongan,
+        asalDaerah: targetRegion,
+        asalKwarda: targetRegion,
+        qabilah: targetQabilah,
+        status: 'approved',
+        statusKta: 'approved',
+        statusPembayaran: 'Lunas',
+        statusAktivasi: 'Aktif',
+        isVerified: true,
+        nomorKTA: assignedKta,
+        ktaNumber: assignedKta,
+        candidateKtaNumber: assignedKta,
+        kodeProvinsi: '11',
+        kodeKwarda: code,
+        nomorUrut: seq,
+        verifiedAt: nowIso,
+        updatedAt: nowIso
+      };
+      approvedList.push(approvedApp);
+
+      memberUpdates.push({
+        id: userId,
+        email: email,
+        data: {
+          id: userId,
+          email: email,
+          namaLengkap: name,
+          nama: name,
+          isVerified: true,
+          status: 'approved',
+          statusKta: 'approved',
+          statusAktivasi: 'Aktif',
+          statusPembayaran: 'Lunas',
+          nomorKTA: assignedKta,
+          ktaNumber: assignedKta,
+          verifiedAt: nowIso,
+          asalKwarda: targetRegion,
+          asalDaerah: targetRegion,
+          qabilah: targetQabilah,
+          noHp: phone,
+          noWa: phone,
+          tempatLahir: app.tempatLahir || '',
+          tanggalLahir: app.tanggalLahir || '',
+          jenisKelamin: gender,
+          golongan: golongan,
+          photo: app.photo || '',
+          alamat: app.alamat || ''
+        }
+      });
+    }
+
+    // 3. Batch write to Firestore (chunked into batches of up to 400 operations)
+    if (!this.getIsQuotaExceeded()) {
+      try {
+        const CHUNK_SIZE = 200;
+        for (let i = 0; i < approvedList.length; i += CHUNK_SIZE) {
+          const chunkApps = approvedList.slice(i, i + CHUNK_SIZE);
+          const chunkMembers = memberUpdates.slice(i, i + CHUNK_SIZE);
+          const batch = writeBatch(db);
+
+          chunkApps.forEach(k => {
+            batch.set(doc(db, 'kta_applications', String(k.id)), cleanData(k), { merge: true });
+          });
+
+          chunkMembers.forEach(m => {
+            if (m.id) {
+              batch.set(doc(db, 'members', String(m.id)), cleanData(m.data), { merge: true });
+            }
+          });
+
+          await batch.commit();
+        }
+
+        // Update Kwarda counters
+        const kwardaSeqMap = new Map<string, number[]>();
+        approvedList.forEach(k => {
+          if (k.kodeKwarda && k.nomorUrut) {
+            if (!kwardaSeqMap.has(k.kodeKwarda)) kwardaSeqMap.set(k.kodeKwarda, []);
+            kwardaSeqMap.get(k.kodeKwarda)!.push(k.nomorUrut);
+          }
+        });
+
+        const counterBatch = writeBatch(db);
+        kwardaSeqMap.forEach((seqs, code) => {
+          const counterRef = doc(db, 'kta_counters', String(code || '00'));
+          counterBatch.set(
+            counterRef,
+            {
+              id: code,
+              kodeKwarda: code,
+              kodeProvinsi: '11',
+              lastSequence: Math.max(...seqs),
+              updatedAt: nowIso
+            },
+            { merge: true }
+          );
+        });
+        await counterBatch.commit().catch(() => {});
+      } catch (err) {
+        this.checkQuotaError(err);
+        console.warn('bulkApproveKTAApplications Firestore batch warning:', err);
+      }
+    }
+
+    // 4. Update LocalStorage cache synchronously
+    try {
+      const storedKtas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
+      const ktaMap = new Map<string, any>();
+      storedKtas.forEach(k => { if (k?.id) ktaMap.set(String(k.id), k); });
+      approvedList.forEach(k => ktaMap.set(String(k.id), k));
+      const mergedKtas = Array.from(ktaMap.values());
+      safeStorageSet('kta_applications', mergedKtas);
+
+      const storedMembers: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
+      const memberMap = new Map<string, any>();
+      storedMembers.forEach(m => { if (m?.id) memberMap.set(String(m.id), m); });
+      memberUpdates.forEach(mu => {
+        let matchKey = String(mu.id);
+        if (!memberMap.has(matchKey) && mu.email) {
+          for (const [k, v] of memberMap.entries()) {
+            if (v.email && v.email.toLowerCase().trim() === mu.email) {
+              matchKey = k;
+              break;
+            }
+          }
+        }
+        const existing = memberMap.get(matchKey) || {};
+        memberMap.set(matchKey, { ...existing, ...mu.data, id: matchKey });
+      });
+      const mergedMembers = Array.from(memberMap.values());
+      safeStorageSet('mock_members', mergedMembers);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('kta_applications_updated'));
+        window.dispatchEvent(new Event('member_updated'));
+      }
+    } catch (e) {}
+
+    clearFirestoreCache('kta_applications');
+    clearFirestoreCache('members');
+
+    return {
+      success: true,
+      approvedCount: approvedList.length,
+      results: approvedList
+    };
   },
 
   async deleteKTAApplication(id: string): Promise<boolean> {
@@ -5572,37 +6014,19 @@ export const firestoreService = {
         try { ktas = JSON.parse(storedKtas); } catch (e) {}
       }
 
-      // 2. Delete pending KTA applications ("jika masih ada data terpending hapus saja")
-      const validKtas: any[] = [];
-      const pendingKtaIdsToDelete: string[] = [];
-
-      ktas.forEach(k => {
-        if (!k) return;
+      // 2. Synchronize Approved KTAs -> Members (only approved items)
+      const approvedKtas = ktas.filter(k => {
+        if (!k) return false;
         const st = (k.status || '').toString().trim().toLowerCase();
-        if (st === 'pending' || !st) {
-          if (k.id) pendingKtaIdsToDelete.push(String(k.id));
-          deletedPendingCount++;
-        } else {
-          validKtas.push(k);
-        }
+        return st === 'approved' || st === 'aktif' || st === 'disetujui';
       });
-
-      if (pendingKtaIdsToDelete.length > 0) {
-        const batch = writeBatch(db);
-        pendingKtaIdsToDelete.forEach(id => {
-          batch.delete(doc(db, 'kta_applications', String(id)));
-        });
-        await batch.commit().catch(err => console.warn('Failed to delete pending KTAs batch:', err));
-      }
-
-      ktas = validKtas;
 
       // 3. Synchronize Approved KTAs -> Members
       const newMembers = [...members];
       const memberBatch = writeBatch(db);
       const ktaBatch = writeBatch(db);
 
-      for (const k of ktas) {
+      for (const k of approvedKtas) {
         const kStatus = (k.status || '').toString().toLowerCase();
         const ktaNum = (k.ktaNumber || k.KtaNumber || k.ktanumber || '').toString().trim();
 

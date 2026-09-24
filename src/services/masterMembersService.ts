@@ -19,38 +19,58 @@ import {
   ensureUniqueKtaNumbers
 } from '../utils/ktaUtils';
 
-const parseCsvPart = (csv: string): User[] => {
+const parseCsvPart = (csv: string, partNum: number = 1): User[] => {
   const list: User[] = [];
   if (!csv) return list;
   const lines = csv.trim().split('\n').filter(l => l.trim().length > 0);
-  lines.forEach((line) => {
+  lines.forEach((line, lineIdx) => {
     const p = line.split(';').map(s => s.trim());
     if (p.length >= 10) {
-      const idx = p[0];
+      const idx = p[0] || String(lineIdx + 1);
       const ktaNum = p[1] || '';
       const name = p[2] || '';
       const nbm = p[3] || '';
       const jk = p[4] === 'P' ? 'P' : 'L';
-      const tmptLahir = p[5] || '';
-      const tglLahir = p[6] || '';
-      const golDarah = p[7] || '';
-      const agama = p[8] || 'Islam';
-      const alamat = p[9] || '';
-      const email = (p[10] && p[10] !== '-') ? p[10].toLowerCase() : '';
-      const noHp = (p[11] && p[11] !== '-') ? p[11] : '';
-      const kwarda = (p[12] && p[12] !== '-') ? p[12] : '';
-      const tingkatan = p[13] || 'Dewasa';
-      const status = p[14] || 'Aktif';
+      
+      let tmptLahir = '';
+      let tglLahir = '';
+      let golDarah = '';
+      let agama = 'Islam';
+      let alamat = '';
+      let email = '';
+      let noHp = '';
+      let kwarda = '';
+      let tingkatan = 'Dewasa';
+      let status = 'Aktif';
+
+      if (p.length === 11) {
+        // Line with shifted columns (e.g. Part 1 line 191)
+        alamat = p[5] || '';
+        email = (p[6] && p[6] !== '-') ? p[6].toLowerCase() : '';
+        noHp = (p[7] && p[7] !== '-') ? p[7] : '';
+        kwarda = (p[8] && p[8] !== '-') ? p[8] : '';
+        tingkatan = p[9] || 'Dewasa';
+        status = p[10] || 'Aktif';
+      } else {
+        tmptLahir = p[5] || '';
+        tglLahir = p[6] || '';
+        golDarah = p[7] || '';
+        agama = p[8] || 'Islam';
+        alamat = p[9] || '';
+        email = (p[10] && p[10] !== '-') ? p[10].toLowerCase() : '';
+        noHp = (p[11] && p[11] !== '-') ? p[11] : '';
+        kwarda = (p[12] && p[12] !== '-') ? p[12] : '';
+        tingkatan = p[13] || 'Dewasa';
+        status = p[14] || 'Aktif';
+      }
 
       if (name && name !== 'Tanpa Nama' && name !== '-') {
         const cleanKta = ktaNum.trim();
-        const docId = cleanKta 
-          ? `user-kta-${cleanKta.replace(/[^a-zA-Z0-9]/g, '_')}`
-          : (email ? `user-${email.replace(/[^a-zA-Z0-9]/g, '_')}` : `user-csv-${idx}`);
+        const docId = `user-csv-p${partNum}-${idx}`;
 
         list.push({
           id: docId,
-          email: email || `member_${idx}_${cleanKta.replace(/[^a-zA-Z0-9]/g, '')}@hw.or.id`,
+          email: email || `member_p${partNum}_${idx}_${cleanKta.replace(/[^a-zA-Z0-9]/g, '')}@hw.or.id`,
           password: '12345hw',
           namaLengkap: toProperName(name) || name,
           jenisKelamin: jk,
@@ -66,11 +86,16 @@ const parseCsvPart = (csv: string): User[] => {
           golongan: tingkatan.replace(/Pandu\s*/g, '').trim() || 'Dewasa',
           ktaNumber: cleanKta,
           nomorKTA: cleanKta,
+          nbm: nbm || '',
           isVerified: true,
           role: 'umum',
           roles: ['umum'],
           activeRole: 'umum',
-          status: status
+          status: 'approved',
+          statusKta: 'approved',
+          statusAktivasi: 'Aktif',
+          statusPembayaran: 'Lunas',
+          ...( { isOfficialCsv: true } as any )
         });
       }
     }
@@ -86,43 +111,20 @@ export const getMasterMembersList = (): User[] => {
   }
 
   const csvMembers = [
-    ...parseCsvPart(csvPart1),
-    ...parseCsvPart(csvPart2),
-    ...parseCsvPart(csvPart3),
-    ...parseCsvPart(csvPart4),
-    ...parseCsvPart(csvPart5),
-    ...parseCsvPart(csvPart6),
+    ...parseCsvPart(csvPart1, 1),
+    ...parseCsvPart(csvPart2, 2),
+    ...parseCsvPart(csvPart3, 3),
+    ...parseCsvPart(csvPart4, 4),
+    ...parseCsvPart(csvPart5, 5),
+    ...parseCsvPart(csvPart6, 6),
   ];
 
   const rawCandidates: User[] = [];
 
-  // 1. Initial spreadsheet users (mark registrants without official KTA as pending)
-  (INITIAL_SPREADSHEET_DATA.users || []).forEach((u: any, idx: number) => {
-    if (!u) return;
-    const rawRoles = parseRolesField(u.roles, u.role);
-    const synced = syncRolesAndPelatihan(rawRoles, u.pelatihan || []);
-    const emailNorm = (u.email || '').toString().toLowerCase().trim();
-    const isSysAdmin = emailNorm === 'admin@hwjateng.com' || emailNorm === 'medkom@hwjateng.com' || emailNorm === 'diklat@hwjateng.com';
+  // 1. Official CSV members with issued KTAs have primary priority
+  rawCandidates.push(...csvMembers);
 
-    rawCandidates.push({
-      ...u,
-      id: String(u.id || `user-init-${idx}`),
-      namaLengkap: toProperName(u.namaLengkap || u.nama) || 'Anggota HW',
-      role: (synced.primaryRole || 'umum') as UserRole,
-      roles: (synced.roles && synced.roles.length > 0 ? synced.roles : ['umum']) as UserRole[],
-      pelatihan: synced.pelatihan,
-      isVerified: isSysAdmin ? true : Boolean(u.isVerified || u.ktaNumber || u.nomorKTA),
-      status: isSysAdmin ? 'approved' : (u.status || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
-      statusKta: isSysAdmin ? 'approved' : (u.statusKta || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
-      statusPembayaran: isSysAdmin ? 'Lunas' : (u.statusPembayaran || (u.isVerified ? 'Lunas' : 'Belum Bayar')),
-      statusAktivasi: isSysAdmin ? 'Aktif' : (u.statusAktivasi || (u.isVerified ? 'Aktif' : 'Belum Aktif')),
-      ktaNumber: u.ktaNumber || u.nomorKTA || '',
-      nomorKTA: u.nomorKTA || u.ktaNumber || '',
-      tanggalAjuan: u.createdAt || u.tanggalDaftar || u.tanggal || new Date().toISOString()
-    });
-  });
-
-  // 2. Training data participants with official KTA numbers (e.g., Reza Putra Bachtiar, Rizqi Qurniyawati)
+  // 2. Training data participants with official KTA numbers
   if (Array.isArray(trainingData)) {
     (trainingData as any[]).forEach((t, idx) => {
       if (!t) return;
@@ -169,15 +171,31 @@ export const getMasterMembersList = (): User[] => {
     });
   }
 
-  // 2. CSV members with official issued KTAs
-  csvMembers.forEach(c => {
-    c.isVerified = true;
-    c.status = 'approved';
-    c.statusKta = 'approved';
-    c.statusAktivasi = 'Aktif';
-    c.statusPembayaran = 'Lunas';
+  // 3. Initial spreadsheet users (mark registrants without official KTA as pending)
+  (INITIAL_SPREADSHEET_DATA.users || []).forEach((u: any, idx: number) => {
+    if (!u) return;
+    const rawRoles = parseRolesField(u.roles, u.role);
+    const synced = syncRolesAndPelatihan(rawRoles, u.pelatihan || []);
+    const emailNorm = (u.email || '').toString().toLowerCase().trim();
+    const isSysAdmin = emailNorm === 'admin@hwjateng.com' || emailNorm === 'medkom@hwjateng.com' || emailNorm === 'diklat@hwjateng.com';
+
+    rawCandidates.push({
+      ...u,
+      id: String(u.id || `user-init-${idx}`),
+      namaLengkap: toProperName(u.namaLengkap || u.nama) || 'Anggota HW',
+      role: (synced.primaryRole || 'umum') as UserRole,
+      roles: (synced.roles && synced.roles.length > 0 ? synced.roles : ['umum']) as UserRole[],
+      pelatihan: synced.pelatihan,
+      isVerified: isSysAdmin ? true : Boolean(u.isVerified || u.ktaNumber || u.nomorKTA),
+      status: isSysAdmin ? 'approved' : (u.status || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
+      statusKta: isSysAdmin ? 'approved' : (u.statusKta || (u.ktaNumber || u.nomorKTA ? 'approved' : 'pending')),
+      statusPembayaran: isSysAdmin ? 'Lunas' : (u.statusPembayaran || (u.isVerified ? 'Lunas' : 'Belum Bayar')),
+      statusAktivasi: isSysAdmin ? 'Aktif' : (u.statusAktivasi || (u.isVerified ? 'Aktif' : 'Belum Aktif')),
+      ktaNumber: u.ktaNumber || u.nomorKTA || '',
+      nomorKTA: u.nomorKTA || u.ktaNumber || '',
+      tanggalAjuan: u.createdAt || u.tanggalDaftar || u.tanggal || new Date().toISOString()
+    });
   });
-  rawCandidates.push(...csvMembers);
 
   // 3. Ensure Bayu Ghifari Javalino
   rawCandidates.push({
@@ -435,7 +453,12 @@ export const getMasterMembersList = (): User[] => {
     } else if (isRealEmail && emailToKey.has(email)) {
       matchKey = emailToKey.get(email);
     } else if (kta && ktaToKey.has(kta)) {
-      matchKey = ktaToKey.get(kta);
+      const candKey = ktaToKey.get(kta)!;
+      const exCand = mergedMap.get(candKey);
+      const exName = exCand ? (exCand.namaLengkap || exCand.nama || '').trim().toLowerCase() : '';
+      if (exName && (exName === normName || exName.includes(normName) || normName.includes(exName))) {
+        matchKey = candKey;
+      }
     } else if (isRealName) {
       if (phone && phone.length >= 8 && namePhoneToKey.has(`${normName}:::${phone}`)) {
         matchKey = namePhoneToKey.get(`${normName}:::${phone}`);
@@ -459,30 +482,64 @@ export const getMasterMembersList = (): User[] => {
       ];
       const synced = syncRolesAndPelatihan(combinedRoles, combinedPelatihan);
 
-      const merged: User = {
-        ...item,
-        ...ex,
-        id: ex.id || item.id,
-        role: synced.primaryRole as UserRole,
-        roles: synced.roles as UserRole[],
-        activeRole: synced.primaryRole as UserRole,
-        pelatihan: synced.pelatihan,
-        golongan: (ex.golongan && ex.golongan !== 'Dewasa') ? ex.golongan : (item.golongan || (synced.primaryRole !== 'umum' ? 'Pelatih' : 'Dewasa')),
-        ktaNumber: ex.ktaNumber || item.ktaNumber || ex.nomorKTA || item.nomorKTA,
-        nomorKTA: ex.nomorKTA || item.nomorKTA || ex.ktaNumber || item.ktaNumber,
-        noHp: ex.noHp || item.noHp,
-        alamat: ex.alamat || item.alamat,
-        asalKwarda: ex.asalKwarda || item.asalKwarda,
-        qabilah: ex.qabilah || item.qabilah,
-        tempatLahir: ex.tempatLahir || item.tempatLahir,
-        tanggalLahir: ex.tanggalLahir || item.tanggalLahir,
-        email: (ex.email && !ex.email.startsWith('member_') && !ex.email.startsWith('user_')) ? ex.email : item.email,
-        isVerified,
-        status: status as any,
-        statusKta: status as any,
-        statusAktivasi: isVerified ? 'Aktif' : 'Belum Aktif',
-        statusPembayaran: isVerified ? 'Lunas' : (ex.statusPembayaran || item.statusPembayaran || 'Belum Bayar')
-      };
+      const isExOfficial = Boolean((ex as any).isOfficialCsv);
+      const isItemOfficial = Boolean((item as any).isOfficialCsv);
+      const officialRec = isExOfficial ? ex : (isItemOfficial ? item : null);
+      const secondaryRec = isExOfficial ? item : (isItemOfficial ? ex : null);
+
+      let merged: User;
+      if (officialRec && secondaryRec) {
+        merged = {
+          ...secondaryRec,
+          ...officialRec,
+          id: officialRec.id || secondaryRec.id,
+          role: synced.primaryRole as UserRole,
+          roles: synced.roles as UserRole[],
+          activeRole: synced.primaryRole as UserRole,
+          pelatihan: synced.pelatihan,
+          golongan: (officialRec.golongan && officialRec.golongan !== 'Dewasa') ? officialRec.golongan : (secondaryRec.golongan || 'Dewasa'),
+          ktaNumber: officialRec.ktaNumber || secondaryRec.ktaNumber,
+          nomorKTA: officialRec.nomorKTA || secondaryRec.nomorKTA,
+          noHp: officialRec.noHp || secondaryRec.noHp,
+          alamat: officialRec.alamat || secondaryRec.alamat,
+          asalKwarda: officialRec.asalKwarda || secondaryRec.asalKwarda,
+          qabilah: officialRec.qabilah || secondaryRec.qabilah || '',
+          tempatLahir: officialRec.tempatLahir || secondaryRec.tempatLahir,
+          tanggalLahir: officialRec.tanggalLahir || secondaryRec.tanggalLahir,
+          email: (officialRec.email && !officialRec.email.startsWith('member_') && !officialRec.email.startsWith('user_')) ? officialRec.email : secondaryRec.email,
+          isVerified: true,
+          status: 'approved',
+          statusKta: 'approved',
+          statusAktivasi: 'Aktif',
+          statusPembayaran: 'Lunas',
+          ...( { isOfficialCsv: true } as any )
+        };
+      } else {
+        merged = {
+          ...item,
+          ...ex,
+          id: ex.id || item.id,
+          role: synced.primaryRole as UserRole,
+          roles: synced.roles as UserRole[],
+          activeRole: synced.primaryRole as UserRole,
+          pelatihan: synced.pelatihan,
+          golongan: (ex.golongan && ex.golongan !== 'Dewasa') ? ex.golongan : (item.golongan || (synced.primaryRole !== 'umum' ? 'Pelatih' : 'Dewasa')),
+          ktaNumber: ex.ktaNumber || item.ktaNumber || ex.nomorKTA || item.nomorKTA,
+          nomorKTA: ex.nomorKTA || item.nomorKTA || ex.ktaNumber || item.ktaNumber,
+          noHp: ex.noHp || item.noHp,
+          alamat: ex.alamat || item.alamat,
+          asalKwarda: ex.asalKwarda || item.asalKwarda,
+          qabilah: ex.qabilah || item.qabilah,
+          tempatLahir: ex.tempatLahir || item.tempatLahir,
+          tanggalLahir: ex.tanggalLahir || item.tanggalLahir,
+          email: (ex.email && !ex.email.startsWith('member_') && !ex.email.startsWith('user_')) ? ex.email : item.email,
+          isVerified,
+          status: status as any,
+          statusKta: status as any,
+          statusAktivasi: isVerified ? 'Aktif' : 'Belum Aktif',
+          statusPembayaran: isVerified ? 'Lunas' : (ex.statusPembayaran || item.statusPembayaran || 'Belum Bayar')
+        };
+      }
       mergedMap.set(matchKey, merged);
     } else {
       const newKey = item.id || `user-cand-${index}`;

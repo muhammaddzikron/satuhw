@@ -48,11 +48,15 @@ export interface Materi {
   id: string;
   judul: string;
   konten: string;
-  kategori: string; // umum, kwarda, sugli, jati1, jati2, jari1
+  kategori: string; // umum, umum_pandu, kwarda, sugli, jati1, jati2, jari1, jari2, jawi, ptma
   tanggal: string;
   coverImage?: string;
   linkExternal?: string;
   driveUrl?: string;
+  pemateri?: string;
+  orgCode?: string;
+  kategoriMateri?: string;
+  source?: string;
 }
 
 export interface PrayerTimes {

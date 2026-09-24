@@ -684,6 +684,7 @@ export default function AdminDashboard() {
     linkExternal: ''
   });
   const [isRestoringMateri, setIsRestoringMateri] = useState(false);
+  const [isScanningMateri, setIsScanningMateri] = useState(false);
 
   // Kegiatan HW Jateng State
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
@@ -1774,8 +1775,7 @@ export default function AdminDashboard() {
 
       // 2. Perform backend synchronization non-blockingly in background
       (async () => {
-        await sheetsService.updateKTAStatus(appId, 'approved');
-        await sheetsService.syncApprovedKtasToMembers();
+        await sheetsService.updateKTAStatus(appId, 'approved', fallbackKtaNum, undefined, targetApp);
         const [ktaData, membersData] = await Promise.all([
           sheetsService.getKTAApplications(),
           sheetsService.getMembers()
@@ -1793,109 +1793,91 @@ export default function AdminDashboard() {
   const handleApproveAllKTA = async () => {
     const pendingCount = allPendingKtaQueue.length;
     if (pendingCount === 0) {
-      alert('Tidak ada antrean pendaftar KTA yang menunggu verifikasi.');
+      showToast('info', 'Tidak ada antrean pendaftar KTA yang menunggu verifikasi.');
       return;
     }
 
-    if (!window.confirm(`Apakah Anda yakin ingin menyetujui dan mengaktifkan seluruh ${pendingCount} pendaftar KTA sekaligus?\n\nSetiap anggota akan langsung aktif dan diterbitkan nomor KTA resmi HW secara berurutan.`)) {
-      return;
+    let confirmed = true;
+    try {
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+        confirmed = window.confirm(`Apakah Anda yakin ingin menyetujui dan mengaktifkan seluruh ${pendingCount} pendaftar KTA sekaligus?\n\nSetiap anggota akan langsung aktif dan diterbitkan nomor KTA resmi HW secara berurutan.`);
+      }
+    } catch (e) {
+      confirmed = true;
     }
+    if (!confirmed) return;
 
     setIsApprovingAllKta(true);
     setBackgroundProcessingText(`Memproses persetujuan massal ${pendingCount} KTA...`);
 
     try {
       const nowIso = new Date().toISOString();
-      const allTrackedItems = [...(ktaApps || []), ...(members || [])];
-      
-      // Map allocated numbers per pending app
-      const newlyAssigned = new Map<string, string>();
-      
-      allPendingKtaQueue.forEach(app => {
-        const rawKta = (app.nomorKTA || app.ktaNumber || '').trim();
-        let ktaNum = isValidKtaNumberFormat(rawKta) ? rawKta : '';
-        if (!ktaNum) {
-          ktaNum = generateNextKtaForRegion(app.asalDaerah || app.asalKwarda, app.qabilah, allTrackedItems);
-        }
-        allTrackedItems.push({
-          ktaNumber: ktaNum,
-          nomorKTA: ktaNum,
-          asalDaerah: app.asalDaerah || app.asalKwarda,
-          qabilah: app.qabilah
-        });
-        newlyAssigned.set(String(app.id), ktaNum);
-      });
+      const res = await sheetsService.bulkApproveKTA(allPendingKtaQueue);
 
-      // 1. Optimistic state updates for KTA apps
-      setKtaApps(prev => {
-        const prevMap = new Map<string, any>();
-        prev.forEach(k => prevMap.set(String(k.id), k));
+      if (res && res.success) {
+        const approvedResults = res.results || [];
 
-        allPendingKtaQueue.forEach(app => {
-          const ktaNum = newlyAssigned.get(String(app.id)) || app.ktaNumber || app.nomorKTA;
-          const existing = prevMap.get(String(app.id));
-          const updated = {
-            ...(existing || app),
-            status: 'approved',
-            isVerified: true,
-            statusAktivasi: 'Aktif',
-            verifiedAt: nowIso,
-            nomorKTA: ktaNum,
-            ktaNumber: ktaNum
-          };
-          prevMap.set(String(app.id), updated);
+        // 1. Optimistic instant state update for KTA applications
+        setKtaApps(prev => {
+          const prevMap = new Map<string, any>();
+          prev.forEach(k => prevMap.set(String(k.id), k));
+          approvedResults.forEach((k: any) => prevMap.set(String(k.id), k));
+          return Array.from(prevMap.values());
         });
 
-        return Array.from(prevMap.values());
-      });
+        // 2. Optimistic instant state update for Members
+        setMembers(prev => {
+          const memberMap = new Map<string, any>();
+          prev.forEach(m => memberMap.set(String(m.id || m.uid), m));
 
-      // 2. Optimistic state updates for Members
-      setMembers(prev => prev.map(m => {
-        const mEmail = safeLower(m.email).trim();
-        const mId = String(m.id || m.uid || '');
-        const matchingApp = allPendingKtaQueue.find(app => {
-          const aId = String(app.id || '');
-          const aUserId = String(app.userId || '');
-          const aEmail = safeLower(app.email).trim();
-          return (aUserId && aUserId === mId) || (aId && aId === mId) || (aEmail && mEmail && aEmail === mEmail);
+          approvedResults.forEach((k: any) => {
+            const key = String(k.userId || k.id);
+            const ex = memberMap.get(key);
+            if (ex) {
+              memberMap.set(key, {
+                ...ex,
+                isVerified: true,
+                status: 'approved',
+                statusKta: 'approved',
+                statusAktivasi: 'Aktif',
+                statusPembayaran: 'Lunas',
+                nomorKTA: k.nomorKTA,
+                ktaNumber: k.ktaNumber,
+                verifiedAt: k.verifiedAt || nowIso
+              });
+            } else {
+              const emailNorm = (k.email || '').toLowerCase().trim();
+              if (emailNorm) {
+                for (const [mid, mv] of memberMap.entries()) {
+                  if (mv.email && mv.email.toLowerCase().trim() === emailNorm) {
+                    memberMap.set(mid, {
+                      ...mv,
+                      isVerified: true,
+                      status: 'approved',
+                      statusKta: 'approved',
+                      statusAktivasi: 'Aktif',
+                      statusPembayaran: 'Lunas',
+                      nomorKTA: k.nomorKTA,
+                      ktaNumber: k.ktaNumber,
+                      verifiedAt: k.verifiedAt || nowIso
+                    });
+                    break;
+                  }
+                }
+              }
+            }
+          });
+
+          return Array.from(memberMap.values());
         });
 
-        if (matchingApp) {
-          const ktaNum = newlyAssigned.get(String(matchingApp.id)) || matchingApp.ktaNumber || matchingApp.nomorKTA;
-          return {
-            ...m,
-            isVerified: true,
-            status: 'approved',
-            statusKta: 'approved',
-            statusAktivasi: 'Aktif',
-            nomorKTA: ktaNum || m.nomorKTA,
-            ktaNumber: ktaNum || m.ktaNumber,
-            verifiedAt: nowIso
-          };
-        }
-        return m;
-      }));
+        showToast('success', `Berhasil menyetujui ${res.approvedCount || pendingCount} pengajuan KTA! Semua pendaftar kini resmi aktif.`);
 
-      showToast('success', `Berhasil menyetujui ${pendingCount} pengajuan KTA! Menyinkronkan ke database...`);
-
-      // 3. Batch background update to Firestore and Google Sheets
-      (async () => {
-        for (const app of allPendingKtaQueue) {
-          const ktaNum = newlyAssigned.get(String(app.id));
-          await sheetsService.updateKTAStatus(String(app.id), 'approved', ktaNum).catch(() => {});
-        }
-
-        await sheetsService.syncApprovedKtasToMembers().catch(() => {});
-        
-        const [ktaData, membersData] = await Promise.all([
-          sheetsService.getKTAApplications(),
-          sheetsService.getMembers()
-        ]);
-        if (ktaData?.length) setKtaApps(ktaData);
-        if (membersData?.length) setMembers(membersData);
-      })().catch(err => console.warn('Background bulk KTA approval sync error:', err));
-
-      showToast('success', `Selesai! Seluruh ${pendingCount} pendaftar resmi disetujui & aktif dengan nomor KTA.`);
+        // Synchronize and refresh in background
+        await fetchData().catch(() => {});
+      } else {
+        throw new Error(res?.message || 'Gagal memproses persetujuan massal');
+      }
     } catch (err: any) {
       console.error('Approve all KTA error:', err);
       showToast('error', `Gagal memproses persetujuan massal: ${err.message || 'Error'}`);
@@ -4154,6 +4136,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeepScanMateri = async () => {
+    setIsScanningMateri(true);
+    setBackgroundProcessingText('Super Admin: Mendeteksi seluruh materi yang tersimpan...');
+    try {
+      const scanRes = await sheetsService.detectAllStoredMateri();
+      if (scanRes && Array.isArray(scanRes.allMateri)) {
+        setMateriList(scanRes.allMateri);
+        showToast('success', `Super Admin: Terdeteksi ${scanRes.total} materi dari semua sumber (Firestore, Kwarda, PTMA, dan Kurikulum)!`);
+      }
+    } catch (err: any) {
+      console.error('Deep scan error:', err);
+      showToast('error', `Gagal mendeteksi materi: ${err.message || 'Error'}`);
+    } finally {
+      setIsScanningMateri(false);
+      setBackgroundProcessingText(null);
+    }
+  };
+
   const handleOpenMateriModal = (materi?: Materi) => {
     if (materi) {
       setEditingMateri(materi);
@@ -6253,13 +6253,25 @@ export default function AdminDashboard() {
                   <h3 className="text-lg font-display font-black text-gray-800">Manajemen Materi</h3>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Total: {materiList.length} Materi Aktif</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isRealAdmin && (
+                    <button 
+                      type="button"
+                      onClick={handleDeepScanMateri}
+                      disabled={isScanningMateri}
+                      className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                      title="Deteksi seluruh materi yang tersimpan di Firestore, Kwarda, PTMA, dan kurikulum standar"
+                    >
+                      <Eye size={14} className={isScanningMateri ? 'animate-spin' : ''} />
+                      <span>{isScanningMateri ? 'Mendeteksi...' : 'Deteksi Semua Materi'}</span>
+                    </button>
+                  )}
                   <button 
                     type="button"
                     onClick={handleRestoreDefaultMateri}
                     disabled={isRestoringMateri}
                     className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-                    title="Pulihkan dan isi ulang materi kurikulum standar HW (Jati 1, Jati 2, Jari 1, Sugli, Kwarda, Umum)"
+                    title="Pulihkan dan isi ulang materi kurikulum standar HW (Jati 1, Jati 2, Jari 1, Jari 2, Jawi, Sugli, Kwarda, PTMA, Umum)"
                   >
                     <RefreshCw size={14} className={isRestoringMateri ? 'animate-spin' : ''} />
                     <span>{isRestoringMateri ? 'Memulihkan...' : 'Pulihkan Materi Default'}</span>
@@ -6277,7 +6289,7 @@ export default function AdminDashboard() {
               {/* Materi Filter & Search */}
               <div className="px-6 py-4 border-b border-gray-50 space-y-4">
                 <div className="flex flex-wrap gap-2 pb-2">
-                  {['semua', 'umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'sugli', 'kwarda'].map((k) => (
+                  {['semua', 'umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda', 'ptma'].map((k) => (
                     <button
                       key={k}
                       type="button"
@@ -6288,7 +6300,7 @@ export default function AdminDashboard() {
                         : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-200'
                       }`}
                     >
-                      {k === 'semua' ? 'Semua' : (k === 'umum_pandu' ? 'Umum Pandu' : (k === 'jati1' ? 'Jati 1' : k === 'jati2' ? 'Jati 2' : k === 'jari1' ? 'Jari 1' : k))}
+                      {k === 'semua' ? 'Semua' : (k === 'umum_pandu' ? 'Umum Pandu' : (k === 'jati1' ? 'Jati 1' : k === 'jati2' ? 'Jati 2' : k === 'jari1' ? 'Jari 1' : k === 'jari2' ? 'Jari 2' : k === 'jawi' ? 'Jaya Pertiwi' : k === 'sugli' ? 'Sugli' : k === 'kwarda' ? 'Kwarda' : k === 'ptma' ? 'PTMA' : k))}
                     </button>
                   ))}
                 </div>
@@ -6297,7 +6309,7 @@ export default function AdminDashboard() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
                     type="text" 
-                    placeholder="Cari judul materi atau isi silabus..." 
+                    placeholder="Cari judul materi, silabus, pemateri, atau qabilah..." 
                     value={materiSearch || ''}
                     onChange={(e) => setMateriSearch(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 focus:ring-4 focus:ring-hw-green/10 focus:border-hw-green rounded-2xl py-3 pl-12 pr-10 text-xs font-medium" 
@@ -6321,7 +6333,12 @@ export default function AdminDashboard() {
                   safeLower(m.kategori).replace(/\s+/g, '') === safeLower(materiFilter).replace(/\s+/g, '') ||
                   (materiFilter === 'umum' && safeLower(m.kategori).includes('umum'));
                 const q = safeLower(materiSearch).trim();
-                const matchSearch = !q || safeLower(m.judul).includes(q) || safeLower(m.konten).includes(q);
+                const matchSearch = !q || 
+                  safeLower(m.judul).includes(q) || 
+                  safeLower(m.konten).includes(q) ||
+                  safeLower(m.pemateri || '').includes(q) ||
+                  safeLower(m.orgCode || '').includes(q) ||
+                  safeLower(m.kategoriMateri || '').includes(q);
                 return matchFilter && matchSearch;
               })
               .map((m, i) => (
@@ -6332,8 +6349,13 @@ export default function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="px-2 py-0.5 bg-hw-green/10 text-hw-green text-[8px] font-black uppercase rounded-lg">
-                          {m.kategori === 'umum_pandu' ? 'Umum Pandu' : m.kategori === 'jati1' ? 'Jati 1' : m.kategori === 'jati2' ? 'Jati 2' : m.kategori === 'jari1' ? 'Jari 1' : m.kategori}
+                          {m.kategori === 'umum_pandu' ? 'Umum Pandu' : m.kategori === 'jati1' ? 'Jati 1' : m.kategori === 'jati2' ? 'Jati 2' : m.kategori === 'jari1' ? 'Jari 1' : m.kategori === 'jari2' ? 'Jari 2' : m.kategori === 'jawi' ? 'Jaya Pertiwi' : m.kategori === 'ptma' ? 'PTMA' : m.kategori}
                         </span>
+                        {m.orgCode && (
+                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[8px] font-bold rounded-lg border border-indigo-200">
+                            Org: {m.orgCode}
+                          </span>
+                        )}
                         {m.driveUrl && (
                           <a href={m.driveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-[9px] font-bold flex items-center gap-0.5">
                             <ExternalLink size={10} /> Berkas Drive
@@ -6342,7 +6364,15 @@ export default function AdminDashboard() {
                       </div>
                       <h4 className="text-xs font-bold text-gray-800 truncate">{m.judul}</h4>
                       {m.konten && <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{m.konten}</p>}
-                      <p className="text-[9px] text-gray-400 mt-1">Dibuat: {m.tanggal ? new Date(m.tanggal).toLocaleDateString('id-ID') : '-'}</p>
+                      <div className="flex items-center gap-2 text-[9px] text-gray-400 mt-1 flex-wrap">
+                        <span>Dibuat: {m.tanggal ? new Date(m.tanggal).toLocaleDateString('id-ID') : '-'}</span>
+                        {m.pemateri && (
+                          <>
+                            <span>•</span>
+                            <span className="text-gray-600 font-semibold truncate max-w-[130px]">Pemateri: {m.pemateri}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <button 

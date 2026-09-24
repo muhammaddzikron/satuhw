@@ -856,8 +856,17 @@ export const sheetsService = {
       tanggal: String(data.tanggal || data.Tanggal || data.date || ''),
       coverImage: String(data.coverImage || data.coverimage || data.CoverImage || data.image || ''),
       linkExternal: String(data.linkExternal || data.linkexternal || data.LinkExternal || ''),
-      driveUrl: String(data.driveUrl || data.driveurl || data.DriveUrl || '')
+      driveUrl: String(data.driveUrl || data.driveurl || data.DriveUrl || ''),
+      pemateri: data.pemateri || data.Pemateri,
+      orgCode: data.orgCode || data.orgcode,
+      kategoriMateri: data.kategoriMateri || data.kategorimateri,
+      source: data.source
     };
+  },
+
+  async detectAllStoredMateri() {
+    clearSheetsCache('materi');
+    return firestoreService.detectAllStoredMateri();
   },
 
   async getMateri(role?: string): Promise<Materi[]> {
@@ -1529,7 +1538,7 @@ export const sheetsService = {
     return { success: true, application: savedApp };
   },
 
-  async updateKTAStatus(id: string, status: 'approved' | 'rejected' | 'pending', param3?: string, param4?: string): Promise<any> {
+  async updateKTAStatus(id: string, status: 'approved' | 'rejected' | 'pending', param3?: string, param4?: string, appData?: any): Promise<any> {
     clearSheetsCache('kta');
     clearSheetsCache('members');
     let remark = param4;
@@ -1539,7 +1548,16 @@ export const sheetsService = {
       remark = param3 || param4 || 'Pengajuan KTA ditolak';
       ktaNumber = undefined;
     } else if (status === 'approved') {
-      if (param3 && typeof param3 === 'string' && !param3.startsWith('KTA-') && !param4) {
+      const isKtaFormat = param3 && (
+        isValidKtaNumberFormat(param3) ||
+        /^\d{2}\.\d{2}\.\d{4}$/.test(param3) ||
+        param3.startsWith('KTA-') ||
+        (typeof param3 === 'string' && param3.includes('.') && param3.split('.').length === 3)
+      );
+      if (isKtaFormat) {
+        ktaNumber = param3;
+        remark = param4;
+      } else if (param3 && !param4) {
         remark = param3;
         ktaNumber = undefined;
       }
@@ -1552,8 +1570,14 @@ export const sheetsService = {
     } catch (e) {
       console.warn('Sheets API updateKTAStatus warning:', e);
     }
-    const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber);
+    const updated = await firestoreService.updateKTAStatus(id, status, remark, new Date().toISOString(), ktaNumber, undefined, appData);
     return { success: true, application: updated };
+  },
+
+  async bulkApproveKTA(applications: any[]): Promise<any> {
+    clearSheetsCache('kta');
+    clearSheetsCache('members');
+    return await firestoreService.bulkApproveKTAApplications(applications);
   },
 
   async deleteKTAApplication(id: string): Promise<any> {

@@ -484,8 +484,8 @@ export function isMatchKwarda(app: any, targetKwardaName: string): boolean {
   const targetCode = resolveSingleCode(cleanTarget);
   const detected = detectKtaOrigin(app);
 
-  if (targetCode && detected && detected.code === targetCode) {
-    return true;
+  if (targetCode && detected && detected.code) {
+    return detected.code === targetCode;
   }
 
   if (detected && detected.name.toLowerCase() === cleanTarget.toLowerCase()) {
@@ -507,7 +507,7 @@ export function isMatchKwarda(app: any, targetKwardaName: string): boolean {
 
 /**
  * Maps given Kwarda and/or Qabilah parameters to its 2-digit code string ('01'..'58').
- * Priority is given to Qabilah PTMA if present, falling back to Kwarda or default.
+ * Priority is given to verified region/Kwarda, falling back to Qabilah or default.
  */
 export function getKwardaCode(asalKwardaOrQabilah?: any, qabilahParam?: string): string {
   if (typeof asalKwardaOrQabilah === 'object' && asalKwardaOrQabilah !== null) {
@@ -515,16 +515,22 @@ export function getKwardaCode(asalKwardaOrQabilah?: any, qabilahParam?: string):
     return detected.code;
   }
 
-  const strAsal = (asalKwardaOrQabilah || '').toString();
-  const strQab = (qabilahParam || '').toString();
+  const strAsal = (asalKwardaOrQabilah || '').toString().trim();
+  const strQab = (qabilahParam || '').toString().trim();
 
-  // If qabilahParam is passed, check it first for a match
-  if (strQab) {
+  // 1. If asalKwarda is passed and is a recognized Kwarda or PTMA, resolve it first
+  if (strAsal && strAsal !== '-' && strAsal.toLowerCase() !== 'jawa tengah' && strAsal.toLowerCase() !== 'jateng') {
+    const aCode = resolveSingleCode(strAsal);
+    if (aCode) return aCode;
+  }
+
+  // 2. If qabilahParam is passed, check it next for a match
+  if (strQab && strQab !== '-') {
     const qCode = resolveSingleCode(strQab);
     if (qCode) return qCode;
   }
 
-  // Next check asalKwardaOrQabilah
+  // 3. Fallback to generic asal
   if (strAsal) {
     const aCode = resolveSingleCode(strAsal);
     if (aCode) return aCode;
@@ -890,11 +896,14 @@ export function deduplicateMembers<T extends Record<string, any>>(rawMembers: T[
     } else if (validNik && nikToId.has(validNik)) {
       matchId = nikToId.get(validNik)!;
     } else if (validKta && ktaToId.has(validKta)) {
-      matchId = ktaToId.get(validKta)!;
+      const candidateId = ktaToId.get(validKta)!;
+      const existingCandidate = map.get(candidateId);
+      const exName = existingCandidate ? normStr((existingCandidate as any).namaLengkap || (existingCandidate as any).nama) : '';
+      if (exName && (exName === normName || exName.includes(normName) || normName.includes(exName))) {
+        matchId = candidateId;
+      }
     } else if (namePhoneKey && namePhoneToId.has(namePhoneKey)) {
       matchId = namePhoneToId.get(namePhoneKey)!;
-    } else if (nameKwardaKey && nameKwardaToId.has(nameKwardaKey)) {
-      matchId = nameKwardaToId.get(nameKwardaKey)!;
     }
 
     if (matchId && map.has(matchId)) {

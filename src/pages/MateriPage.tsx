@@ -42,13 +42,15 @@ const ROLE_DISPLAY: Record<string, string> = {
   jawi: 'Jaya Pertiwi',
   jayapertiwi: 'Jaya Pertiwi',
   sugli: 'Dewan Sugli',
-  kwarda: 'Kwarda'
+  kwarda: 'Kwarda Daerah',
+  ptma: 'Qabilah PTMA'
 };
 
 const KATEGORI_COLORS: Record<string, string> = {
   umum: 'bg-blue-100 text-blue-600',
   umum_pandu: 'bg-teal-100 text-teal-600',
   kwarda: 'bg-purple-100 text-purple-600',
+  ptma: 'bg-indigo-100 text-indigo-600',
   sugli: 'bg-orange-100 text-orange-600',
   jati1: 'bg-green-100 text-green-600',
   jayamelati1: 'bg-green-100 text-green-600',
@@ -78,7 +80,7 @@ const getUserRoleCategories = (user: any, apps: any[] = []): string[] => {
 
   const isPrivileged = user.role === 'admin' || user.role === 'superadmin' || user.role === 'admin_diklat' || user.role === 'diklat' || user.activeRole === 'admin' || user.activeRole === 'superadmin' || (user as any).adminType === 'diklat';
   if (isPrivileged) {
-    return ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda'];
+    return ['umum', 'umum_pandu', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda', 'ptma'];
   }
 
   const addCategoryByText = (txt?: string) => {
@@ -144,9 +146,12 @@ export default function MateriPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, activeRole, updateUser } = useAuthStore();
+  const isSuperAdmin = activeRole === 'superadmin' || user?.role === 'superadmin';
+  const isPrivileged = isSuperAdmin || activeRole === 'admin' || user?.role === 'admin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
+
   const [materi, setMateri] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('umum');
+  const [filter, setFilter] = useState(() => (activeRole === 'superadmin' || user?.role === 'superadmin' ? 'semua' : 'umum'));
   const [search, setSearch] = useState('');
   const [selectedMateri, setSelectedMateri] = useState<Materi | null>(null);
   const [showLoginPromptModal, setShowLoginPromptModal] = useState<Materi | null>(null);
@@ -266,12 +271,11 @@ export default function MateriPage() {
 
   const hasAccess = (cat: string) => {
     if (!cat || cat === 'semua') return true;
+    if (isSuperAdmin || isPrivileged) return true;
     const normCat = normalizeTrainingKey(cat) || cat.toLowerCase().trim();
     if (normCat === 'umum') return true;
     if (normCat === 'umum_pandu') return isAuthenticated && isAccountActive;
     if (!isAuthenticated || !isAccountActive) return false;
-    const isPrivileged = activeRole === 'superadmin' || activeRole === 'admin' || user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'admin_diklat' || user?.role === 'diklat';
-    if (isPrivileged) return true;
     
     const userCategories = getUserRoleCategories(user, trainingApps).map(c => normalizeTrainingKey(c) || c.toLowerCase().trim());
     return userCategories.includes(normCat);
@@ -284,11 +288,31 @@ export default function MateriPage() {
       const kat = normalizeTrainingKey(m.kategori) || String(m.kategori || 'umum').toLowerCase().trim();
       const currentFilter = normalizeTrainingKey(filter) || String(filter || 'semua').toLowerCase().trim();
       
-      const matchFilter = currentFilter === 'semua' || kat === currentFilter || (currentFilter === 'umum' && (kat === 'umum' || kat === 'umum_pandu'));
+      let matchFilter = true;
+      if (currentFilter !== 'semua') {
+        if (currentFilter === 'umum') {
+          matchFilter = kat === 'umum' || kat === 'umum_pandu';
+        } else {
+          matchFilter = kat === currentFilter;
+        }
+      }
 
-      const judul = String(m.judul || '').toLowerCase();
-      const konten = String(m.konten || '').toLowerCase();
-      const matchSearch = !searchStr || judul.includes(searchStr) || konten.includes(searchStr);
+      let matchSearch = true;
+      if (searchStr) {
+        const judul = String(m.judul || '').toLowerCase();
+        const konten = String(m.konten || '').toLowerCase();
+        const pemateri = String(m.pemateri || '').toLowerCase();
+        const orgCode = String(m.orgCode || '').toLowerCase();
+        const kategoriMateri = String(m.kategoriMateri || '').toLowerCase();
+        const roleDisp = (ROLE_DISPLAY[kat] || '').toLowerCase();
+
+        matchSearch = judul.includes(searchStr) || 
+          konten.includes(searchStr) || 
+          pemateri.includes(searchStr) ||
+          orgCode.includes(searchStr) ||
+          kategoriMateri.includes(searchStr) ||
+          roleDisp.includes(searchStr);
+      }
 
       return matchFilter && matchSearch;
     });
@@ -370,7 +394,7 @@ export default function MateriPage() {
 
   if (loading) return <LoadingPage />;
 
-  const noAccess = filter !== 'semua' && !hasAccess(filter);
+  const noAccess = filter !== 'semua' && !hasAccess(filter) && !search;
 
   return (
     <div className="space-y-6">
@@ -388,12 +412,38 @@ export default function MateriPage() {
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">HIZBUL WATHAN SUPER APPS</p>
           </div>
         </div>
-        {!isAuthenticated && (
+        {!isAuthenticated ? (
           <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full text-[10px] font-bold border border-yellow-100">
             <Lock size={12} /> Mode Terbatas
           </div>
-        )}
+        ) : isSuperAdmin ? (
+          <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold border border-emerald-200">
+            <Award size={12} /> Super Admin
+          </div>
+        ) : null}
       </div>
+
+      {/* Super Admin Scanner Status Banner */}
+      {isSuperAdmin && (
+        <div className="bg-emerald-950 text-emerald-100 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm border border-emerald-800/80 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div>
+              <span className="font-bold text-white">Super Admin Access Active:</span>
+              <span className="ml-1 text-emerald-200">
+                Mendeteksi seluruh <strong>{materi.length}</strong> materi tersimpan (Umum, Pandu, Diklat, Sugli, Kwarda, & PTMA).
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFilter('semua')}
+            className="px-3 py-1 bg-emerald-800 hover:bg-emerald-700 rounded-lg text-[11px] font-bold text-white transition-colors whitespace-nowrap cursor-pointer self-end sm:self-auto"
+          >
+            Semua Materi ({materi.length})
+          </button>
+        </div>
+      )}
 
       {/* Search & Filter */}
       <div className="space-y-3">
@@ -401,7 +451,7 @@ export default function MateriPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Cari materi..." 
+            placeholder={isSuperAdmin ? "Cari semua materi tersimpan (judul, isi, pemateri, qabilah)..." : "Cari materi..."} 
             value={search || ''}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-12 pr-12 focus:ring-2 focus:ring-hw-green/20 outline-none text-sm shadow-sm"
@@ -417,7 +467,7 @@ export default function MateriPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 pb-2">
-          {['semua', 'umum', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda'].map((k) => (
+          {['semua', 'umum', 'jati1', 'jati2', 'jari1', 'jari2', 'jawi', 'sugli', 'kwarda', 'ptma'].map((k) => (
             <button
               key={k}
               onClick={() => setFilter(k)}
@@ -520,6 +570,11 @@ export default function MateriPage() {
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${KATEGORI_COLORS[item.kategori] || 'bg-gray-100 text-gray-600'}`}>
                     {ROLE_DISPLAY[item.kategori] || item.kategori}
                   </div>
+                  {item.orgCode && (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[8px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Org: {item.orgCode}
+                    </span>
+                  )}
                   {item.kategori !== 'umum' && !isAuthenticated && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200">
                       <Lock size={9} /> Perlu Login
@@ -534,9 +589,15 @@ export default function MateriPage() {
                 <h3 className="font-display font-bold text-gray-800 text-sm leading-tight break-words group-hover:text-hw-green transition-colors">
                   {item.judul}
                 </h3>
-                <p className="text-gray-400 text-[10px] font-medium mt-1">
-                  {item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : 'Materi HW'}
-                </p>
+                <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium mt-1 flex-wrap">
+                  <span>{item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : 'Materi HW'}</span>
+                  {item.pemateri && (
+                    <>
+                      <span>•</span>
+                      <span className="text-gray-600 font-semibold truncate max-w-[150px]">Oleh: {item.pemateri}</span>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center shrink-0 ml-auto mr-1">
