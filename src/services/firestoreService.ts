@@ -16,7 +16,8 @@ import {
 import { db } from '../lib/firebase';
 import { User, UserRole, Materi, Content } from '../types';
 import { INITIAL_SPREADSHEET_DATA } from './initialSpreadsheetData';
-import { getMasterMembersList } from './masterMembersService';
+import { getMasterMembersList, invalidateMasterMembersCache } from './masterMembersService';
+import { INITIAL_REGISTERED_APPLICANTS, updateRegisteredApplicantStatus } from './registeredApplicants';
 import {
   getKwardaCode,
   findNextAvailableNumber,
@@ -1404,9 +1405,11 @@ export const firestoreService = {
       if (existingKtaIdx >= 0) {
         ktas[existingKtaIdx] = ktaPayload;
       } else {
-        ktas.push(ktaPayload);
+        ktas.unshift(ktaPayload);
       }
       safeStorageSet('kta_applications', ktas);
+
+      invalidateMasterMembersCache();
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('kta_applications_updated'));
@@ -2505,9 +2508,9 @@ export const firestoreService = {
       }
 
       if (ktas.length === 0) {
-        const stored = localStorage.getItem('kta_applications') || '[]';
+        const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('kta_applications') : null;
         try {
-          const parsed = JSON.parse(stored);
+          const parsed = stored ? JSON.parse(stored) : [];
           ktas = parsed.filter((k: any) => {
             if (!k) return false;
             const name = (k.nama || k.namaLengkap || '').trim();
@@ -2528,6 +2531,21 @@ export const firestoreService = {
           ktas = [];
         }
       }
+
+      // Ensure all initial registered applicants are included in ktas
+      INITIAL_REGISTERED_APPLICANTS.forEach(reg => {
+        const regEmail = (reg.email || '').toLowerCase().trim();
+        const regName = (reg.nama || reg.namaLengkap || '').toLowerCase().trim();
+        const exists = ktas.some((k: any) => 
+          String(k.id) === String(reg.id) ||
+          (k.userId && String(k.userId) === String(reg.userId)) ||
+          (regEmail && k.email && String(k.email).toLowerCase().trim() === regEmail) ||
+          (regName && (k.nama || k.namaLengkap || '').toLowerCase().trim() === regName)
+        );
+        if (!exists) {
+          ktas.unshift({ ...reg });
+        }
+      });
 
       // Merge all registered members from getMasterMembersList and mock_members so that all registrants appear in KTA management
       let allMembers: User[] = [];
@@ -2557,8 +2575,6 @@ export const firestoreService = {
         if (k.nomorKTA && k.nomorKTA !== 'KTA-HW.JT.XXXX') {
           if (kName) existingKtaKeys.add(`name_kta:${kName}:::${k.nomorKTA.trim()}`);
         }
-        const kRegion = (k.asalDaerah || k.qabilah || '').toLowerCase().trim();
-        if (kName && kRegion) existingKtaKeys.add(`name_region:${kName}:::${kRegion}`);
       });
 
       allMembers.forEach((m: any) => {
@@ -2569,13 +2585,11 @@ export const firestoreService = {
         const mId = m.id ? String(m.id).toLowerCase().trim() : '';
         const mEmail = m.email ? String(m.email).toLowerCase().trim() : '';
         const mKta = (m.ktaNumber || m.nomorKTA || '').trim();
-        const mRegion = (m.asalKwarda || m.asalDaerah || m.qabilah || '').toLowerCase().trim();
 
         const isPresent = (
           (mId && existingKtaKeys.has(`id:${mId}`)) ||
           (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_') && existingKtaKeys.has(`email:${mEmail}`)) ||
-          (mKta && mKta !== 'KTA-HW.JT.XXXX' && mName && existingKtaKeys.has(`name_kta:${mName.toLowerCase()}:::${mKta}`)) ||
-          (mName && mRegion && existingKtaKeys.has(`name_region:${mName.toLowerCase()}:::${mRegion}`))
+          (mKta && mKta !== 'KTA-HW.JT.XXXX' && mName && existingKtaKeys.has(`name_kta:${mName.toLowerCase()}:::${mKta}`))
         );
 
         if (!isPresent) {
@@ -2614,11 +2628,10 @@ export const firestoreService = {
           if (mId) existingKtaKeys.add(`id:${mId}`);
           if (mEmail && !mEmail.startsWith('member_') && !mEmail.startsWith('user_')) existingKtaKeys.add(`email:${mEmail}`);
           if (mKta && mKta !== 'KTA-HW.JT.XXXX') existingKtaKeys.add(`kta:${mKta}`);
-          if (mName && mRegion) existingKtaKeys.add(`name_region:${mName.toLowerCase()}:::${mRegion}`);
         }
       });
 
-      // Synchronize statuses: If a member is pending/unverified, their KTA MUST be 'pending'
+      // Synchronize statuses: Approved KTAs take absolute priority and must never be reverted to pending
       ktas.forEach((k: any) => {
         const kEmail = (k.email || '').toLowerCase().trim();
         const kUserId = k.userId ? String(k.userId).toLowerCase().trim() : '';
@@ -2631,10 +2644,35 @@ export const firestoreService = {
         if (matchedMember) {
           const mStatus = (matchedMember.status || '').toLowerCase().trim();
           const mKtaStatus = ((matchedMember as any).statusKta || '').toLowerCase().trim();
-          if (matchedMember.isVerified === false || mStatus === 'pending' || mStatus === 'menunggu' || mKtaStatus === 'pending') {
-            k.status = 'pending';
-          } else if (matchedMember.isVerified === true && (k.status === 'pending' || !k.status)) {
+          if (k.status === 'approved' || k.isVerified === true) {
+            matchedMember.isVerified = true;
+            matchedMember.status = 'approved';
+            (matchedMember as any).statusKta = 'approved';
+            matchedMember.statusAktivasi = 'Aktif';
+            matchedMember.statusPembayaran = 'Lunas';
+            if (k.nomorKTA || k.ktaNumber) {
+              matchedMember.nomorKTA = k.nomorKTA || k.ktaNumber;
+              matchedMember.ktaNumber = k.nomorKTA || k.ktaNumber;
+            }
+          } else if (matchedMember.isVerified === true && (matchedMember.nomorKTA || matchedMember.ktaNumber)) {
             k.status = 'approved';
+            k.isVerified = true;
+            k.statusAktivasi = 'Aktif';
+            k.statusPembayaran = 'Lunas';
+            k.nomorKTA = matchedMember.nomorKTA || matchedMember.ktaNumber;
+            k.ktaNumber = matchedMember.nomorKTA || matchedMember.ktaNumber;
+          } else if (k.nomorKTA && isValidKtaNumberFormat(k.nomorKTA)) {
+            k.status = 'approved';
+            k.isVerified = true;
+            matchedMember.isVerified = true;
+            matchedMember.status = 'approved';
+            (matchedMember as any).statusKta = 'approved';
+            matchedMember.statusAktivasi = 'Aktif';
+            matchedMember.statusPembayaran = 'Lunas';
+            matchedMember.nomorKTA = k.nomorKTA;
+            matchedMember.ktaNumber = k.nomorKTA;
+          } else if (matchedMember.isVerified === false || mStatus === 'pending' || mStatus === 'menunggu' || mKtaStatus === 'pending') {
+            k.status = 'pending';
           }
         }
       });
@@ -2954,6 +2992,31 @@ export const firestoreService = {
           };
           await this.saveMember(newMemberData);
         }
+
+        // Save override so masterMembersService applies the update permanently
+        try {
+          const editsRaw = localStorage.getItem('member_custom_edits');
+          const edits = editsRaw ? JSON.parse(editsRaw) : {};
+          const mKey = updatedObj.userId || updatedObj.id;
+          const mEmail = (updatedObj.email || '').toLowerCase().trim();
+          const mName = (updatedObj.nama || updatedObj.namaLengkap || '').toLowerCase().trim();
+          const syncData = {
+            isVerified: status === 'approved',
+            status: status === 'approved' ? 'approved' : status,
+            statusKta: status === 'approved' ? 'approved' : status,
+            statusAktivasi: status === 'approved' ? 'Aktif' : 'Belum Aktif',
+            statusPembayaran: status === 'approved' ? 'Lunas' : 'Belum Bayar',
+            nomorKTA: updatedObj.nomorKTA || updatedObj.ktaNumber,
+            ktaNumber: updatedObj.ktaNumber || updatedObj.nomorKTA,
+            verifiedAt: updatedObj.verifiedAt
+          };
+          if (mKey) edits[mKey] = { ...(edits[mKey] || {}), ...syncData };
+          if (mEmail) edits[mEmail] = { ...(edits[mEmail] || {}), ...syncData };
+          if (mName) edits[mName] = { ...(edits[mName] || {}), ...syncData };
+          safeStorageSet('member_custom_edits', edits);
+        } catch (e) {}
+
+        invalidateMasterMembersCache();
       } catch (syncErr) {
         console.error('Error syncing KTA status update to member:', syncErr);
       }
@@ -3138,35 +3201,59 @@ export const firestoreService = {
 
     // 4. Update LocalStorage cache synchronously
     try {
-      const storedKtas: any[] = JSON.parse(localStorage.getItem('kta_applications') || '[]');
-      const ktaMap = new Map<string, any>();
-      storedKtas.forEach(k => { if (k?.id) ktaMap.set(String(k.id), k); });
-      approvedList.forEach(k => ktaMap.set(String(k.id), k));
-      const mergedKtas = Array.from(ktaMap.values());
-      safeStorageSet('kta_applications', mergedKtas);
+      if (typeof localStorage !== 'undefined') {
+        const storedKtasStr = localStorage.getItem('kta_applications');
+        const storedKtas: any[] = storedKtasStr ? JSON.parse(storedKtasStr) : [];
+        const ktaMap = new Map<string, any>();
+        storedKtas.forEach(k => { if (k?.id) ktaMap.set(String(k.id), k); });
+        approvedList.forEach(k => ktaMap.set(String(k.id), k));
+        const mergedKtas = Array.from(ktaMap.values());
+        safeStorageSet('kta_applications', mergedKtas);
 
-      const storedMembers: any[] = JSON.parse(localStorage.getItem('mock_members') || '[]');
-      const memberMap = new Map<string, any>();
-      storedMembers.forEach(m => { if (m?.id) memberMap.set(String(m.id), m); });
-      memberUpdates.forEach(mu => {
-        let matchKey = String(mu.id);
-        if (!memberMap.has(matchKey) && mu.email) {
-          for (const [k, v] of memberMap.entries()) {
-            if (v.email && v.email.toLowerCase().trim() === mu.email) {
-              matchKey = k;
-              break;
+        const storedMembersStr = localStorage.getItem('mock_members');
+        const storedMembers: any[] = storedMembersStr ? JSON.parse(storedMembersStr) : [];
+        const memberMap = new Map<string, any>();
+        storedMembers.forEach(m => { if (m?.id) memberMap.set(String(m.id), m); });
+        memberUpdates.forEach(mu => {
+          let matchKey = String(mu.id);
+          if (!memberMap.has(matchKey) && mu.email) {
+            for (const [k, v] of memberMap.entries()) {
+              if (v.email && v.email.toLowerCase().trim() === mu.email) {
+                matchKey = k;
+                break;
+              }
             }
           }
-        }
-        const existing = memberMap.get(matchKey) || {};
-        memberMap.set(matchKey, { ...existing, ...mu.data, id: matchKey });
-      });
-      const mergedMembers = Array.from(memberMap.values());
-      safeStorageSet('mock_members', mergedMembers);
+          const existing = memberMap.get(matchKey) || {};
+          memberMap.set(matchKey, { ...existing, ...mu.data, id: matchKey });
+        });
+        const mergedMembers = Array.from(memberMap.values());
+        safeStorageSet('mock_members', mergedMembers);
 
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('kta_applications_updated'));
-        window.dispatchEvent(new Event('member_updated'));
+        // Update in-memory registered applicants state as well
+      approvedList.forEach(k => {
+        updateRegisteredApplicantStatus(k.id || k.email || k.nama, 'approved', k.nomorKTA);
+      });
+
+      // Save to member_custom_edits so masterMembersService applies the approved status permanently
+        try {
+          const editsRaw = localStorage.getItem('member_custom_edits');
+          const edits = editsRaw ? JSON.parse(editsRaw) : {};
+          memberUpdates.forEach(mu => {
+            if (mu.id) edits[mu.id] = { ...(edits[mu.id] || {}), ...mu.data };
+            if (mu.email) edits[mu.email.toLowerCase().trim()] = { ...(edits[mu.email.toLowerCase().trim()] || {}), ...mu.data };
+            if (mu.data?.namaLengkap) edits[mu.data.namaLengkap.toLowerCase().trim()] = { ...(edits[mu.data.namaLengkap.toLowerCase().trim()] || {}), ...mu.data };
+            if (mu.data?.nomorKTA) edits[mu.data.nomorKTA.trim()] = { ...(edits[mu.data.nomorKTA.trim()] || {}), ...mu.data };
+          });
+          safeStorageSet('member_custom_edits', edits);
+        } catch (e) {}
+
+        invalidateMasterMembersCache();
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('kta_applications_updated'));
+          window.dispatchEvent(new Event('member_updated'));
+        }
       }
     } catch (e) {}
 

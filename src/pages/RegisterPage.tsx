@@ -193,10 +193,15 @@ export default function RegisterPage() {
       const password = formData.password || '12345hw';
 
       // 1. Check for duplicates in Firestore / local database first
-      const existingMembers = await firestoreService.getMembers();
-      const duplicateFound = existingMembers.some(
-        m => m.email && m.email.trim().toLowerCase() === cleanEmail
-      );
+      let duplicateFound = false;
+      try {
+        const existingMembers = await firestoreService.getMembers();
+        duplicateFound = existingMembers.some(
+          m => m.email && m.email.trim().toLowerCase() === cleanEmail
+        );
+      } catch (e) {
+        console.warn('Duplicate check warning:', e);
+      }
       if (duplicateFound) {
         throw new Error(`Email "${cleanEmail}" sudah terdaftar sebagai anggota HW. Silakan login atau gunakan email lain.`);
       }

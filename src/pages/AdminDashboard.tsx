@@ -254,6 +254,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Navigate, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/sheetsService';
 import { firestoreService, parseRolesField } from '../services/firestoreService';
+import { invalidateMasterMembersCache } from '../services/masterMembersService';
 import { User, Materi, Content } from '../types';
 import LoadingPage from './LoadingPage';
 import { cn, safeJsonParse, getDriveDirectLink, getCorsSafeUrl, safeHtml2Canvas, safeCanvasToDataURL } from '../lib/utils';
@@ -1095,8 +1096,8 @@ export default function AdminDashboard() {
       const ktaStatus = (m.statusKta || '').toString().trim().toLowerCase();
       const mKta = (m.ktaNumber || m.nomorKTA || '').toString().trim();
 
-      // Only genuine unverified registrants or members with pending status are in the queue
-      const isPending = m.isVerified === false || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi' || ktaStatus === 'pending';
+      // Only genuine unverified registrants, members with pending status, or members without an official KTA are in the queue
+      const isPending = m.isVerified === false || s === 'pending' || s === 'menunggu' || s === 'belum verifikasi' || ktaStatus === 'pending' || !isValidKtaNumberFormat(mKta);
 
       if (isPending) {
         // Check if member already has an approved KTA application in ktaApps
@@ -1797,16 +1798,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    let confirmed = true;
-    try {
-      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-        confirmed = window.confirm(`Apakah Anda yakin ingin menyetujui dan mengaktifkan seluruh ${pendingCount} pendaftar KTA sekaligus?\n\nSetiap anggota akan langsung aktif dan diterbitkan nomor KTA resmi HW secara berurutan.`);
-      }
-    } catch (e) {
-      confirmed = true;
-    }
-    if (!confirmed) return;
-
     setIsApprovingAllKta(true);
     setBackgroundProcessingText(`Memproses persetujuan massal ${pendingCount} KTA...`);
 
@@ -1818,14 +1809,17 @@ export default function AdminDashboard() {
         const approvedResults = res.results || [];
 
         // 1. Optimistic instant state update for KTA applications
+        let nextKtas: any[] = [];
         setKtaApps(prev => {
           const prevMap = new Map<string, any>();
           prev.forEach(k => prevMap.set(String(k.id), k));
           approvedResults.forEach((k: any) => prevMap.set(String(k.id), k));
-          return Array.from(prevMap.values());
+          nextKtas = Array.from(prevMap.values());
+          return nextKtas;
         });
 
         // 2. Optimistic instant state update for Members
+        let nextMembers: any[] = [];
         setMembers(prev => {
           const memberMap = new Map<string, any>();
           prev.forEach(m => memberMap.set(String(m.id || m.uid), m));
@@ -1868,13 +1862,48 @@ export default function AdminDashboard() {
             }
           });
 
-          return Array.from(memberMap.values());
+          nextMembers = Array.from(memberMap.values());
+          return nextMembers;
         });
+
+        // 3. Save overrides to local storage and invalidate module cache
+        try {
+          const editsRaw = localStorage.getItem('member_custom_edits');
+          const edits = editsRaw ? JSON.parse(editsRaw) : {};
+          approvedResults.forEach((k: any) => {
+            const uId = String(k.userId || k.id);
+            const uEmail = (k.email || '').toLowerCase().trim();
+            const uName = (k.nama || k.namaLengkap || '').toLowerCase().trim();
+            const payload = {
+              isVerified: true,
+              status: 'approved',
+              statusKta: 'approved',
+              statusAktivasi: 'Aktif',
+              statusPembayaran: 'Lunas',
+              nomorKTA: k.nomorKTA,
+              ktaNumber: k.ktaNumber,
+              verifiedAt: k.verifiedAt || nowIso
+            };
+            if (uId) edits[uId] = { ...(edits[uId] || {}), ...payload };
+            if (uEmail) edits[uEmail] = { ...(edits[uEmail] || {}), ...payload };
+            if (uName) edits[uName] = { ...(edits[uName] || {}), ...payload };
+          });
+          safeStorageSet('member_custom_edits', edits);
+          safeStorageSet('kta_applications', nextKtas);
+          safeStorageSet('mock_members', nextMembers);
+        } catch (e) {}
+
+        invalidateMasterMembersCache();
 
         showToast('success', `Berhasil menyetujui ${res.approvedCount || pendingCount} pengajuan KTA! Semua pendaftar kini resmi aktif.`);
 
         // Synchronize and refresh in background
-        await fetchData().catch(() => {});
+        await sheetsService.getKTAApplications(true).then(refreshedKtas => {
+          if (refreshedKtas && refreshedKtas.length > 0) setKtaApps(refreshedKtas);
+        }).catch(() => {});
+        await sheetsService.getMembers().then(refreshedMembers => {
+          if (refreshedMembers && refreshedMembers.length > 0) setMembers(refreshedMembers);
+        }).catch(() => {});
       } else {
         throw new Error(res?.message || 'Gagal memproses persetujuan massal');
       }

@@ -10,6 +10,7 @@ import { csvPart4 } from './kta_csv_part4';
 import { csvPart5 } from './kta_csv_part5';
 import { csvPart6 } from './kta_csv_part6';
 import trainingData from './initialData/training.json';
+import { getRegisteredApplicantsAsUsers } from './registeredApplicants';
 import { 
   getKwardaCode, 
   parseKtaNumber, 
@@ -105,6 +106,10 @@ const parseCsvPart = (csv: string, partNum: number = 1): User[] => {
 
 let cachedMasterList: User[] | null = null;
 
+export const invalidateMasterMembersCache = () => {
+  cachedMasterList = null;
+};
+
 export const getMasterMembersList = (): User[] => {
   if (cachedMasterList && cachedMasterList.length > 0) {
     return cachedMasterList;
@@ -120,6 +125,10 @@ export const getMasterMembersList = (): User[] => {
   ];
 
   const rawCandidates: User[] = [];
+
+  // 0. Registered applicants awaiting approval & KTA issuance
+  const registeredApplicants = getRegisteredApplicantsAsUsers();
+  rawCandidates.push(...registeredApplicants);
 
   // 1. Official CSV members with issued KTAs have primary priority
   rawCandidates.push(...csvMembers);
@@ -565,10 +574,12 @@ export const getMasterMembersList = (): User[] => {
         mergedList.forEach(m => {
           const idStr = String(m.id || '').trim();
           const idClean = idStr.replace(/^user-/, '');
+          const nameClean = (m.namaLengkap || m.nama || '').toString().toLowerCase().trim();
           const edit = (idStr && overrides[idStr]) ||
                        (idClean && overrides[idClean]) ||
                        (idClean && overrides[`user-${idClean}`]) ||
                        (m.email && overrides[m.email.toLowerCase().trim()]) ||
+                       (nameClean && overrides[nameClean]) ||
                        (m.ktaNumber && overrides[m.ktaNumber.trim()]) ||
                        (m.nomorKTA && overrides[m.nomorKTA.trim()]);
           if (edit) {
